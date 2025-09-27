@@ -1,0 +1,374 @@
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  min-height: calc(100vh - 160px);
+}
+
+.title {
+  font-size: 2.25rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #1f2937;
+  font-family: 'Inter', sans-serif;
+  text-align: center;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 1rem;
+  margin-bottom: 16px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.loading {
+  color: #4b5563;
+  font-size: 1.2rem;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.formContainer {
+  max-width: 500px;
+  margin: 0 auto 24px;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.formGroup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.label {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.input {
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.pendingOrders {
+  margin-bottom: 32px;
+}
+
+.pendingTitle {
+  font-size: 1.75rem;
+  font-weight: 500;
+  margin-bottom: 20px;
+  color: #1f2937;
+  font-family: 'Inter', sans-serif;
+}
+
+.orderGrid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.pendingOrder {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pendingOrder:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.orderText {
+  margin: 8px 0;
+  color: #374151;
+  font-size: 1rem;
+}
+
+.orderLabel {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.statusDone {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.statusPreparing {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.viewButton {
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  width: 100%;
+  text-align: center;
+}
+
+.viewButton:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.viewButton:disabled {
+  background-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.noPending {
+  font-size: 1.2rem;
+  color: #4b5563;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.cartGrid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+  margin-bottom: 32px;
+}
+
+.itemContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.itemContainer:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.itemDetails {
+  flex: 1;
+}
+
+.itemTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px;
+}
+
+.itemPrice {
+  font-size: 1rem;
+  color: #4b5563;
+}
+
+.quantityButtons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.quantityButton, .removeButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.quantityButton {
+  background-color: #16a34a;
+  color: #ffffff;
+  min-width: 40px;
+}
+
+.removeButton {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+.quantityButton:hover, .removeButton:hover {
+  transform: translateY(-2px);
+}
+
+.quantityButton:disabled, .removeButton:disabled {
+  background-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.orderSummary {
+  background-color: #f9fafb;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+}
+
+.total {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 16px 0;
+  text-align: right;
+}
+
+.orderButton {
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  width: 100%;
+  text-align: center;
+}
+
+.orderButton:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.orderButton:disabled {
+  background-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.progressBar {
+  width: 100%;
+  height: 12px;
+  background-color: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: #16a34a;
+  transition: width 0.5s ease-in-out;
+}
+
+/* Responsive Design */
+@media (min-width: 640px) {
+  .cartGrid {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  }
+
+  .inputGroup {
+    flex-direction: row;
+  }
+
+  .formGroup {
+    min-width: 200px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 48px 24px;
+  }
+
+  .title {
+    font-size: 2.5rem;
+  }
+
+  .pendingTitle {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 24px 16px;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .pendingTitle {
+    font-size: 1.5rem;
+  }
+
+  .orderGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .inputGroup {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .itemContainer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .quantityButtons {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .quantityButton, .removeButton {
+    flex: 1;
+    text-align: center;
+  }
+
+  .total {
+    font-size: 1.25rem;
+  }
+
+  .orderButton {
+    padding: 10px;
+  }
+
+  .formGroup {
+    min-width: 100%;
+  }
+}

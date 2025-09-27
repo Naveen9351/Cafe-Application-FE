@@ -1,0 +1,157 @@
+/* Container for the entire component */
+.container {
+  padding: 2rem;
+  max-width: 700px;
+  margin: 2rem auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Title styling */
+.title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+/* Error message styling */
+.error {
+  color: #d32f2f;
+  background-color: #fee2e2;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Order details card */
+.order {
+  background: #f8fafc;
+  border: none;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.order:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Text for order details */
+.text {
+  margin: 0.75rem 0;
+  font-size: 1rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+/* Item title for order items */
+.itemTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 1.25rem 0 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+/* Total amount styling */
+.total {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #1f2937;
+  margin-top: 1.5rem;
+  text-align: right;
+}
+
+/* Progress bar container */
+.progressBar {
+  width: 100%;
+  height: 12px;
+  background-color: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1rem 0;
+  position: relative;
+}
+
+/* Progress bar fill */
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 6px;
+  transition: width 0.5s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle animation for progress bar */
+.progressFill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: moveStripes 2s linear infinite;
+}
+
+/* Animation for progress bar stripes */
+@keyframes moveStripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 20px;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .container {
+    padding: 1.5rem;
+    margin: 1rem;
+    max-width: 100%;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .order {
+    padding: 1rem;
+  }
+
+  .text {
+    font-size: 0.95rem;
+  }
+
+  .itemTitle {
+    font-size: 1.1rem;
+  }
+
+  .total {
+    font-size: 1rem;
+  }
+}

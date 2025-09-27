@@ -1,0 +1,347 @@
+.container {
+  padding: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.title {
+  font-size: 2.25em;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #1a1a1a;
+  font-family: 'Inter', sans-serif;
+}
+
+.tabContainer {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 24px;
+}
+
+.tabButton {
+  padding: 12px 24px;
+  font-size: 1em;
+  font-weight: 500;
+  color: #4b5563;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.3s ease, border-bottom 0.3s ease;
+}
+
+.tabButton.activeTab {
+  color: #2563eb;
+  border-bottom: 3px solid #2563eb;
+  font-weight: 600;
+}
+
+.tabButton:hover {
+  color: #2563eb;
+}
+
+.section {
+  margin-bottom: 40px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.subtitle {
+  font-size: 1.75em;
+  font-weight: 500;
+  margin-bottom: 20px;
+  color: #1f2937;
+  font-family: 'Inter', sans-serif;
+}
+
+.ordersGrid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.orderCard {
+  border: none;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.orderCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.image {
+  max-width: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.orderText {
+  margin: 8px 0;
+  color: #374151;
+  font-size: 1em;
+}
+
+.orderLabel {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.statusDone {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.statusPreparing {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.orderActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.timeInput {
+  padding: 10px;
+  font-size: 1em;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  transition: border-color 0.3s ease;
+}
+
+.timeInput:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.updateButton, .statusButton, .cancelButton, .deleteButton, .button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.updateButton {
+  background-color: #2563eb;
+  color: white;
+}
+
+.statusButton {
+  background-color: #16a34a;
+  color: white;
+}
+
+.cancelButton {
+  background-color: #f59e0b;
+  color: #1f2937;
+}
+
+.deleteButton {
+  background-color: #dc2626;
+  color: white;
+}
+
+.button {
+  background-color: #2563eb;
+  color: white;
+}
+
+.updateButton:hover, .statusButton:hover, .cancelButton:hover, .deleteButton:hover, .button:hover {
+  transform: translateY(-2px);
+}
+
+.updateButton:disabled, .statusButton:disabled, .cancelButton:disabled, .deleteButton:disabled {
+  background-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popupContent {
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: #4b5563;
+}
+
+.closeButton:hover {
+  color: #2563eb;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup:nth-child(4) {
+  grid-column: span 2;
+}
+
+.label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.input, .textarea {
+  padding: 10px;
+  font-size: 1em;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input:focus, .textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.fileInput {
+  padding: 10px 0;
+  font-size: 1em;
+}
+
+.imagePreview {
+  max-width: 120px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.progressBar {
+  width: 100%;
+  height: 12px;
+  background-color: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: #16a34a;
+  transition: width 0.5s ease-in-out;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .title {
+    font-size: 1.75em;
+  }
+
+  .subtitle {
+    font-size: 1.5em;
+  }
+
+  .tabButton {
+    padding: 10px 16px;
+    font-size: 0.9em;
+  }
+
+  .ordersGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formGroup:nth-child(4) {
+    grid-column: span 1;
+  }
+
+  .popupContent {
+    width: 95%;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tabContainer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tabButton {
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .orderActions {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
