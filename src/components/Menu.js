@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router-dom';
 // import { Navbar2, Footer2 } from 'naveen-ui';
 import toast, { Toaster } from 'react-hot-toast';
 import styles from './Menu.module.css';
+import QRCodeComponent from './QRCodeComponent';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -63,6 +64,7 @@ function Menu() {
         <p className={styles.heroSubtitle}>
           Discover our delicious menu crafted with love and care. Order now and enjoy!
         </p>
+        <QRCodeComponent />
       </section>
 
       {/* Menu Section */}
