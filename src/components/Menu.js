@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useCartContext } from '../context/CartContext';
 import { Link, useLocation } from 'react-router-dom';
-import { Navbar2, Footer2 } from 'naveen-ui';
+// import { Navbar2, Footer2 } from 'naveen-ui';
 import toast, { Toaster } from 'react-hot-toast';
 import styles from './Menu.module.css';
 
@@ -55,13 +55,7 @@ function Menu() {
       {/* Toast Container */}
       <Toaster />
 
-      {/* Navbar */}
-      <Navbar2
-        logoUrl="https://imgs.search.brave.com/s2mz_LTSuylBrEcwPKoARRk9Wwg_TWfv0em_bX-MkJA/rs:fit:0:180:1:0/g:ce/aHR0cHM6Ly9icmFu/ZGxvZ29zLm5ldC93/cC1jb250ZW50L3Vw/bG9hZHMvMjAyNS8w/OS9jb25haXJfMjAy/NS1sb2dvX2JyYW5k/bG9nb3MubmV0XzJm/cTdhLTMwMHg4Ny5w/bmc"
-        menuItems={menuItems}
-        color="#ffffff"
-        backgroundColor="#000000"
-      />
+
 
       {/* Hero Section */}
       <section className={styles.hero}>
@@ -116,23 +110,6 @@ function Menu() {
         )}
       </Link>
 
-      {/* Footer */}
-      <Footer2
-        logo="Cafe Delight"
-        links={[
-          { name: 'About Us', path: '/about' },
-          { name: 'Contact', path: '/contact' },
-          { name: 'Privacy Policy', path: '/privacy' },
-        ]}
-        socialMedia={[
-          { platform: 'facebook', url: 'https://facebook.com' },
-          { platform: 'twitter', url: 'https://twitter.com' },
-          { platform: 'instagram', url: 'https://instagram.com' },
-        ]}
-        className={styles.footer}
-      >
-        <p>&copy; {new Date().getFullYear()} Cafe Delight. All rights reserved.</p>
-      </Footer2>
     </div>
   );
 }

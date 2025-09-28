@@ -16,7 +16,6 @@
   padding: 64px 16px;
   background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   color: #ffffff;
-  margin-top: 80px; /* Adjusted for fixed navbar */
 }
 
 .heroTitle {
