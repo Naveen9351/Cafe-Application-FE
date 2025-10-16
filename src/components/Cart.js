@@ -12,19 +12,25 @@ const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
 function Cart() {
   const { items, setItems, getCartTotal, removeItem, updateItemQuantity } = useCartContext();
   const [searchParams] = useSearchParams();
-  const [customerName, setCustomerName] = useState(localStorage.getItem('customerName') || '');
-  const [tableNumber, setTableNumber] = useState(searchParams.get('table') || localStorage.getItem('tableNumber') || '');
+  const [tableNumber, setTableNumber] = useState(localStorage.getItem('tableNumber') || '');
   const [previousOrders, setPreviousOrders] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Load table number from URL params and persist
+  // Load table number from URL params or localStorage
   useEffect(() => {
     const urlTableNumber = searchParams.get('table');
-    if (urlTableNumber && !tableNumber) {
+    if (urlTableNumber) {
       setTableNumber(urlTableNumber);
       localStorage.setItem('tableNumber', urlTableNumber);
+    } else if (!tableNumber) {
+      const storedTableNumber = localStorage.getItem('tableNumber');
+      if (storedTableNumber) {
+        setTableNumber(storedTableNumber);
+      } else {
+        setError('No table number detected. Please scan the QR code from your table.');
+      }
     }
   }, [searchParams, tableNumber]);
 
@@ -42,14 +48,11 @@ function Cart() {
     }
 
     const fetchOrders = async () => {
-      if (!customerName) return;
+      if (!tableNumber) return;
       setIsLoading(true);
       try {
         const res = await axios.get(`${API}/orders`, { 
-          params: { 
-            customerName,
-            tableNumber: tableNumber || undefined 
-          } 
+          params: { tableNumber } 
         });
         setPreviousOrders(res.data);
         console.log('Fetched previous orders:', res.data);
@@ -61,7 +64,7 @@ function Cart() {
       }
     };
 
-    if (customerName) {
+    if (tableNumber) {
       fetchOrders();
     }
 
@@ -79,9 +82,9 @@ function Cart() {
       socket.off('orderUpdate');
       socket.off('orderDeleted');
     };
-  }, [customerName, tableNumber, setItems, items.length, searchParams]);
+  }, [tableNumber, setItems, items.length]);
 
-  // Persist cart items and table number to localStorage
+  // Persist cart items to localStorage
   useEffect(() => {
     try {
       if (items.length > 0) {
@@ -91,25 +94,16 @@ function Cart() {
         localStorage.removeItem('cartItems');
         console.log('Cleared cart items from localStorage');
       }
-      
-      // Persist table number
-      if (tableNumber) {
-        localStorage.setItem('tableNumber', tableNumber);
-      }
     } catch (err) {
       console.error('Error saving cartItems:', err);
       setError('Failed to save cart items');
     }
-  }, [items, tableNumber]);
+  }, [items]);
 
   // Handle order placement
   const handleOrder = async () => {
-    if (!customerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
     if (!tableNumber) {
-      setError('Table number is required. Please scan QR code from your table.');
+      setError('Table number is required. Please scan the QR code from your table.');
       return;
     }
     if (items.length === 0) {
@@ -123,14 +117,12 @@ function Cart() {
         items: items.map(item => item.id),
         quantities: items.map(item => item.quantity),
         total: getCartTotal(),
-        customerName,
         tableNumber,
         status: 'pending',
       };
       const res = await axios.post(`${API}/orders`, order);
       const newOrder = res.data;
 
-      localStorage.setItem('customerName', customerName);
       setItems([]);
       localStorage.removeItem('cartItems');
       setPreviousOrders((prev) => [newOrder, ...prev]);
@@ -141,15 +133,6 @@ function Cart() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Handle customer name change
-  const handleCustomerNameChange = (e) => {
-    const newName = e.target.value;
-    setCustomerName(newName);
-    localStorage.setItem('customerName', newName);
-    setError(null);
-    setPreviousOrders([]);
   };
 
   // Handle remove item with debug logging
@@ -176,47 +159,8 @@ function Cart() {
       {isLoading && <p className={styles.loading}>Loading...</p>}
       {error && <p className={styles.error}>{error}</p>}
 
-      {/* Customer Name Input Only */}
-      <div className={styles.formContainer}>
-        <div className={styles.inputGroup}>
-          <div className={styles.formGroup}>
-            <label htmlFor="customerName" className={styles.label}>Name</label>
-            <input
-              type="text"
-              id="customerName"
-              placeholder="Enter your name"
-              value={customerName}
-              onChange={handleCustomerNameChange}
-              className={styles.input}
-              aria-label="Customer name"
-              required
-            />
-          </div>
-          {/* Table number is now read-only or hidden since it's from QR */}
-          {tableNumber ? (
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Table Number</label>
-              <input
-                type="text"
-                value={tableNumber}
-                readOnly
-                className={`${styles.input} ${styles.readOnlyInput}`}
-                aria-label="Table number from QR code"
-              />
-              <small className={styles.helperText}>Scanned from QR code</small>
-            </div>
-          ) : (
-            <div className={styles.formGroup}>
-              <p className={styles.error}>
-                No table detected. Please scan QR code from your table.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Previous Orders */}
-      {customerName && previousOrders.length > 0 ? (
+      {tableNumber && previousOrders.length > 0 ? (
         <div className={styles.pendingOrders}>
           <h2 className={styles.pendingTitle}>Previous Orders for Table #{tableNumber}</h2>
           <div className={styles.orderGrid}>
@@ -258,7 +202,7 @@ function Cart() {
           </div>
         </div>
       ) : (
-        customerName && tableNumber && <p className={styles.noPending}>No previous orders found for this table.</p>
+        tableNumber && <p className={styles.noPending}>No previous orders found for this table.</p>
       )}
 
       {/* Cart Contents */}
@@ -308,7 +252,7 @@ function Cart() {
             <p className={styles.total}>Total: ${getCartTotal().toFixed(2)}</p>
             <button
               onClick={handleOrder}
-              disabled={!customerName || !tableNumber || items.length === 0 || isLoading}
+              disabled={!tableNumber || items.length === 0 || isLoading}
               className={styles.orderButton}
             >
               {isLoading ? 'Placing Order...' : 'Place Order for Table #' + tableNumber}

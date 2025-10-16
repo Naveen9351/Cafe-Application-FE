@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import QRCodeComponent from './QRCodeComponent';
 import styles from './AdminPanel.module.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -195,6 +196,11 @@ function AdminPanel() {
     }
   };
 
+  // Generate URLs for 12 tables
+  const getQRUrl = (tableNum) => {
+    return `https://cafe-application-fe.vercel.app/menu?table=${tableNum}`;
+  };
+
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Admin Panel</h1>
@@ -212,6 +218,12 @@ function AdminPanel() {
           onClick={() => setActiveTab('orders')}
         >
           Orders
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'qrcodes' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('qrcodes')}
+        >
+          QR Codes
         </button>
       </div>
 
@@ -266,7 +278,6 @@ function AdminPanel() {
           <div className={styles.ordersGrid}>
             {orders.map((order) => (
               <div key={order._id} className={styles.orderCard}>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Customer:</span> {order.customerName}</p>
                 <p className={styles.orderText}><span className={styles.orderLabel}>Table:</span> {order.tableNumber}</p>
                 <p className={styles.orderText}>
                   <span className={styles.orderLabel}>Status:</span> 
@@ -333,6 +344,21 @@ function AdminPanel() {
                     Delete Order
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* QR Codes Tab */}
+      {activeTab === 'qrcodes' && (
+        <section className={styles.section}>
+          <h2 className={styles.subtitle}>Table QR Codes</h2>
+          <p>Download QR codes for tables 1 to 12 to place on each table.</p>
+          <div className={styles.qrGrid}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((tableNum) => (
+              <div key={tableNum} className={styles.qrCard}>
+                <QRCodeComponent url={getQRUrl(tableNum)} tableNumber={tableNum.toString()} />
               </div>
             ))}
           </div>

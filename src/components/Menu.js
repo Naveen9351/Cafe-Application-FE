@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useCartContext } from '../context/CartContext';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import styles from './Menu.module.css';
 import QRCodeComponent from './QRCodeComponent';
@@ -14,9 +14,22 @@ function Menu() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [tableNumber, setTableNumber] = useState('');
   const { addItem, cartItems } = useCartContext();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
+    // Extract table number from URL query parameter
+    const urlTableNumber = searchParams.get('table');
+    if (urlTableNumber) {
+      setTableNumber(urlTableNumber);
+      localStorage.setItem('tableNumber', urlTableNumber);
+    } else {
+      // Check if table number exists in localStorage
+      const storedTableNumber = localStorage.getItem('tableNumber');
+      if (storedTableNumber) {
+        setTableNumber(storedTableNumber);
+      }
+    }
+
     // Fetch categories
     axios
       .get(`${API}/categories`)
@@ -32,7 +45,7 @@ function Menu() {
         setItems(res.data);
       })
       .catch((err) => console.error('Error fetching menu:', err));
-  }, []);
+  }, [searchParams]);
 
   // Filter items by category
   const filteredItems = selectedCategory === 'all' 
@@ -59,8 +72,6 @@ function Menu() {
     });
   };
 
-  const isCartPage = location.pathname === '/cart';
-
   // Generate table-specific QR URL
   const getQRUrl = (tableNum) => {
     return `https://cafe-application-fe.vercel.app/menu?table=${tableNum}`;
@@ -70,19 +81,15 @@ function Menu() {
     <div className={styles.pageWrapper}>
       <Toaster />
 
-      {/* Table Number Input */}
-      <div className={styles.tableInputContainer}>
-        <input
-          type="text"
-          placeholder="Enter Table Number"
-          value={tableNumber}
-          onChange={(e) => setTableNumber(e.target.value)}
-          className={styles.tableInput}
-        />
-        {tableNumber && (
+      {/* Display Table Number */}
+      {tableNumber && (
+        <div className={styles.tableInputContainer}>
+          <p className={styles.tableDisplay}>
+            <strong>Table: #{tableNumber}</strong>
+          </p>
           <QRCodeComponent url={getQRUrl(tableNumber)} tableNumber={tableNumber} />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className={styles.hero}>
@@ -134,6 +141,7 @@ function Menu() {
                   <button
                     onClick={() => handleAddToCart(item)}
                     className={styles.button}
+                    disabled={!tableNumber}
                   >
                     Add to Cart
                   </button>
@@ -145,7 +153,7 @@ function Menu() {
       </section>
 
       {/* Cart Button */}
-      <Link to="/cart" className={styles.cartButton}>
+      <Link to={`/cart?table=${tableNumber}`} className={styles.cartButton}>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
@@ -161,7 +169,7 @@ function Menu() {
           <circle cx="20" cy="21" r="1" />
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
         </svg>
-        {!isCartPage && cartItems?.length > 0 && (
+        {cartItems?.length > 0 && (
           <span className={styles.cartBadge}>{cartItems.length}</span>
         )}
       </Link>
