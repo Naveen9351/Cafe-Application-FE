@@ -2,41 +2,51 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useCartContext } from '../context/CartContext';
 import { Link, useLocation } from 'react-router-dom';
-// import { Navbar2, Footer2 } from 'naveen-ui';
 import toast, { Toaster } from 'react-hot-toast';
 import styles from './Menu.module.css';
 import QRCodeComponent from './QRCodeComponent';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-const menuItems = [
-  { label: 'Home', link: '/' },
-  {
-    label: 'Products',
-    link: '#',
-    children: [
-      { label: 'Product 1', link: '#product1' },
-      { label: 'Product 2', link: '#product2' },
-    ],
-  },
-  { label: 'About', link: '/about' },
-  { label: 'Contact', link: '/contact' },
-];
-
 function Menu() {
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [tableNumber, setTableNumber] = useState('');
   const { addItem, cartItems } = useCartContext();
   const location = useLocation();
 
   useEffect(() => {
+    // Fetch categories
+    axios
+      .get(`${API}/categories`)
+      .then((res) => {
+        setCategories([{ id: 'all', name: 'All Categories' }, ...res.data]);
+      })
+      .catch((err) => console.error('Error fetching categories:', err));
+
+    // Fetch all menu items
     axios
       .get(`${API}/menu`)
-      .then((res) => setItems(res.data))
+      .then((res) => {
+        setItems(res.data);
+      })
       .catch((err) => console.error('Error fetching menu:', err));
   }, []);
 
+  // Filter items by category
+  const filteredItems = selectedCategory === 'all' 
+    ? items 
+    : items.filter(item => item.category === selectedCategory);
+
   const handleAddToCart = (item) => {
-    addItem({ id: item._id, name: item.name, price: item.price });
+    addItem({ 
+      id: item._id, 
+      name: item.name, 
+      price: item.price,
+      category: item.category,
+      image: item.image
+    });
     toast.success(`${item.name} added to cart!`, {
       position: 'top-right',
       duration: 3000,
@@ -51,12 +61,28 @@ function Menu() {
 
   const isCartPage = location.pathname === '/cart';
 
+  // Generate table-specific QR URL
+  const getQRUrl = (tableNum) => {
+    return `https://cafe-application-fe.vercel.app/menu?table=${tableNum}`;
+  };
+
   return (
     <div className={styles.pageWrapper}>
-      {/* Toast Container */}
       <Toaster />
 
-
+      {/* Table Number Input */}
+      <div className={styles.tableInputContainer}>
+        <input
+          type="text"
+          placeholder="Enter Table Number"
+          value={tableNumber}
+          onChange={(e) => setTableNumber(e.target.value)}
+          className={styles.tableInput}
+        />
+        {tableNumber && (
+          <QRCodeComponent url={getQRUrl(tableNumber)} tableNumber={tableNumber} />
+        )}
+      </div>
 
       {/* Hero Section */}
       <section className={styles.hero}>
@@ -64,30 +90,58 @@ function Menu() {
         <p className={styles.heroSubtitle}>
           Discover our delicious menu crafted with love and care. Order now and enjoy!
         </p>
-        <QRCodeComponent />
+      </section>
+
+      {/* Categories Filter */}
+      <section className={styles.categoriesSection}>
+        <div className={styles.categoryTabs}>
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              className={`${styles.categoryTab} ${
+                selectedCategory === category.id ? styles.activeCategory : ''
+              }`}
+              onClick={() => setSelectedCategory(category.id)}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Menu Section */}
       <section className={styles.container}>
         <h2 className={styles.title}>Our Menu</h2>
-        <div className={styles.grid}>
-          {items.map((item) => (
-            <div key={item._id} className={styles.card}>
-              <img src={item.image} alt={item.name} className={styles.image} />
-              <div className={styles.cardContent}>
-                <h3 className={styles.itemTitle}>{item.name}</h3>
-                <p className={styles.description}>{item.description}</p>
-                <p className={styles.price}>{item.price.toFixed(2)} rs</p>
-                <button
-                  onClick={() => handleAddToCart(item)}
-                  className={styles.button}
-                >
-                  Add to Cart
-                </button>
+        {filteredItems.length === 0 ? (
+          <p className={styles.noItems}>No items found in this category.</p>
+        ) : (
+          <div className={styles.grid}>
+            {filteredItems.map((item) => (
+              <div key={item._id} className={styles.card}>
+                <img 
+                  src={item.image || '/default-food-image.jpg'} 
+                  alt={item.name} 
+                  className={styles.image}
+                  onError={(e) => {
+                    e.target.src = '/default-food-image.jpg';
+                  }}
+                />
+                <div className={styles.cardContent}>
+                  <h3 className={styles.itemTitle}>{item.name}</h3>
+                  <p className={styles.categoryTag}>{item.categoryName || item.category}</p>
+                  <p className={styles.description}>{item.description}</p>
+                  <p className={styles.price}>{item.price.toFixed(2)} rs</p>
+                  <button
+                    onClick={() => handleAddToCart(item)}
+                    className={styles.button}
+                  >
+                    Add to Cart
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Cart Button */}
@@ -111,7 +165,6 @@ function Menu() {
           <span className={styles.cartBadge}>{cartItems.length}</span>
         )}
       </Link>
-
     </div>
   );
 }

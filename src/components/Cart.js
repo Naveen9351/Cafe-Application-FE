@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useCartContext } from '../context/CartContext';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -10,12 +11,22 @@ const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
 
 function Cart() {
   const { items, setItems, getCartTotal, removeItem, updateItemQuantity } = useCartContext();
+  const [searchParams] = useSearchParams();
   const [customerName, setCustomerName] = useState(localStorage.getItem('customerName') || '');
-  const [tableNumber, setTableNumber] = useState('');
+  const [tableNumber, setTableNumber] = useState(searchParams.get('table') || localStorage.getItem('tableNumber') || '');
   const [previousOrders, setPreviousOrders] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Load table number from URL params and persist
+  useEffect(() => {
+    const urlTableNumber = searchParams.get('table');
+    if (urlTableNumber && !tableNumber) {
+      setTableNumber(urlTableNumber);
+      localStorage.setItem('tableNumber', urlTableNumber);
+    }
+  }, [searchParams, tableNumber]);
 
   // Load previous orders and persist cart items
   useEffect(() => {
@@ -34,7 +45,12 @@ function Cart() {
       if (!customerName) return;
       setIsLoading(true);
       try {
-        const res = await axios.get(`${API}/orders`, { params: { customerName } });
+        const res = await axios.get(`${API}/orders`, { 
+          params: { 
+            customerName,
+            tableNumber: tableNumber || undefined 
+          } 
+        });
         setPreviousOrders(res.data);
         console.log('Fetched previous orders:', res.data);
       } catch (err) {
@@ -45,7 +61,9 @@ function Cart() {
       }
     };
 
-    fetchOrders();
+    if (customerName) {
+      fetchOrders();
+    }
 
     socket.on('orderUpdate', (updatedOrder) => {
       setPreviousOrders((prev) =>
@@ -61,9 +79,9 @@ function Cart() {
       socket.off('orderUpdate');
       socket.off('orderDeleted');
     };
-  }, [customerName, setItems, items.length]);
+  }, [customerName, tableNumber, setItems, items.length, searchParams]);
 
-  // Persist cart items to localStorage
+  // Persist cart items and table number to localStorage
   useEffect(() => {
     try {
       if (items.length > 0) {
@@ -73,11 +91,16 @@ function Cart() {
         localStorage.removeItem('cartItems');
         console.log('Cleared cart items from localStorage');
       }
+      
+      // Persist table number
+      if (tableNumber) {
+        localStorage.setItem('tableNumber', tableNumber);
+      }
     } catch (err) {
       console.error('Error saving cartItems:', err);
       setError('Failed to save cart items');
     }
-  }, [items]);
+  }, [items, tableNumber]);
 
   // Handle order placement
   const handleOrder = async () => {
@@ -85,8 +108,8 @@ function Cart() {
       setError('Please enter your name');
       return;
     }
-    if (!tableNumber || isNaN(tableNumber) || Number(tableNumber) <= 0) {
-      setError('Please enter a valid table number');
+    if (!tableNumber) {
+      setError('Table number is required. Please scan QR code from your table.');
       return;
     }
     if (items.length === 0) {
@@ -140,11 +163,20 @@ function Cart() {
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Your Cart</h1>
+      
+      {/* Display Table Number */}
+      {tableNumber && (
+        <div className={styles.tableInfo}>
+          <p className={styles.tableDisplay}>
+            <strong>Table: #{tableNumber}</strong>
+          </p>
+        </div>
+      )}
 
       {isLoading && <p className={styles.loading}>Loading...</p>}
       {error && <p className={styles.error}>{error}</p>}
 
-      {/* Customer Name and Table Number Inputs */}
+      {/* Customer Name Input Only */}
       <div className={styles.formContainer}>
         <div className={styles.inputGroup}>
           <div className={styles.formGroup}>
@@ -160,26 +192,33 @@ function Cart() {
               required
             />
           </div>
-          <div className={styles.formGroup}>
-            <label htmlFor="tableNumber" className={styles.label}>Table Number</label>
-            <input
-              type="text"
-              id="tableNumber"
-              placeholder="Enter table number"
-              value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
-              className={styles.input}
-              aria-label="Table number"
-              required
-            />
-          </div>
+          {/* Table number is now read-only or hidden since it's from QR */}
+          {tableNumber ? (
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Table Number</label>
+              <input
+                type="text"
+                value={tableNumber}
+                readOnly
+                className={`${styles.input} ${styles.readOnlyInput}`}
+                aria-label="Table number from QR code"
+              />
+              <small className={styles.helperText}>Scanned from QR code</small>
+            </div>
+          ) : (
+            <div className={styles.formGroup}>
+              <p className={styles.error}>
+                No table detected. Please scan QR code from your table.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Previous Orders */}
       {customerName && previousOrders.length > 0 ? (
         <div className={styles.pendingOrders}>
-          <h2 className={styles.pendingTitle}>Previous Orders</h2>
+          <h2 className={styles.pendingTitle}>Previous Orders for Table #{tableNumber}</h2>
           <div className={styles.orderGrid}>
             {previousOrders.map(order => (
               <div key={order._id} className={styles.pendingOrder}>
@@ -219,12 +258,14 @@ function Cart() {
           </div>
         </div>
       ) : (
-        customerName && <p className={styles.noPending}>No previous orders found.</p>
+        customerName && tableNumber && <p className={styles.noPending}>No previous orders found for this table.</p>
       )}
 
       {/* Cart Contents */}
       {items.length === 0 ? (
-        <p className={styles.emptyCart}>Your cart is empty</p>
+        <p className={styles.emptyCart}>Your cart is empty. 
+          {tableNumber && <span> Add items from the menu for Table #{tableNumber}</span>}
+        </p>
       ) : (
         <>
           <div className={styles.cartGrid}>
@@ -247,7 +288,7 @@ function Cart() {
                     onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
                     className={styles.quantityButton}
                     aria-label={`Decrease quantity of ${item.name}`}
-                    disabled={isLoading}
+                    disabled={isLoading || item.quantity <= 1}
                   >
                     -
                   </button>
@@ -270,7 +311,7 @@ function Cart() {
               disabled={!customerName || !tableNumber || items.length === 0 || isLoading}
               className={styles.orderButton}
             >
-              Place Order
+              {isLoading ? 'Placing Order...' : 'Place Order for Table #' + tableNumber}
             </button>
           </div>
         </>
