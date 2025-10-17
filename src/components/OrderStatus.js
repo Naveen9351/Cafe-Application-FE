@@ -114,7 +114,6 @@ function OrderStatus() {
       <h1 className={styles.title}>Order Status</h1>
       <div className={styles.order}>
         <h2>Order Details</h2>
-        <p className={styles.text}>Customer: {order.customerName}</p>
         <p className={styles.text}>Table: {order.tableNumber}</p>
         <p className={styles.text}>Status: {order.status}</p>
         {order.status === 'preparing' && order.estimatedTime && order.timeSetAt ? (
