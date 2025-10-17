@@ -163,7 +163,7 @@ function Cart() {
       {tableNumber && previousOrders.length > 0 ? (
         <div className={styles.pendingOrders}>
           <h2 className={styles.pendingTitle}>Previous Orders for Table #{tableNumber}</h2>
-          <div className={styles.orderGrid}>
+          {/* <div className={styles.orderGrid}>
             {previousOrders.map(order => (
               <div key={order._id} className={styles.pendingOrder}>
                 <p className={styles.orderText}><span className={styles.orderLabel}>Order ID:</span> {order._id.slice(-6)}</p>
@@ -199,7 +199,7 @@ function Cart() {
                 </button>
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
       ) : (
         tableNumber && <p className={styles.noPending}>No previous orders found for this table.</p>

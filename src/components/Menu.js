@@ -48,14 +48,14 @@ function Menu() {
   }, [searchParams]);
 
   // Filter items by category
-  const filteredItems = selectedCategory === 'all' 
-    ? items 
+  const filteredItems = selectedCategory === 'all'
+    ? items
     : items.filter(item => item.category === selectedCategory);
 
   const handleAddToCart = (item) => {
-    addItem({ 
-      id: item._id, 
-      name: item.name, 
+    addItem({
+      id: item._id,
+      name: item.name,
       price: item.price,
       category: item.category,
       image: item.image
@@ -81,21 +81,17 @@ function Menu() {
     <div className={styles.pageWrapper}>
       <Toaster />
 
-      {/* Display Table Number */}
-      {tableNumber && (
-        <div className={styles.tableInputContainer}>
-          <p className={styles.tableDisplay}>
-            <strong>Table: #{tableNumber}</strong>
-          </p>
-          <QRCodeComponent url={getQRUrl(tableNumber)} tableNumber={tableNumber} />
-        </div>
-      )}
+
 
       {/* Hero Section */}
       <section className={styles.hero}>
         <h1 className={styles.heroTitle}>Welcome to Cafe Delight</h1>
         <p className={styles.heroSubtitle}>
           Discover our delicious menu crafted with love and care. Order now and enjoy!
+          {/* Display Table Number */}
+          {tableNumber && (
+            <strong>Table: #{tableNumber}</strong>
+          )}
         </p>
       </section>
 
@@ -105,9 +101,8 @@ function Menu() {
           {categories.map((category) => (
             <button
               key={category.id}
-              className={`${styles.categoryTab} ${
-                selectedCategory === category.id ? styles.activeCategory : ''
-              }`}
+              className={`${styles.categoryTab} ${selectedCategory === category.id ? styles.activeCategory : ''
+                }`}
               onClick={() => setSelectedCategory(category.id)}
             >
               {category.name}
@@ -125,9 +120,9 @@ function Menu() {
           <div className={styles.grid}>
             {filteredItems.map((item) => (
               <div key={item._id} className={styles.card}>
-                <img 
-                  src={item.image || '/default-food-image.jpg'} 
-                  alt={item.name} 
+                <img
+                  src={item.image || '/default-food-image.jpg'}
+                  alt={item.name}
                   className={styles.image}
                   onError={(e) => {
                     e.target.src = '/default-food-image.jpg';

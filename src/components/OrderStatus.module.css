@@ -1,96 +1,97 @@
 /* Container for the entire component */
 .container {
-  padding: 2rem;
-  max-width: 700px;
-  margin: 2rem auto;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  min-height: 400px;
+  padding: 1.5rem; /* Reduced padding */
+  max-width: 100%; /* Responsive width */
+  width: min(95%, 650px); /* Slightly smaller max-width */
+  margin: 1.5rem auto; /* Reduced margin */
+  background: linear-gradient(135deg, #ffffff, #f9fafb); /* Subtle gradient for premium feel */
+  border-radius: 10px; /* Softer corners */
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08); /* Softer shadow */
+  min-height: 350px; /* Reduced min-height */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Title styling */
 .title {
-  font-size: 2.25rem;
+  font-size: 2rem; /* Smaller font */
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 1.5rem;
+  color: #111827; /* Darker, premium color */
+  margin-bottom: 1rem; /* Reduced margin */
   text-align: center;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em; /* Tighter letter spacing */
 }
 
 /* Error message styling */
 .error {
-  color: #d32f2f;
-  background-color: #fee2e2;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
+  color: #b91c1c; /* Deeper red for visibility */
+  background-color: #fef2f2; /* Softer background */
+  padding: 0.75rem; /* Reduced padding */
+  border-radius: 6px; /* Softer corners */
+  margin-bottom: 1rem; /* Reduced margin */
+  font-size: 0.9375rem; /* Smaller font */
   font-weight: 500;
   text-align: center;
 }
 
 /* Order details card */
 .order {
-  background: #f8fafc;
+  background: #f9fafb; /* Softer background */
   border: none;
-  padding: 1.5rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  padding: 1.25rem; /* Reduced padding */
+  border-radius: 8px; /* Softer corners */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); /* Softer shadow */
+  transition: transform 0.25s ease, box-shadow 0.25s ease; /* Smoother transitions */
 }
 
 .order:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px); /* Subtler lift */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Slightly stronger shadow */
 }
 
 /* Text for order details */
 .text {
-  margin: 0.75rem 0;
-  font-size: 1rem;
+  margin: 0.5rem 0; /* Reduced margin */
+  font-size: 0.9375rem; /* Smaller font */
   color: #374151;
-  line-height: 1.5;
+  line-height: 1.4; /* Tighter line height */
 }
 
 /* Item title for order items */
 .itemTitle {
-  font-size: 1.25rem;
+  font-size: 1.125rem; /* Smaller font */
   font-weight: 600;
   color: #1f2937;
-  margin: 1.25rem 0 0.5rem;
+  margin: 1rem 0 0.4rem; /* Reduced margin */
   border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.4rem; /* Reduced padding */
 }
 
 /* Total amount styling */
 .total {
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: 1.0625rem; /* Smaller font */
   color: #1f2937;
-  margin-top: 1.5rem;
+  margin-top: 1rem; /* Reduced margin */
   text-align: right;
 }
 
 /* Progress bar container */
 .progressBar {
   width: 100%;
-  height: 12px;
+  height: 10px; /* Thinner bar */
   background-color: #e5e7eb;
-  border-radius: 6px;
+  border-radius: 5px; /* Softer corners */
   overflow: hidden;
-  margin: 1rem 0;
+  margin: 0.75rem 0; /* Reduced margin */
   position: relative;
 }
 
 /* Progress bar fill */
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-  border-radius: 6px;
-  transition: width 0.5s ease-in-out;
+  background: linear-gradient(90deg, #22c55e, #15803d); /* Deeper green gradient */
+  border-radius: 5px;
+  transition: width 0.4s ease-in-out; /* Slightly faster transition */
   position: relative;
   overflow: hidden;
 }
@@ -105,16 +106,16 @@
   height: 100%;
   background: linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.2) 25%,
+    rgba(255, 255, 255, 0.15) 25%, /* Softer stripes */
     transparent 25%,
     transparent 50%,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0.2) 75%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
     transparent 75%,
     transparent
   );
-  background-size: 20px 20px;
-  animation: moveStripes 2s linear infinite;
+  background-size: 18px 18px; /* Smaller stripes */
+  animation: moveStripes 1.8s linear infinite; /* Slightly faster animation */
 }
 
 /* Animation for progress bar stripes */
@@ -123,35 +124,35 @@
     background-position: 0 0;
   }
   100% {
-    background-position: 20px 20px;
+    background-position: 18px 18px;
   }
 }
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .container {
-    padding: 1.5rem;
-    margin: 1rem;
+    padding: 1rem; /* Reduced padding */
+    margin: 0.75rem; /* Reduced margin */
     max-width: 100%;
   }
 
   .title {
-    font-size: 1.75rem;
+    font-size: 1.5rem; /* Smaller font */
   }
 
   .order {
-    padding: 1rem;
+    padding: 0.75rem; /* Reduced padding */
   }
 
   .text {
-    font-size: 0.95rem;
+    font-size: 0.875rem; /* Smaller font */
   }
 
   .itemTitle {
-    font-size: 1.1rem;
+    font-size: 1rem; /* Smaller font */
   }
 
   .total {
-    font-size: 1rem;
+    font-size: 0.9375rem; /* Smaller font */
   }
 }

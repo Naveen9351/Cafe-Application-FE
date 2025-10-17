@@ -1,45 +1,48 @@
 .container {
-  max-width: 1280px;
+  max-width: 100%; /* Full-width responsiveness */
+  width: min(95%, 1200px); /* Responsive width, max 1200px */
   margin: 0 auto;
-  padding: 32px 16px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  min-height: calc(100vh - 160px);
+  padding: 24px 12px; /* Reduced padding for tighter layout */
+  background: linear-gradient(135deg, #ffffff, #f9fafb); /* Subtle gradient for premium feel */
+  border-radius: 10px; /* Softer corners */
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.06); /* Lighter shadow */
+  min-height: calc(100vh - 120px); /* Adjusted min-height */
 }
 
 .title {
-  font-size: 2.25rem;
+  font-size: 2rem; /* Reduced font size */
   font-weight: 600;
-  margin-bottom: 24px;
-  color: #1f2937;
+  margin-bottom: 16px; /* Tighter margin */
+  color: #111827; /* Darker, premium color */
   font-family: 'Inter', sans-serif;
   text-align: center;
+  letter-spacing: -0.025em; /* Subtle letter spacing */
 }
 
 .error {
-  color: #dc2626;
-  font-size: 1rem;
-  margin-bottom: 16px;
+  color: #b91c1c; /* Deeper red for visibility */
+  font-size: 0.875rem; /* Smaller font */
+  margin-bottom: 12px; /* Reduced margin */
   text-align: center;
   font-weight: 500;
 }
 
 .loading {
-  color: #4b5563;
-  font-size: 1.2rem;
+  color: #6b7280; /* Softer gray */
+  font-size: 1rem; /* Smaller font */
   text-align: center;
-  margin: 24px 0;
+  margin: 16px 0; /* Reduced margin */
 }
 
 .formContainer {
-  max-width: 500px;
-  margin: 0 auto 24px;
+  max-width: 100%; /* Responsive */
+  width: min(90%, 450px); /* Smaller max-width */
+  margin: 0 auto 16px; /* Reduced margin */
 }
 
 .inputGroup {
   display: flex;
-  gap: 0;
+  gap: 12px; /* Added small gap for clarity */
   flex-wrap: wrap;
 }
 
@@ -47,98 +50,101 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 150px;
+  min-width: 140px; /* Slightly smaller min-width */
 }
 
 .label {
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 8px;
+  margin-bottom: 6px; /* Reduced margin */
+  font-size: 0.875rem; /* Smaller font */
 }
 
 .input {
-  padding: 12px;
-  font-size: 1rem;
+  padding: 10px; /* Reduced padding */
+  font-size: 0.9375rem; /* Smaller font */
   border: 1px solid #d1d5db;
-  border-radius: 8px;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 6px; /* Softer corners */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Smoother transitions */
 }
 
 .input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #1d4ed8; /* Deeper blue */
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15); /* Subtler focus ring */
 }
 
 .pendingOrders {
-  margin-bottom: 32px;
+  margin-bottom: 24px; /* Reduced margin */
 }
 
 .pendingTitle {
-  font-size: 1.75rem;
+  font-size: 1.5rem; /* Smaller font */
   font-weight: 500;
-  margin-bottom: 20px;
+  margin-bottom: 14px; /* Reduced margin */
   color: #1f2937;
   font-family: 'Inter', sans-serif;
 }
 
 .orderGrid {
   display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px; /* Tighter gap */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Smaller min-width */
 }
 
 .pendingOrder {
   background-color: #ffffff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 8px; /* Softer corners */
+  padding: 16px; /* Reduced padding */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07); /* Softer shadow */
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .pendingOrder:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px); /* Subtler lift */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow */
 }
 
 .orderText {
-  margin: 8px 0;
+  margin: 6px 0; /* Reduced margin */
   color: #374151;
-  font-size: 1rem;
+  font-size: 0.9375rem; /* Smaller font */
 }
 
 .orderLabel {
   font-weight: 600;
   color: #1f2937;
+  font-size: 0.9375rem;
 }
 
 .statusDone {
-  color: #16a34a;
+  color: #15803d; /* Deeper green */
   font-weight: 500;
 }
 
 .statusPreparing {
-  color: #f59e0b;
+  color: #d97706; /* Richer amber */
   font-weight: 500;
 }
 
 .viewButton {
-  background-color: #2563eb;
+  background-color: #1d4ed8; /* Deeper blue */
   color: #ffffff;
-  padding: 10px 16px;
+  padding: 8px 14px; /* Reduced padding */
   border: none;
-  border-radius: 6px;
+  border-radius: 5px; /* Softer corners */
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.875rem; /* Smaller font */
   font-weight: 500;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   width: 100%;
   text-align: center;
 }
 
 .viewButton:hover {
-  background-color: #1d4ed8;
-  transform: translateY(-2px);
+  background-color: #1e40af; /* Darker blue */
+  transform: translateY(-1px); /* Subtler lift */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
 .viewButton:disabled {
@@ -149,17 +155,17 @@
 }
 
 .noPending {
-  font-size: 1.2rem;
-  color: #4b5563;
+  font-size: 1rem; /* Smaller font */
+  color: #6b7280;
   text-align: center;
-  margin: 24px 0;
+  margin: 16px 0; /* Reduced margin */
 }
 
 .cartGrid {
   display: grid;
-  gap: 20px;
+  gap: 16px; /* Tighter gap */
   grid-template-columns: 1fr;
-  margin-bottom: 32px;
+  margin-bottom: 24px; /* Reduced margin */
 }
 
 .itemContainer {
@@ -167,15 +173,15 @@
   justify-content: space-between;
   align-items: center;
   background-color: #ffffff;
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 8px; /* Softer corners */
+  padding: 14px; /* Reduced padding */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07); /* Softer shadow */
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .itemContainer:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px); /* Subtler lift */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow */
 }
 
 .itemDetails {
@@ -183,46 +189,47 @@
 }
 
 .itemTitle {
-  font-size: 1.25rem;
+  font-size: 1.125rem; /* Smaller font */
   font-weight: 600;
   color: #1f2937;
-  margin: 0 0 8px;
+  margin: 0 0 6px; /* Reduced margin */
 }
 
 .itemPrice {
-  font-size: 1rem;
-  color: #4b5563;
+  font-size: 0.9375rem; /* Smaller font */
+  color: #6b7280;
 }
 
 .quantityButtons {
   display: flex;
-  gap: 12px;
+  gap: 10px; /* Reduced gap */
   align-items: center;
 }
 
 .quantityButton, .removeButton {
-  padding: 8px 16px;
+  padding: 6px 14px; /* Reduced padding */
   border: none;
-  border-radius: 6px;
+  border-radius: 5px; /* Softer corners */
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.875rem; /* Smaller font */
   font-weight: 500;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .quantityButton {
-  background-color: #16a34a;
+  background-color: #15803d; /* Deeper green */
   color: #ffffff;
-  min-width: 40px;
+  min-width: 36px; /* Slightly smaller */
 }
 
 .removeButton {
-  background-color: #dc2626;
+  background-color: #b91c1c; /* Deeper red */
   color: #ffffff;
 }
 
 .quantityButton:hover, .removeButton:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px); /* Subtler lift */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
 .quantityButton:disabled, .removeButton:disabled {
@@ -234,36 +241,37 @@
 
 .orderSummary {
   background-color: #f9fafb;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+  padding: 16px; /* Reduced padding */
+  border-radius: 8px; /* Softer corners */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05); /* Softer shadow */
 }
 
 .total {
-  font-size: 1.5rem;
+  font-size: 1.375rem; /* Smaller font */
   font-weight: 600;
   color: #1f2937;
-  margin: 16px 0;
+  margin: 12px 0; /* Reduced margin */
   text-align: right;
 }
 
 .orderButton {
-  background-color: #2563eb;
+  background-color: #1d4ed8; /* Deeper blue */
   color: #ffffff;
-  padding: 12px 20px;
+  padding: 10px 16px; /* Reduced padding */
   border: none;
-  border-radius: 8px;
+  border-radius: 6px; /* Softer corners */
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9375rem; /* Smaller font */
   font-weight: 500;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   width: 100%;
   text-align: center;
 }
 
 .orderButton:hover {
-  background-color: #1d4ed8;
-  transform: translateY(-2px);
+  background-color: #1e40af; /* Darker blue */
+  transform: translateY(-1px); /* Subtler lift */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
 .orderButton:disabled {
@@ -275,23 +283,23 @@
 
 .progressBar {
   width: 100%;
-  height: 12px;
+  height: 10px; /* Thinner bar */
   background-color: #e5e7eb;
-  border-radius: 6px;
+  border-radius: 5px; /* Softer corners */
   overflow: hidden;
-  margin: 8px 0;
+  margin: 6px 0; /* Reduced margin */
 }
 
 .progressFill {
   height: 100%;
-  background-color: #16a34a;
-  transition: width 0.5s ease-in-out;
+  background-color: #15803d; /* Deeper green */
+  transition: width 0.4s ease-in-out; /* Slightly faster transition */
 }
 
 /* Responsive Design */
 @media (min-width: 640px) {
   .cartGrid {
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* Smaller min-width */
   }
 
   .inputGroup {
@@ -299,35 +307,35 @@
   }
 
   .formGroup {
-    min-width: 200px;
+    min-width: 180px; /* Slightly smaller */
   }
 }
 
 @media (min-width: 1024px) {
   .container {
-    padding: 48px 24px;
+    padding: 32px 16px; /* Adjusted padding */
   }
 
   .title {
-    font-size: 2.5rem;
+    font-size: 2.25rem; /* Slightly smaller */
   }
 
   .pendingTitle {
-    font-size: 2rem;
+    font-size: 1.75rem; /* Slightly smaller */
   }
 }
 
 @media (max-width: 768px) {
   .container {
-    padding: 24px 16px;
+    padding: 16px 12px; /* Reduced padding */
   }
 
   .title {
-    font-size: 2rem;
+    font-size: 1.75rem; /* Smaller font */
   }
 
   .pendingTitle {
-    font-size: 1.5rem;
+    font-size: 1.375rem; /* Smaller font */
   }
 
   .orderGrid {
@@ -341,13 +349,13 @@
 
 @media (max-width: 480px) {
   .title {
-    font-size: 1.75rem;
+    font-size: 1.5rem; /* Smaller font */
   }
 
   .itemContainer {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px; /* Reduced gap */
   }
 
   .quantityButtons {
@@ -358,14 +366,16 @@
   .quantityButton, .removeButton {
     flex: 1;
     text-align: center;
+    font-size: 0.8125rem; /* Smaller font */
   }
 
   .total {
-    font-size: 1.25rem;
+    font-size: 1.125rem; /* Smaller font */
   }
 
   .orderButton {
-    padding: 10px;
+    padding: 8px; /* Reduced padding */
+    font-size: 0.875rem; /* Smaller font */
   }
 
   .formGroup {

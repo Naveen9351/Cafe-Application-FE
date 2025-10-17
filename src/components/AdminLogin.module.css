@@ -1,43 +1,92 @@
 .container {
-  max-width: 448px; /* Equivalent to max-w-md */
+  max-width: 100%;
+  width: min(90%, 400px); /* Responsive width, max 400px */
   margin: 0 auto;
-  padding: 16px;
+  padding: 12px; /* Reduced padding for tighter layout */
+  background: linear-gradient(135deg, #ffffff, #f8fafc); /* Subtle gradient for premium feel */
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Soft shadow for depth */
 }
 
 .title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  margin-bottom: 16px;
+  font-size: 1.5rem; /* Reduced font size for elegance */
+  font-weight: 600; /* Slightly lighter for modern look */
+  margin-bottom: 12px; /* Reduced margin */
+  color: #1e293b; /* Darker, premium text color */
+  text-align: center;
+  letter-spacing: -0.02em; /* Tightened letter spacing */
 }
 
 .error {
-  color: #ef4444;
-  font-size: 1rem;
-  margin-bottom: 8px;
+  color: #dc2626; /* Vibrant red for errors */
+  font-size: 0.875rem; /* Smaller font size */
+  margin-bottom: 6px; /* Reduced margin */
+  text-align: center;
+  font-weight: 500;
 }
 
 .input {
-  border: 1px solid #e5e7eb;
-  padding: 8px;
+  border: 1px solid #d1d5db; /* Softer gray border */
+  padding: 6px 10px; /* Reduced padding */
   width: 100%;
-  margin-bottom: 8px;
-  font-size: 1rem;
+  margin-bottom: 6px; /* Reduced margin */
+  font-size: 0.875rem; /* Smaller font size */
+  border-radius: 6px; /* Softer corners */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transitions */
+  background-color: #ffffff;
 }
 
 .input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #2563eb; /* Vibrant blue for focus */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); /* Subtle focus ring */
 }
 
 .button {
-  background-color: #3b82f6;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
+  background-color: #2563eb; /* Deeper blue for premium look */
+  color: #ffffff;
+  padding: 8px 14px; /* Slightly reduced padding */
+  border-radius: 6px; /* Softer corners */
   border: none;
   cursor: pointer;
+  font-size: 0.875rem; /* Smaller font size */
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth hover effects */
+  width: 100%; /* Full-width button for mobile */
+  text-align: center;
 }
 
 .button:hover {
-  background-color: #2563eb;
+  background-color: #1d4ed8; /* Darker blue on hover */
+  transform: translateY(-1px); /* Subtle lift effect */
+}
+
+.button:active {
+  transform: translateY(0); /* Reset on click */
+}
+
+/* Responsive adjustments */
+@media (min-width: 640px) {
+  .container {
+    padding: 16px; /* Slightly more padding on larger screens */
+  }
+
+  .title {
+    font-size: 1.75rem; /* Slightly larger title on bigger screens */
+  }
+
+  .button {
+    width: auto; /* Button auto-width on larger screens */
+    padding: 8px 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .title {
+    font-size: 1.25rem; /* Smaller title on very small screens */
+  }
+
+  .input, .button {
+    font-size: 0.8125rem; /* Smaller font for inputs and buttons */
+  }
 }
