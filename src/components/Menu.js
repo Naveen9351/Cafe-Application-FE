@@ -6,7 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import styles from './Menu.module.css';
 import QRCodeComponent from './QRCodeComponent';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
 
 function Menu() {
   const [items, setItems] = useState([]);

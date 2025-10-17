@@ -5,8 +5,8 @@ import io from 'socket.io-client';
 import QRCodeComponent from './QRCodeComponent';
 import styles from './AdminPanel.module.css';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
+const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
 
 function AdminPanel() {
   const [items, setItems] = useState([]);

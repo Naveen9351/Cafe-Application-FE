@@ -6,8 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import styles from './Cart.module.css';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
+const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
 
 function Cart() {
   const { items, setItems, getCartTotal, removeItem, updateItemQuantity } = useCartContext();

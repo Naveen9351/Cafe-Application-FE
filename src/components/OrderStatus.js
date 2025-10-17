@@ -5,8 +5,8 @@ import io from 'socket.io-client';
 import toast, { Toaster } from 'react-hot-toast';
 import styles from './OrderStatus.module.css';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
+const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
 
 function OrderStatus() {
   const { id } = useParams();
