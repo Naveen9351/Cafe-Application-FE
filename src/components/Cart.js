@@ -3,19 +3,18 @@ import { useCartContext } from '../context/CartContext';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
 import styles from './Cart.module.css';
 
 const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
-const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
 
 function Cart() {
-  const { items, setItems, getCartTotal, removeItem, updateItemQuantity } = useCartContext();
+  const { items, setItems, getCartTotal, updateItemQuantity } = useCartContext();
   const [searchParams] = useSearchParams();
   const [tableNumber, setTableNumber] = useState(localStorage.getItem('tableNumber') || '');
-  const [previousOrders, setPreviousOrders] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [cartKey, setCartKey] = useState(0);
   const navigate = useNavigate();
 
   // Load table number from URL params or localStorage
@@ -34,7 +33,7 @@ function Cart() {
     }
   }, [searchParams, tableNumber]);
 
-  // Load previous orders and persist cart items
+  // Load cart items from localStorage only on initial render
   useEffect(() => {
     try {
       const storedCart = JSON.parse(localStorage.getItem('cartItems') || '[]');
@@ -46,43 +45,7 @@ function Cart() {
       console.error('Error loading cartItems:', err);
       setError('Failed to load cart items');
     }
-
-    const fetchOrders = async () => {
-      if (!tableNumber) return;
-      setIsLoading(true);
-      try {
-        const res = await axios.get(`${API}/orders`, { 
-          params: { tableNumber } 
-        });
-        setPreviousOrders(res.data);
-        console.log('Fetched previous orders:', res.data);
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setError('Failed to fetch previous orders');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (tableNumber) {
-      fetchOrders();
-    }
-
-    socket.on('orderUpdate', (updatedOrder) => {
-      setPreviousOrders((prev) =>
-        prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order))
-      );
-    });
-
-    socket.on('orderDeleted', ({ id }) => {
-      setPreviousOrders((prev) => prev.filter((order) => order._id !== id));
-    });
-
-    return () => {
-      socket.off('orderUpdate');
-      socket.off('orderDeleted');
-    };
-  }, [tableNumber, setItems, items.length]);
+  }, [setItems]);
 
   // Persist cart items to localStorage
   useEffect(() => {
@@ -125,7 +88,7 @@ function Cart() {
 
       setItems([]);
       localStorage.removeItem('cartItems');
-      setPreviousOrders((prev) => [newOrder, ...prev]);
+      setCartKey(prev => prev + 1);
       navigate(`/order/status/${newOrder._id}`);
     } catch (err) {
       console.error('Error placing order:', err);
@@ -135,16 +98,34 @@ function Cart() {
     }
   };
 
-  // Handle remove item with debug logging
+  // Handle remove item with immediate state update
   const handleRemoveItem = (id) => {
     console.log('Removing item with ID:', id);
     console.log('Current cart items:', items);
-    removeItem(id);
-    console.log('Cart items after remove:', items);
+    setItems((prevItems) => {
+      const updatedItems = prevItems.filter((item) => item.id !== id);
+      console.log('Cart items after remove:', updatedItems);
+      if (updatedItems.length === 0) {
+        localStorage.removeItem('cartItems');
+        setCartKey(prev => prev + 1);
+      }
+      return updatedItems;
+    });
+  };
+
+  // Handle clear cart
+  const handleClearCart = () => {
+    console.log('Clearing cart, current items:', items);
+    setIsClearing(true);
+    setItems([]);
+    localStorage.removeItem('cartItems');
+    setCartKey(prev => prev + 1);
+    console.log('Cart cleared, items:', []);
+    setTimeout(() => setIsClearing(false), 500); // Reset clearing state after short delay
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} key={cartKey}>
       <h1 className={styles.title}>Your Cart</h1>
       
       {/* Display Table Number */}
@@ -159,72 +140,29 @@ function Cart() {
       {isLoading && <p className={styles.loading}>Loading...</p>}
       {error && <p className={styles.error}>{error}</p>}
 
-      {/* Previous Orders */}
-      {tableNumber && previousOrders.length > 0 ? (
-        <div className={styles.pendingOrders}>
-          <h2 className={styles.pendingTitle}>Previous Orders for Table #{tableNumber}</h2>
-          {/* <div className={styles.orderGrid}>
-            {previousOrders.map(order => (
-              <div key={order._id} className={styles.pendingOrder}>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Order ID:</span> {order._id.slice(-6)}</p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Table:</span> {order.tableNumber}</p>
-                <p className={styles.orderText}>
-                  <span className={styles.orderLabel}>Status:</span> 
-                  <span className={order.status === 'done' ? styles.statusDone : styles.statusPreparing}>
-                    {order.status}
-                  </span>
-                </p>
-                {order.status === 'preparing' && order.estimatedTime && order.timeSetAt ? (
-                  <>
-                    <p className={styles.orderText}>
-                      Time Remaining: {Math.max(0, Math.ceil((order.estimatedTime * 60 - (Date.now() - new Date(order.timeSetAt).getTime()) / 1000) / 60))} mins
-                    </p>
-                    <div className={styles.progressBar}>
-                      <div
-                        className={styles.progressFill}
-                        style={{ width: `${Math.min(((Date.now() - new Date(order.timeSetAt).getTime()) / (order.estimatedTime * 60 * 1000)) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                  </>
-                ) : (
-                  <p className={styles.orderText}><span className={styles.orderLabel}>Estimated Time:</span> {order.estimatedTime ? `${order.estimatedTime} mins` : 'N/A'}</p>
-                )}
-                <p className={styles.orderText}><span className={styles.orderLabel}>Total:</span> ${order.total.toFixed(2)}</p>
-                <button
-                  onClick={() => navigate(`/order/status/${order._id}`)}
-                  className={styles.viewButton}
-                  disabled={isLoading}
-                >
-                  View Details
-                </button>
-              </div>
-            ))}
-          </div> */}
-        </div>
-      ) : (
-        tableNumber && <p className={styles.noPending}>No previous orders found for this table.</p>
-      )}
-
       {/* Cart Contents */}
       {items.length === 0 ? (
-        <p className={styles.emptyCart}>Your cart is empty. 
+        <p className={styles.emptyCart}>
+          Your cart is empty.
           {tableNumber && <span> Add items from the menu for Table #{tableNumber}</span>}
         </p>
       ) : (
         <>
           <div className={styles.cartGrid}>
-            {items.map(item => (
+            {items.map((item) => (
               <div key={item.id} className={styles.itemContainer}>
                 <div className={styles.itemDetails}>
                   <h3 className={styles.itemTitle}>{item.name}</h3>
-                  <p className={styles.itemPrice}>${item.price.toFixed(2)} x {item.quantity}</p>
+                  <p className={styles.itemPrice}>
+                    {item.price.toFixed(2)} x {item.quantity} = {(item.price * item.quantity).toFixed(2)} rs
+                  </p>
                 </div>
                 <div className={styles.quantityButtons}>
                   <button
                     onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
                     className={styles.quantityButton}
                     aria-label={`Increase quantity of ${item.name}`}
-                    disabled={isLoading}
+                    disabled={isLoading || isClearing}
                   >
                     +
                   </button>
@@ -232,7 +170,7 @@ function Cart() {
                     onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
                     className={styles.quantityButton}
                     aria-label={`Decrease quantity of ${item.name}`}
-                    disabled={isLoading || item.quantity <= 1}
+                    disabled={isLoading || isClearing || item.quantity <= 1}
                   >
                     -
                   </button>
@@ -240,7 +178,7 @@ function Cart() {
                     onClick={() => handleRemoveItem(item.id)}
                     className={styles.removeButton}
                     aria-label={`Remove ${item.name} from cart`}
-                    disabled={isLoading}
+                    disabled={isLoading || isClearing}
                   >
                     Remove
                   </button>
@@ -249,14 +187,23 @@ function Cart() {
             ))}
           </div>
           <div className={styles.orderSummary}>
-            <p className={styles.total}>Total: ${getCartTotal().toFixed(2)}</p>
-            <button
-              onClick={handleOrder}
-              disabled={!tableNumber || items.length === 0 || isLoading}
-              className={styles.orderButton}
-            >
-              {isLoading ? 'Placing Order...' : 'Place Order for Table #' + tableNumber}
-            </button>
+            <p className={styles.total}>Total: {getCartTotal().toFixed(2)} rs</p>
+            <div className={styles.buttonGroup}>
+              <button
+                onClick={handleClearCart}
+                disabled={isLoading || isClearing}
+                className={styles.clearButton}
+              >
+                {isClearing ? 'Clearing...' : 'Clear Cart'}
+              </button>
+              <button
+                onClick={handleOrder}
+                disabled={!tableNumber || items.length === 0 || isLoading || isClearing}
+                className={styles.orderButton}
+              >
+                {isLoading ? 'Placing Order...' : `Place Order for Table #${tableNumber}`}
+              </button>
+            </div>
           </div>
         </>
       )}

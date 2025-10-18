@@ -249,7 +249,7 @@ function AdminPanel() {
                 <img src={item.image} alt={item.name} className={styles.image} />
                 <p className={styles.orderText}><span className={styles.orderLabel}>Name:</span> {item.name}</p>
                 <p className={styles.orderText}><span className={styles.orderLabel}>Description:</span> {item.description}</p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Price:</span> ${item.price.toFixed(2)}</p>
+                <p className={styles.orderText}><span className={styles.orderLabel}>Price:</span> {item.price.toFixed(2)}</p>
                 <p className={styles.orderText}><span className={styles.orderLabel}>Category:</span> {item.category}</p>
                 <div className={styles.orderActions}>
                   <button
@@ -304,7 +304,7 @@ function AdminPanel() {
                   <span className={styles.orderLabel}>Items:</span> 
                   {order.items.map((item, i) => `${item.name} x ${order.quantities[i]}`).join(', ')}
                 </p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Total:</span> ${order.total.toFixed(2)}</p>
+                <p className={styles.orderText}><span className={styles.orderLabel}>Total:</span> {order.total.toFixed(2)}</p>
                 <div className={styles.orderActions}>
                   <input
                     type="number"

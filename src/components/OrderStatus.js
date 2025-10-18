@@ -139,7 +139,7 @@ function OrderStatus() {
             </p>
           ))}
         </div>
-        <p className={styles.total}>Total: ${order.total.toFixed(2)}</p>
+        <p className={styles.total}>Total: {order.total.toFixed(2)}</p>
       </div>
     </div>
   );

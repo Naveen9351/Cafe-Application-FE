@@ -10,11 +10,36 @@ const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onre
 
 function Menu() {
   const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [tableNumber, setTableNumber] = useState('');
   const { addItem, cartItems } = useCartContext();
   const [searchParams] = useSearchParams();
+
+  // Static categories
+  const staticCategories = [
+    { id: 'all', name: 'All' },
+    { id: 'chai', name: 'Chai' },
+    { id: 'cold-coffee', name: 'Cold Coffee' },
+    { id: 'hot-coffee', name: 'Hot Coffee' },
+    { id: 'maggi', name: 'Maggi' },
+    { id: 'burger', name: 'Burger' },
+    { id: 'pizza', name: 'Pizza' },
+    { id: 'chinese', name: 'Chinese' },
+    { id: 'sandwich', name: 'Sandwich' },
+    { id: 'snacks', name: 'Snacks' },
+    { id: 'wraps', name: 'Wraps' },
+    { id: 'pasta', name: 'Pasta' },
+    { id: 'cold-drinks', name: 'Cold Drinks' },
+    { id: 'mocktails', name: 'Mocktails' },
+    { id: 'juices', name: 'Juices' },
+    { id: 'shakes', name: 'Shakes' },
+    { id: 'desserts', name: 'Desserts' },
+    { id: 'cakes', name: 'Cakes' },
+    { id: 'water', name: 'Water' },
+    { id: 'cigarettes', name: 'Cigarettes' },
+    { id: 'disposables', name: 'Disposables' },
+    { id: 'dips', name: 'Dips' },
+  ];
 
   useEffect(() => {
     // Extract table number from URL query parameter
@@ -29,14 +54,6 @@ function Menu() {
         setTableNumber(storedTableNumber);
       }
     }
-
-    // Fetch categories
-    axios
-      .get(`${API}/categories`)
-      .then((res) => {
-        setCategories([{ id: 'all', name: 'All Categories' }, ...res.data]);
-      })
-      .catch((err) => console.error('Error fetching categories:', err));
 
     // Fetch all menu items
     axios
@@ -81,16 +98,16 @@ function Menu() {
     <div className={styles.pageWrapper}>
       <Toaster />
 
-
-
       {/* Hero Section */}
       <section className={styles.hero}>
-        <h1 className={styles.heroTitle}>Welcome to Cafe Delight</h1>
+        <h1 className={styles.heroTitle}>Cafe Delight: Brewed Perfection</h1>
         <p className={styles.heroSubtitle}>
-          Discover our delicious menu crafted with love and care. Order now and enjoy!
-          {/* Display Table Number */}
-          {tableNumber && (
-            <strong>Table: #{tableNumber}</strong>
+          Indulge in our artisanal coffees, teas, and delectable bites. Your cozy cafe experience awaits!
+       
+        </p>
+        <p className={styles.heroSubtitle}>
+             {tableNumber && (
+            <strong>Your table no is: #{tableNumber}</strong>
           )}
         </p>
       </section>
@@ -98,15 +115,15 @@ function Menu() {
       {/* Categories Filter */}
       <section className={styles.categoriesSection}>
         <div className={styles.categoryTabs}>
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              className={`${styles.categoryTab} ${selectedCategory === category.id ? styles.activeCategory : ''
-                }`}
-              onClick={() => setSelectedCategory(category.id)}
-            >
-              {category.name}
-            </button>
+          {staticCategories.map((category) => (
+            <div key={category.id} className={styles.tabWrapper}>
+              <button
+                className={`${styles.categoryTab} ${selectedCategory === category.id ? styles.activeCategory : ''}`}
+                onClick={() => setSelectedCategory(category.id)}
+              >
+                <small>{category.name}</small>
+              </button>
+            </div>
           ))}
         </div>
       </section>

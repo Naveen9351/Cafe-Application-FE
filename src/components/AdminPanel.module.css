@@ -206,6 +206,15 @@
   box-shadow: 0 3px 15px rgba(0, 0, 0, 0.12); /* Softer shadow */
 }
 
+
+.qrGrid{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .closeButton {
   position: absolute;
   top: 10px; /* Adjusted position */
