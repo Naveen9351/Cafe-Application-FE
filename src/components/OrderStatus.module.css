@@ -1,158 +1,253 @@
-/* Container for the entire component */
+/* ====================== LAYOUT ====================== */
 .container {
-  padding: 1.5rem; /* Reduced padding */
-  max-width: 100%; /* Responsive width */
-  width: min(95%, 650px); /* Slightly smaller max-width */
-  margin: 1.5rem auto; /* Reduced margin */
-  background: linear-gradient(135deg, #ffffff, #f9fafb); /* Subtle gradient for premium feel */
-  border-radius: 10px; /* Softer corners */
-  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08); /* Softer shadow */
-  min-height: 350px; /* Reduced min-height */
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* Title styling */
-.title {
-  font-size: 2rem; /* Smaller font */
-  font-weight: 700;
-  color: #111827; /* Darker, premium color */
-  margin-bottom: 1rem; /* Reduced margin */
-  text-align: center;
-  letter-spacing: -0.025em; /* Tighter letter spacing */
-}
-
-/* Error message styling */
-.error {
-  color: #b91c1c; /* Deeper red for visibility */
-  background-color: #fef2f2; /* Softer background */
-  padding: 0.75rem; /* Reduced padding */
-  border-radius: 6px; /* Softer corners */
-  margin-bottom: 1rem; /* Reduced margin */
-  font-size: 0.9375rem; /* Smaller font */
-  font-weight: 500;
-  text-align: center;
-}
-
-/* Order details card */
-.order {
-  background: #f9fafb; /* Softer background */
-  border: none;
-  padding: 1.25rem; /* Reduced padding */
-  border-radius: 8px; /* Softer corners */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); /* Softer shadow */
-  transition: transform 0.25s ease, box-shadow 0.25s ease; /* Smoother transitions */
-}
-
-.order:hover {
-  transform: translateY(-2px); /* Subtler lift */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Slightly stronger shadow */
-}
-
-/* Text for order details */
-.text {
-  margin: 0.5rem 0; /* Reduced margin */
-  font-size: 0.9375rem; /* Smaller font */
-  color: #374151;
-  line-height: 1.4; /* Tighter line height */
-}
-
-/* Item title for order items */
-.itemTitle {
-  font-size: 1.125rem; /* Smaller font */
-  font-weight: 600;
-  color: #1f2937;
-  margin: 1rem 0 0.4rem; /* Reduced margin */
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.4rem; /* Reduced padding */
-}
-
-/* Total amount styling */
-.total {
-  font-weight: 700;
-  font-size: 1.0625rem; /* Smaller font */
-  color: #1f2937;
-  margin-top: 1rem; /* Reduced margin */
-  text-align: right;
-}
-
-/* Progress bar container */
-.progressBar {
-  width: 100%;
-  height: 10px; /* Thinner bar */
-  background-color: #e5e7eb;
-  border-radius: 5px; /* Softer corners */
-  overflow: hidden;
-  margin: 0.75rem 0; /* Reduced margin */
+  padding: 1.5rem;
+  max-width: 720px;
+  margin: 2rem auto;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.12);
+  min-height: 90vh;
+  font-family: 'Inter', sans-serif;
   position: relative;
+  overflow: hidden;
 }
 
-/* Progress bar fill */
+/* ====================== TITLE ====================== */
+.title {
+  font-size: 2.4rem;
+  font-weight: 900;
+  text-align: center;
+  margin: 0 0 1.8rem;
+  color: #1e293b;
+  letter-spacing: -0.8px;
+  background: linear-gradient(90deg, #1d4ed8, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ====================== ORDER CARD ====================== */
+.orderCard {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,.1);
+  transition: transform .3s ease;
+}
+.orderCard:hover { transform: translateY(-4px); }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: #1f2937;
+}
+.statusBadge {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: .9rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  box-shadow: 0 2px 6px rgba(0,0,0,.1);
+}
+.statusBadge.pending    { background:#fffbeb; color:#d97706; }
+.statusBadge.preparing  { background:#dbeafe; color:#1d4ed8; }
+.statusBadge.ready      { background:#d1fae5; color:#15803d; }
+.statusBadge.delivered  { background:#f3f4f6; color:#4b5563; }
+
+/* Cooking Animation */
+.cookingAnim {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 1rem 0;
+}
+.flame {
+  width: 16px;
+  height: 16px;
+  background: #fb923c;
+  border-radius: 50% 50% 50% 0;
+  animation: flicker 1.2s infinite alternate;
+}
+.flame:nth-child(2) { animation-delay: .2s; background: #f97316; }
+.flame:nth-child(3) { animation-delay: .4s; background: #ea580c; }
+@keyframes flicker {
+  0% { transform: scale(1) rotate(-10deg); opacity: .8; }
+  100% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+}
+
+.timeInfo {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: .6rem 0 .8rem;
+  color: #1f2937;
+  text-align: center;
+}
+.progressBar {
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: 7px;
+  overflow: hidden;
+  margin: 1rem 0;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.1);
+}
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #22c55e, #15803d); /* Deeper green gradient */
-  border-radius: 5px;
-  transition: width 0.4s ease-in-out; /* Slightly faster transition */
+  background: linear-gradient(90deg, #22c55e, #15803d);
+  border-radius: 7px;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
   position: relative;
   overflow: hidden;
 }
-
-/* Subtle animation for progress bar */
 .progressFill::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.15) 25%, /* Softer stripes */
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.15) 75%,
-    transparent 75%,
-    transparent
-  );
-  background-size: 18px 18px; /* Smaller stripes */
-  animation: moveStripes 1.8s linear infinite; /* Slightly faster animation */
+  inset: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,.25) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.25) 50%, rgba(255,255,255,.25) 75%, transparent 75%);
+  background-size: 24px 24px;
+  animation: moveStripes 1.6s linear infinite;
+}
+@keyframes moveStripes { 0% { background-position: 0 0; } 100% { background-position: 24px 24px; } }
+
+.itemsList .itemRow {
+  display: flex;
+  justify-content: space-between;
+  margin: .4rem 0;
+  font-size: 1rem;
+  color: #475569;
+}
+.total {
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-align: right;
+  margin-top: 1.2rem;
+  color: #1e293b;
 }
 
-/* Animation for progress bar stripes */
-@keyframes moveStripes {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 18px 18px;
-  }
+/* ====================== TIP JAR ====================== */
+.tipJar {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 18px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 16px rgba(251,146,60,.2);
+}
+.tipJar h3 {
+  margin: 0 0 .8rem;
+  font-size: 1.2rem;
+  color: #92400e;
+}
+.tipButtons {
+  display: flex;
+  gap: .8rem;
+  justify-content: center;
+}
+.tipBtn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: .7rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 2px 8px rgba(245,158,11,.3);
+}
+.tipBtn:hover {
+  background: #d97706;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(217,119,6,.4);
+}
+.tipTotal {
+  margin-top: .8rem;
+  font-weight: 700;
+  color: #7c2d12;
 }
 
-/* Responsive adjustments */
+/* ====================== GAMES ====================== */
+.gamesSection {
+  background: #f0fdf4;
+  border-radius: 20px;
+  padding: 1.8rem;
+  text-align: center;
+  border: 3px dashed #86efac;
+}
+.gamesSection h3 {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+  color: #166534;
+}
+.gameTabs {
+  display: flex;
+  gap: .6rem;
+  margin-bottom: 1.2rem;
+  justify-content: center;
+}
+.gameTabs button {
+  flex: 1;
+  padding: .8rem;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  border-radius: 14px;
+  background: #e2e8f0;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all .25s;
+}
+.gameTabs button:hover { background: #cbd5e1; }
+.activeTab {
+  background: #1d4ed8 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(29,78,216,.3);
+}
+.gameArea { margin-top: 1.2rem; }
+
+/* Snake */
+.snakeContainer { background: #fff; border-radius: 16px; padding: 1.2rem; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.snakeHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; font-weight: 700; }
+.restartBtn { background: #dc2626; color: #fff; border: none; padding: .5rem 1rem; border-radius: 10px; font-size: .9rem; cursor: pointer; }
+.snakeCanvas { border: 3px solid #86efac; border-radius: 12px; image-rendering: pixelated; display: block; margin: 0 auto; }
+.gameHint { margin-top: .6rem; font-size: .9rem; color: #15803d; }
+
+/* ====================== FAB ====================== */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.8rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(220,38,38,.4);
+  transition: all .3s;
+  z-index: 1000;
+}
+.fab:hover {
+  background: #b91c1c;
+  transform: scale(1.1);
+  box-shadow: 0 8px 24px rgba(185,28,28,.5);
+}
+
+/* ====================== RESPONSIVE ====================== */
 @media (max-width: 600px) {
-  .container {
-    padding: 1rem; /* Reduced padding */
-    margin: 0.75rem; /* Reduced margin */
-    max-width: 100%;
-  }
-
-  .title {
-    font-size: 1.5rem; /* Smaller font */
-  }
-
-  .order {
-    padding: 0.75rem; /* Reduced padding */
-  }
-
-  .text {
-    font-size: 0.875rem; /* Smaller font */
-  }
-
-  .itemTitle {
-    font-size: 1rem; /* Smaller font */
-  }
-
-  .total {
-    font-size: 0.9375rem; /* Smaller font */
-  }
+  .container { padding: 1rem; margin: 1rem; border-radius: 18px; }
+  .title { font-size: 2rem; }
+  .orderCard { padding: 1.4rem; }
+  .tipButtons { flex-direction: column; }
+  .tipBtn { margin: .4rem 0; }
+  .fab { width: 56px; height: 56px; font-size: 1.5rem; bottom: 16px; right: 16px; }
 }
