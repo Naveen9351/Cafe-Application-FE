@@ -8,7 +8,7 @@ import styles from './OrderStatus.module.css';
 const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
 const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
 
-function OrderStatus() {
+function OrderStatus() { 
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
