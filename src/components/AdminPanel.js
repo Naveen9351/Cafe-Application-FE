@@ -23,6 +23,15 @@ function AdminPanel() {
   const [progress, setProgress] = useState({});
   const [activeTab, setActiveTab] = useState('items');
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [analytics, setAnalytics] = useState({
+    allTime: 0,
+    today: 0,
+    thisMonth: 0,
+    thisYear: 0,
+    filter: 'today',
+    selectedDate: '',
+    filteredIncome: '0.00',
+  });
   const navigate = useNavigate();
 
   // Calculate progress for each order
@@ -89,6 +98,61 @@ function AdminPanel() {
       socket.off('orderDeleted');
     };
   }, [navigate]);
+
+  // Recalculate analytics when orders or filter changes
+  useEffect(() => {
+    const calculateAnalytics = () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisYear = new Date(now.getFullYear(), 0, 1);
+
+      const doneOrders = orders.filter(o => o.status === 'done');
+
+      const allTime = doneOrders.reduce((sum, o) => sum + o.total, 0);
+      const todayIncome = doneOrders
+        .filter(o => new Date(o.createdAt) >= today)
+        .reduce((sum, o) => sum + o.total, 0);
+      const monthIncome = doneOrders
+        .filter(o => new Date(o.createdAt) >= thisMonth)
+        .reduce((sum, o) => sum + o.total, 0);
+      const yearIncome = doneOrders
+        .filter(o => new Date(o.createdAt) >= thisYear)
+        .reduce((sum, o) => sum + o.total, 0);
+
+      let filteredIncome = 0;
+      if (analytics.filter === 'today') {
+        filteredIncome = todayIncome;
+      } else if (analytics.filter === 'month') {
+        filteredIncome = monthIncome;
+      } else if (analytics.filter === 'year') {
+        filteredIncome = yearIncome;
+      } else if (analytics.filter === 'date' && analytics.selectedDate) {
+        const selected = new Date(analytics.selectedDate);
+        const start = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+        filteredIncome = doneOrders
+          .filter(o => {
+            const orderDate = new Date(o.createdAt);
+            return orderDate >= start && orderDate < end;
+          })
+          .reduce((sum, o) => sum + o.total, 0);
+      } else {
+        filteredIncome = allTime;
+      }
+
+      setAnalytics(prev => ({
+        ...prev,
+        allTime: allTime.toFixed(2),
+        today: todayIncome.toFixed(2),
+        thisMonth: monthIncome.toFixed(2),
+        thisYear: yearIncome.toFixed(2),
+        filteredIncome: filteredIncome.toFixed(2),
+      }));
+    };
+
+    calculateAnalytics();
+  }, [orders, analytics.filter, analytics.selectedDate]);
 
   const handleSaveItem = async (e) => {
     e.preventDefault();
@@ -196,7 +260,7 @@ function AdminPanel() {
     }
   };
 
-  // Generate URLs for 12 tables
+  // Generate URLs for 22 tables
   const getQRUrl = (tableNum) => {
     return `https://cafe-application-fe.vercel.app/menu?table=${tableNum}`;
   };
@@ -225,6 +289,12 @@ function AdminPanel() {
         >
           QR Codes
         </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'analytics' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics
+        </button>
       </div>
 
       {/* Items Tab */}
@@ -249,21 +319,11 @@ function AdminPanel() {
                 <img src={item.image} alt={item.name} className={styles.image} />
                 <p className={styles.orderText}><span className={styles.orderLabel}>Name:</span> {item.name}</p>
                 <p className={styles.orderText}><span className={styles.orderLabel}>Description:</span> {item.description}</p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Price:</span> {item.price.toFixed(2)}</p>
+                <p className={styles.orderText}><span className={styles.orderLabel}>Price:</span> {item.price.toFixed(2)} rs</p>
                 <p className={styles.orderText}><span className={styles.orderLabel}>Category:</span> {item.category}</p>
                 <div className={styles.orderActions}>
-                  <button
-                    onClick={() => handleEditItem(item)}
-                    className={styles.updateButton}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item._id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
+                  <button onClick={() => handleEditItem(item)} className={styles.updateButton}>Edit</button>
+                  <button onClick={() => handleDeleteItem(item._id)} className={styles.deleteButton}>Delete</button>
                 </div>
               </div>
             ))}
@@ -291,10 +351,7 @@ function AdminPanel() {
                       Time Remaining: {Math.max(0, Math.ceil((order.estimatedTime * 60 - (Date.now() - new Date(order.timeSetAt).getTime()) / 1000) / 60))} mins
                     </p>
                     <div className={styles.progressBar}>
-                      <div
-                        className={styles.progressFill}
-                        style={{ width: `${progress[order._id] || 0}%` }}
-                      ></div>
+                      <div className={styles.progressFill} style={{ width: `${progress[order._id] || 0}%` }}></div>
                     </div>
                   </>
                 ) : (
@@ -304,7 +361,7 @@ function AdminPanel() {
                   <span className={styles.orderLabel}>Items:</span> 
                   {order.items.map((item, i) => `${item.name} x ${order.quantities[i]}`).join(', ')}
                 </p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Total:</span> {order.total.toFixed(2)}</p>
+                <p className={styles.orderText}><span className={styles.orderLabel}>Total:</span> {order.total.toFixed(2)} rs</p>
                 <div className={styles.orderActions}>
                   <input
                     type="number"
@@ -316,31 +373,16 @@ function AdminPanel() {
                     min="1"
                     step="1"
                   />
-                  <button
-                    onClick={() => handleTimeUpdate(order._id)}
-                    className={styles.updateButton}
-                    disabled={['done', 'canceled'].includes(order.status)}
-                  >
+                  <button onClick={() => handleTimeUpdate(order._id)} className={styles.updateButton} disabled={['done', 'canceled'].includes(order.status)}>
                     Update Time
                   </button>
-                  <button
-                    onClick={() => handleStatusUpdate(order._id, 'done')}
-                    className={styles.statusButton}
-                    disabled={['done', 'canceled'].includes(order.status)}
-                  >
+                  <button onClick={() => handleStatusUpdate(order._id, 'done')} className={styles.statusButton} disabled={['done', 'canceled'].includes(order.status)}>
                     Mark as Done
                   </button>
-                  <button
-                    onClick={() => handleStatusUpdate(order._id, 'canceled')}
-                    className={styles.cancelButton}
-                    disabled={['done', 'canceled'].includes(order.status)}
-                  >
+                  <button onClick={() => handleStatusUpdate(order._id, 'canceled')} className={styles.cancelButton} disabled={['done', 'canceled'].includes(order.status)}>
                     Cancel Order
                   </button>
-                  <button
-                    onClick={() => handleDeleteOrder(order._id)}
-                    className={styles.deleteButton}
-                  >
+                  <button onClick={() => handleDeleteOrder(order._id)} className={styles.deleteButton}>
                     Delete Order
                   </button>
                 </div>
@@ -354,9 +396,9 @@ function AdminPanel() {
       {activeTab === 'qrcodes' && (
         <section className={styles.section}>
           <h2 className={styles.subtitle}>Table QR Codes</h2>
-          <p>Download QR codes for tables 1 to 12 to place on each table.</p>
+          <p>Download QR codes for tables 1 to 22 to place on each table.</p>
           <div className={styles.qrGrid}>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((tableNum) => (
+            {Array.from({ length: 22 }, (_, i) => i + 1).map((tableNum) => (
               <div key={tableNum} className={styles.qrCard}>
                 <QRCodeComponent url={getQRUrl(tableNum)} tableNumber={tableNum.toString()} />
               </div>
@@ -365,15 +407,57 @@ function AdminPanel() {
         </section>
       )}
 
+      {/* Analytics Tab */}
+      {activeTab === 'analytics' && (
+        <section className={styles.section}>
+          <h2 className={styles.subtitle}>Income Analytics</h2>
+
+          {/* Filter Controls */}
+          <div className={styles.analyticsFilter}>
+            <select
+              value={analytics.filter}
+              onChange={(e) => setAnalytics(prev => ({ ...prev, filter: e.target.value, selectedDate: '' }))}
+              className={styles.filterSelect}
+            >
+              <option value="today">Today</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+              <option value="date">Specific Date</option>
+            </select>
+
+            {analytics.filter === 'date' && (
+              <input
+                type="date"
+                value={analytics.selectedDate}
+                onChange={(e) => setAnalytics(prev => ({ ...prev, selectedDate: e.target.value }))}
+                className={styles.dateInput}
+              />
+            )}
+          </div>
+
+          {/* Income Card */}
+          <div className={styles.analyticsGrid}>
+            <div className={styles.analyticsCard}>
+              <h3>
+                {analytics.filter === 'date' && analytics.selectedDate
+                  ? new Date(analytics.selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                  : analytics.filter === 'today' ? 'Today'
+                  : analytics.filter === 'month' ? 'This Month'
+                  : analytics.filter === 'year' ? 'This Year'
+                  : 'All Time'}
+              </h3>
+              <p className={styles.amount}>{analytics.filteredIncome} rs</p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Popup Form for Adding/Editing Item */}
       {isPopupOpen && (
         <div className={styles.popup}>
           <div className={styles.popupContent}>
-            <button
-              className={styles.closeButton}
-              onClick={() => setIsPopupOpen(false)}
-            >
-              &times;
+            <button className={styles.closeButton} onClick={() => setIsPopupOpen(false)}>
+              ×
             </button>
             <h2 className={styles.subtitle}>{editingItem ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
             <form onSubmit={handleSaveItem} className={styles.form}>

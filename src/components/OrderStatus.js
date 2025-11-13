@@ -8,7 +8,7 @@ import styles from './OrderStatus.module.css';
 const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
 const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
 
-function OrderStatus() { 
+function OrderStatus() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
@@ -35,10 +35,11 @@ function OrderStatus() {
           position: 'top-right',
           duration: 3000,
           style: {
-            background: '#4caf50',
+            background: '#22c55e',
             color: '#fff',
             fontSize: '16px',
-            padding: '10px 20px',
+            padding: '12px 20px',
+            borderRadius: '8px',
           },
         });
       }
@@ -50,12 +51,13 @@ function OrderStatus() {
         setMessage('This order has been deleted by the admin.');
         toast.error('Your order has been deleted by the admin.', {
           position: 'top-right',
-          duration: 4000,
+          duration: 5000,
           style: {
-            background: '#d32f2f',
+            background: '#ef4444',
             color: '#fff',
             fontSize: '16px',
-            padding: '10px 20px',
+            padding: '12px 20px',
+            borderRadius: '8px',
           },
         });
       }
@@ -67,7 +69,7 @@ function OrderStatus() {
     };
   }, [id]);
 
-  // Calculate progress for the order
+  // Progress calculation
   useEffect(() => {
     if (!order || order.status !== 'preparing' || !order.estimatedTime || !order.timeSetAt) {
       setProgress(0);
@@ -82,18 +84,31 @@ function OrderStatus() {
       setProgress(progressPercent);
     };
 
-    const interval = setInterval(calculateProgress, 1000);
     calculateProgress();
-
+    const interval = setInterval(calculateProgress, 1000);
     return () => clearInterval(interval);
   }, [order]);
+
+  // Status badge color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return '#f59e0b';
+      case 'preparing': return '#3b82f6';
+      case 'ready': return '#10b981';
+      case 'done': return '#22c55e';
+      case 'cancelled': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
 
   if (error) {
     return (
       <div className={styles.container}>
         <Toaster />
-        <h1 className={styles.title}>Order Status</h1>
-        <p className={styles.error}>{error}</p>
+        <div className={styles.errorCard}>
+          <h1 className={styles.title}>Order Status</h1>
+          <p className={styles.error}>{error}</p>
+        </div>
       </div>
     );
   }
@@ -102,8 +117,10 @@ function OrderStatus() {
     return (
       <div className={styles.container}>
         <Toaster />
-        <h1 className={styles.title}>Order Status</h1>
-        <p>{message || 'Loading...'}</p>
+        <div className={styles.loadingCard}>
+          <div className={styles.spinner}></div>
+          <p>{message || 'Loading your order...'}</p>
+        </div>
       </div>
     );
   }
@@ -111,37 +128,87 @@ function OrderStatus() {
   return (
     <div className={styles.container}>
       <Toaster />
-      <h1 className={styles.title}>Order Status</h1>
-      <div className={styles.order}>
-        <h2>Order Details</h2>
-        <p className={styles.text}>Do not reload this page !!</p>
-        <p className={styles.text}>Table: {order.tableNumber}</p>
-        <p className={styles.text}>Status: {order.status}</p>
+      
+      <header className={styles.header}>
+        <h1 className={styles.title}>Order Status</h1>
+        <p className={styles.subtitle}>Live tracking for Table <strong>{order.tableNumber}</strong></p>
+      </header>
+
+      <div className={styles.orderCard}>
+        {/* Status Badge */}
+        <div className={styles.statusHeader}>
+          <span
+            className={styles.statusBadge}
+            style={{ backgroundColor: getStatusColor(order.status) }}
+          >
+            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+          </span>
+          <p className={styles.warning}>Do not go back or refresh this page</p>
+        </div>
+
+        {/* Estimated Time & Progress */}
         {order.status === 'preparing' && order.estimatedTime && order.timeSetAt ? (
-          <>
-            <p className={styles.text}>
-              Time Remaining: {Math.max(0, Math.ceil((order.estimatedTime * 60 - (Date.now() - new Date(order.timeSetAt).getTime()) / 1000) / 60))} mins
-            </p>
+          <div className={styles.progressSection}>
+            <div className={styles.timeInfo}>
+              <span className={styles.timeLabel}>Estimated Time</span>
+              <span className={styles.timeValue}>
+                {Math.max(0, Math.ceil((order.estimatedTime * 60 - (Date.now() - new Date(order.timeSetAt).getTime()) / 1000) / 60))} mins
+              </span>
+            </div>
             <div className={styles.progressBar}>
               <div
                 className={styles.progressFill}
                 style={{ width: `${progress}%` }}
-              ></div>
+              >
+                <div className={styles.progressGlow}></div>
+              </div>
             </div>
-          </>
+            <p className={styles.progressText}>{Math.round(progress)}% Complete</p>
+          </div>
         ) : (
-          <p className={styles.text}>Estimated Time: {order.estimatedTime ? `${order.estimatedTime} mins` : 'N/A'}</p>
+          <p className={styles.estimatedTime}>
+            Estimated Time: <strong>{order.estimatedTime ? `${order.estimatedTime} mins` : 'N/A'}</strong>
+          </p>
         )}
-        <div>
-          <h3 className={styles.itemTitle}>Items:</h3>
-          {order.items.map((item, index) => (
-            <p key={item._id} className={styles.text}>
-              {item.name} x {order.quantities[index]}
-            </p>
-          ))}
+
+        {/* Order Items */}
+        <div className={styles.itemsSection}>
+          <h3 className={styles.sectionTitle}>Your Items</h3>
+          <div className={styles.itemsList}>
+            {order.items.map((item, index) => (
+              <div key={item._id} className={styles.item}>
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className={styles.itemImage}
+                  onError={(e) => { e.target.src = '/placeholder-food.jpg'; }}
+                />
+                <div className={styles.itemDetails}>
+                  <h4 className={styles.itemName}>{item.name}</h4>
+                  <p className={styles.itemDesc}>{item.description}</p>
+                  <div className={styles.itemMeta}>
+                    <span className={styles.quantity}>x{order.quantities[index]}</span>
+                    <span className={styles.price}>₹{item.price}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <p className={styles.total}>Total: {order.total.toFixed(2)}</p>
+
+        {/* Total */}
+        <div className={styles.totalSection}>
+          <div className={styles.totalRow}>
+            <span>Total Amount</span>
+            <span className={styles.totalAmount}>₹{order.total.toFixed(2)}</span>
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className={styles.footer}>
+        <p>Thank you for your order! Enjoy your meal</p>
+      </footer>
     </div>
   );
 }

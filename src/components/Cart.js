@@ -1,214 +1,270 @@
-import { useState, useEffect } from 'react';
-import { useCartContext } from '../context/CartContext';
-import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import styles from './Cart.module.css';
+// src/pages/Cart.jsx
+import { useState, useEffect } from "react";
+import { useCartContext } from "../context/CartContext";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import axios from "axios";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  FaPlus,
+  FaMinus,
+  FaTrash,
+  FaShoppingCart,
+  FaExclamationCircle,
+} from "react-icons/fa";
+import styles from "./Cart.module.css";
 
-const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
+const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
 
-function Cart() {
-  const { items, setItems, getCartTotal, updateItemQuantity } = useCartContext();
+export default function Cart() {
+  const {
+    items,
+    setItems,
+    updateItemQuantity,
+    removeItem,        // <-- this is the key!
+    getCartTotal,
+  } = useCartContext();
+
   const [searchParams] = useSearchParams();
-  const [tableNumber, setTableNumber] = useState(localStorage.getItem('tableNumber') || '');
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
-  const [cartKey, setCartKey] = useState(0);
   const navigate = useNavigate();
 
-  // Load table number from URL params or localStorage
+  const [tableNumber, setTableNumber] = useState(
+    localStorage.getItem("tableNumber") || ""
+  );
+  const [error, setError] = useState(null);
+  const [isPlacing, setIsPlacing] = useState(false);
+  const [cartKey, setCartKey] = useState(0);
+
+  /* --------------------------------------------------------------- */
+  /* 1. Table number */
+  /* --------------------------------------------------------------- */
   useEffect(() => {
-    const urlTableNumber = searchParams.get('table');
-    if (urlTableNumber) {
-      setTableNumber(urlTableNumber);
-      localStorage.setItem('tableNumber', urlTableNumber);
+    const urlTable = searchParams.get("table");
+    if (urlTable) {
+      setTableNumber(urlTable);
+      localStorage.setItem("tableNumber", urlTable);
     } else if (!tableNumber) {
-      const storedTableNumber = localStorage.getItem('tableNumber');
-      if (storedTableNumber) {
-        setTableNumber(storedTableNumber);
+      const stored = localStorage.getItem("tableNumber");
+      if (!stored) {
+        setError("No table number detected. Scan the QR code on your table.");
       } else {
-        setError('No table number detected. Please scan the QR code from your table.');
+        setTableNumber(stored);
       }
     }
   }, [searchParams, tableNumber]);
 
-  // Load cart items from localStorage only on initial render
+  /* --------------------------------------------------------------- */
+  /* 2. Sync with localStorage */
+  /* --------------------------------------------------------------- */
   useEffect(() => {
-    try {
-      const storedCart = JSON.parse(localStorage.getItem('cartItems') || '[]');
-      if (storedCart.length > 0 && items.length === 0) {
-        setItems(storedCart);
-        console.log('Loaded cart items from localStorage:', storedCart);
+    const saved = localStorage.getItem("cartItems");
+    if (saved && items.length === 0) {
+      try {
+        setItems(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse cartItems", e);
       }
-    } catch (err) {
-      console.error('Error loading cartItems:', err);
-      setError('Failed to load cart items');
     }
-  }, [setItems]);
+  }, [items.length, setItems]);
 
-  // Persist cart items to localStorage
   useEffect(() => {
-    try {
-      if (items.length > 0) {
-        localStorage.setItem('cartItems', JSON.stringify(items));
-        console.log('Saved cart items to localStorage:', items);
-      } else {
-        localStorage.removeItem('cartItems');
-        console.log('Cleared cart items from localStorage');
-      }
-    } catch (err) {
-      console.error('Error saving cartItems:', err);
-      setError('Failed to save cart items');
+    if (items.length) {
+      localStorage.setItem("cartItems", JSON.stringify(items));
+    } else {
+      localStorage.removeItem("cartItems");
     }
   }, [items]);
 
-  // Handle order placement
-  const handleOrder = async () => {
+  /* --------------------------------------------------------------- */
+  /* 3. Place order */
+  /* --------------------------------------------------------------- */
+  const placeOrder = async () => {
     if (!tableNumber) {
-      setError('Table number is required. Please scan the QR code from your table.');
+      toast.error("Table number required");
       return;
     }
     if (items.length === 0) {
-      setError('Your cart is empty');
+      toast.error("Cart is empty");
       return;
     }
-    setIsLoading(true);
+
+    setIsPlacing(true);
     setError(null);
     try {
-      const order = {
-        items: items.map(item => item.id),
-        quantities: items.map(item => item.quantity),
+      const payload = {
+        items: items.map((i) => i.id),
+        quantities: items.map((i) => i.quantity),
         total: getCartTotal(),
         tableNumber,
-        status: 'pending',
+        status: "pending",
       };
-      const res = await axios.post(`${API}/orders`, order);
-      const newOrder = res.data;
+      const { data } = await axios.post(`${API}/orders`, payload);
 
+      // Clear cart
       setItems([]);
-      localStorage.removeItem('cartItems');
-      setCartKey(prev => prev + 1);
-      navigate(`/order/status/${newOrder._id}`);
+      localStorage.removeItem("cartItems");
+      setCartKey((k) => k + 1);
+      navigate(`/order/status/${data._id}`);
     } catch (err) {
-      console.error('Error placing order:', err);
-      setError('Failed to place order: ' + (err.response?.data?.error || 'Server error'));
+      setError(err.response?.data?.error || "Failed to place order");
     } finally {
-      setIsLoading(false);
+      setIsPlacing(false);
     }
   };
 
-  // Handle remove item with immediate state update
-  const handleRemoveItem = (id) => {
-    console.log('Removing item with ID:', id);
-    console.log('Current cart items:', items);
-    setItems((prevItems) => {
-      const updatedItems = prevItems.filter((item) => item.id !== id);
-      console.log('Cart items after remove:', updatedItems);
-      if (updatedItems.length === 0) {
-        localStorage.removeItem('cartItems');
-        setCartKey(prev => prev + 1);
-      }
-      return updatedItems;
-    });
+  /* --------------------------------------------------------------- */
+  /* 4. Clear Cart – using setItems */
+  /* --------------------------------------------------------------- */
+  const handleClearCart = () => {
+    if (isPlacing) return;
+    setItems([]);
+    localStorage.removeItem("cartItems");
+    setCartKey((k) => k + 1);
+    toast.success("Cart cleared!");
   };
 
-  // Handle clear cart
-  const handleClearCart = () => {
-    console.log('Clearing cart, current items:', items);
-    setIsClearing(true);
-    setItems([]);
-    localStorage.removeItem('cartItems');
-    setCartKey(prev => prev + 1);
-    console.log('Cart cleared, items:', []);
-    setTimeout(() => setIsClearing(false), 500); // Reset clearing state after short delay
+  /* --------------------------------------------------------------- */
+  /* 5. Remove single item – using removeItem from context */
+  /* --------------------------------------------------------------- */
+  const handleRemoveItem = (id) => {
+    if (isPlacing) return;
+    removeItem(id); // <-- this is the fix
+    toast.success("Item removed");
   };
+
+  /* --------------------------------------------------------------- */
+  /* 6. Helpers */
+  /* --------------------------------------------------------------- */
+  const cartTotalItems = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className={styles.container} key={cartKey}>
-      <h1 className={styles.title}>Your Cart</h1>
-      
-      {/* Display Table Number */}
-      {tableNumber && (
-        <div className={styles.tableInfo}>
-          <p className={styles.tableDisplay}>
-            <strong>Table: #{tableNumber}</strong>
-          </p>
+    <div className={styles.page} key={cartKey}>
+      <Toaster position="top-center" />
+
+      {/* HERO */}
+      <header className={styles.hero}>
+        <h1 className={styles.title}>Your Cart</h1>
+        {tableNumber && (
+          <p className={styles.tableBadge}>Table #{tableNumber}</p>
+        )}
+      </header>
+
+      {/* ERROR */}
+      {error && (
+        <div className={styles.alert}>
+          <FaExclamationCircle />
+          <span>{error}</span>
         </div>
       )}
 
-      {isLoading && <p className={styles.loading}>Loading...</p>}
-      {error && <p className={styles.error}>{error}</p>}
-
-      {/* Cart Contents */}
+      {/* EMPTY STATE */}
       {items.length === 0 ? (
-        <p className={styles.emptyCart}>
-          Your cart is empty.
-          {tableNumber && <span> Add items from the menu for Table #{tableNumber}</span>}
-        </p>
+        <div className={styles.empty}>
+          <FaShoppingCart size={48} />
+          <p>Your cart is empty.</p>
+          {tableNumber && (
+            <Link to={`/menu?table=${tableNumber}`} className={styles.emptyLink}>
+              Add items for Table #{tableNumber}
+            </Link>
+          )}
+        </div>
       ) : (
         <>
-          <div className={styles.cartGrid}>
+          {/* ITEMS GRID */}
+          <section className={styles.grid}>
             {items.map((item) => (
-              <div key={item.id} className={styles.itemContainer}>
-                <div className={styles.itemDetails}>
-                  <h3 className={styles.itemTitle}>{item.name}</h3>
-                  <p className={styles.itemPrice}>
-                    {item.price.toFixed(2)} x {item.quantity} = {(item.price * item.quantity).toFixed(2)} rs
+              <article key={item.id} className={styles.card}>
+                <img
+                  src={item.image || "/placeholder-food.jpg"}
+                  alt={item.name}
+                  className={styles.itemImg}
+                  loading="lazy"
+                />
+                <div className={styles.cardBody}>
+                  <h3 className={styles.itemName}>{item.name}</h3>
+                  <p className={styles.priceLine}>
+                    ₹{item.price} × {item.quantity} = ₹
+                    {(item.price * item.quantity).toFixed(2)}
                   </p>
+
+                  <div className={styles.actions}>
+                    <button
+                      onClick={() =>
+                        updateItemQuantity(item.id, item.quantity + 1)
+                      }
+                      className={styles.qtyBtn}
+                      disabled={isPlacing}
+                    >
+                      <FaPlus />
+                    </button>
+
+                    <span className={styles.qty}>{item.quantity}</span>
+
+                    <button
+                      onClick={() =>
+                        updateItemQuantity(
+                          item.id,
+                          Math.max(1, item.quantity - 1)
+                        )
+                      }
+                      className={styles.qtyBtn}
+                      disabled={isPlacing || item.quantity <= 1}
+                    >
+                      <FaMinus />
+                    </button>
+
+                    {/* DELETE BUTTON – NOW WORKS */}
+                    {/* <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className={styles.removeBtn}
+                      disabled={isPlacing}
+                    >
+                      <FaTrash />
+                    </button> */}
+                  </div>
                 </div>
-                <div className={styles.quantityButtons}>
-                  <button
-                    onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                    className={styles.quantityButton}
-                    aria-label={`Increase quantity of ${item.name}`}
-                    disabled={isLoading || isClearing}
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                    className={styles.quantityButton}
-                    aria-label={`Decrease quantity of ${item.name}`}
-                    disabled={isLoading || isClearing || item.quantity <= 1}
-                  >
-                    -
-                  </button>
-                  <button
-                    onClick={() => handleRemoveItem(item.id)}
-                    className={styles.removeButton}
-                    aria-label={`Remove ${item.name} from cart`}
-                    disabled={isLoading || isClearing}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
+              </article>
             ))}
-          </div>
-          <div className={styles.orderSummary}>
-            <p className={styles.total}>Total: {getCartTotal().toFixed(2)} rs</p>
-            <div className={styles.buttonGroup}>
+          </section>
+
+          {/* SUMMARY */}
+          <section className={styles.summary}>
+            <div className={styles.totalRow}>
+              <span>Total ({cartTotalItems} items)</span>
+              <strong>₹{getCartTotal().toFixed(2)}</strong>
+            </div>
+
+            <div className={styles.buttonRow}>
               <button
                 onClick={handleClearCart}
-                disabled={isLoading || isClearing}
-                className={styles.clearButton}
+                disabled={isPlacing}
+                className={styles.clearBtn}
               >
-                {isClearing ? 'Clearing...' : 'Clear Cart'}
+                Clear Cart
               </button>
+
               <button
-                onClick={handleOrder}
-                disabled={!tableNumber || items.length === 0 || isLoading || isClearing}
-                className={styles.orderButton}
+                onClick={placeOrder}
+                disabled={!tableNumber || isPlacing}
+                className={styles.orderBtn}
               >
-                {isLoading ? 'Placing Order...' : `Place Order for Table #${tableNumber}`}
+                {isPlacing ? "Placing…" : `Place Order – Table #${tableNumber}`}
               </button>
             </div>
-          </div>
+          </section>
         </>
       )}
+
+      {/* FAB */}
+      <Link
+        to={`/menu?table=${tableNumber}`}
+        className={styles.fab}
+        aria-label="Back to menu"
+      >
+        <FaShoppingCart size={26} />
+        {cartTotalItems > 0 && (
+          <span className={styles.fabBadge}>{cartTotalItems}</span>
+        )}
+      </Link>
     </div>
   );
 }
-
-export default Cart;

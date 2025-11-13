@@ -1,158 +1,346 @@
-/* Container for the entire component */
+/* === Global Container === */
 .container {
-  padding: 1.5rem; /* Reduced padding */
-  max-width: 100%; /* Responsive width */
-  width: min(95%, 650px); /* Slightly smaller max-width */
-  margin: 1.5rem auto; /* Reduced margin */
-  background: linear-gradient(135deg, #ffffff, #f9fafb); /* Subtle gradient for premium feel */
-  border-radius: 10px; /* Softer corners */
-  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08); /* Softer shadow */
-  min-height: 350px; /* Reduced min-height */
+  padding: 1.5rem;
+  max-width: 100%;
+  width: min(95%, 680px);
+  margin: 1.5rem auto;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1e293b;
 }
 
-/* Title styling */
+/* === Header === */
+.header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
 .title {
-  font-size: 2rem; /* Smaller font */
-  font-weight: 700;
-  color: #111827; /* Darker, premium color */
-  margin-bottom: 1rem; /* Reduced margin */
-  text-align: center;
-  letter-spacing: -0.025em; /* Tighter letter spacing */
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.03em;
+  background: linear-gradient(90deg, #1e40af, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Error message styling */
-.error {
-  color: #b91c1c; /* Deeper red for visibility */
-  background-color: #fef2f2; /* Softer background */
-  padding: 0.75rem; /* Reduced padding */
-  border-radius: 6px; /* Softer corners */
-  margin-bottom: 1rem; /* Reduced margin */
-  font-size: 0.9375rem; /* Smaller font */
+.subtitle {
+  font-size: 1.1rem;
+  color: #64748b;
+  margin: 0;
   font-weight: 500;
+}
+
+/* === Loading & Error States === */
+.loadingCard, .errorCard {
   text-align: center;
+  padding: 3rem 1.5rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-/* Order details card */
-.order {
-  background: #f9fafb; /* Softer background */
-  border: none;
-  padding: 1.25rem; /* Reduced padding */
-  border-radius: 8px; /* Softer corners */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); /* Softer shadow */
-  transition: transform 0.25s ease, box-shadow 0.25s ease; /* Smoother transitions */
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
 }
 
-.order:hover {
-  transform: translateY(-2px); /* Subtler lift */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Slightly stronger shadow */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-/* Text for order details */
-.text {
-  margin: 0.5rem 0; /* Reduced margin */
-  font-size: 0.9375rem; /* Smaller font */
-  color: #374151;
-  line-height: 1.4; /* Tighter line height */
-}
-
-/* Item title for order items */
-.itemTitle {
-  font-size: 1.125rem; /* Smaller font */
+.error {
+  color: #dc2626;
   font-weight: 600;
-  color: #1f2937;
-  margin: 1rem 0 0.4rem; /* Reduced margin */
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.4rem; /* Reduced padding */
+  font-size: 1.1rem;
 }
 
-/* Total amount styling */
-.total {
+/* === Main Order Card === */
+.orderCard {
+  background: white;
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
+  transition: all 0.3s ease;
+}
+
+.orderCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* === Status Header === */
+.statusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.statusBadge {
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.warning {
+  color: #dc2626;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* === Progress Section === */
+.progressSection {
+  background: #f8fafc;
+  padding: 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.timeInfo {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.timeLabel {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.timeValue {
   font-weight: 700;
-  font-size: 1.0625rem; /* Smaller font */
-  color: #1f2937;
-  margin-top: 1rem; /* Reduced margin */
-  text-align: right;
+  color: #1e40af;
 }
 
-/* Progress bar container */
 .progressBar {
   width: 100%;
-  height: 10px; /* Thinner bar */
-  background-color: #e5e7eb;
-  border-radius: 5px; /* Softer corners */
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 6px;
   overflow: hidden;
-  margin: 0.75rem 0; /* Reduced margin */
   position: relative;
+  margin-bottom: 0.5rem;
 }
 
-/* Progress bar fill */
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #22c55e, #15803d); /* Deeper green gradient */
-  border-radius: 5px;
-  transition: width 0.4s ease-in-out; /* Slightly faster transition */
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 6px;
+  transition: width 0.5s ease;
   position: relative;
   overflow: hidden;
 }
 
-/* Subtle animation for progress bar */
 .progressFill::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%);
+  background-size: 20px 20px;
+  animation: moveStripes 1.5s linear infinite;
+}
+
+.progressGlow {
+  position: absolute;
+  top: 0; left: 0;
+  width: 50px;
   height: 100%;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.15) 25%, /* Softer stripes */
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.15) 75%,
-    transparent 75%,
-    transparent
-  );
-  background-size: 18px 18px; /* Smaller stripes */
-  animation: moveStripes 1.8s linear infinite; /* Slightly faster animation */
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 2s infinite;
 }
 
-/* Animation for progress bar stripes */
 @keyframes moveStripes {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 18px 18px;
-  }
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 20px; }
 }
 
-/* Responsive adjustments */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.progressText {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #475569;
+  margin: 0;
+  font-weight: 500;
+}
+
+.estimatedTime {
+  font-size: 1rem;
+  color: #475569;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* === Items Section === */
+.itemsSection {
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.item:hover {
+  background: #f1f5f9;
+  transform: translateX(4px);
+}
+
+.itemImage {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.itemDetails {
+  flex: 1;
+}
+
+.itemName {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.itemDesc {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.itemMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9375rem;
+}
+
+.quantity {
+  background: #e0e7ff;
+  color: #4338ca;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.price {
+  font-weight: 700;
+  color: #1e40af;
+}
+
+/* === Total Section === */
+.totalSection {
+  background: #f0fdf4;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px dashed #22c55e;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.totalAmount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+
+/* === Footer === */
+.footer {
+  text-align: center;
+  margin-top: 2rem;
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+/* === Responsive === */
 @media (max-width: 600px) {
   .container {
-    padding: 1rem; /* Reduced padding */
-    margin: 0.75rem; /* Reduced margin */
-    max-width: 100%;
+    padding: 1rem;
+    margin: 0.5rem;
+    border-radius: 12px;
   }
 
   .title {
-    font-size: 1.5rem; /* Smaller font */
+    font-size: 1.875rem;
   }
 
-  .order {
-    padding: 0.75rem; /* Reduced padding */
+  .orderCard {
+    padding: 1.25rem;
   }
 
-  .text {
-    font-size: 0.875rem; /* Smaller font */
+  .statusHeader {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .itemTitle {
-    font-size: 1rem; /* Smaller font */
+  .item {
+    flex-direction: column;
   }
 
-  .total {
-    font-size: 0.9375rem; /* Smaller font */
+  .itemImage {
+    width: 100%;
+    height: 120px;
+    border-radius: 12px;
+  }
+
+  .totalAmount {
+    font-size: 1.25rem;
   }
 }

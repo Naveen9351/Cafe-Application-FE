@@ -1,92 +1,114 @@
 .container {
   max-width: 100%;
-  width: min(90%, 400px); /* Responsive width, max 400px */
+  width: min(90%, 400px);
   margin: 0 auto;
-  padding: 12px; /* Reduced padding for tighter layout */
-  background: linear-gradient(135deg, #ffffff, #f8fafc); /* Subtle gradient for premium feel */
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Soft shadow for depth */
+  padding: 24px 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .title {
-  font-size: 1.5rem; /* Reduced font size for elegance */
-  font-weight: 600; /* Slightly lighter for modern look */
-  margin-bottom: 12px; /* Reduced margin */
-  color: #1e293b; /* Darker, premium text color */
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 20px;
+  color: #111827;
   text-align: center;
-  letter-spacing: -0.02em; /* Tightened letter spacing */
+  letter-spacing: -0.02em;
 }
 
 .error {
-  color: #dc2626; /* Vibrant red for errors */
-  font-size: 0.875rem; /* Smaller font size */
-  margin-bottom: 6px; /* Reduced margin */
-  text-align: center;
+  color: #dc2626;
+  font-size: 0.875rem;
   font-weight: 500;
+  margin: 0 0 12px;
+  text-align: center;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
 }
 
 .input {
-  border: 1px solid #d1d5db; /* Softer gray border */
-  padding: 6px 10px; /* Reduced padding */
-  width: 100%;
-  margin-bottom: 6px; /* Reduced margin */
-  font-size: 0.875rem; /* Smaller font size */
-  border-radius: 6px; /* Softer corners */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transitions */
-  background-color: #ffffff;
+  width: 90%;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #111827;
+  background: #f9fafb;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
 }
 
 .input:focus {
   outline: none;
-  border-color: #2563eb; /* Vibrant blue for focus */
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); /* Subtle focus ring */
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .button {
-  background-color: #2563eb; /* Deeper blue for premium look */
+  width: 100%;
+  padding: 13px;
+  margin-top: 8px;
+  font-size: 1rem;
+  font-weight: 600;
   color: #ffffff;
-  padding: 8px 14px; /* Slightly reduced padding */
-  border-radius: 6px; /* Softer corners */
+  background: #3b82f6;
   border: none;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 0.875rem; /* Smaller font size */
-  font-weight: 500;
-  transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth hover effects */
-  width: 100%; /* Full-width button for mobile */
-  text-align: center;
+  transition: background 0.2s ease;
 }
 
 .button:hover {
-  background-color: #1d4ed8; /* Darker blue on hover */
-  transform: translateY(-1px); /* Subtle lift effect */
+  background: #2563eb;
 }
 
 .button:active {
-  transform: translateY(0); /* Reset on click */
+  background: #1d4ed8;
 }
 
-/* Responsive adjustments */
+/* Larger screens */
 @media (min-width: 640px) {
   .container {
-    padding: 16px; /* Slightly more padding on larger screens */
+    padding: 32px 28px;
   }
 
   .title {
-    font-size: 1.75rem; /* Slightly larger title on bigger screens */
+    font-size: 1.5rem;
+    margin-bottom: 24px;
   }
 
   .button {
-    width: auto; /* Button auto-width on larger screens */
-    padding: 8px 20px;
+    width: auto;
+    min-width: 120px;
+    padding: 13px 28px;
   }
 }
 
+/* Tiny screens */
 @media (max-width: 400px) {
-  .title {
-    font-size: 1.25rem; /* Smaller title on very small screens */
+  .container {
+    padding: 20px 16px;
   }
 
-  .input, .button {
-    font-size: 0.8125rem; /* Smaller font for inputs and buttons */
+  .title {
+    font-size: 1.125rem;
+  }
+
+  .input,
+  .button {
+    font-size: 0.9375rem;
+    padding: 11px 12px;
   }
 }
+

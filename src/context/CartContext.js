@@ -1,5 +1,5 @@
-// Example CartContext.jsx (for reference, not included in artifact)
-import { createContext, useContext, useState } from 'react';
+// context/CartContext.jsx
+import { createContext, useContext, useState } from "react";
 
 const CartContext = createContext();
 

@@ -1,192 +1,213 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useCartContext } from '../context/CartContext';
-import { Link, useSearchParams } from 'react-router-dom';
-import toast, { Toaster } from 'react-hot-toast';
-import styles from './Menu.module.css';
-import QRCodeComponent from './QRCodeComponent';
+// src/pages/Menu.jsx
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useCartContext } from "../context/CartContext";
+import { Link, useSearchParams } from "react-router-dom";
+import toast, { Toaster } from "react-hot-toast";
+import { FaShoppingCart, FaPlus } from "react-icons/fa";
+import QRCodeComponent from "./QRCodeComponent";
+import styles from "./Menu.module.css";
 
-const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
+const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
 
-function Menu() {
+export default function Menu() {
   const [items, setItems] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [tableNumber, setTableNumber] = useState('');
-  const { addItem, cartItems } = useCartContext();
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [tableNumber, setTableNumber] = useState("");
+  const { addItem, items: cartItems } = useCartContext(); // <-- renamed to match context
   const [searchParams] = useSearchParams();
 
-  // Static categories
+  // ------------------------------------------------------------------ //
+  // 1. Static categories
+  // ------------------------------------------------------------------ //
   const staticCategories = [
-    { id: 'all', name: 'All' },
-    { id: 'chai', name: 'Chai' },
-    { id: 'cold-coffee', name: 'Cold Coffee' },
-    { id: 'hot-coffee', name: 'Hot Coffee' },
-    { id: 'maggi', name: 'Maggi' },
-    { id: 'burger', name: 'Burger' },
-    { id: 'pizza', name: 'Pizza' },
-    { id: 'chinese', name: 'Chinese' },
-    { id: 'sandwich', name: 'Sandwich' },
-    { id: 'snacks', name: 'Snacks' },
-    { id: 'wraps', name: 'Wraps' },
-    { id: 'pasta', name: 'Pasta' },
-    { id: 'cold-drinks', name: 'Cold Drinks' },
-    { id: 'mocktails', name: 'Mocktails' },
-    { id: 'juices', name: 'Juices' },
-    { id: 'shakes', name: 'Shakes' },
-    { id: 'desserts', name: 'Desserts' },
-    { id: 'cakes', name: 'Cakes' },
-    { id: 'water', name: 'Water' },
-    { id: 'cigarettes', name: 'Cigarettes' },
-    { id: 'disposables', name: 'Disposables' },
-    { id: 'dips', name: 'Dips' },
+    { id: "all", name: "All" },
+    { id: "chai", name: "Chai" },
+    { id: "cold-coffee", name: "Cold Coffee" },
+    { id: "hot-coffee", name: "Hot Coffee" },
+    { id: "maggi", name: "Maggi" },
+    { id: "burger", name: "Burger" },
+    { id: "pizza", name: "Pizza" },
+    { id: "chinese", name: "Chinese" },
+    { id: "sandwich", name: "Sandwich" },
+    { id: "snacks", name: "Snacks" },
+    { id: "wraps", name: "Wraps" },
+    { id: "pasta", name: "Pasta" },
+    { id: "cold-drinks", name: "Cold Drinks" },
+    { id: "mocktails", name: "Mocktails" },
+    { id: "juices", name: "Juices" },
+    { id: "shakes", name: "Shakes" },
+    { id: "desserts", name: "Desserts" },
+    { id: "cakes", name: "Cakes" },
+    { id: "water", name: "Water" },
+    { id: "cigarettes", name: "Cigarettes" },
+    { id: "disposables", name: "Disposables" },
+    { id: "dips", name: "Dips" },
   ];
 
+  // ------------------------------------------------------------------ //
+  // 2. Load table number + fetch menu
+  // ------------------------------------------------------------------ //
   useEffect(() => {
-    // Extract table number from URL query parameter
-    const urlTableNumber = searchParams.get('table');
-    if (urlTableNumber) {
-      setTableNumber(urlTableNumber);
-      localStorage.setItem('tableNumber', urlTableNumber);
+    const urlTable = searchParams.get("table");
+    if (urlTable) {
+      setTableNumber(urlTable);
+      localStorage.setItem("tableNumber", urlTable);
     } else {
-      // Check if table number exists in localStorage
-      const storedTableNumber = localStorage.getItem('tableNumber');
-      if (storedTableNumber) {
-        setTableNumber(storedTableNumber);
-      }
+      const stored = localStorage.getItem("tableNumber");
+      if (stored) setTableNumber(stored);
     }
 
-    // Fetch all menu items
     axios
       .get(`${API}/menu`)
-      .then((res) => {
-        setItems(res.data);
-      })
-      .catch((err) => console.error('Error fetching menu:', err));
+      .then((res) => setItems(res.data))
+      .catch((err) => {
+        console.error(err);
+        toast.error("Failed to load menu");
+      });
   }, [searchParams]);
 
-  // Filter items by category
-  const filteredItems = selectedCategory === 'all'
-    ? items
-    : items.filter(item => item.category === selectedCategory);
+  // ------------------------------------------------------------------ //
+  // 3. Filter items
+  // ------------------------------------------------------------------ //
+  const filteredItems =
+    selectedCategory === "all"
+      ? items
+      : items.filter((i) => i.category === selectedCategory);
 
-  const handleAddToCart = (item) => {
+  // ------------------------------------------------------------------ //
+  // 4. Add-to-cart handler
+  // ------------------------------------------------------------------ //
+  const handleAdd = (item) => {
+    if (!tableNumber) {
+      toast.error("Enter your table number first!");
+      return;
+    }
     addItem({
       id: item._id,
       name: item.name,
       price: item.price,
       category: item.category,
-      image: item.image
+      image: item.image,
     });
-    toast.success(`${item.name} added to cart!`, {
-      position: 'top-right',
-      duration: 3000,
-      style: {
-        background: '#4caf50',
-        color: '#fff',
-        fontSize: '16px',
-        padding: '10px 20px',
-      },
+    toast.success(`${item.name} added!`, {
+      style: { background: "#10b981", color: "#fff" },
     });
   };
 
-  // Generate table-specific QR URL
-  const getQRUrl = (tableNum) => {
-    return `https://cafe-application-fe.vercel.app/menu?table=${tableNum}`;
-  };
+  // ------------------------------------------------------------------ //
+  // 5. QR-code URL
+  // ------------------------------------------------------------------ //
+  const qrUrl = tableNumber
+    ? `https://cafe-application-fe.vercel.app/menu?table=${tableNumber}`
+    : null;
 
+  // ------------------------------------------------------------------ //
+  // 6. Cart badge count (total items, not just length)
+  // ------------------------------------------------------------------ //
+  const cartTotalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // ------------------------------------------------------------------ //
+  // 7. Render
+  // ------------------------------------------------------------------ //
   return (
-    <div className={styles.pageWrapper}>
-      <Toaster />
+    <div className={styles.page}>
+      <Toaster position="top-center" />
 
-      {/* Hero Section */}
-      <section className={styles.hero}>
-        <h1 className={styles.heroTitle}>Cafe Delight: Brewed Perfection</h1>
-        <p className={styles.heroSubtitle}>
-          Indulge in our artisanal coffees, teas, and delectable bites. Your cozy cafe experience awaits!
-       
-        </p>
-        <p className={styles.heroSubtitle}>
-             {tableNumber && (
-            <strong>Your table no is: #{tableNumber}</strong>
+      {/* ---------- HERO ---------- */}
+      <header className={styles.hero}>
+        <div className={styles.heroOverlay} />
+        <div className={styles.heroContent}>
+          <h1 className={styles.heroTitle}>The Landmark cafe</h1>
+          <p className={styles.heroSubtitle}>
+            Artisanal coffees, teas &amp; bites – all at your table.
+          </p>
+
+          {tableNumber && (
+            <p className={styles.tableInfo}>
+              <strong>Table #{tableNumber}</strong>
+            </p>
           )}
-        </p>
-      </section>
+        </div>
+      </header>
 
-      {/* Categories Filter */}
-      <section className={styles.categoriesSection}>
-        <div className={styles.categoryTabs}>
-          {staticCategories.map((category) => (
-            <div key={category.id} className={styles.tabWrapper}>
-              <button
-                className={`${styles.categoryTab} ${selectedCategory === category.id ? styles.activeCategory : ''}`}
-                onClick={() => setSelectedCategory(category.id)}
-              >
-                <small>{category.name}</small>
-              </button>
-            </div>
+      {/* ---------- CATEGORIES ---------- */}
+      <section className={styles.categories}>
+        <div className={styles.categoryScroll}>
+          {staticCategories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCategory(c.id)}
+              className={`${styles.categoryPill} ${
+                selectedCategory === c.id ? styles.activePill : ""
+              }`}
+            >
+              {c.name}
+            </button>
           ))}
         </div>
       </section>
 
-      {/* Menu Section */}
-      <section className={styles.container}>
-        <h2 className={styles.title}>Our Menu</h2>
+      {/* ---------- MENU GRID ---------- */}
+      <section className={styles.menu}>
         {filteredItems.length === 0 ? (
-          <p className={styles.noItems}>No items found in this category.</p>
+          <p className={styles.empty}>No items in this category.</p>
         ) : (
           <div className={styles.grid}>
             {filteredItems.map((item) => (
-              <div key={item._id} className={styles.card}>
-                <img
-                  src={item.image || '/default-food-image.jpg'}
-                  alt={item.name}
-                  className={styles.image}
-                  onError={(e) => {
-                    e.target.src = '/default-food-image.jpg';
-                  }}
-                />
-                <div className={styles.cardContent}>
-                  <h3 className={styles.itemTitle}>{item.name}</h3>
-                  <p className={styles.categoryTag}>{item.categoryName || item.category}</p>
-                  <p className={styles.description}>{item.description}</p>
-                  <p className={styles.price}>{item.price.toFixed(2)} rs</p>
-                  <button
-                    onClick={() => handleAddToCart(item)}
-                    className={styles.button}
-                    disabled={!tableNumber}
-                  >
-                    Add to Cart
-                  </button>
+              <article key={item._id} className={styles.card}>
+                <div className={styles.imgWrap}>
+                  <img
+                    src={item.image || "/placeholder-food.jpg"}
+                    alt={item.name}
+                    className={styles.img}
+                    loading="lazy"
+                  />
+                  <span className={styles.tag}>{item.category}</span>
                 </div>
-              </div>
+
+                <div className={styles.cardBody}>
+                  <h3 className={styles.itemName}>{item.name}</h3>
+
+                  {/* 3-line truncation */}
+                  <p className={styles.desc}>
+                    {item.description}
+                  </p>
+
+                  <div className={styles.priceRow}>
+                    <span className={styles.price}>₹{item.price}</span>
+                    <button
+                      onClick={() => handleAdd(item)}
+                      className={styles.addBtn}
+                      disabled={!tableNumber}
+                    >
+                      <FaPlus size={18} />
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
         )}
       </section>
 
-      {/* Cart Button */}
-      <Link to={`/cart?table=${tableNumber}`} className={styles.cartButton}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="9" cy="21" r="1" />
-          <circle cx="20" cy="21" r="1" />
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-        </svg>
-        {cartItems?.length > 0 && (
-          <span className={styles.cartBadge}>{cartItems.length}</span>
+      {/* ---------- FLOATING CART – NOW SHOWS CORRECT COUNT ---------- */}
+      <Link
+        to={`/cart?table=${tableNumber}`}
+        className={styles.fab}
+        aria-label="Open cart"
+      >
+        <FaShoppingCart size={26} />
+        {cartTotalItems > 0 && (
+          <span className={styles.fabBadge}>{cartTotalItems}</span>
         )}
       </Link>
+
+      {/* ---------- FOOTER ---------- */}
+      <footer className={styles.footer}>
+        © {new Date().getFullYear()} The Landmark cafe – All rights reserved.
+      </footer>
     </div>
   );
 }
-
-export default Menu;
