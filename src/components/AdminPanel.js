@@ -2,6 +2,24 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import {
+  Plus,
+  Search,
+  Trash2,
+  Edit3,
+  LayoutDashboard,
+  ShoppingBag,
+  QrCode,
+  BarChart3,
+  Clock,
+  MoreHorizontal,
+  X,
+  Upload,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import QRCodeComponent from './QRCodeComponent';
 import styles from './AdminPanel.module.css';
 
@@ -21,7 +39,7 @@ function AdminPanel() {
   const [editingItem, setEditingItem] = useState(null);
   const [timeUpdate, setTimeUpdate] = useState({});
   const [progress, setProgress] = useState({});
-  const [activeTab, setActiveTab] = useState('items');
+  const [activeTab, setActiveTab] = useState('items'); // items, orders, qrcodes, analytics
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [analytics, setAnalytics] = useState({
     allTime: 0,
@@ -34,30 +52,6 @@ function AdminPanel() {
   });
   const navigate = useNavigate();
 
-  // Calculate progress for each order
-  useEffect(() => {
-    const calculateProgress = () => {
-      const newProgress = {};
-      orders.forEach((order) => {
-        if (order.status === 'preparing' && order.estimatedTime && order.timeSetAt) {
-          const timeSetAt = new Date(order.timeSetAt).getTime();
-          const estimatedMs = order.estimatedTime * 60 * 1000;
-          const elapsedMs = Date.now() - timeSetAt;
-          const progressPercent = Math.min((elapsedMs / estimatedMs) * 100, 100);
-          newProgress[order._id] = progressPercent;
-        } else {
-          newProgress[order._id] = 0;
-        }
-      });
-      setProgress(newProgress);
-    };
-
-    const interval = setInterval(calculateProgress, 1000);
-    calculateProgress();
-
-    return () => clearInterval(interval);
-  }, [orders]);
-
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -66,93 +60,30 @@ function AdminPanel() {
     }
 
     // Fetch menu items
-    axios
-      .get(`${API}/menu`)
+    axios.get(`${API}/menu`)
       .then((res) => setItems(res.data))
       .catch((err) => console.error('Fetch menu error:', err));
 
     // Fetch orders
-    axios
-      .get(`${API}/admin/orders`, { headers: { 'x-auth-token': token } })
+    axios.get(`${API}/admin/orders`, { headers: { 'x-auth-token': token } })
       .then((res) => setOrders(res.data))
       .catch(() => navigate('/admin/login'));
 
     // Socket listeners
     socket.on('newOrder', (newOrder) => {
-      setOrders((prevOrders) => [newOrder, ...prevOrders]);
+      setOrders((prev) => [newOrder, ...prev]);
+      toast.success("New Order Received!");
     });
 
     socket.on('orderUpdate', (updatedOrder) => {
-      setOrders((prevOrders) =>
-        prevOrders.map((order) => (order._id === updatedOrder._id ? updatedOrder : order))
-      );
-    });
-
-    socket.on('orderDeleted', ({ id }) => {
-      setOrders((prevOrders) => prevOrders.filter((order) => order._id !== id));
+      setOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
     });
 
     return () => {
       socket.off('newOrder');
       socket.off('orderUpdate');
-      socket.off('orderDeleted');
     };
   }, [navigate]);
-
-  // Recalculate analytics when orders or filter changes
-  useEffect(() => {
-    const calculateAnalytics = () => {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const thisYear = new Date(now.getFullYear(), 0, 1);
-
-      const doneOrders = orders.filter(o => o.status === 'done');
-
-      const allTime = doneOrders.reduce((sum, o) => sum + o.total, 0);
-      const todayIncome = doneOrders
-        .filter(o => new Date(o.createdAt) >= today)
-        .reduce((sum, o) => sum + o.total, 0);
-      const monthIncome = doneOrders
-        .filter(o => new Date(o.createdAt) >= thisMonth)
-        .reduce((sum, o) => sum + o.total, 0);
-      const yearIncome = doneOrders
-        .filter(o => new Date(o.createdAt) >= thisYear)
-        .reduce((sum, o) => sum + o.total, 0);
-
-      let filteredIncome = 0;
-      if (analytics.filter === 'today') {
-        filteredIncome = todayIncome;
-      } else if (analytics.filter === 'month') {
-        filteredIncome = monthIncome;
-      } else if (analytics.filter === 'year') {
-        filteredIncome = yearIncome;
-      } else if (analytics.filter === 'date' && analytics.selectedDate) {
-        const selected = new Date(analytics.selectedDate);
-        const start = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-        filteredIncome = doneOrders
-          .filter(o => {
-            const orderDate = new Date(o.createdAt);
-            return orderDate >= start && orderDate < end;
-          })
-          .reduce((sum, o) => sum + o.total, 0);
-      } else {
-        filteredIncome = allTime;
-      }
-
-      setAnalytics(prev => ({
-        ...prev,
-        allTime: allTime.toFixed(2),
-        today: todayIncome.toFixed(2),
-        thisMonth: monthIncome.toFixed(2),
-        thisYear: yearIncome.toFixed(2),
-        filteredIncome: filteredIncome.toFixed(2),
-      }));
-    };
-
-    calculateAnalytics();
-  }, [orders, analytics.filter, analytics.selectedDate]);
 
   const handleSaveItem = async (e) => {
     e.preventDefault();
@@ -165,58 +96,34 @@ function AdminPanel() {
       const config = {
         headers: { 'x-auth-token': token, 'Content-Type': 'multipart/form-data' },
       };
-      let res;
       if (editingItem) {
-        res = await axios.put(`${API}/admin/items/${editingItem._id}`, formData, config);
+        await axios.put(`${API}/admin/items/${editingItem._id}`, formData, config);
       } else {
-        res = await axios.post(`${API}/admin/items`, formData, config);
+        await axios.post(`${API}/admin/items`, formData, config);
       }
-      setNewItem({ name: '', description: '', price: '', category: '', image: null });
-      setEditingItem(null);
       setIsPopupOpen(false);
-      axios
-        .get(`${API}/menu`)
-        .then((res) => setItems(res.data))
-        .catch((err) => console.error('Fetch menu error:', err));
+      // Refresh items
+      axios.get(`${API}/menu`).then((res) => setItems(res.data));
     } catch (err) {
-      console.error('Save item error:', err.response?.data || err.message);
       alert('Error saving item');
     }
   };
 
-  const handleEditItem = (item) => {
-    setNewItem({
-      name: item.name,
-      description: item.description,
-      price: item.price,
-      category: item.category,
-      image: null,
-    });
-    setEditingItem(item);
-    setIsPopupOpen(true);
-  };
-
-  const handleDeleteItem = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this menu item?')) return;
+  const handleStatusUpdate = async (orderId, status) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API}/admin/items/${id}`, {
-        headers: { 'x-auth-token': token },
-      });
-      axios
-        .get(`${API}/menu`)
-        .then((res) => setItems(res.data))
-        .catch((err) => console.error('Fetch menu error:', err));
+      await axios.put(`${API}/admin/orders/${orderId}/status`, { status }, { headers: { 'x-auth-token': token } });
+      toast.success(`Order marked as ${status}`);
     } catch (err) {
-      console.error('Delete item error:', err.response?.data || err.message);
-      alert('Error deleting item');
+      console.error('Update status error:', err);
+      toast.error('Error updating status');
     }
   };
 
   const handleTimeUpdate = async (orderId) => {
     const time = timeUpdate[orderId];
     if (!time || isNaN(time) || Number(time) <= 0) {
-      alert('Please enter a valid time in minutes');
+      toast.error('Please enter a valid time in minutes');
       return;
     }
     try {
@@ -227,307 +134,192 @@ function AdminPanel() {
         { headers: { 'x-auth-token': token } }
       );
       setTimeUpdate((prev) => ({ ...prev, [orderId]: '' }));
+      toast.success("Time updated!");
     } catch (err) {
-      console.error('Update time error:', err.response?.data || err.message);
-      alert('Error updating time');
+      console.error('Update time error:', err);
+      toast.error('Error updating time');
     }
-  };
-
-  const handleStatusUpdate = async (orderId, status) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `${API}/admin/orders/${orderId}/status`,
-        { status },
-        { headers: { 'x-auth-token': token } }
-      );
-    } catch (err) {
-      console.error('Update status error:', err.response?.data || err.message);
-      alert('Error updating status');
-    }
-  };
-
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to delete this order?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API}/admin/orders/${orderId}`, {
-        headers: { 'x-auth-token': token },
-      });
-    } catch (err) {
-      console.error('Delete order error:', err.response?.data || err.message);
-      alert('Error deleting order');
-    }
-  };
-
-  // Generate URLs for 22 tables
-  const getQRUrl = (tableNum) => {
-    return `https://cafe-application-fe.vercel.app/menu?table=${tableNum}`;
   };
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Admin Panel</h1>
-
-      {/* Tab Navigation */}
-      <div className={styles.tabContainer}>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'items' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('items')}
-        >
-          Items
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'orders' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('orders')}
-        >
-          Orders
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'qrcodes' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('qrcodes')}
-        >
-          QR Codes
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'analytics' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('analytics')}
-        >
-          Analytics
-        </button>
-      </div>
-
-      {/* Items Tab */}
-      {activeTab === 'items' && (
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.subtitle}>Menu Items</h2>
-            <button
-              className={styles.button}
-              onClick={() => {
-                setNewItem({ name: '', description: '', price: '', category: '', image: null });
-                setEditingItem(null);
-                setIsPopupOpen(true);
-              }}
-            >
-              Add Item
-            </button>
+    <div className={styles.page}>
+      <Toaster position="top-right" />
+      <div className={styles.container}>
+        <header className={styles.header}>
+          <div className={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <LayoutDashboard size={32} color="var(--primary)" />
+            <h1 className={styles.title}>Admin Control</h1>
           </div>
-          <div className={styles.ordersGrid}>
-            {items.map((item) => (
-              <div key={item._id} className={styles.orderCard}>
-                <img src={item.image} alt={item.name} className={styles.image} />
-                <p className={styles.orderText}><span className={styles.orderLabel}>Name:</span> {item.name}</p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Description:</span> {item.description}</p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Price:</span> {item.price.toFixed(2)} rs</p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Category:</span> {item.category}</p>
-                <div className={styles.orderActions}>
-                  <button onClick={() => handleEditItem(item)} className={styles.updateButton}>Edit</button>
-                  <button onClick={() => handleDeleteItem(item._id)} className={styles.deleteButton}>Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+          <button className={styles.button} onClick={() => { localStorage.removeItem('token'); navigate('/admin/login'); }}>
+            Logout
+          </button>
+        </header>
 
-      {/* Orders Tab */}
-      {activeTab === 'orders' && (
-        <section className={styles.section}>
-          <h2 className={styles.subtitle}>Orders</h2>
-          <div className={styles.ordersGrid}>
-            {orders.map((order) => (
-              <div key={order._id} className={styles.orderCard}>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Table:</span> {order.tableNumber}</p>
-                <p className={styles.orderText}>
-                  <span className={styles.orderLabel}>Status:</span> 
-                  <span className={order.status === 'done' ? styles.statusDone : styles.statusPreparing}>
-                    {order.status}
-                  </span>
-                </p>
-                {order.status === 'preparing' && order.estimatedTime && order.timeSetAt ? (
-                  <>
-                    <p className={styles.orderText}>
-                      Time Remaining: {Math.max(0, Math.ceil((order.estimatedTime * 60 - (Date.now() - new Date(order.timeSetAt).getTime()) / 1000) / 60))} mins
-                    </p>
-                    <div className={styles.progressBar}>
-                      <div className={styles.progressFill} style={{ width: `${progress[order._id] || 0}%` }}></div>
-                    </div>
-                  </>
-                ) : (
-                  <p className={styles.orderText}><span className={styles.orderLabel}>Estimated Time:</span> {order.estimatedTime ? `${order.estimatedTime} mins` : 'N/A'}</p>
-                )}
-                <p className={styles.orderText}>
-                  <span className={styles.orderLabel}>Items:</span> 
-                  {order.items.map((item, i) => `${item.name} x ${order.quantities[i]}`).join(', ')}
-                </p>
-                <p className={styles.orderText}><span className={styles.orderLabel}>Total:</span> {order.total.toFixed(2)} rs</p>
-                <div className={styles.orderActions}>
-                  <input
-                    type="number"
-                    placeholder="Time (mins)"
-                    value={timeUpdate[order._id] || ''}
-                    onChange={(e) => setTimeUpdate({ ...timeUpdate, [order._id]: e.target.value })}
-                    className={styles.timeInput}
-                    disabled={['done', 'canceled'].includes(order.status)}
-                    min="1"
-                    step="1"
-                  />
-                  <button onClick={() => handleTimeUpdate(order._id)} className={styles.updateButton} disabled={['done', 'canceled'].includes(order.status)}>
-                    Update Time
-                  </button>
-                  <button onClick={() => handleStatusUpdate(order._id, 'done')} className={styles.statusButton} disabled={['done', 'canceled'].includes(order.status)}>
-                    Mark as Done
-                  </button>
-                  <button onClick={() => handleStatusUpdate(order._id, 'canceled')} className={styles.cancelButton} disabled={['done', 'canceled'].includes(order.status)}>
-                    Cancel Order
-                  </button>
-                  <button onClick={() => handleDeleteOrder(order._id)} className={styles.deleteButton}>
-                    Delete Order
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* QR Codes Tab */}
-      {activeTab === 'qrcodes' && (
-        <section className={styles.section}>
-          <h2 className={styles.subtitle}>Table QR Codes</h2>
-          <p>Download QR codes for tables 1 to 22 to place on each table.</p>
-          <div className={styles.qrGrid}>
-            {Array.from({ length: 22 }, (_, i) => i + 1).map((tableNum) => (
-              <div key={tableNum} className={styles.qrCard}>
-                <QRCodeComponent url={getQRUrl(tableNum)} tableNumber={tableNum.toString()} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Analytics Tab */}
-      {activeTab === 'analytics' && (
-        <section className={styles.section}>
-          <h2 className={styles.subtitle}>Income Analytics</h2>
-
-          {/* Filter Controls */}
-          <div className={styles.analyticsFilter}>
-            <select
-              value={analytics.filter}
-              onChange={(e) => setAnalytics(prev => ({ ...prev, filter: e.target.value, selectedDate: '' }))}
-              className={styles.filterSelect}
-            >
-              <option value="today">Today</option>
-              <option value="month">This Month</option>
-              <option value="year">This Year</option>
-              <option value="date">Specific Date</option>
-            </select>
-
-            {analytics.filter === 'date' && (
-              <input
-                type="date"
-                value={analytics.selectedDate}
-                onChange={(e) => setAnalytics(prev => ({ ...prev, selectedDate: e.target.value }))}
-                className={styles.dateInput}
-              />
-            )}
-          </div>
-
-          {/* Income Card */}
-          <div className={styles.analyticsGrid}>
-            <div className={styles.analyticsCard}>
-              <h3>
-                {analytics.filter === 'date' && analytics.selectedDate
-                  ? new Date(analytics.selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                  : analytics.filter === 'today' ? 'Today'
-                  : analytics.filter === 'month' ? 'This Month'
-                  : analytics.filter === 'year' ? 'This Year'
-                  : 'All Time'}
-              </h3>
-              <p className={styles.amount}>{analytics.filteredIncome} rs</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Popup Form for Adding/Editing Item */}
-      {isPopupOpen && (
-        <div className={styles.popup}>
-          <div className={styles.popupContent}>
-            <button className={styles.closeButton} onClick={() => setIsPopupOpen(false)}>
-              ×
-            </button>
-            <h2 className={styles.subtitle}>{editingItem ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
-            <form onSubmit={handleSaveItem} className={styles.form}>
-              <div className={styles.formGrid}>
-                <div className={styles.formGroup}>
-                  <label htmlFor="name" className={styles.label}>Item Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    placeholder="Item Name"
-                    value={newItem.name}
-                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                    className={styles.input}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="price" className={styles.label}>Price</label>
-                  <input
-                    type="number"
-                    id="price"
-                    placeholder="Price"
-                    value={newItem.price}
-                    onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-                    className={styles.input}
-                    required
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="category" className={styles.label}>Category</label>
-                  <input
-                    type="text"
-                    id="category"
-                    placeholder="Category"
-                    value={newItem.category}
-                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                    className={styles.input}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="description" className={styles.label}>Description</label>
-                  <textarea
-                    id="description"
-                    placeholder="Description"
-                    value={newItem.description}
-                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                    className={styles.textarea}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="image" className={styles.label}>Image {editingItem ? '(Optional)' : ''}</label>
-                  {editingItem && <img src={editingItem.image} alt="Current" className={styles.imagePreview} />}
-                  <input
-                    type="file"
-                    id="image"
-                    onChange={(e) => setNewItem({ ...newItem, image: e.target.files[0] })}
-                    className={styles.fileInput}
-                    required={!editingItem}
-                  />
-                </div>
-              </div>
-              <button type="submit" className={styles.button}>{editingItem ? 'Save Changes' : 'Add Item'}</button>
-            </form>
-          </div>
+        <div className={styles.tabContainer}>
+          <button className={`${styles.tabButton} ${activeTab === 'items' ? styles.activeTab : ''}`} onClick={() => setActiveTab('items')}>
+            <BarChart3 size={18} style={{ display: 'inline', marginRight: '8px' }} /> Items
+          </button>
+          <button className={`${styles.tabButton} ${activeTab === 'orders' ? styles.activeTab : ''}`} onClick={() => setActiveTab('orders')}>
+            <ShoppingBag size={18} style={{ display: 'inline', marginRight: '8px' }} /> Orders
+          </button>
+          <button className={`${styles.tabButton} ${activeTab === 'qrcodes' ? styles.activeTab : ''}`} onClick={() => setActiveTab('qrcodes')}>
+            <QrCode size={18} style={{ display: 'inline', marginRight: '8px' }} /> Table QR
+          </button>
         </div>
-      )}
+
+        <main>
+          <AnimatePresence mode="wait">
+            {activeTab === 'items' && (
+              <motion.section
+                key="items"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+              >
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.subtitle}>Menu Management</h2>
+                  <button className={styles.button} onClick={() => { setEditingItem(null); setNewItem({ name: '', description: '', price: '', category: '', image: null }); setIsPopupOpen(true); }}>
+                    <Plus size={18} /> Add New Item
+                  </button>
+                </div>
+                <div className={styles.grid}>
+                  {items.map((item) => (
+                    <div key={item._id} className={styles.card}>
+                      <img src={item.image} alt="" className={styles.itemImage} />
+                      <div className={styles.itemInfo}>
+                        <h3>{item.name}</h3>
+                        <p className={styles.itemPrice}>₹{item.price}</p>
+                        <div className={styles.orderActions}>
+                          <button className={`${styles.button} ${styles.buttonOutline}`} onClick={() => { setEditingItem(item); setNewItem({ ...item, image: null }); setIsPopupOpen(true); }}>
+                            <Edit3 size={16} /> Edit
+                          </button>
+                          <button className={`${styles.button} ${styles.buttonDanger}`}>
+                            <Trash2 size={16} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {activeTab === 'orders' && (
+              <motion.section
+                key="orders"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+              >
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.subtitle}>Active Orders</h2>
+                </div>
+                <div className={styles.grid}>
+                  {orders.map((order) => (
+                    <div key={order._id} className={styles.card}>
+                      <div className={styles.orderMeta}>
+                        <span className={styles.tableTag}>Table #{order.tableNumber}</span>
+                        <span className={`${styles.statusIndicator} ${styles['status' + order.status.charAt(0).toUpperCase() + order.status.slice(1)]}`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      <div className={styles.orderItems}>
+                        {order.items.map((it, i) => (
+                          <p key={i}>{it.name} x {order.quantities[i]}</p>
+                        ))}
+                      </div>
+                      <p className={styles.itemPrice}>Total: ₹{order.total}</p>
+                      <div className={styles.orderActions}>
+                        <div className={styles.timeUpdateRow}>
+                          <input
+                            type="number"
+                            placeholder="Mins"
+                            className={styles.input}
+                            style={{ width: '80px', padding: '0.4rem' }}
+                            value={timeUpdate[order._id] || ''}
+                            onChange={(e) => setTimeUpdate({ ...timeUpdate, [order._id]: e.target.value })}
+                          />
+                          <button
+                            className={`${styles.button} ${styles.buttonSmall}`}
+                            onClick={() => handleTimeUpdate(order._id)}
+                          >
+                            Set Time
+                          </button>
+                        </div>
+                        <div className={styles.statusButtonsGroup}>
+                          <button className={styles.button} onClick={() => handleStatusUpdate(order._id, 'preparing')}>Prepare</button>
+                          <button className={styles.button} onClick={() => handleStatusUpdate(order._id, 'ready')}>Ready</button>
+                          <button className={styles.button} onClick={() => handleStatusUpdate(order._id, 'done')}>Serve</button>
+                          <button className={`${styles.button} ${styles.buttonDanger}`} onClick={() => handleStatusUpdate(order._id, 'cancelled')}>Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {activeTab === 'qrcodes' && (
+              <motion.section
+                key="qrcodes"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+              >
+                <h2 className={styles.subtitle}>Table Assignments</h2>
+                <div className={styles.qrGrid}>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                    <div key={n} className={`${styles.card} ${styles.qrCard}`}>
+                      <QRCodeComponent url={`${window.location.origin}/menu?table=${n}`} />
+                      <span className={styles.qrNumber}>Table {n}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+        </main>
+
+        <AnimatePresence>
+          {isPopupOpen && (
+            <div className={styles.modal}>
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={styles.modalContent}
+              >
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.subtitle}>{editingItem ? 'Edit Item' : 'New Menu Item'}</h2>
+                  <button onClick={() => setIsPopupOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
+                </div>
+                <form onSubmit={handleSaveItem}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Name</label>
+                    <input className={styles.input} value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Price</label>
+                    <input className={styles.input} type="number" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Category</label>
+                    <input className={styles.input} value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Description</label>
+                    <textarea className={styles.input} value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Image</label>
+                    <input type="file" onChange={(e) => setNewItem({ ...newItem, image: e.target.files[0] })} />
+                  </div>
+                  <button type="submit" className={styles.button} style={{ width: '100%', marginTop: '1rem' }}>Save Item</button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

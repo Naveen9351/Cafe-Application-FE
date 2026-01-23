@@ -1,346 +1,222 @@
-/* === Global Container === */
-.container {
-  padding: 1.5rem;
-  max-width: 100%;
-  width: min(95%, 680px);
-  margin: 1.5rem auto;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+.page {
   min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #1e293b;
+  background: var(--bg-main);
+  padding: 2rem 1rem;
 }
 
-/* === Header === */
-.header {
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.card {
+  background: white;
+  border-radius: 2rem;
+  padding: 2.5rem 1.5rem;
+  box-shadow: var(--shadow-lg);
   text-align: center;
-  margin-bottom: 1.5rem;
+  border: 1px solid #f1f5f9;
+}
+
+.header {
+  margin-bottom: 2.5rem;
 }
 
 .title {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.03em;
-  background: linear-gradient(90deg, #1e40af, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
 }
 
 .subtitle {
-  font-size: 1.1rem;
-  color: #64748b;
-  margin: 0;
-  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 1rem;
 }
 
-/* === Loading & Error States === */
-.loadingCard, .errorCard {
-  text-align: center;
-  padding: 3rem 1.5rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+/* Status Indicator */
+.statusContainer {
+  margin-bottom: 3rem;
+  position: relative;
 }
 
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e2e8f0;
-  border-top: 4px solid #3b82f6;
+.iconCircle {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-main);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.error {
-  color: #dc2626;
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-/* === Main Order Card === */
-.orderCard {
-  background: white;
-  border-radius: 16px;
-  padding: 1.75rem;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
-  transition: all 0.3s ease;
-}
-
-.orderCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
-}
-
-/* === Status Header === */
-.statusHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: var(--primary);
+  position: relative;
 }
 
-.statusBadge {
-  padding: 0.5rem 1rem;
-  border-radius: 50px;
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
+.statusText {
+  font-size: 1.5rem;
+  font-weight: 800;
   text-transform: capitalize;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: var(--primary);
+  margin-bottom: 0.5rem;
 }
 
-.warning {
-  color: #dc2626;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin: 0;
-}
-
-/* === Progress Section === */
-.progressSection {
-  background: #f8fafc;
-  padding: 1.25rem;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
-  border: 1px solid #e2e8f0;
-}
-
-.timeInfo {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
-}
-
-.timeLabel {
-  color: #64748b;
-  font-weight: 500;
-}
-
-.timeValue {
-  font-weight: 700;
-  color: #1e40af;
+/* Visual Progress Bar */
+.progressWrapper {
+  margin: 2rem 0;
 }
 
 .progressBar {
-  width: 100%;
-  height: 12px;
+  height: 8px;
   background: #e2e8f0;
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
-  position: relative;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-  border-radius: 6px;
-  transition: width 0.5s ease;
-  position: relative;
-  overflow: hidden;
+  background: var(--primary);
+  border-radius: 10px;
 }
 
-.progressFill::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%);
-  background-size: 20px 20px;
-  animation: moveStripes 1.5s linear infinite;
+.timeText {
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
-.progressGlow {
-  position: absolute;
-  top: 0; left: 0;
-  width: 50px;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-  animation: shimmer 2s infinite;
+.timeValue {
+  color: var(--primary);
+  font-weight: 800;
 }
 
-@keyframes moveStripes {
-  0% { background-position: 0 0; }
-  100% { background-position: 20px 20px; }
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
-
-.progressText {
-  text-align: center;
-  font-size: 0.875rem;
-  color: #475569;
-  margin: 0;
-  font-weight: 500;
-}
-
-.estimatedTime {
-  font-size: 1rem;
-  color: #475569;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  font-weight: 500;
-}
-
-/* === Items Section === */
+/* Items List */
 .itemsSection {
-  margin-bottom: 1.5rem;
+  text-align: left;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 2rem;
+  margin-top: 2rem;
 }
 
 .sectionTitle {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 1.5rem;
 }
 
-.itemsList {
+.itemRow {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed #f1f5f9;
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
   gap: 1rem;
 }
 
-.item {
-  display: flex;
-  gap: 1rem;
-  padding: 0.75rem;
-  background: #f8fafc;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-}
-
-.item:hover {
-  background: #f1f5f9;
-  transform: translateX(4px);
-}
-
-.itemImage {
-  width: 70px;
-  height: 70px;
+.itemImg {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
   object-fit: cover;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  flex-shrink: 0;
-}
-
-.itemDetails {
-  flex: 1;
 }
 
 .itemName {
-  margin: 0 0 0.25rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.itemDesc {
-  margin: 0 0 0.5rem;
-  font-size: 0.875rem;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-.itemMeta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9375rem;
-}
-
-.quantity {
-  background: #e0e7ff;
-  color: #4338ca;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.price {
   font-weight: 700;
-  color: #1e40af;
+  font-size: 0.95rem;
 }
 
-/* === Total Section === */
-.totalSection {
-  background: #f0fdf4;
-  padding: 1rem 1.25rem;
-  border-radius: 12px;
-  border: 1px dashed #22c55e;
+.itemQty {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
 }
 
-.totalRow {
+.itemPrice {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Total Section */
+.totalCard {
+  background: var(--bg-main);
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  margin-top: 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 1.125rem;
+}
+
+.totalLabel {
   font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .totalAmount {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #16a34a;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--primary);
 }
 
-/* === Footer === */
+/* Footer / Actions */
 .footer {
+  margin-top: 3rem;
   text-align: center;
-  margin-top: 2rem;
-  color: #64748b;
-  font-size: 0.9375rem;
 }
 
-/* === Responsive === */
-@media (max-width: 600px) {
-  .container {
-    padding: 1rem;
-    margin: 0.5rem;
-    border-radius: 12px;
+.homeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: 2rem;
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 700;
+  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-sm);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 2rem 1rem;
   }
 
   .title {
-    font-size: 1.875rem;
-  }
-
-  .orderCard {
-    padding: 1.25rem;
-  }
-
-  .statusHeader {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .item {
-    flex-direction: column;
-  }
-
-  .itemImage {
-    width: 100%;
-    height: 120px;
-    border-radius: 12px;
-  }
-
-  .totalAmount {
-    font-size: 1.25rem;
+    font-size: 1.75rem;
   }
 }

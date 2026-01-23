@@ -1,16 +1,21 @@
-// src/pages/Cart.jsx
 import { useState, useEffect } from "react";
 import { useCartContext } from "../context/CartContext";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  FaPlus,
-  FaMinus,
-  FaTrash,
-  FaShoppingCart,
-  FaExclamationCircle,
-} from "react-icons/fa";
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingBag,
+  ChevronLeft,
+  CreditCard,
+  Truck,
+  Store,
+  CheckCircle2,
+  Lock
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import styles from "./Cart.module.css";
 
 const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
@@ -20,251 +25,248 @@ export default function Cart() {
     items,
     setItems,
     updateItemQuantity,
-    removeItem,        // <-- this is the key!
+    removeItem,
     getCartTotal,
   } = useCartContext();
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [tableNumber, setTableNumber] = useState(
-    localStorage.getItem("tableNumber") || ""
-  );
-  const [error, setError] = useState(null);
+  const [tableNumber, setTableNumber] = useState(localStorage.getItem("tableNumber") || "");
+  const [step, setStep] = useState(1); // 1: Review, 2: Details/Payment
   const [isPlacing, setIsPlacing] = useState(false);
-  const [cartKey, setCartKey] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("counter"); // counter or online
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  /* --------------------------------------------------------------- */
-  /* 1. Table number */
-  /* --------------------------------------------------------------- */
   useEffect(() => {
     const urlTable = searchParams.get("table");
     if (urlTable) {
       setTableNumber(urlTable);
       localStorage.setItem("tableNumber", urlTable);
-    } else if (!tableNumber) {
-      const stored = localStorage.getItem("tableNumber");
-      if (!stored) {
-        setError("No table number detected. Scan the QR code on your table.");
-      } else {
-        setTableNumber(stored);
-      }
     }
-  }, [searchParams, tableNumber]);
+  }, [searchParams]);
 
-  /* --------------------------------------------------------------- */
-  /* 2. Sync with localStorage */
-  /* --------------------------------------------------------------- */
-  useEffect(() => {
-    const saved = localStorage.getItem("cartItems");
-    if (saved && items.length === 0) {
-      try {
-        setItems(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse cartItems", e);
-      }
-    }
-  }, [items.length, setItems]);
-
-  useEffect(() => {
-    if (items.length) {
-      localStorage.setItem("cartItems", JSON.stringify(items));
-    } else {
-      localStorage.removeItem("cartItems");
-    }
-  }, [items]);
-
-  /* --------------------------------------------------------------- */
-  /* 3. Place order */
-  /* --------------------------------------------------------------- */
-  const placeOrder = async () => {
-    if (!tableNumber) {
-      toast.error("Table number required");
+  const handlePlaceOrder = async () => {
+    if (!tableNumber && paymentMethod === "counter") {
+      toast.error("Please enter a table number");
       return;
     }
-    if (items.length === 0) {
-      toast.error("Cart is empty");
-      return;
+
+    if (paymentMethod === "online") {
+      setIsProcessingPayment(true);
+      // Simulate payment gateway delay
+      await new Promise(r => setTimeout(r, 2500));
+      setIsProcessingPayment(false);
+      toast.success("Payment Received!");
     }
 
     setIsPlacing(true);
-    setError(null);
     try {
       const payload = {
         items: items.map((i) => i.id),
         quantities: items.map((i) => i.quantity),
         total: getCartTotal(),
-        tableNumber,
+        tableNumber: tableNumber || "Online Order",
         status: "pending",
+        paymentStatus: paymentMethod === "online" ? "paid" : "pending"
       };
+
       const { data } = await axios.post(`${API}/orders`, payload);
 
-      // Clear cart
       setItems([]);
       localStorage.removeItem("cartItems");
-      setCartKey((k) => k + 1);
+      toast.success("Order placed successfully!");
       navigate(`/order/status/${data._id}`);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to place order");
+      toast.error(err.response?.data?.error || "Failed to place order");
     } finally {
       setIsPlacing(false);
     }
   };
 
-  /* --------------------------------------------------------------- */
-  /* 4. Clear Cart – using setItems */
-  /* --------------------------------------------------------------- */
-  const handleClearCart = () => {
-    if (isPlacing) return;
-    setItems([]);
-    localStorage.removeItem("cartItems");
-    setCartKey((k) => k + 1);
-    toast.success("Cart cleared!");
-  };
-
-  /* --------------------------------------------------------------- */
-  /* 5. Remove single item – using removeItem from context */
-  /* --------------------------------------------------------------- */
-  const handleRemoveItem = (id) => {
-    if (isPlacing) return;
-    removeItem(id); // <-- this is the fix
-    toast.success("Item removed");
-  };
-
-  /* --------------------------------------------------------------- */
-  /* 6. Helpers */
-  /* --------------------------------------------------------------- */
+  const total = getCartTotal();
   const cartTotalItems = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className={styles.page} key={cartKey}>
+    <div className={styles.page}>
       <Toaster position="top-center" />
 
-      {/* HERO */}
-      <header className={styles.hero}>
-        <h1 className={styles.title}>Your Cart</h1>
-        {tableNumber && (
-          <p className={styles.tableBadge}>Table #{tableNumber}</p>
-        )}
-      </header>
+      <div className={styles.container}>
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => step === 1 ? navigate(-1) : setStep(1)}
+          className={styles.backBtn}
+        >
+          <ChevronLeft size={20} />
+          {step === 1 ? "Back to Menu" : "Back to Cart"}
+        </motion.button>
 
-      {/* ERROR */}
-      {error && (
-        <div className={styles.alert}>
-          <FaExclamationCircle />
-          <span>{error}</span>
+        <header className={styles.header}>
+          <h1 className={styles.title}>{step === 1 ? "Your Cart" : "Checkout"}</h1>
+          <p className={styles.subtitle}>
+            {step === 1 ? `Review your selection (${cartTotalItems} items)` : "Complete your order"}
+          </p>
+        </header>
+
+        {/* Steps Indicator */}
+        <div className={styles.steps}>
+          <div className={`${styles.step} ${styles.activeStep}`}>1</div>
+          <div className={`${styles.step} ${step === 2 ? styles.activeStep : ""}`}>2</div>
         </div>
-      )}
 
-      {/* EMPTY STATE */}
-      {items.length === 0 ? (
-        <div className={styles.empty}>
-          <FaShoppingCart size={48} />
-          <p>Your cart is empty.</p>
-          {tableNumber && (
-            <Link to={`/menu?table=${tableNumber}`} className={styles.emptyLink}>
-              Add items for Table #{tableNumber}
-            </Link>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* ITEMS GRID */}
-          <section className={styles.grid}>
-            {items.map((item) => (
-              <article key={item.id} className={styles.card}>
-                <img
-                  src={item.image || "/placeholder-food.jpg"}
-                  alt={item.name}
-                  className={styles.itemImg}
-                  loading="lazy"
-                />
-                <div className={styles.cardBody}>
-                  <h3 className={styles.itemName}>{item.name}</h3>
-                  <p className={styles.priceLine}>
-                    ₹{item.price} × {item.quantity} = ₹
-                    {(item.price * item.quantity).toFixed(2)}
-                  </p>
+        <AnimatePresence mode="wait">
+          {items.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className={styles.empty}
+            >
+              <ShoppingBag size={64} className={styles.emptyIcon} />
+              <p>Your cart feels light. Let's add something!</p>
+              <Link to="/menu" className={styles.emptyLink}>Browse Menu</Link>
+            </motion.div>
+          ) : step === 1 ? (
+            <motion.div
+              key="cart-review"
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 20, opacity: 0 }}
+            >
+              <div className={styles.itemsList}>
+                {items.map((item) => (
+                  <motion.div layout key={item.id} className={styles.card}>
+                    <img src={item.image || "/placeholder-food.jpg"} alt={item.name} className={styles.itemImg} />
+                    <div className={styles.cardBody}>
+                      <div>
+                        <h3 className={styles.itemName}>{item.name}</h3>
+                        <p className={styles.itemPrice}>₹{item.price} each</p>
+                      </div>
+                      <div className={styles.actions}>
+                        <div className={styles.qtyWrapper}>
+                          <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className={styles.qtyBtn}>
+                            <Minus size={16} />
+                          </button>
+                          <span className={styles.qty}>{item.quantity}</span>
+                          <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={styles.qtyBtn}>
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                        <button onClick={() => removeItem(item.id)} className={styles.removeBtn}>
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
 
-                  <div className={styles.actions}>
-                    <button
-                      onClick={() =>
-                        updateItemQuantity(item.id, item.quantity + 1)
-                      }
-                      className={styles.qtyBtn}
-                      disabled={isPlacing}
+              <div className={styles.summary}>
+                <div className={styles.row}>
+                  <span>Subtotal</span>
+                  <span>₹{total.toFixed(2)}</span>
+                </div>
+                <div className={styles.row}>
+                  <span>Service Fee</span>
+                  <span>₹0.00</span>
+                </div>
+                <div className={styles.totalRow}>
+                  <span>Total</span>
+                  <span>₹{total.toFixed(2)}</span>
+                </div>
+                <button
+                  onClick={() => setStep(2)}
+                  className={styles.checkoutBtn}
+                >
+                  Proceed to Checkout
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="checkout-details"
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -20, opacity: 0 }}
+            >
+              <div className={styles.formSection}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Where are you sitting?</label>
+                  <input
+                    type="number"
+                    placeholder="Enter Table Number"
+                    className={styles.input}
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value)}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Payment Method</label>
+                  <div className={styles.paymentTabs}>
+                    <div
+                      className={`${styles.payTab} ${paymentMethod === "counter" ? styles.activePayTab : ""}`}
+                      onClick={() => setPaymentMethod("counter")}
                     >
-                      <FaPlus />
-                    </button>
-
-                    <span className={styles.qty}>{item.quantity}</span>
-
-                    <button
-                      onClick={() =>
-                        updateItemQuantity(
-                          item.id,
-                          Math.max(1, item.quantity - 1)
-                        )
-                      }
-                      className={styles.qtyBtn}
-                      disabled={isPlacing || item.quantity <= 1}
+                      <Store className={styles.payIcon} />
+                      Pay at Counter
+                    </div>
+                    <div
+                      className={`${styles.payTab} ${paymentMethod === "online" ? styles.activePayTab : ""}`}
+                      onClick={() => setPaymentMethod("online")}
                     >
-                      <FaMinus />
-                    </button>
-
-                    {/* DELETE BUTTON – NOW WORKS */}
-                    {/* <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className={styles.removeBtn}
-                      disabled={isPlacing}
-                    >
-                      <FaTrash />
-                    </button> */}
+                      <CreditCard className={styles.payIcon} />
+                      Pay Online
+                    </div>
                   </div>
                 </div>
-              </article>
-            ))}
-          </section>
 
-          {/* SUMMARY */}
-          <section className={styles.summary}>
-            <div className={styles.totalRow}>
-              <span>Total ({cartTotalItems} items)</span>
-              <strong>₹{getCartTotal().toFixed(2)}</strong>
-            </div>
+                <button
+                  disabled={isPlacing}
+                  onClick={handlePlaceOrder}
+                  className={styles.checkoutBtn}
+                >
+                  {isPlacing ? "Placing Order..." : `Place Order (₹${total.toFixed(2)})`}
+                </button>
 
-            <div className={styles.buttonRow}>
-              <button
-                onClick={handleClearCart}
-                disabled={isPlacing}
-                className={styles.clearBtn}
-              >
-                Clear Cart
-              </button>
+                <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#64748b", marginTop: "1.5rem" }}>
+                  <Lock size={12} style={{ display: "inline", marginRight: "4px" }} />
+                  Secure SSL Encrypted Checkout
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-              <button
-                onClick={placeOrder}
-                disabled={!tableNumber || isPlacing}
-                className={styles.orderBtn}
-              >
-                {isPlacing ? "Placing…" : `Place Order – Table #${tableNumber}`}
-              </button>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* FAB */}
-      <Link
-        to={`/menu?table=${tableNumber}`}
-        className={styles.fab}
-        aria-label="Back to menu"
-      >
-        <FaShoppingCart size={26} />
-        {cartTotalItems > 0 && (
-          <span className={styles.fabBadge}>{cartTotalItems}</span>
+      {/* Online Payment Animation Modal */}
+      <AnimatePresence>
+        {isProcessingPayment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.modal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className={styles.modalContent}
+            >
+              <div className={styles.paymentHeader}>
+                <p>Payment to Naveen's Cafe</p>
+                <div className={styles.paymentAmount}>₹{total.toFixed(2)}</div>
+              </div>
+              <div className={styles.paymentBody}>
+                <div className={styles.loadingSpinner}></div>
+                <p style={{ textAlign: "center", fontWeight: "600" }}>Securing connection to bank...</p>
+                <p style={{ textAlign: "center", fontStyle: "italic", fontSize: "0.8rem", marginTop: "1rem" }}>
+                  Please do not refresh or close this window
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </Link>
+      </AnimatePresence>
     </div>
   );
 }
