@@ -1,0 +1,304 @@
+.container {
+    min-height: 100vh;
+    background-color: var(--bg-main);
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.container::before {
+    content: "";
+    position: absolute;
+    top: -10%;
+    left: -10%;
+    width: 40%;
+    height: 40%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+}
+
+.splitLayout {
+    display: flex;
+    width: 100%;
+    max-width: 1100px;
+    background: var(--bg-card);
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: var(--shadow-premium);
+    min-height: 750px;
+    border: 1px solid var(--border-color);
+    z-index: 10;
+}
+
+/* Promo Side (Left) */
+.promoSide {
+    flex: 1;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    padding: 4.5rem;
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.promoSide::after {
+    content: "";
+    position: absolute;
+    bottom: -10%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    font-size: 1.6rem;
+    font-weight: 900;
+    margin-bottom: 5rem;
+    z-index: 10;
+    letter-spacing: -0.03em;
+}
+
+.logo {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+}
+
+.accent {
+    color: #3b82f6;
+}
+
+.promoTitle {
+    font-size: 3rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 2rem;
+    z-index: 10;
+    letter-spacing: -0.04em;
+    color: var(--text-primary);
+}
+
+.promoText {
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    margin-bottom: 3.5rem;
+    z-index: 10;
+    max-width: 90%;
+    line-height: 1.6;
+}
+
+.benefitsList {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 4.5rem 0;
+    z-index: 10;
+}
+
+.benefitsList li {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.checkIcon {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 6px;
+    border-radius: 10px;
+}
+
+.testimonial {
+    margin-top: auto;
+    background: white;
+    padding: 2.5rem;
+    border-radius: 28px;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+    z-index: 10;
+    box-shadow: var(--shadow-md);
+}
+
+.testimonial p {
+    font-style: italic;
+    color: var(--text-primary);
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 500;
+}
+
+.testimonial span {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* Form Side (Right) */
+.formSide {
+    flex: 1.2;
+    padding: 4.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: white;
+}
+
+.formCard {
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+}
+
+.formCard h2 {
+    font-size: 2.25rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.subHeader {
+    color: var(--text-secondary);
+    margin-bottom: 3rem;
+    font-weight: 600;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.row {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.inputGroup {
+    position: relative;
+    flex: 1;
+}
+
+.inputIcon {
+    position: absolute;
+    left: 1.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    z-index: 1;
+}
+
+.form input,
+.form textarea {
+    width: 100%;
+    padding: 1.1rem 1.35rem 1.1rem 3.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: 18px;
+    font-size: 1rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #f8fafc;
+    font-family: inherit;
+    color: var(--text-primary);
+    box-sizing: border-box;
+}
+
+.form textarea {
+    padding-top: 1.25rem;
+    resize: none;
+    min-height: 120px;
+}
+
+.form input:focus,
+.form textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.submitBtn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 1.25rem;
+    border-radius: 18px;
+    font-weight: 800;
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    margin-top: 1.5rem;
+    box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.3);
+}
+
+.submitBtn:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px -5px rgba(59, 130, 246, 0.4);
+}
+
+.submitBtn:active {
+    transform: scale(0.98);
+}
+
+.submitBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.loginLink {
+    text-align: center;
+    margin-top: 2.5rem;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.loginLink a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 800;
+    margin-left: 0.35rem;
+}
+
+.loginLink a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+    .splitLayout {
+        flex-direction: column;
+        max-width: 550px;
+    }
+
+    .promoSide {
+        display: none;
+    }
+
+    .formSide {
+        padding: 4rem 2.5rem;
+    }
+}

@@ -1,190 +1,149 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
-import io from 'socket.io-client';
-import toast, { Toaster } from 'react-hot-toast';
-import {
-  Clock,
-  CheckCircle2,
-  ChefHat,
-  PackageCheck,
-  ArrowLeft,
-  Coffee,
-  AlertCircle
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import styles from './OrderStatus.module.css';
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import styles from "./OrderStatus.module.css";
+import axios from "axios";
+import { CheckCircle, Clock, ChefHat, ShoppingBag, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
-const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
-const socket = io(process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com');
+const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
 
-function OrderStatus() {
-  const { id } = useParams();
+const OrderStatus = () => {
+  const { id } = useParams(); // Should matched defined route param (App.js: /order/status/:id)
   const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [progress, setProgress] = useState(0);
+
+  const steps = [
+    { id: 'pending', label: 'Order Placed', icon: ShoppingBag },
+    { id: 'preparing', label: 'Preparing', icon: ChefHat },
+    { id: 'ready', label: 'Ready', icon: CheckCircle },
+    { id: 'completed', label: 'Completed', icon: CheckCircle },
+  ];
 
   useEffect(() => {
+    if (!id || id === 'undefined') {
+      setError("Invalid Order ID");
+      setLoading(false);
+      return;
+    }
+
+    let interval;
     const fetchOrder = async () => {
       try {
         const res = await axios.get(`${API}/orders/status/${id}`);
         setOrder(res.data);
+        setLoading(false);
+
+        // Stop polling if completed or cancelled
+        if (['completed', 'cancelled'].includes(res.data.status)) {
+          clearInterval(interval);
+        }
       } catch (err) {
-        setError('Failed to fetch order details');
-        console.error(err);
+        console.error("Fetch order error:", err);
+        setError("Order not found or invalid ID");
+        setLoading(false);
       }
     };
 
     fetchOrder();
+    interval = setInterval(fetchOrder, 5000);
 
-    socket.on('orderUpdate', (updatedOrder) => {
-      if (updatedOrder._id === id) {
-        setOrder(updatedOrder);
-        toast.success(`Order is now ${updatedOrder.status}!`, {
-          icon: '✨',
-          style: { borderRadius: '12px', background: '#1a2e35', color: '#fff' },
-        });
-      }
-    });
-
-    return () => {
-      socket.off('orderUpdate');
-    };
+    return () => clearInterval(interval);
   }, [id]);
 
-  useEffect(() => {
-    if (!order || order.status !== 'preparing' || !order.estimatedTime || !order.timeSetAt) {
-      setProgress(0);
-      return;
-    }
+  if (loading) return <div className={styles.loading}>Loading order status...</div>;
+  if (error) return (
+    <div className={styles.error}>
+      <p>{error}</p>
+      <Link to="/menu" style={{ marginTop: '1rem', color: '#2563eb' }}>Return to Menu</Link>
+    </div>
+  );
+  if (!order) return <div className={styles.error}>Order not found</div>;
 
-    const calculateProgress = () => {
-      const timeSetAt = new Date(order.timeSetAt).getTime();
-      const estimatedMs = order.estimatedTime * 60 * 1000;
-      const elapsedMs = Date.now() - timeSetAt;
-      const progressPercent = Math.min((elapsedMs / estimatedMs) * 100, 100);
-      setProgress(progressPercent);
-    };
-
-    calculateProgress();
-    const interval = setInterval(calculateProgress, 2000);
-    return () => clearInterval(interval);
-  }, [order]);
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending': return <Clock size={32} />;
-      case 'preparing': return <ChefHat size={32} />;
-      case 'ready': return <Coffee size={32} />;
-      case 'done': return <CheckCircle2 size={32} />;
-      default: return <Clock size={32} />;
-    }
-  };
-
-  if (error) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.container}>
-          <div className={styles.card}>
-            <AlertCircle size={48} color="#ef4444" style={{ marginBottom: '1rem' }} />
-            <h2 className={styles.title}>Oops!</h2>
-            <p className={styles.subtitle}>{error}</p>
-            <Link to="/menu" className={styles.homeBtn} style={{ marginTop: '2rem' }}>
-              <ArrowLeft size={18} /> Back to Menu
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>Tracking your order...</p>
-        </div>
-      </div>
-    );
-  }
+  const currentStepIndex = steps.findIndex(s => s.id === order.status);
+  const isCancelled = order.status === 'cancelled';
 
   return (
-    <div className={styles.page}>
-      <Toaster position="top-right" />
-
-      <div className={styles.container}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={styles.card}
-        >
-          <div className={styles.header}>
-            <h1 className={styles.title}>Order #{order._id.slice(-6).toUpperCase()}</h1>
-            <p className={styles.subtitle}>Table {order.tableNumber}</p>
-          </div>
-
-          <div className={styles.statusContainer}>
-            <motion.div
-              key={order.status}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={styles.iconCircle}
-            >
-              {getStatusIcon(order.status)}
-            </motion.div>
-            <h2 className={styles.statusText}>{order.status}</h2>
-
-            {order.status === 'preparing' && (
-              <div className={styles.progressWrapper}>
-                <div className={styles.progressBar}>
-                  <motion.div
-                    className={styles.progressFill}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-                <div className={styles.timeInfo}>
-                  <span className={styles.timeText}>Estimated Time: </span>
-                  <span className={styles.timeValue}>
-                    {Math.max(0, Math.ceil((order.estimatedTime * 60 - (Date.now() - new Date(order.timeSetAt).getTime()) / 1000) / 60))} mins
-                  </span>
-                </div>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <h1>Order #{order._id.slice(-6).toUpperCase()}</h1>
+          <p className={styles.tenantName}>{order?.tenantId?.name || "The Cafe"}</p>
+          {order.estimatedTime && order.status !== 'completed' && order.status !== 'cancelled' && (
+            <div className={styles.estimatedTimeWrapper}>
+              <div className={styles.estimatedTimeHeader}>
+                <Clock size={16} /> <span>Est. Time: {order.estimatedTime} mins</span>
               </div>
-            )}
-          </div>
+              <div className={styles.progressBarContainer}>
+                <motion.div
+                  className={styles.progressBarFill}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (Math.max(0, (new Date() - new Date(order.createdAt)) / 60000) / order.estimatedTime) * 100)}%` }}
+                  transition={{ duration: 1 }}
+                />
+              </div>
+              <p className={styles.timeRemaining}>
+                {Math.max(0, Math.ceil(order.estimatedTime - (new Date() - new Date(order.createdAt)) / 60000))} mins remaining
+              </p>
+            </div>
+          )}
+        </div>
 
-          <div className={styles.itemsSection}>
-            <h3 className={styles.sectionTitle}>Order Summary</h3>
-            {order.items.map((item, idx) => (
-              <div key={idx} className={styles.itemRow}>
-                <div className={styles.itemInfo}>
-                  <img src={item.image || '/placeholder-food.jpg'} alt="" className={styles.itemImg} />
-                  <div>
-                    <p className={styles.itemName}>{item.name}</p>
-                    <p className={styles.itemQty}>Quantity: {order.quantities[idx]}</p>
+        {isCancelled ? (
+          <div className={styles.cancelled}>
+            <h2>Order Cancelled</h2>
+            <p>Please contact staff for assistance.</p>
+          </div>
+        ) : (
+          <div className={styles.timeline}>
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              const isActive = index <= currentStepIndex;
+              const isCurrent = index === currentStepIndex;
+
+              return (
+                <motion.div
+                  key={step.id}
+                  className={`${styles.step} ${isActive ? styles.activeStep : ''}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <div className={styles.iconBox}>
+                    <Icon size={24} color={isActive ? "white" : "#94a3b8"} />
                   </div>
-                </div>
-                <p className={styles.itemPrice}>₹{item.price * order.quantities[idx]}</p>
-              </div>
-            ))}
+                  <div className={styles.stepContent}>
+                    <h3>{step.label}</h3>
+                    {isCurrent && <span className={styles.pulse}>● Processing</span>}
+                  </div>
+                  {index < steps.length - 1 && <div className={`${styles.line} ${index < currentStepIndex ? styles.activeLine : ''}`} />}
+                </motion.div>
+              );
+            })}
           </div>
+        )}
 
-          <div className={styles.totalCard}>
-            <span className={styles.totalLabel}>Total Paid</span>
-            <span className={styles.totalAmount}>₹{order.total.toFixed(2)}</span>
+        <div className={styles.details}>
+          <h3>Order Summary</h3>
+          {order.items.map((item, i) => (
+            <div key={i} className={styles.itemRow}>
+              <span>{item.quantity}x {item.name}</span>
+              <span>₹{item.price * item.quantity}</span>
+            </div>
+          ))}
+          <div className={styles.totalRow}>
+            <span>Total Paid</span>
+            <span>₹{order.total.toFixed(2)}</span>
           </div>
-        </motion.div>
+        </div>
 
         <div className={styles.footer}>
-          <Link to="/menu" className={styles.homeBtn}>
-            <ArrowLeft size={18} /> Order More Items
-          </Link>
+          <p>Table: <strong>{order.tableNumber}</strong> — Enjoy your meal!</p>
+          <div className={styles.poweredBy}>Powered by <span>RestroCloud OS</span></div>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default OrderStatus;

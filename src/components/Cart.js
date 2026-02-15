@@ -10,9 +10,7 @@ import {
   ShoppingBag,
   ChevronLeft,
   CreditCard,
-  Truck,
   Store,
-  CheckCircle2,
   Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,6 +31,7 @@ export default function Cart() {
   const navigate = useNavigate();
 
   const [tableNumber, setTableNumber] = useState(localStorage.getItem("tableNumber") || "");
+  const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
   const [step, setStep] = useState(1); // 1: Review, 2: Details/Payment
   const [isPlacing, setIsPlacing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("counter"); // counter or online
@@ -44,11 +43,27 @@ export default function Cart() {
       setTableNumber(urlTable);
       localStorage.setItem("tableNumber", urlTable);
     }
+
+    // Fetch tenant info for branding
+    const tenantId = localStorage.getItem("tenantId");
+    if (tenantId) {
+      axios.get(`${API}/tenants/public/${tenantId}`)
+        .then(res => setTenantInfo(res.data))
+        .catch(err => console.error(err));
+    }
   }, [searchParams]);
 
   const handlePlaceOrder = async () => {
+    // 1. Validate Table
     if (!tableNumber && paymentMethod === "counter") {
       toast.error("Please enter a table number");
+      return;
+    }
+
+    // 2. Validate Tenant
+    const tenantId = localStorage.getItem("tenantId");
+    if (!tenantId) {
+      toast.error("Invalid Cafe session. Please rescan QR code.");
       return;
     }
 
@@ -63,12 +78,15 @@ export default function Cart() {
     setIsPlacing(true);
     try {
       const payload = {
-        items: items.map((i) => i.id),
-        quantities: items.map((i) => i.quantity),
-        total: getCartTotal(),
+        items: items.map((i) => ({ id: i.id, quantity: i.quantity })), // Send minimal data
+        tenantId, // CRITICAL: Multi-tenant support
         tableNumber: tableNumber || "Online Order",
         status: "pending",
-        paymentStatus: paymentMethod === "online" ? "paid" : "pending"
+        paymentStatus: paymentMethod === "online" ? "paid" : "pending",
+        customerDetails: {
+          name: "Guest", // Could add form for this
+          phone: ""
+        }
       };
 
       const { data } = await axios.post(`${API}/orders`, payload);
@@ -78,6 +96,7 @@ export default function Cart() {
       toast.success("Order placed successfully!");
       navigate(`/order/status/${data._id}`);
     } catch (err) {
+      console.error(err);
       toast.error(err.response?.data?.error || "Failed to place order");
     } finally {
       setIsPlacing(false);
@@ -253,7 +272,7 @@ export default function Cart() {
               className={styles.modalContent}
             >
               <div className={styles.paymentHeader}>
-                <p>Payment to Naveen's Cafe</p>
+                <p>Payment to {tenantInfo.name}</p>
                 <div className={styles.paymentAmount}>₹{total.toFixed(2)}</div>
               </div>
               <div className={styles.paymentBody}>
@@ -267,6 +286,11 @@ export default function Cart() {
           </motion.div>
         )}
       </AnimatePresence>
+      <footer style={{ marginTop: '4rem', padding: '2rem 1rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700' }}>
+          Powered by <span style={{ color: '#3b82f6', fontWeight: '800' }}>RestroCloud OS</span>
+        </p>
+      </footer>
     </div>
   );
 }

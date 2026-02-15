@@ -1,0 +1,426 @@
+.container {
+    min-height: 100vh;
+    background: var(--bg-main);
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.navbar {
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px);
+    padding: 1.25rem 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.logo {
+    width: 36px;
+    height: 36px;
+    background: #0f172a;
+    color: #ffd700;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.accent {
+    color: #3b82f6;
+}
+
+.navActions {
+    display: flex;
+    gap: 1.25rem;
+}
+
+.addBtn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+}
+
+.addBtn:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.4);
+}
+
+.logoutBtn {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.75rem 1.5rem;
+    border-radius: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.logoutBtn:hover {
+    background: #f1f5f9;
+    color: #ef4444;
+    border-color: #fee2e2;
+}
+
+.content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 3.5rem 2.5rem;
+}
+
+.header {
+    margin-bottom: 3.5rem;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.03em;
+}
+
+.header p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-bottom: 4rem;
+}
+
+.statCard {
+    background: var(--bg-card);
+    padding: 2rem;
+    border-radius: 28px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.statCard:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(59, 130, 246, 0.1);
+}
+
+.iconBox {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.statCard:hover .iconBox {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.blueIcon {
+    background: rgba(59, 130, 246, 0.08);
+    color: #3b82f6;
+}
+
+.greenIcon {
+    background: rgba(16, 185, 129, 0.08);
+    color: #10b981;
+}
+
+.purpleIcon {
+    background: rgba(139, 92, 246, 0.08);
+    color: #8b5cf6;
+}
+
+.orangeIcon {
+    background: rgba(249, 115, 22, 0.08);
+    color: #f97316;
+}
+
+.statCard h3 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.statValue {
+    font-size: 1.85rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.tableSection {
+    background: var(--bg-card);
+    border-radius: 32px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.tableHeader {
+    padding: 2rem 2.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: #fcfcfd;
+}
+
+.tableHeader h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    background: #f8fafc;
+    padding: 1.25rem 2.5rem;
+    text-align: left;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    font-weight: 800;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table td {
+    padding: 1.5rem 2.5rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.table tr:hover td {
+    background: #fcfcfd;
+}
+
+.nameCell {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.avatar {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+}
+
+.tenantName {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.tenantId {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.badge {
+    padding: 0.4rem 1rem;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.planBadge {
+    background: rgba(59, 130, 246, 0.08);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+.actionBtn {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    color: #3b82f6;
+    padding: 0.6rem 1.25rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    transform: scale(1.05);
+}
+
+.deleteBtn {
+    background: #fff;
+    border: 1px solid #fee2e2;
+    color: #ef4444;
+    padding: 0.6rem 1.25rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.deleteBtn:hover {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+/* Modal UI */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modalContent {
+    background: white;
+    padding: 3rem;
+    border-radius: 32px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: var(--shadow-premium);
+    border: 1px solid var(--border-color);
+}
+
+.modalContent h2 {
+    font-size: 1.85rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+}
+
+.modalContent p {
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+    font-weight: 500;
+}
+
+.select {
+    width: 100%;
+    padding: 1.1rem 1.5rem;
+    margin-bottom: 2.5rem;
+    border-radius: 18px;
+    border: 2px solid var(--border-color);
+    background: #f8fafc;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.select:focus {
+    border-color: #3b82f6;
+    background: white;
+}
+
+.modalActions {
+    display: flex;
+    gap: 1.25rem;
+    justify-content: flex-end;
+}
+
+.cancelBtn {
+    background: #f1f5f9;
+    padding: 1rem 1.75rem;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    font-weight: 800;
+    color: #475569;
+    transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+    background: #e2e8f0;
+}
+
+.saveBtn {
+    background: #3b82f6;
+    color: white;
+    padding: 1rem 1.75rem;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    font-weight: 800;
+    transition: all 0.3s;
+    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+}
+
+.saveBtn:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.4);
+}

@@ -1,17 +1,29 @@
 :root {
-  /* Premium Color Palette */
-  --primary: #1a2e35;      /* Deep Forest / Obsidian */
-  --accent: #d4af37;       /* Gold / Brass */
-  --success: #059669;
+  /* Premium Light Theme Palette */
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --accent: #d4af37;
+  --success: #10b981;
   --error: #ef4444;
+
   --bg-main: #f8fafc;
-  --bg-glass: rgba(255, 255, 255, 0.7);
-  --text-primary: #1a1a1a;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+
+  --text-primary: #0f172a;
   --text-secondary: #64748b;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  --radius: 1rem;
+  --text-muted: #94a3b8;
+
+  --border-color: #f1f5f9;
+  --border-strong: #e2e8f0;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  --shadow-premium: 0 40px 100px -20px rgba(0, 0, 0, 0.08);
+
+  --radius: 1.25rem;
 }
 
 * {
@@ -23,7 +35,7 @@
 
 body {
   margin: 0;
-  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   color: var(--text-primary);
   background: var(--bg-main);
   -webkit-font-smoothing: antialiased;
@@ -34,47 +46,32 @@ body {
 /* Glassmorphism Utility */
 .glass {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
+  border: 2px solid #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Responsive Grid Helper */
-.menu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1rem;
-  padding: 1rem;
-}
-
-@media (min-width: 640px) {
-  .menu-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.5rem;
-  }
-}
-
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
-
