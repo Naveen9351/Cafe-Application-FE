@@ -5,7 +5,9 @@ import axios from "axios";
 import { CheckCircle, Clock, ChefHat, ShoppingBag, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
-const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/api'
+    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
 const OrderStatus = () => {
   const { id } = useParams(); // Should matched defined route param (App.js: /order/status/:id)

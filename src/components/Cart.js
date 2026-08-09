@@ -16,7 +16,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import styles from "./Cart.module.css";
 
-const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/api'
+    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
 export default function Cart() {
   const {
@@ -110,7 +112,7 @@ export default function Cart() {
     <div className={styles.page}>
       <Toaster position="top-center" />
 
-      <div className={styles.container}>
+      <div className={styles.appContainer}>
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => step === 1 ? navigate(-1) : setStep(1)}

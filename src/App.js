@@ -8,7 +8,9 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import TenantRegister from './components/TenantRegister';
-import LandingPage from './components/LandingPage'; // Import Landing Page
+import LandingPage from './components/LandingPage';
+import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilotPage, BookDemoPage } from './components/FeaturePages';
+import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -41,20 +43,32 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public / Customer Routes */}
-      <Route path="/" element={<LandingPage />} /> {/* Default to Landing Page */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/menu" element={<Menu />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/order/status/:id" element={<OrderStatus />} />
 
       {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
-      {/* Redirect /admin/login to /login */}
       <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+      <Route path="/register" element={<TenantRegister />} />
       <Route path="/register-business" element={<TenantRegister />} />
 
-      {/* Protected Routes */}
+      {/* Feature / Marketing Pages */}
+      <Route path="/features/pos-billing" element={<POSBillingPage />} />
+      <Route path="/features/kitchen-ops" element={<KitchenOpsPage />} />
+      <Route path="/features/inventory" element={<InventoryPage />} />
+      <Route path="/features/crm-loyalty" element={<CRMLoyaltyPage />} />
+      <Route path="/features/ai-copilot" element={<AICopilotPage />} />
+      <Route path="/demo" element={<BookDemoPage />} />
 
-      {/* Business Admin Dashboard */}
+      {/* Info / Company Pages */}
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/careers" element={<CareersPage />} />
+      <Route path="/press-kit" element={<PressKitPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+
+      {/* Protected Routes */}
       <Route
         path="/admin/dashboard"
         element={
@@ -63,8 +77,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
-      {/* Catch-all for /admin -> redirect to dashboard */}
       <Route
         path="/admin"
         element={
@@ -73,8 +85,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
-      {/* Super Admin Dashboard */}
       <Route
         path="/super-admin"
         element={

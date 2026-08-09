@@ -3,7 +3,9 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import styles from './AdminLogin.module.css';
 
-const API = process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api';
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5000/api'
+  : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
 function AdminLogin() {
   const [email, setEmail] = useState('');

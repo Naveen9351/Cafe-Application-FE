@@ -21,33 +21,37 @@ const QRCodeComponent = ({ url, tableNumber }) => {
   };
 
   return (
-    <div style={{ textAlign: 'center', margin: '20px 0' }}>
-      <h3 style={{ color: '#333', marginBottom: '10px' }}>
+    <div style={{ textAlign: 'center', padding: '1.25rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <h3 style={{ color: '#f7f2ec', marginBottom: '1rem', fontWeight: '800', fontSize: '1.2rem' }}>
         {tableNumber ? `Table ${tableNumber} QR Code` : 'Scan to Visit Cafe App'}
       </h3>
-      <QRCodeCanvas
-        id="qrCodeCanvas"
-        value={qrUrl}
-        size={256}
-        fgColor="#000000"
-        bgColor="#ffffff"
-        level="L"
-        includeMargin={true}
-      />
-      <p style={{ marginTop: '10px', color: '#666' }}>
+      <div style={{ background: '#ffffff', padding: '16px', borderRadius: '20px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', display: 'inline-block' }}>
+        <QRCodeCanvas
+          id="qrCodeCanvas"
+          value={qrUrl}
+          size={220}
+          fgColor="#120e0c"
+          bgColor="#ffffff"
+          level="L"
+          includeMargin={false}
+        />
+      </div>
+      <p style={{ marginTop: '1rem', color: '#b8a89a', fontSize: '0.85rem', fontWeight: '500' }}>
         Scan to order from {tableNumber ? `Table ${tableNumber}` : 'Cafe App'}
       </p>
       <button
         onClick={downloadQRCode}
         style={{
-          marginTop: '15px',
-          padding: '10px 20px',
-          backgroundColor: '#4caf50',
+          marginTop: '1.25rem',
+          padding: '0.75rem 1.5rem',
+          background: 'linear-gradient(135deg, #c67c4e, #a05a2c)',
           color: 'white',
           border: 'none',
-          borderRadius: '5px',
+          borderRadius: '12px',
           cursor: 'pointer',
-          fontSize: '14px'
+          fontSize: '0.85rem',
+          fontWeight: '800',
+          boxShadow: '0 4px 12px rgba(198, 124, 78, 0.3)'
         }}
       >
         Download QR Code

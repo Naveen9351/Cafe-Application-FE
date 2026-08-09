@@ -16,7 +16,7 @@
   right: -10%;
   width: 40%;
   height: 40%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(198, 124, 78, 0.12) 0%, transparent 70%);
 }
 
 .card {
@@ -42,9 +42,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(198, 124, 78, 0.12);
   border-radius: 20px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(198, 124, 78, 0.25);
 }
 
 .logo {
@@ -99,9 +99,9 @@
 
 .inputGroup input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #c67c4e;
   background: var(--bg-card);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 4px rgba(198, 124, 78, 0.15);
 }
 
 .inputGroup input::placeholder {
@@ -123,7 +123,7 @@
 }
 
 .submitBtn {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #c67c4e, #a05a2c);
   color: white;
   padding: 1.1rem;
   border: none;
@@ -137,13 +137,13 @@
   gap: 0.75rem;
   margin-top: 1rem;
   transition: all 0.3s;
-  box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 10px 20px -5px rgba(198, 124, 78, 0.4);
 }
 
 .submitBtn:hover {
-  background: #2563eb;
+  background: linear-gradient(135deg, #e58d53, #c67c4e);
   transform: translateY(-2px);
-  box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 15px 30px -5px rgba(198, 124, 78, 0.5);
 }
 
 .submitBtn:active {
@@ -159,7 +159,7 @@
 }
 
 .link {
-  color: #3b82f6;
+  color: #c67c4e;
   text-decoration: none;
   font-weight: 700;
   margin-left: 0.35rem;

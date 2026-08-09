@@ -6,7 +6,9 @@ import { BarChart3, Users, CreditCard, Building, Plus, LogOut, Trash2, Zap } fro
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 
-const API = process.env.REACT_APP_API_URL || "https://cafe-application-be-1.onrender.com/api";
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/api'
+    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
 const SuperAdminDashboard = () => {
     const [tenants, setTenants] = useState([]);
@@ -114,10 +116,7 @@ const SuperAdminDashboard = () => {
             </nav>
 
             <div className={styles.content}>
-                <header className={styles.header}>
-                    <h1>Platform Overview</h1>
-                    <p>Manage all registered cafes and subscriptions.</p>
-                </header>
+
 
                 <div className={styles.statsGrid}>
                     <div className={styles.statCard}>

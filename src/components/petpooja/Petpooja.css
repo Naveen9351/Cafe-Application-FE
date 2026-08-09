@@ -1,0 +1,267 @@
+/* Premium Coffee & POS Design System */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+/* Base Variables & Font Overrides */
+:local {
+  :global(*) {
+    font-family: 'Outfit', sans-serif !important;
+  }
+}
+
+/* Base Layout */
+.bg-slate-900 {
+  background: radial-gradient(circle at top right, #1a140f, #120e0c) !important;
+  color: #f7f2ec !important;
+}
+
+/* Premium Navigation Sub-tabs */
+.inv-sub-tabs {
+  border-bottom: 1px solid rgba(198, 124, 78, 0.18) !important;
+  padding: 1rem 1.25rem;
+  background: rgba(30, 24, 20, 0.5);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  margin-bottom: 2rem;
+}
+
+.inv-tab-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 14px;
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+}
+
+.active-inv-tab {
+  background: linear-gradient(135deg, #c67c4e, #a05a2c) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 18px rgba(198, 124, 78, 0.35) !important;
+}
+
+/* Cards Design */
+.bg-slate-800, 
+.bg-slate-800\/80,
+.max-w-xl.mx-auto.bg-slate-800 {
+  background: #1e1814 !important;
+  border: 1px solid rgba(198, 124, 78, 0.18) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5) !important;
+  padding: 1.75rem !important;
+  transition: all 0.3s ease;
+}
+
+.bg-slate-800:hover {
+  border-color: rgba(198, 124, 78, 0.35) !important;
+  box-shadow: 0 16px 45px rgba(198, 124, 78, 0.1) !important;
+}
+
+/* Category Pills in POS */
+.pos-cat-pill {
+  padding: 0.65rem 1.35rem !important;
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid rgba(198, 124, 78, 0.18) !important;
+}
+
+/* POS Menu Items Grid Cards */
+.pos-menu-card {
+  background: linear-gradient(145deg, #221a15, #19130f) !important;
+  border: 1px solid rgba(198, 124, 78, 0.18) !important;
+  border-radius: 20px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.pos-menu-card:hover {
+  transform: translateY(-6px) !important;
+  border-color: #c67c4e !important;
+  box-shadow: 0 12px 30px rgba(198, 124, 78, 0.2) !important;
+}
+
+.grid.grid-cols-2.md\:grid-cols-3.gap-4 img {
+  border-radius: 12px !important;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+}
+
+.grid.grid-cols-2.md\:grid-cols-3.gap-4 h3 {
+  color: #f5ebe0 !important;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+.grid.grid-cols-2.md\:grid-cols-3.gap-4 span.text-blue-400 {
+  color: #f59e0b !important;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+/* Premium Forms & Inputs */
+input[type="text"], 
+input[type="number"], 
+input[type="email"], 
+select, 
+textarea {
+  background-color: #120e0c !important;
+  border: 1px solid rgba(217, 119, 6, 0.15) !important;
+  color: #f5ebe0 !important;
+  border-radius: 12px !important;
+  padding: 0.85rem 1rem !important;
+  font-size: 0.9rem !important;
+  transition: all 0.3s ease;
+}
+
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+input[type="email"]:focus, 
+select:focus, 
+textarea:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15) !important;
+}
+
+/* Buttons */
+.submit-btn,
+.action-btn,
+button.bg-emerald-600,
+button.bg-blue-600 {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  padding: 0.9rem 1.75rem !important;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+.submit-btn:hover,
+button.bg-emerald-600:hover,
+button.bg-blue-600:hover {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.35) !important;
+}
+
+/* Table styling */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+th {
+  color: #a39281 !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 1px !important;
+  border-bottom: 2px solid rgba(217, 119, 6, 0.15) !important;
+  padding: 0.75rem 1rem !important;
+}
+
+td {
+  background: #1c1815 !important;
+  padding: 1.1rem 1.25rem !important;
+  color: #e6dfd5 !important;
+  border-bottom: none !important;
+}
+
+tr td:first-child {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+tr td:last-child {
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* KOT Tickets Grid */
+.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3.xl\:grid-cols-4.gap-6 div {
+  background: #1c1815 !important;
+  border: 1px solid rgba(217, 119, 6, 0.12) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+  padding: 1.5rem !important;
+}
+
+.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3.xl\:grid-cols-4.gap-6 div:hover {
+  border-color: rgba(217, 119, 6, 0.3) !important;
+}
+
+/* Status Badges */
+.bg-rose-950\/50 {
+  background: rgba(244, 63, 94, 0.1) !important;
+  color: #fda4af !important;
+  border: 1px solid rgba(244, 63, 94, 0.25) !important;
+}
+
+.bg-amber-950\/50 {
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #fde047 !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+}
+
+.bg-emerald-950\/50 {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #a7f3d0 !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0906;
+}
+::-webkit-scrollbar-thumb {
+  background: #47382d;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d97706;
+}
+
+/* Force override blue components to coffee-orange */
+:global {
+  .bg-blue-600,
+  .bg-blue-500,
+  [class*="bg-blue-600"],
+  [class*="bg-blue-500"] {
+    background: linear-gradient(135deg, #d97706, #b45309) !important;
+  }
+  
+  .hover\:bg-blue-700:hover,
+  .hover\:bg-blue-600:hover,
+  [class*="hover:bg-blue-600"]:hover {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  }
+
+  .text-blue-600,
+  .text-blue-500,
+  .text-blue-400,
+  [class*="text-blue-"] {
+    color: #f59e0b !important;
+  }
+
+  .border-blue-600,
+  .border-blue-500,
+  [class*="border-blue-"] {
+    border-color: #d97706 !important;
+  }
+
+  .focus\:border-blue-500:focus,
+  [class*="focus:border-blue-"] {
+    border-color: #d97706 !important;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2) !important;
+  }
+}
