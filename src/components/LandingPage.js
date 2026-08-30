@@ -51,6 +51,24 @@ import {
 import toast, { Toaster } from 'react-hot-toast';
 import styles from './LandingPage.module.css';
 
+// Animation Variants for Scroll Reveals
+const fadeInUp = {
+  hidden: { opacity: 0, y: 35 },
+  visible: (custom = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, delay: custom * 0.1, ease: [0.22, 1, 0.36, 1] }
+  })
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+  }
+};
+
 export default function LandingPage() {
   const navigate = useNavigate();
 
@@ -121,25 +139,30 @@ export default function LandingPage() {
 
       <Toaster position="top-center" />
 
-      {/* Subtle Background Glow */}
+      {/* Subtle Background Mesh Glow with Pulse Keyframe */}
       <div className={styles.heroGlow} />
 
       {/* ─── 1. NAVBAR (RESPONSIVE & LIGHT THEME) ─── */}
-      <nav style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderBottom: '1px solid var(--border-light)',
-        padding: '0 clamp(1rem, 4vw, 5%)',
-        height: 'clamp(62px, 8vw, 74px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
-      }}>
+      <motion.nav 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderBottom: '1px solid var(--border-light)',
+          padding: '0 clamp(1rem, 4vw, 5%)',
+          height: 'clamp(62px, 8vw, 74px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
+        }}
+      >
         {/* Left: Brand Logo (Light Theme) */}
         <BrandLogo theme="light" onClick={() => navigate('/')} showSubtitle={true} />
 
@@ -152,8 +175,9 @@ export default function LandingPage() {
             { label: 'Pricing', id: 'pricing' },
             { label: 'FAQ', id: 'faq' },
           ].map((link) => (
-            <span
+            <motion.span
               key={link.label}
+              whileHover={{ y: -1, color: 'var(--primary-emerald)' }}
               onClick={() => scrollToSection(link.id)}
               style={{
                 fontSize: '0.9rem',
@@ -162,18 +186,18 @@ export default function LandingPage() {
                 cursor: 'pointer',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary-emerald)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               {link.label}
-            </span>
+            </motion.span>
           ))}
         </div>
 
         {/* Right: Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div className={styles.desktopActions}>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => navigate('/login')}
               style={{
                 background: 'transparent',
@@ -186,18 +210,21 @@ export default function LandingPage() {
               }}
             >
               Login
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.04, y: -1 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => navigate('/register')}
               className={styles.btnPrimary}
               style={{ padding: '0.5rem 1.1rem', fontSize: '0.84rem', borderRadius: '8px' }}
             >
               Get Started
-            </button>
+            </motion.button>
           </div>
 
           {/* Mobile Hamburger Toggle Button */}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
             style={{
               background: '#f8fafc',
@@ -212,9 +239,9 @@ export default function LandingPage() {
             className={styles.mobileMenuBtn}
           >
             {mobileNavOpen ? <X size={20} /> : <MenuIcon size={20} />}
-          </button>
+          </motion.button>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Mobile Dropdown Navigation Drawer */}
       <AnimatePresence>
@@ -224,6 +251,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
             style={{
               position: 'sticky',
               top: '62px',
@@ -232,7 +260,6 @@ export default function LandingPage() {
               backdropFilter: 'blur(20px)',
               borderBottom: '1px solid var(--border-light)',
               padding: '1.25rem 1.5rem',
-              display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
               boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
@@ -279,54 +306,94 @@ export default function LandingPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── 2. HERO SECTION (LIGHT THEME) ─── */}
+      {/* ─── 2. HERO SECTION WITH RICH MICRO-ANIMATIONS ─── */}
       <section className={styles.sectionWrapperCenter} style={{ paddingTop: 'clamp(2.5rem, 6vw, 4.5rem)' }}>
         
         {/* Top Badge */}
-        <div className={styles.sectionBadge}>
-          ⚡ POWERING 500+ FOOD HUBS NATIONWIDE
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className={styles.sectionBadge}
+        >
+          <Sparkles size={14} color="var(--primary-emerald)" />
+          <span>POWERING 500+ FOOD HUBS NATIONWIDE</span>
+        </motion.div>
 
-        {/* Hero Title */}
-        <h1 style={{
-          fontSize: 'clamp(2rem, 5.5vw, 4.2rem)',
-          fontWeight: '900',
-          lineHeight: '1.14',
-          letterSpacing: '-1.2px',
-          color: 'var(--text-primary)',
-          maxWidth: '850px',
-          margin: '0 auto 1.25rem',
-        }}>
+        {/* Hero Title with Smooth Fade & Slide */}
+        <motion.h1 
+          initial={{ opacity: 0, y: 25 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            fontSize: 'clamp(2rem, 5.5vw, 4.2rem)',
+            fontWeight: '900',
+            lineHeight: '1.14',
+            letterSpacing: '-1.2px',
+            color: 'var(--text-primary)',
+            maxWidth: '850px',
+            margin: '0 auto 1.25rem',
+          }}
+        >
           The Operating System<br />
           for<br />
           <span style={{ color: 'var(--primary-emerald)' }}>High-Growth Restaurants</span>
-        </h1>
+        </motion.h1>
 
         {/* Subtitle */}
-        <p className={styles.sectionSubtitle} style={{ marginBottom: '2rem', maxWidth: '680px' }}>
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className={styles.sectionSubtitle} 
+          style={{ marginBottom: '2rem', maxWidth: '680px' }}
+        >
           An all-in-one platform for fast-paced dining. Supercharge table turnover, zero-latency kitchen queues, raw material control, and AI revenue optimization.
-        </p>
+        </motion.p>
 
-        {/* Hero Action Buttons */}
-        <div className={styles.heroActions} style={{ display: 'flex', justifyContent: 'center', gap: '0.85rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
-          <button onClick={() => navigate('/register')} className={styles.btnPrimary} style={{ padding: '0.8rem 1.75rem', fontSize: '0.94rem' }}>
+        {/* Hero Action Buttons with Hover Bounce */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className={styles.heroActions} 
+          style={{ display: 'flex', justifyContent: 'center', gap: '0.85rem', flexWrap: 'wrap', marginBottom: '3rem' }}
+        >
+          <motion.button 
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => navigate('/register')} 
+            className={styles.btnPrimary} 
+            style={{ padding: '0.8rem 1.75rem', fontSize: '0.94rem' }}
+          >
             Launch Free Trial <ArrowRight size={16} />
-          </button>
-          <button onClick={() => scrollToSection('demo-form')} className={styles.btnSecondary} style={{ padding: '0.8rem 1.75rem', fontSize: '0.94rem' }}>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => scrollToSection('demo-form')} 
+            className={styles.btnSecondary} 
+            style={{ padding: '0.8rem 1.75rem', fontSize: '0.94rem' }}
+          >
             Book a Live Demo
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
 
-        {/* Hero Dashboard Preview Window (macOS Light/Slate Card) */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid var(--border-light)',
-          borderRadius: '20px',
-          padding: 'clamp(1rem, 3vw, 1.5rem)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.08), 0 0 30px rgba(5, 150, 105, 0.05)',
-          textAlign: 'left',
-          boxSizing: 'border-box',
-        }}>
+        {/* Hero Dashboard Preview Window (macOS Light/Slate Card with 3D Entrance) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid var(--border-light)',
+            borderRadius: '20px',
+            padding: 'clamp(1rem, 3vw, 1.5rem)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.08), 0 0 30px rgba(5, 150, 105, 0.05)',
+            textAlign: 'left',
+            boxSizing: 'border-box',
+          }}
+        >
           {/* Header Bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '1.25rem' }}>
             <div style={{ display: 'flex', gap: '0.45rem' }}>
@@ -338,7 +405,8 @@ export default function LandingPage() {
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--primary-emerald)' }} />
               RASTRORATO Cloud POS • Outlet #01 (Live)
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--primary-emerald)', backgroundColor: 'rgba(5, 150, 105, 0.1)', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--primary-emerald)', backgroundColor: 'rgba(5, 150, 105, 0.1)', padding: '3px 9px', borderRadius: '6px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', animation: 'radarPing 1.8s infinite' }} />
               ONLINE
             </div>
           </div>
@@ -377,32 +445,43 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <button onClick={handleSettleHeroBill} className={styles.btnPrimary} style={{ width: '100%', padding: '0.65rem', fontSize: '0.82rem', borderRadius: '8px' }}>
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSettleHeroBill} 
+                className={styles.btnPrimary} 
+                style={{ width: '100%', padding: '0.65rem', fontSize: '0.82rem', borderRadius: '8px' }}
+              >
                 Instant Settle & KOT
-              </button>
+              </motion.button>
             </div>
 
             {/* Right Column: Telemetry & Live Order Stream */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
-              {/* 3 Metric Cards */}
+              {/* 3 Metric Cards with Hover Elevation */}
               <div className={styles.terminalMetricsGrid}>
                 {[
                   { label: 'Daily Net Volume', val: '₹1,28,450', change: '+18% today' },
                   { label: 'Table Turnaround', val: '24 min', change: '-8 min avg' },
                   { label: 'Kitchen Prep Avg', val: '6m 12s', change: '0s delay' },
                 ].map(m => (
-                  <div key={m.label} style={{ backgroundColor: 'var(--bg-card-muted)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '0.85rem' }}>
+                  <motion.div 
+                    key={m.label} 
+                    whileHover={{ y: -2, borderColor: 'var(--primary-emerald)' }}
+                    style={{ backgroundColor: 'var(--bg-card-muted)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '0.85rem', transition: 'border-color 0.2s' }}
+                  >
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{m.label}</div>
                     <div style={{ fontSize: '1.05rem', fontWeight: '900', color: 'var(--text-primary)' }}>{m.val}</div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--primary-emerald)', fontWeight: '700' }}>{m.change}</div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
               {/* Live Order Queue Rows */}
               <div style={{ backgroundColor: 'var(--bg-card-muted)', border: '1px solid var(--border-light)', borderRadius: '14px', padding: '1rem', flex: 1 }}>
-                <div style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem' }}>
+                <div style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Activity size={13} color="var(--primary-emerald)" />
                   Live Kitchen Production Queue
                 </div>
 
@@ -412,7 +491,11 @@ export default function LandingPage() {
                     { id: 'Order #409', type: 'Takeaway • Counter 1', status: 'Ready for Pickup', time: '1m ago', statusColor: '#2563eb' },
                     { id: 'Order #410', type: 'Delivery • Zomato', status: 'Prepping', time: '8m ago', statusColor: '#d97706' },
                   ].map(ord => (
-                    <div key={ord.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.8rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <motion.div 
+                      key={ord.id} 
+                      whileHover={{ x: 3 }}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.8rem', gap: '0.5rem', flexWrap: 'wrap', transition: 'all 0.15s ease' }}
+                    >
                       <div>
                         <span style={{ fontWeight: '800', color: 'var(--text-primary)', marginRight: '0.4rem' }}>{ord.id}</span>
                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>{ord.type}</span>
@@ -421,7 +504,7 @@ export default function LandingPage() {
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{ord.time}</span>
                         <span style={{ color: ord.statusColor, fontWeight: '700', fontSize: '0.74rem' }}>{ord.status}</span>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
@@ -429,23 +512,36 @@ export default function LandingPage() {
             </div>
 
           </div>
-        </div>
+        </motion.div>
 
       </section>
 
-      {/* ─── 3. SECTION: COMPREHENSIVE PRODUCT SUITE (6 CARDS GRID) ─── */}
+      {/* ─── 3. SECTION: COMPREHENSIVE PRODUCT SUITE (6 CARDS WITH STAGGERED MOTION) ─── */}
       <section id="suite" className={styles.sectionWrapperCenter}>
-        <div className={styles.sectionBadge}>
-          COMPREHENSIVE PRODUCT SUITE
-        </div>
-        <h2 className={styles.sectionTitle}>
-          Everything You Need to Run Your Restaurant
-        </h2>
-        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.75rem' }}>
-          From the counter to the kitchen and back-office ledger, every module is natively integrated for zero miscommunication.
-        </p>
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-50px' }}
+          variants={fadeInUp}
+        >
+          <div className={styles.sectionBadge}>
+            COMPREHENSIVE PRODUCT SUITE
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Everything You Need to Run Your Restaurant
+          </h2>
+          <p className={styles.sectionSubtitle} style={{ marginBottom: '2.75rem' }}>
+            From the counter to the kitchen and back-office ledger, every module is natively integrated for zero miscommunication.
+          </p>
+        </motion.div>
 
-        <div className={styles.grid6}>
+        <motion.div 
+          className={styles.grid6}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={staggerContainer}
+        >
           {[
             {
               icon: Receipt,
@@ -477,24 +573,37 @@ export default function LandingPage() {
               title: 'AI Restaurant Intelligence',
               desc: 'Predictive demand forecasting, weather impact analysis, dynamic dish combos, and auto menu digitizer.',
             },
-          ].map(f => {
+          ].map((f, i) => {
             const Icon = f.icon;
             return (
-              <div key={f.title} className={styles.featureCard}>
+              <motion.div 
+                key={f.title} 
+                className={styles.featureCard}
+                variants={fadeInUp}
+                custom={i}
+                whileHover={{ y: -6, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+              >
                 <div className={styles.featureIconBox}>
                   <Icon size={20} color="var(--primary-emerald)" />
                 </div>
                 <h3 className={styles.featureTitle}>{f.title}</h3>
                 <p className={styles.featureDesc}>{f.desc}</p>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </section>
 
       {/* ─── 4. SECTION: A MODULAR SUITE TAILORED FOR YOUR GROWTH (FEATURE SPLIT) ─── */}
       <section className={styles.sectionWrapper}>
-        <div style={{ textAlign: 'center', marginBottom: '2.75rem' }}>
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          style={{ textAlign: 'center', marginBottom: '2.75rem' }}
+        >
           <div className={styles.sectionBadge}>
             LIVE KDS
           </div>
@@ -504,10 +613,15 @@ export default function LandingPage() {
           <p className={styles.sectionSubtitle}>
             Select individual components or activate the full operating suite. RASTRORATO adapts to your existing floor workflow.
           </p>
-        </div>
+        </motion.div>
 
         <div className={styles.splitGrid}>
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
             <div style={{ color: 'var(--primary-emerald)', fontWeight: '800', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem' }}>
               Operational Efficiency
             </div>
@@ -523,26 +637,40 @@ export default function LandingPage() {
                 'Zero-delay WebSocket ticket dispatch across multiple kitchen stations',
                 'Color-coded urgency alerts for orders exceeding standard prep time',
                 'One-tap fulfillment status updating servers and guests simultaneously',
-              ].map(bullet => (
-                <div key={bullet} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+              ].map((bullet, idx) => (
+                <motion.div 
+                  key={bullet} 
+                  initial={{ opacity: 0, x: -15 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: idx * 0.15 }}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: '0.88rem', color: 'var(--text-secondary)' }}
+                >
                   <CheckCircle size={18} color="var(--primary-emerald)" style={{ flexShrink: 0, marginTop: '2px' }} />
                   <span>{bullet}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div style={{ borderRadius: '18px', overflow: 'hidden', border: '1px solid var(--border-light)', boxShadow: '0 15px 40px rgba(0,0,0,0.08)' }}>
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            whileHover={{ scale: 1.02 }}
+            style={{ borderRadius: '18px', overflow: 'hidden', border: '1px solid var(--border-light)', boxShadow: '0 15px 40px rgba(0,0,0,0.08)' }}
+          >
             <img 
               src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80" 
               alt="Kitchen KDS Display" 
               style={{ width: '100%', height: 'clamp(220px, 30vw, 340px)', objectFit: 'cover', display: 'block' }} 
             />
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* ─── 5. KEY METRICS STRIP (4 STATS) ─── */}
+      {/* ─── 5. KEY METRICS STRIP (4 STATS WITH SCALE BOUNCE) ─── */}
       <section style={{ backgroundColor: '#ffffff', borderTop: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)', padding: 'clamp(2.5rem, 5vw, 3.5rem) 5%' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }} className={styles.metricsGrid}>
           {[
@@ -550,26 +678,40 @@ export default function LandingPage() {
             { num: '₹145Cr+', label: 'Annual GMV Processed' },
             { num: '99.99%', label: 'Cloud Uptime SLA' },
             { num: '24/7', label: 'Dedicated Support Engine' },
-          ].map(m => (
-            <div key={m.label} className={styles.metricItem}>
+          ].map((m, idx) => (
+            <motion.div 
+              key={m.label} 
+              className={styles.metricItem}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+            >
               <div className={styles.metricNumber}>{m.num}</div>
               <div className={styles.metricLabel}>{m.label}</div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* ─── 6. SECTION: DESIGNED FOR EVERY FOOD FORMAT (3 CARDS) ─── */}
       <section id="formats" className={styles.sectionWrapperCenter}>
-        <div className={styles.sectionBadge}>
-          TAILORED FOR YOUR INDUSTRY
-        </div>
-        <h2 className={styles.sectionTitle}>
-          Designed for Every Food Format
-        </h2>
-        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.75rem' }}>
-          Built to fit the unique rhythm of quick-service kiosks, bustling cafes, and full-service dining establishments.
-        </p>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+        >
+          <div className={styles.sectionBadge}>
+            TAILORED FOR YOUR INDUSTRY
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Designed for Every Food Format
+          </h2>
+          <p className={styles.sectionSubtitle} style={{ marginBottom: '2.75rem' }}>
+            Built to fit the unique rhythm of quick-service kiosks, bustling cafes, and full-service dining establishments.
+          </p>
+        </motion.div>
 
         <div className={styles.grid3}>
           {[
@@ -603,10 +745,18 @@ export default function LandingPage() {
                 'Brand-level P&L and metrics',
               ],
             },
-          ].map(c => {
+          ].map((c, i) => {
             const Icon = c.icon;
             return (
-              <div key={c.title} className={styles.formatCard}>
+              <motion.div 
+                key={c.title} 
+                className={styles.formatCard}
+                initial={{ opacity: 0, y: 25 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+                whileHover={{ y: -5 }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem' }}>
                   <Icon size={22} color="var(--primary-emerald)" />
                   <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>{c.title}</h3>
@@ -619,7 +769,7 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -627,15 +777,22 @@ export default function LandingPage() {
 
       {/* ─── 7. SECTION: WORKS SEAMLESSLY ON ANY HARDWARE ─── */}
       <section id="hardware" className={styles.sectionWrapperCenter} style={{ paddingTop: 0 }}>
-        <div className={styles.sectionBadge}>
-          HARDWARE AGNOSTIC
-        </div>
-        <h2 className={styles.sectionTitle}>
-          Works Seamlessly on Any Hardware
-        </h2>
-        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.5rem' }}>
-          No expensive proprietary hardware lock-ins. RASTRORATO runs on the devices and printers your restaurant already owns.
-        </p>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+        >
+          <div className={styles.sectionBadge}>
+            HARDWARE AGNOSTIC
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Works Seamlessly on Any Hardware
+          </h2>
+          <p className={styles.sectionSubtitle} style={{ marginBottom: '2.5rem' }}>
+            No expensive proprietary hardware lock-ins. RASTRORATO runs on the devices and printers your restaurant already owns.
+          </p>
+        </motion.div>
 
         <div className={styles.grid3}>
           {[
@@ -657,10 +814,18 @@ export default function LandingPage() {
               desc: 'Thermal receipt & KOT printer sync',
               badge: 'Universal Drivers',
             },
-          ].map(h => {
+          ].map((h, i) => {
             const Icon = h.icon;
             return (
-              <div key={h.title} className={styles.hardwareCard}>
+              <motion.div 
+                key={h.title} 
+                className={styles.hardwareCard}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.12 }}
+                whileHover={{ y: -3 }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                   <Icon size={22} color="var(--primary-emerald)" />
                   <div>
@@ -671,7 +836,7 @@ export default function LandingPage() {
                 <span style={{ fontSize: '0.7rem', color: 'var(--primary-emerald)', backgroundColor: 'rgba(5, 150, 105, 0.1)', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', whiteSpace: 'nowrap' }}>
                   {h.badge}
                 </span>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -679,7 +844,13 @@ export default function LandingPage() {
 
       {/* ─── 8. SECTION: SEE HOW MUCH YOU CAN RECOVER (ROI CALCULATOR) ─── */}
       <section className={styles.sectionWrapperCenter} style={{ paddingTop: 0 }}>
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          style={{ textAlign: 'center', marginBottom: '2.5rem' }}
+        >
           <div className={styles.sectionBadge}>
             PROFITABILITY CALCULATOR
           </div>
@@ -689,16 +860,22 @@ export default function LandingPage() {
           <p className={styles.sectionSubtitle}>
             Calculate your projected monthly savings in prevented food waste, recovered labor hours, and table turnover lift.
           </p>
-        </div>
+        </motion.div>
 
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid var(--border-light)',
-          borderRadius: '20px',
-          padding: 'clamp(1.5rem, 4vw, 2.75rem)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-          boxSizing: 'border-box',
-        }}>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid var(--border-light)',
+            borderRadius: '20px',
+            padding: 'clamp(1.5rem, 4vw, 2.75rem)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            boxSizing: 'border-box',
+          }}
+        >
           <div className={styles.calcGrid}>
             
             {/* Left Sliders */}
@@ -737,47 +914,73 @@ export default function LandingPage() {
             </div>
 
             {/* Right Value Box */}
-            <div style={{
-              backgroundColor: 'var(--bg-card-muted)',
-              border: '1px solid var(--border-light)',
-              borderRadius: '16px',
-              padding: 'clamp(1.25rem, 3vw, 2rem)',
-              textAlign: 'left',
-              boxSizing: 'border-box',
-            }}>
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              style={{
+                backgroundColor: 'var(--bg-card-muted)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '16px',
+                padding: 'clamp(1.25rem, 3vw, 2rem)',
+                textAlign: 'left',
+                boxSizing: 'border-box',
+                boxShadow: '0 8px 25px rgba(5, 150, 105, 0.08)'
+              }}
+            >
               <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: '700' }}>
                 Estimated Monthly Value Delivered:
               </div>
-              <div style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: '900', color: 'var(--primary-emerald)', marginBottom: '1rem' }}>
+              <motion.div 
+                key={monthlySavings}
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: '900', color: 'var(--primary-emerald)', marginBottom: '1rem' }}
+              >
                 ₹{monthlySavings.toLocaleString()} / mo
-              </div>
+              </motion.div>
 
               <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: '700' }}>
                 Estimated Extra Annual Revenue Lift:
               </div>
-              <div style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: '900', color: 'var(--primary-emerald)', marginBottom: '1.25rem' }}>
+              <motion.div 
+                key={annualSavings}
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: '900', color: 'var(--primary-emerald)', marginBottom: '1.25rem' }}
+              >
                 + ₹{annualSavings.toLocaleString()} / yr
-              </div>
+              </motion.div>
 
-              <button onClick={() => navigate('/register')} className={styles.btnPrimary} style={{ width: '100%', padding: '0.75rem', fontSize: '0.88rem' }}>
+              <motion.button 
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/register')} 
+                className={styles.btnPrimary} 
+                style={{ width: '100%', padding: '0.75rem', fontSize: '0.88rem' }}
+              >
                 Claim This ROI — Start Free
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
 
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ─── 9. SECTION: SCHEDULE YOUR FREE 1-ON-1 DEMO (LIGHT FORM) ─── */}
       <section id="demo-form" className={styles.sectionWrapper} style={{ paddingTop: 0 }}>
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid var(--border-light)',
-          borderRadius: '20px',
-          padding: 'clamp(1.5rem, 4vw, 3.5rem)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-          boxSizing: 'border-box',
-        }}>
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid var(--border-light)',
+            borderRadius: '20px',
+            padding: 'clamp(1.5rem, 4vw, 3.5rem)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            boxSizing: 'border-box',
+          }}
+        >
           <div className={styles.splitGrid}>
             
             {/* Left Info */}
@@ -797,11 +1000,18 @@ export default function LandingPage() {
                   '30-minute personalized walkthrough',
                   'Free physical menu digitization & setup',
                   'Dedicated onboarding specialist support',
-                ].map(item => (
-                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                ].map((item, idx) => (
+                  <motion.div 
+                    key={item} 
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.86rem', color: 'var(--text-secondary)' }}
+                  >
                     <CheckCircle size={17} color="var(--primary-emerald)" />
                     <span>{item}</span>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -809,11 +1019,15 @@ export default function LandingPage() {
             {/* Right Form */}
             <div style={{ backgroundColor: 'var(--bg-card-muted)', borderRadius: '16px', padding: 'clamp(1.25rem, 3vw, 2rem)', border: '1px solid var(--border-light)', textAlign: 'left', boxSizing: 'border-box' }}>
               {demoSubmitted ? (
-                <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  style={{ textAlign: 'center', padding: '2rem 1rem' }}
+                >
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🎉</div>
                   <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>Demo Booked!</h3>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem' }}>We will contact you on <strong>{demoForm.phone}</strong> shortly.</p>
-                </div>
+                </motion.div>
               ) : (
                 <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                   <div>
@@ -863,25 +1077,38 @@ export default function LandingPage() {
                       </select>
                     </div>
                   </div>
-                  <button type="submit" className={styles.btnPrimary} style={{ width: '100%', padding: '0.8rem', fontSize: '0.92rem', marginTop: '0.3rem' }}>
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit" 
+                    className={styles.btnPrimary} 
+                    style={{ width: '100%', padding: '0.8rem', fontSize: '0.92rem', marginTop: '0.3rem' }}
+                  >
                     Book Free Demo
-                  </button>
+                  </motion.button>
                 </form>
               )}
             </div>
 
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* ─── 10. SECTION: PREDICTABLE PLANS FOR EVERY STAGE (PRICING) ─── */}
+      {/* ─── 10. SECTION: PREDICTABLE PLANS FOR EVERY STAGE (PRICING WITH SHIMMER) ─── */}
       <section id="pricing" className={styles.sectionWrapperCenter} style={{ paddingTop: 0 }}>
-        <div className={styles.sectionBadge}>
-          SIMPLE & TRANSPARENT
-        </div>
-        <h2 className={styles.sectionTitle}>
-          Predictable Plans for Every Stage
-        </h2>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+        >
+          <div className={styles.sectionBadge}>
+            SIMPLE & TRANSPARENT
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Predictable Plans for Every Stage
+          </h2>
+        </motion.div>
 
         {/* Billing Switch */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#ffffff', padding: '0.35rem 0.5rem', borderRadius: '100px', border: '1px solid var(--border-light)', margin: '1rem auto 2.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -896,6 +1123,7 @@ export default function LandingPage() {
               fontWeight: '800',
               fontSize: '0.8rem',
               cursor: 'pointer',
+              transition: 'all 0.2s',
             }}
           >
             Monthly Billing
@@ -914,6 +1142,7 @@ export default function LandingPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '0.35rem',
+              transition: 'all 0.2s',
             }}
           >
             Annual (Save 25%)
@@ -967,9 +1196,14 @@ export default function LandingPage() {
                 '99.99% Guaranteed SLA Uptime',
               ],
             },
-          ].map(p => (
-            <div
+          ].map((p, i) => (
+            <motion.div
               key={p.name}
+              initial={{ opacity: 0, y: 25 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.12 }}
+              whileHover={{ y: -6, scale: 1.02 }}
               className={`${styles.pricingCard} ${p.featured ? styles.pricingCardFeatured : ''}`}
             >
               {p.badge && (
@@ -999,29 +1233,38 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate('/register')}
                 className={p.featured ? styles.btnPrimary : styles.btnSecondary}
                 style={{ width: '100%', marginTop: '2rem', padding: '0.75rem', fontSize: '0.88rem' }}
               >
                 Start 14-Day Free Trial
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      {/* ─── 11. SECTION: FREQUENTLY ASKED QUESTIONS (FAQ) ─── */}
+      {/* ─── 11. SECTION: FREQUENTLY ASKED QUESTIONS (FAQ WITH ANIMATION) ─── */}
       <section id="faq" className={styles.sectionWrapperCenter} style={{ maxWidth: '850px', paddingTop: 0 }}>
-        <div className={styles.sectionBadge}>
-          CLEAR ANSWERS
-        </div>
-        <h2 className={styles.sectionTitle}>
-          Frequently Asked Questions
-        </h2>
-        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.5rem' }}>
-          Have questions before switching? Here is everything you need to know about migrating to RASTRORATO.
-        </p>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+        >
+          <div className={styles.sectionBadge}>
+            CLEAR ANSWERS
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Frequently Asked Questions
+          </h2>
+          <p className={styles.sectionSubtitle} style={{ marginBottom: '2.5rem' }}>
+            Have questions before switching? Here is everything you need to know about migrating to RASTRORATO.
+          </p>
+        </motion.div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left' }}>
           {[
@@ -1042,7 +1285,14 @@ export default function LandingPage() {
               a: 'Guests scan a dynamic QR code placed on their table using their phone camera. They browse your digital menu, customize items, and pay directly via UPI (Google Pay, PhonePe, Paytm). The revenue lands 100% in your bank account with zero middleman commissions.',
             },
           ].map((faq, index) => (
-            <div key={faq.q} className={styles.faqItem}>
+            <motion.div 
+              key={faq.q} 
+              className={styles.faqItem}
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: index * 0.08 }}
+            >
               <button
                 className={styles.faqBtn}
                 onClick={() => setOpenFaq(openFaq === index ? -1 : index)}
@@ -1050,12 +1300,22 @@ export default function LandingPage() {
                 <span>{faq.q}</span>
                 {openFaq === index ? <ChevronUp size={18} color="var(--primary-emerald)" /> : <ChevronDown size={18} color="var(--text-muted)" />}
               </button>
-              {openFaq === index && (
-                <div style={{ padding: '0 1.4rem 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', borderTop: '1px solid #f1f5f9', paddingTop: '0.85rem' }}>
-                  {faq.a}
-                </div>
-              )}
-            </div>
+              <AnimatePresence>
+                {openFaq === index && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div style={{ padding: '0 1.4rem 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', borderTop: '1px solid #f1f5f9', paddingTop: '0.85rem' }}>
+                      {faq.a}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           ))}
         </div>
       </section>
@@ -1115,13 +1375,15 @@ export default function LandingPage() {
               <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', marginBottom: '1rem' }}>
                 Ready to transform your restaurant operations? Start your free 14-day trial today.
               </p>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate('/register')}
                 className={styles.btnPrimary}
                 style={{ width: '100%', padding: '0.65rem', fontSize: '0.84rem' }}
               >
                 Launch Free Trial <ArrowRight size={14} />
-              </button>
+              </motion.button>
             </div>
 
           </div>
