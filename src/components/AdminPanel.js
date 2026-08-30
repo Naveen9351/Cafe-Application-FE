@@ -16,6 +16,7 @@ import InventoryRecipes from './petpooja/InventoryRecipes';
 import CRMLoyalty from './petpooja/CRMLoyalty';
 import OnlineAggregators from './petpooja/OnlineAggregators';
 import styles from './AdminPanel.module.css';
+import BrandLogo from './BrandLogo';
 
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
@@ -109,11 +110,19 @@ function AdminPanel() {
 
   useEffect(() => {
     if (user) {
+      const bizName = tenantInfo?.businessName || 'your restaurant';
+      const menuCount = items?.length || 0;
+      const orderCount = orders?.length || 0;
+      const totalRev = orders?.reduce((s, o) => s + (o.totalAmount || 0), 0) || 0;
+
       setCopilotMessages([
-        { role: 'assistant', text: `Hello ${user.name || 'Partner'}! I found 4 things you should know today:\n\n📈 Cappuccino sales are up 24%.\n⚠️ Milk inventory may run out tomorrow.\n💰 Tuesday revenue is 12% below average.\n🎯 18 customers haven't visited in 30 days.` }
+        {
+          role: 'assistant',
+          text: `Hello ${user.name || 'Admin'}! 👋 I'm **RASTRORATO AI Copilot** for **${bizName}**.\n\nHere is your live store pulse right now:\n📋 **Menu:** ${menuCount} active items\n📊 **Orders:** ${orderCount} processed\n💰 **Revenue:** ₹${totalRev.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n\nAsk me about dish pricing, sales performance, ingredient stock, or growth ideas!`
+        }
       ]);
     }
-  }, [user]);
+  }, [user, tenantInfo, items?.length, orders?.length]);
 
   const navigate = useNavigate();
 
@@ -322,23 +331,23 @@ function AdminPanel() {
     toast.success(`Generated QR codes for ${count} tables`);
   };
 
-  const handleCopilotSubmit = async (e) => {
-    e.preventDefault();
-    if (!copilotQuery.trim()) return;
+  const handleCopilotSubmit = async (e, customText) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const textToSend = customText || copilotQuery;
+    if (!textToSend.trim()) return;
 
-    const userMessage = { role: 'user', text: copilotQuery };
+    const userMessage = { role: 'user', text: textToSend };
     setCopilotMessages(prev => [...prev, userMessage]);
-    const query = copilotQuery;
-    setCopilotQuery('');
+    if (!customText) setCopilotQuery('');
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API}/ai/copilot`, { query }, {
+      const response = await axios.post(`${API}/ai/copilot`, { query: textToSend }, {
         headers: { 'x-auth-token': token }
       });
       setCopilotMessages(prev => [...prev, { role: 'assistant', text: response.data.reply }]);
     } catch (err) {
-      setCopilotMessages(prev => [...prev, { role: 'assistant', text: "Sorry, I encountered an issue analyzing the data. Please try again." }]);
+      setCopilotMessages(prev => [...prev, { role: 'assistant', text: "Sorry, I encountered an issue analyzing your live cafe data. Please try again." }]);
     }
   };
 
@@ -490,13 +499,7 @@ function AdminPanel() {
         {/* Sidebar Navigation - Fixed */}
         <nav className={styles.sidebar}>
           <div className={styles.header}>
-            <div className={styles.logoContainer}>
-              <div className={styles.logoBox}>F</div>
-              <div className={styles.logoText}>
-                <span className={styles.logoTitle}>Feast</span>
-                <span className={styles.logoSub}>SAAS PLATFORM</span>
-              </div>
-            </div>
+            <BrandLogo size="md" showSubtitle={true} onClick={() => navigate('/')} />
           </div>
 
           <button 
@@ -515,7 +518,7 @@ function AdminPanel() {
             }} 
             onClick={() => setIsCopilotOpen(true)}
           >
-            <Sparkles size={20} /> <span>✨ Ask Feast AI</span>
+            <Sparkles size={20} /> <span>✨ Ask RASTRORATO AI</span>
           </button>
 
           <button className={activeTab === 'dashboard' ? styles.activeNav : ''} onClick={() => setActiveTab('dashboard')}>
@@ -1056,7 +1059,7 @@ function AdminPanel() {
           <div className={styles.modalOverlay}>
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={styles.modalContent} style={{ maxWidth: '850px', width: '92%' }}>
               <div className={styles.modalHeader}>
-                <h2>📷 Import Menu via Feast AI</h2>
+                <h2>📷 Import Menu via RASTRORATO AI</h2>
                 <button className={styles.closeBtn} onClick={() => { setIsImportModalOpen(false); setExtractedItems([]); setExtractionProgress(0); }}><X /></button>
               </div>
 
@@ -1077,7 +1080,7 @@ function AdminPanel() {
 
               {extractedItems.length === 0 ? (
                 <form onSubmit={handleImportMenu} className={styles.form}>
-                  <p style={{ color: '#b5a494', fontSize: '0.85rem' }}>Upload an image of your physical paper menu card. Feast AI will automatically extract items, prices, search Web CDNs & AI photos, and draft pre-publish cards for your review.</p>
+                  <p style={{ color: '#b5a494', fontSize: '0.85rem' }}>Upload an image of your physical paper menu card. RASTRORATO AI will automatically extract items, prices, search Web CDNs & AI photos, and draft pre-publish cards for your review.</p>
                   <div className={styles.inputGroup}>
                     <label>Menu Card Image</label>
                     <div className={styles.fileUpload}>
@@ -1093,7 +1096,7 @@ function AdminPanel() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ color: '#10b981', fontWeight: '700', fontSize: '0.9rem' }}>
-                      ✓ Feast AI extracted {extractedItems.length} items. Review & edit details before publishing:
+                      ✓ RASTRORATO AI extracted {extractedItems.length} items. Review & edit details before publishing:
                     </p>
                     <span style={{ fontSize: '0.75rem', color: '#b5a494', background: '#1e1814', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(198,124,78,0.15)' }}>
                       Inline Editing Enabled
@@ -1195,7 +1198,7 @@ function AdminPanel() {
           </div>
         )}
 
-        {/* FEAST AI COPILOT FLYOUT DRAWER */}
+        {/* RASTRORATO AI COPILOT FLYOUT DRAWER */}
         <AnimatePresence>
           {isCopilotOpen && (
             <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setIsCopilotOpen(false)}>
@@ -1206,36 +1209,68 @@ function AdminPanel() {
                 style={{ width: '420px', backgroundColor: '#ffffff', borderLeft: '1px solid #e4e5e1', padding: '2rem', display: 'flex', flexDirection: 'column', height: '100%', boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.05)' }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e4e5e1', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                    <div style={{ background: '#ecfccb', padding: '8px', borderRadius: '12px', display: 'flex' }}>
-                      <Sparkles size={20} color="#84cc16" />
+                    <div style={{ background: 'rgba(5, 150, 105, 0.1)', padding: '8px', borderRadius: '12px', display: 'flex' }}>
+                      <Sparkles size={20} color="#059669" />
                     </div>
                     <div>
-                      <span style={{ color: '#1e293b', fontWeight: '800', fontSize: '1.15rem', display: 'block' }}>Feast AI Copilot</span>
-                      <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '500' }}>Smart Cafe Insights</span>
+                      <span style={{ color: '#0f172a', fontWeight: '800', fontSize: '1.15rem', display: 'block' }}>RASTRORATO AI Copilot</span>
+                      <span style={{ color: '#059669', fontSize: '0.75rem', fontWeight: '700' }}>● Live Store Operations Analyst</span>
                     </div>
                   </div>
-                  <button onClick={() => setIsCopilotOpen(false)} style={{ background: '#f4f4f0', border: '1px solid #e4e5e1', borderRadius: '10px', color: '#64748b', cursor: 'pointer', padding: '6px' }}>
+                  <button onClick={() => setIsCopilotOpen(false)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b', cursor: 'pointer', padding: '6px' }}>
                     <X size={18} />
                   </button>
                 </div>
 
+                {/* Quick Store Prompts */}
+                <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.75rem', marginBottom: '0.75rem', borderBottom: '1px solid #f1f5f9', scrollbarWidth: 'none' }}>
+                  {[
+                    "Show my menu items & prices",
+                    "What is my total sales summary?",
+                    "Check ingredient inventory levels",
+                    "Draft a weekend customer promo"
+                  ].map((chip) => (
+                    <button
+                      key={chip}
+                      onClick={() => handleCopilotSubmit(null, chip)}
+                      style={{
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '100px',
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.74rem',
+                        fontWeight: '700',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.color = '#059669'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Messages Log */}
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', paddingRight: '5px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.25rem', paddingRight: '5px' }}>
                   {copilotMessages.map((msg, idx) => (
                     <div 
                       key={idx} 
                       style={{
                         alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                        backgroundColor: msg.role === 'user' ? '#84cc16' : '#f4f4f0',
-                        color: msg.role === 'user' ? '#1a2e05' : '#1e293b',
-                        padding: '1rem 1.25rem',
-                        borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                        backgroundColor: msg.role === 'user' ? '#059669' : '#f8fafc',
+                        color: msg.role === 'user' ? '#ffffff' : '#0f172a',
+                        padding: '0.9rem 1.15rem',
+                        borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                         maxWidth: '88%',
-                        fontSize: '0.88rem',
+                        fontSize: '0.86rem',
                         lineHeight: '1.55',
-                        border: msg.role === 'user' ? 'none' : '1px solid #e4e5e1',
+                        border: msg.role === 'user' ? 'none' : '1px solid #e2e8f0',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
                         whiteSpace: 'pre-wrap',
                         fontWeight: '500'
@@ -1250,12 +1285,12 @@ function AdminPanel() {
                 <form onSubmit={handleCopilotSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
                   <input 
                     type="text" 
-                    placeholder="Ask Feast AI anything..." 
+                    placeholder="Ask about your menu, sales, stock..." 
                     value={copilotQuery}
                     onChange={(e) => setCopilotQuery(e.target.value)}
-                    style={{ flex: 1, backgroundColor: '#f4f4f0', border: '1px solid #e4e5e1', borderRadius: '14px', padding: '0.85rem 1.15rem', color: '#1e293b', fontSize: '0.88rem', outline: 'none' }}
+                    style={{ flex: 1, backgroundColor: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '0.8rem 1rem', color: '#0f172a', fontSize: '0.88rem', outline: 'none' }}
                   />
-                  <button type="submit" style={{ background: '#84cc16', border: 'none', borderRadius: '14px', padding: '0.85rem 1.25rem', color: '#1a2e05', fontWeight: '800', cursor: 'pointer', boxShadow: 'none' }}>
+                  <button type="submit" style={{ background: '#059669', border: 'none', borderRadius: '12px', padding: '0.8rem 1.25rem', color: '#ffffff', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)' }}>
                     Send
                   </button>
                 </form>

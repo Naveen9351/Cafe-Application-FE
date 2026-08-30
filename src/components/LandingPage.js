@@ -1,582 +1,1147 @@
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, UtensilsCrossed, ChevronRight, Wifi } from 'lucide-react';
-import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import BrandLogo from './BrandLogo';
+import PageLoader from './PageLoader';
+import LandingChatbot from './LandingChatbot';
+import { 
+  UtensilsCrossed, 
+  ChevronRight, 
+  Sparkles, 
+  Zap, 
+  TrendingUp, 
+  ShieldCheck, 
+  Clock, 
+  Smartphone, 
+  Layers, 
+  Bot, 
+  Receipt, 
+  ChefHat, 
+  PackageCheck, 
+  Users, 
+  ArrowRight, 
+  Check, 
+  Plus, 
+  CheckCircle2, 
+  Flame, 
+  Sliders, 
+  HelpCircle, 
+  ChevronDown, 
+  ChevronUp, 
+  ExternalLink,
+  Store,
+  DollarSign,
+  Coffee,
+  Globe,
+  Star,
+  Award,
+  Laptop,
+  Printer,
+  QrCode,
+  CreditCard,
+  PhoneCall,
+  Calendar,
+  Building2,
+  PieChart,
+  Activity,
+  CheckCircle,
+  Menu as MenuIcon,
+  X
+} from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-
-const OLIVE = '#3a5a2a';
-const OLIVE_LIGHT = '#e8f0e0';
-const CREAM = '#f5f2eb';
-const CREAM_DARK = '#ede9e0';
-const TEXT_DARK = '#111111';
-const TEXT_MID = '#444444';
-const TEXT_SOFT = '#888888';
-const WHITE = '#ffffff';
-const CARD_BG = '#ffffff';
-const BORDER = '#e2ddd6';
-
-const SectionBadge = ({ children }) => (
-  <div style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    backgroundColor: OLIVE_LIGHT,
-    color: OLIVE,
-    fontWeight: '700',
-    fontSize: '0.7rem',
-    letterSpacing: '1.5px',
-    textTransform: 'uppercase',
-    padding: '0.35rem 0.9rem',
-    borderRadius: '100px',
-    marginBottom: '1.25rem',
-  }}>
-    {children}
-  </div>
-);
-
-const FeatureCheck = ({ children }) => (
-  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: '0.88rem', color: TEXT_MID, marginBottom: '0.85rem', lineHeight: '1.4' }}>
-    <CheckCircle size={16} style={{ color: OLIVE, flexShrink: 0, marginTop: '1px' }} />
-    <span>{children}</span>
-  </li>
-);
+import styles from './LandingPage.module.css';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
 
-  const handleSubscribe = (e) => {
+  // Mobile Navigation Drawer
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // ROI Calculator Sliders
+  const [dailyOrders, setDailyOrders] = useState(240);
+  const [avgTicket, setAvgTicket] = useState(480);
+
+  // Billing Toggle
+  const [annualBilling, setAnnualBilling] = useState(true);
+
+  // FAQ Accordion State
+  const [openFaq, setOpenFaq] = useState(0);
+
+  // Lead Generation Demo Form State
+  const [demoForm, setDemoForm] = useState({
+    name: '',
+    phone: '',
+    city: 'Bangalore',
+    outletType: 'Cafe & Dining',
+  });
+  const [demoSubmitted, setDemoSubmitted] = useState(false);
+
+  // Interactive Live POS Simulation State inside Hero Terminal
+  const [billItems, setBillItems] = useState([
+    { name: 'Truffle Risotto', qty: 1, price: 540 },
+    { name: 'Matcha Latte', qty: 2, price: 280 },
+    { name: 'Avocado Toast', qty: 1, price: 390 },
+  ]);
+
+  const subtotal = billItems.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const gst = Math.round(subtotal * 0.05);
+  const totalBill = subtotal + gst;
+
+  const handleSettleHeroBill = () => {
+    toast.success(`Order settled for ₹${totalBill.toLocaleString()}! Receipt printed & sent via WhatsApp.`, {
+      icon: '🎉',
+      duration: 3500,
+    });
+  };
+
+  const handleDemoSubmit = (e) => {
     e.preventDefault();
-    if (!email) return;
-    toast.success('Subscribed!');
-    setEmail('');
+    if (!demoForm.name || !demoForm.phone) {
+      toast.error('Please enter your name and phone number');
+      return;
+    }
+    setDemoSubmitted(true);
+    toast.success('Demo booked! Our specialist will contact you shortly.', { icon: '🚀' });
+  };
+
+  // Calculated ROI Values
+  const monthlyRevenue = dailyOrders * 30 * avgTicket;
+  const monthlySavings = Math.round(monthlyRevenue * 0.036 + dailyOrders * 30 * 8);
+  const annualSavings = monthlySavings * 12;
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div style={{ backgroundColor: CREAM, color: TEXT_DARK, fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif", overflowX: 'hidden' }}>
+    <div className={styles.landingContainer}>
+      {/* 🚀 First-Time / Animated Page Loader */}
+      <PageLoader duration={1000} />
+
       <Toaster position="top-center" />
 
-      {/* ── NAVBAR ── */}
+      {/* Subtle Background Glow */}
+      <div className={styles.heroGlow} />
+
+      {/* ─── 1. NAVBAR (RESPONSIVE & LIGHT THEME) ─── */}
       <nav style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '0 6%', height: '64px',
-        backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}`,
-        position: 'sticky', top: 0, zIndex: 100,
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderBottom: '1px solid var(--border-light)',
+        padding: '0 clamp(1rem, 4vw, 5%)',
+        height: 'clamp(62px, 8vw, 74px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
       }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '800', fontSize: '1.1rem' }} onClick={() => navigate('/')}>
-          <div style={{ width: '28px', height: '28px', backgroundColor: OLIVE, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <UtensilsCrossed size={16} color={WHITE} />
+        {/* Left: Brand Logo (Light Theme) */}
+        <BrandLogo theme="light" onClick={() => navigate('/')} showSubtitle={true} />
+
+        {/* Center: Navigation Links (Desktop) */}
+        <div className={styles.navLinks} style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          {[
+            { label: 'Suite', id: 'suite' },
+            { label: 'Formats', id: 'formats' },
+            { label: 'Hardware', id: 'hardware' },
+            { label: 'Pricing', id: 'pricing' },
+            { label: 'FAQ', id: 'faq' },
+          ].map((link) => (
+            <span
+              key={link.label}
+              onClick={() => scrollToSection(link.id)}
+              style={{
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary-emerald)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            >
+              {link.label}
+            </span>
+          ))}
+        </div>
+
+        {/* Right: Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div className={styles.desktopActions}>
+            <button
+              onClick={() => navigate('/login')}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                fontWeight: '700',
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                padding: '0.4rem 0.6rem',
+              }}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => navigate('/register')}
+              className={styles.btnPrimary}
+              style={{ padding: '0.5rem 1.1rem', fontSize: '0.84rem', borderRadius: '8px' }}
+            >
+              Get Started
+            </button>
           </div>
-          FeastSpot
-        </div>
 
-        {/* Nav Links */}
-        <div style={{ display: 'flex', gap: '2rem', fontSize: '0.9rem', fontWeight: '600' }}>
-            <span onClick={() => navigate('/features/pos-billing')} style={{ cursor: 'pointer', color: TEXT_MID }} onMouseOver={e => e.target.style.color = OLIVE} onMouseOut={e => e.target.style.color = TEXT_MID}>POS Billing</span>
-            <span onClick={() => navigate('/features/kitchen-ops')} style={{ cursor: 'pointer', color: TEXT_MID }} onMouseOver={e => e.target.style.color = OLIVE} onMouseOut={e => e.target.style.color = TEXT_MID}>Kitchen Ops</span>
-            <span onClick={() => navigate('/features/inventory')} style={{ cursor: 'pointer', color: TEXT_MID }} onMouseOver={e => e.target.style.color = OLIVE} onMouseOut={e => e.target.style.color = TEXT_MID}>Inventory</span>
-            <span onClick={() => navigate('/features/crm-loyalty')} style={{ cursor: 'pointer', color: TEXT_MID }} onMouseOver={e => e.target.style.color = OLIVE} onMouseOut={e => e.target.style.color = TEXT_MID}>CRM & Loyalty</span>
-            <span onClick={() => navigate('/features/ai-copilot')} style={{ cursor: 'pointer', color: TEXT_MID }} onMouseOver={e => e.target.style.color = OLIVE} onMouseOut={e => e.target.style.color = TEXT_MID}>AI Copilot</span>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <button onClick={() => navigate('/login')}
-            style={{ background: 'none', border: 'none', fontWeight: '700', fontSize: '0.88rem', color: TEXT_DARK, cursor: 'pointer' }}>
-            Login
-          </button>
-          <button onClick={() => navigate('/register')}
-            style={{ backgroundColor: OLIVE, color: WHITE, border: 'none', fontWeight: '700', fontSize: '0.88rem', padding: '0.6rem 1.25rem', borderRadius: '8px', cursor: 'pointer', transition: '0.2s' }}
-            onMouseOver={e => e.target.style.opacity = '0.9'}
-            onMouseOut={e => e.target.style.opacity = '1'}>
-            Start Free Trial
+          {/* Mobile Hamburger Toggle Button */}
+          <button
+            onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            style={{
+              background: '#f8fafc',
+              border: '1px solid var(--border-light)',
+              borderRadius: '8px',
+              padding: '6px',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            className={styles.mobileMenuBtn}
+          >
+            {mobileNavOpen ? <X size={20} /> : <MenuIcon size={20} />}
           </button>
         </div>
       </nav>
 
-      {/* ── HERO ── */}
-      <section style={{ maxWidth: '1200px', margin: '0 auto', padding: '5rem 6% 4rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3.5rem', alignItems: 'center' }}>
-        {/* Left */}
-        <div>
-          <SectionBadge>Ultimate Restaurant OS</SectionBadge>
-          <h1 style={{ fontSize: '3.4rem', fontWeight: '900', lineHeight: '1.1', color: TEXT_DARK, marginBottom: '1.5rem', letterSpacing: '-1.5px' }}>
-            Run your restaurant.<br />Not your spreadsheets.
-          </h1>
-          <p style={{ fontSize: '1.05rem', color: TEXT_MID, lineHeight: '1.65', marginBottom: '2.25rem', maxWidth: '520px' }}>
-            FeastSpot is the all-in-one restaurant OS — POS, QR ordering, kitchen ops, inventory, CRM, loyalty, AI copilot, and aggregator integrations. All in one place.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1rem' }}>
-            <button onClick={() => navigate('/register')} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: OLIVE, color: WHITE, border: 'none', fontWeight: '700', padding: '1.1rem 2.4rem', borderRadius: '100px', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 8px 30px rgba(58,90,42,0.25)', transition: '0.2s' }}
-              onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              Start 14-Day Trial
-            </button>
-            <button onClick={() => navigate('/demo')} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', fontWeight: '700', fontSize: '0.95rem', color: TEXT_DARK, cursor: 'pointer', textDecoration: 'underline' }}>
-              Book a Demo
-            </button>
-          </div>
-          <p style={{ fontSize: '0.78rem', color: TEXT_SOFT }}>No credit card required • 14-day trial</p>
-        </div>
-
-        {/* Right: Mock Dashboard */}
-        <div style={{ backgroundColor: WHITE, borderRadius: '16px', border: `1px solid ${BORDER}`, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.07)' }}>
-          <div style={{ backgroundColor: '#f8f7f4', borderBottom: `1px solid ${BORDER}`, padding: '0.6rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ff5f56', display: 'inline-block' }} />
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ffbd2e', display: 'inline-block' }} />
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#27c93f', display: 'inline-block' }} />
-            </div>
-            <span style={{ fontSize: '0.75rem', fontWeight: '600', color: TEXT_SOFT }}>FeastSpot Admin OS</span>
-          </div>
-          <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div style={{ backgroundColor: CREAM, borderRadius: '10px', padding: '1rem' }}>
-              <div style={{ fontSize: '0.72rem', color: TEXT_SOFT, fontWeight: '600', marginBottom: '4px' }}>Today's Revenue</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: TEXT_DARK }}>₹42,850</div>
-            </div>
-            <div style={{ backgroundColor: CREAM, borderRadius: '10px', padding: '1rem' }}>
-              <div style={{ fontSize: '0.72rem', color: TEXT_SOFT, fontWeight: '600', marginBottom: '4px' }}>Active Orders</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: TEXT_DARK }}>18 Orders</div>
-            </div>
-          </div>
-          <div style={{ margin: '0 1.25rem 1.25rem', borderRadius: '10px', overflow: 'hidden', height: '160px' }}>
-            <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=800&q=80" alt="Cafe" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── TRUST BAR ── */}
-      <div style={{ borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, backgroundColor: WHITE, padding: '1.25rem 6%', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.72rem', letterSpacing: '2px', textTransform: 'uppercase', color: TEXT_SOFT, fontWeight: '700', marginBottom: '1rem' }}>
-          500+ Restaurants Trust FeastSpot to Power Their Operations
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', flexWrap: 'wrap' }}>
-          {["Deepak's Bistro", "Urban Cafe", "Spice Symphony", "Taco Town", "Noodle Craft"].map(name => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.88rem', fontWeight: '700', color: TEXT_MID }}>
-              <UtensilsCrossed size={14} style={{ color: OLIVE }} /> {name}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── CUSTOMER EXPERIENCE ── */}
-      <section id="customer-experience" style={{ padding: '5rem 6%', maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-        <SectionBadge>Customer Experience</SectionBadge>
-        <h2 style={{ fontSize: '2.4rem', fontWeight: '900', color: TEXT_DARK, marginBottom: '1rem', letterSpacing: '-0.5px' }}>
-          Delight Your Customers From the First Scan
-        </h2>
-        <p style={{ color: TEXT_MID, fontSize: '1rem', maxWidth: '560px', margin: '0 auto 3rem', lineHeight: '1.6' }}>
-          Create fluid, frictionless digital journeys that make visiting your restaurant absolute bliss.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-          {[
-            { icon: '📱', title: 'Dynamic QR Menu & Ordering', desc: "Customers scan, browse, customize, and order instantly from their phone. Update prices or item availability in real-time." },
-            { icon: '📅', title: 'Online Table Reservations', desc: 'Allow guests to book tables in advance directly from your website or social media profiles. Reduce wait-times and no-shows.' },
-            { icon: '📧', title: 'Newsletter & Engagement', desc: 'Deploy structured marketing updates, seasonal offers, and happy hour schedules. Turn first-time drop-ins into passionate advocates.' },
-          ].map((item) => (
-            <div key={item.title} style={{ backgroundColor: CARD_BG, borderRadius: '14px', padding: '1.75rem', border: `1px solid ${BORDER}`, textAlign: 'left', transition: '0.2s' }}
-              onMouseOver={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-              onMouseOut={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-              <div style={{ fontSize: '1.75rem', marginBottom: '0.85rem' }}>{item.icon}</div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: TEXT_DARK, marginBottom: '0.5rem' }}>{item.title}</h3>
-              <p style={{ fontSize: '0.85rem', color: TEXT_MID, lineHeight: '1.55' }}>{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── POS TERMINAL ── */}
-      <section id="pos-billing" style={{ padding: '4rem 6%', backgroundColor: WHITE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
-          {/* Left */}
-          <div>
-            <SectionBadge>Unified POS Terminal</SectionBadge>
-            <h2 style={{ fontSize: '2.3rem', fontWeight: '900', color: TEXT_DARK, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>
-              A POS That Actually Gets Out of Your Way
-            </h2>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
-              Speed up order entry, slash queue friction, and keep cash flows completely transparent. Our ultra-minimalist POS fits any hardware setup.
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              <FeatureCheck><strong>Integrated POS Terminal</strong> — Choose dishes, customize categories, apply instant discounts, and manage walk-in or phone orders with zero system lag.</FeatureCheck>
-              <FeatureCheck><strong>Active Table Manager</strong> — Monitor your dining room's table layouts. Track active table billing states and finalize splits or combined invoices cleanly.</FeatureCheck>
-            </ul>
-          </div>
-          {/* Right: POS Mockup */}
-          <div style={{ backgroundColor: CREAM, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}` }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <span style={{ fontWeight: '800', fontSize: '0.95rem' }}>POS Terminal</span>
-              <span style={{ backgroundColor: OLIVE_LIGHT, color: OLIVE, fontWeight: '700', fontSize: '0.72rem', padding: '3px 10px', borderRadius: '100px' }}>3 items</span>
-            </div>
+      {/* Mobile Dropdown Navigation Drawer */}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <motion.div
+            className={styles.mobileDrawer}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{
+              position: 'sticky',
+              top: '62px',
+              zIndex: 99,
+              backgroundColor: 'rgba(255, 255, 255, 0.98)',
+              backdropFilter: 'blur(20px)',
+              borderBottom: '1px solid var(--border-light)',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+            }}
+          >
             {[
-              { img: 'https://images.unsplash.com/photo-1571934811356-5cc561b6821f?w=60&h=60&fit=crop', name: 'Cutting Masala Chai', sub: 'Qty 1', price: '₹400' },
-              { img: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=60&h=60&fit=crop', name: 'Classic Espresso Brownie', sub: 'Qty 1', price: '₹250' },
-            ].map((item) => (
-              <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: WHITE, borderRadius: '10px', padding: '0.75rem', marginBottom: '0.75rem' }}>
-                <img src={item.img} alt={item.name} style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '700', fontSize: '0.88rem', color: TEXT_DARK }}>{item.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: TEXT_SOFT }}>{item.sub}</div>
-                </div>
-                <div style={{ fontWeight: '800', fontSize: '0.95rem', color: TEXT_DARK }}>{item.price}</div>
-              </div>
+              { label: 'Product Suite', id: 'suite' },
+              { label: 'Food Formats', id: 'formats' },
+              { label: 'Hardware Matrix', id: 'hardware' },
+              { label: 'Transparent Pricing', id: 'pricing' },
+              { label: 'Frequently Asked Questions', id: 'faq' },
+            ].map((link) => (
+              <span
+                key={link.label}
+                onClick={() => { scrollToSection(link.id); setMobileNavOpen(false); }}
+                style={{
+                  fontSize: '0.95rem',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  padding: '0.35rem 0',
+                }}
+              >
+                {link.label}
+              </span>
             ))}
-            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '0.75rem', marginTop: '0.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: TEXT_MID, marginBottom: '4px' }}><span>Subtotal</span><span>₹660</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: TEXT_MID, marginBottom: '4px' }}><span>GST (5%)</span><span>₹33.50</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: '800', color: TEXT_DARK, marginBottom: '1rem' }}><span>Total Bill</span><span>₹682.50</span></div>
-              <button style={{ width: '100%', backgroundColor: OLIVE, color: WHITE, border: 'none', fontWeight: '700', fontSize: '0.9rem', padding: '0.8rem', borderRadius: '8px', cursor: 'pointer' }}>
-                Print & Settle Bill
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+              <button
+                onClick={() => { navigate('/login'); setMobileNavOpen(false); }}
+                className={styles.btnSecondary}
+                style={{ flex: 1, padding: '0.65rem', fontSize: '0.88rem' }}
+              >
+                Login
+              </button>
+              <button
+                onClick={() => { navigate('/register'); setMobileNavOpen(false); }}
+                className={styles.btnPrimary}
+                style={{ flex: 1, padding: '0.65rem', fontSize: '0.88rem' }}
+              >
+                Start Free
               </button>
             </div>
-          </div>
-        </div>
-      </section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ── KITCHEN OPS (KOT) ── */}
-      <section id="kitchen-ops" style={{ padding: '4rem 6%', backgroundColor: CREAM }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
-          {/* Left: KOT Mockup */}
-          <div style={{ backgroundColor: WHITE, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}`, boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <div>
-                <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>KOT Monitor</div>
-                <div style={{ fontSize: '0.72rem', color: TEXT_SOFT }}>Active Orders In Prep</div>
-              </div>
-              <span style={{ backgroundColor: '#ffeded', color: '#cc3333', fontWeight: '700', fontSize: '0.72rem', padding: '3px 10px', borderRadius: '100px' }}>2 Delay Alerts</span>
+      {/* ─── 2. HERO SECTION (LIGHT THEME) ─── */}
+      <section className={styles.sectionWrapperCenter} style={{ paddingTop: 'clamp(2.5rem, 6vw, 4.5rem)' }}>
+        
+        {/* Top Badge */}
+        <div className={styles.sectionBadge}>
+          ⚡ POWERING 500+ FOOD HUBS NATIONWIDE
+        </div>
+
+        {/* Hero Title */}
+        <h1 style={{
+          fontSize: 'clamp(2rem, 5.5vw, 4.2rem)',
+          fontWeight: '900',
+          lineHeight: '1.14',
+          letterSpacing: '-1.2px',
+          color: 'var(--text-primary)',
+          maxWidth: '850px',
+          margin: '0 auto 1.25rem',
+        }}>
+          The Operating System<br />
+          for<br />
+          <span style={{ color: 'var(--primary-emerald)' }}>High-Growth Restaurants</span>
+        </h1>
+
+        {/* Subtitle */}
+        <p className={styles.sectionSubtitle} style={{ marginBottom: '2rem', maxWidth: '680px' }}>
+          An all-in-one platform for fast-paced dining. Supercharge table turnover, zero-latency kitchen queues, raw material control, and AI revenue optimization.
+        </p>
+
+        {/* Hero Action Buttons */}
+        <div className={styles.heroActions} style={{ display: 'flex', justifyContent: 'center', gap: '0.85rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
+          <button onClick={() => navigate('/register')} className={styles.btnPrimary} style={{ padding: '0.8rem 1.75rem', fontSize: '0.94rem' }}>
+            Launch Free Trial <ArrowRight size={16} />
+          </button>
+          <button onClick={() => scrollToSection('demo-form')} className={styles.btnSecondary} style={{ padding: '0.8rem 1.75rem', fontSize: '0.94rem' }}>
+            Book a Live Demo
+          </button>
+        </div>
+
+        {/* Hero Dashboard Preview Window (macOS Light/Slate Card) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid var(--border-light)',
+          borderRadius: '20px',
+          padding: 'clamp(1rem, 3vw, 1.5rem)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.08), 0 0 30px rgba(5, 150, 105, 0.05)',
+          textAlign: 'left',
+          boxSizing: 'border-box',
+        }}>
+          {/* Header Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', gap: '0.45rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block' }} />
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
             </div>
-            {[
-              { table: 'Table 12 (Order #302)', time: '9 mins elapsed', items: ['1x Avocado Garden Sandwich (No Mayo)', '2x Classic Cappuccino (Extra foam)'] },
-              { table: 'Table 02 (Order #305)', time: '3 mins elapsed', items: ['1x Classic Espresso Brownie'] },
-            ].map((order) => (
-              <div key={order.table} style={{ backgroundColor: CREAM, borderRadius: '10px', padding: '0.9rem', marginBottom: '0.75rem', border: `1px solid ${BORDER}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: '700', fontSize: '0.85rem', color: TEXT_DARK }}>{order.table}</span>
-                  <span style={{ fontSize: '0.75rem', color: TEXT_SOFT }}>{order.time}</span>
-                </div>
-                {order.items.map(i => <div key={i} style={{ fontSize: '0.78rem', color: TEXT_MID, marginBottom: '2px' }}>• {i}</div>)}
-              </div>
-            ))}
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--primary-emerald)' }} />
+              RASTRORATO Cloud POS • Outlet #01 (Live)
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--primary-emerald)', backgroundColor: 'rgba(5, 150, 105, 0.1)', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>
+              ONLINE
+            </div>
           </div>
 
-          {/* Right */}
-          <div>
-            <SectionBadge>Kitchen Ops</SectionBadge>
-            <h2 style={{ fontSize: '2.3rem', fontWeight: '900', color: TEXT_DARK, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>
-              From Order to Plate — In Real Time
-            </h2>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
-              Bridge the communication gap between servers and chefs. Keep cooking times tight and guests happily informed with zero paper ticket dependency.
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              <FeatureCheck><strong>KOT Monitor Dashboard</strong> — Real-time, interactive dashboard designed specifically for kitchen staff with touch-action fulfillment tags.</FeatureCheck>
-              <FeatureCheck><strong>Preparation Timer Integration</strong> — Auto-calculate average prep times per dish and push delay warning notifications directly to POS and wait staff.</FeatureCheck>
-              <FeatureCheck><strong>WebSocket Real-time Sync</strong> — Zero-latency synchronization of new orders between online customer orders, floor POS terminals, and kitchen.</FeatureCheck>
-            </ul>
+          {/* Grid Layout inside Dashboard Mockup */}
+          <div className={styles.heroGrid}>
+            
+            {/* Left Column: Active Order Settle */}
+            <div style={{ backgroundColor: 'var(--bg-card-muted)', border: '1px solid var(--border-light)', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>Active Table: T-04</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--primary-emerald)', fontWeight: '700' }}>Dine-In</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                {billItems.map(item => (
+                  <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    <span>{item.qty}x {item.name}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: '700' }}>₹{item.price * item.qty}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '0.65rem', marginBottom: '1rem', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                  <span>Subtotal</span>
+                  <span>₹{subtotal}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                  <span>GST (5%)</span>
+                  <span>₹{gst}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: '900', color: 'var(--text-primary)' }}>
+                  <span>Net Total</span>
+                  <span style={{ color: 'var(--primary-emerald)' }}>₹{totalBill.toLocaleString()}.00</span>
+                </div>
+              </div>
+
+              <button onClick={handleSettleHeroBill} className={styles.btnPrimary} style={{ width: '100%', padding: '0.65rem', fontSize: '0.82rem', borderRadius: '8px' }}>
+                Instant Settle & KOT
+              </button>
+            </div>
+
+            {/* Right Column: Telemetry & Live Order Stream */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              {/* 3 Metric Cards */}
+              <div className={styles.terminalMetricsGrid}>
+                {[
+                  { label: 'Daily Net Volume', val: '₹1,28,450', change: '+18% today' },
+                  { label: 'Table Turnaround', val: '24 min', change: '-8 min avg' },
+                  { label: 'Kitchen Prep Avg', val: '6m 12s', change: '0s delay' },
+                ].map(m => (
+                  <div key={m.label} style={{ backgroundColor: 'var(--bg-card-muted)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '0.85rem' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{m.label}</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: '900', color: 'var(--text-primary)' }}>{m.val}</div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--primary-emerald)', fontWeight: '700' }}>{m.change}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Live Order Queue Rows */}
+              <div style={{ backgroundColor: 'var(--bg-card-muted)', border: '1px solid var(--border-light)', borderRadius: '14px', padding: '1rem', flex: 1 }}>
+                <div style={{ fontSize: '0.74rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem' }}>
+                  Live Kitchen Production Queue
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {[
+                    { id: 'Order #408', type: 'Dine-In • Table 02', status: 'Cooking', time: '4m ago', statusColor: 'var(--primary-emerald)' },
+                    { id: 'Order #409', type: 'Takeaway • Counter 1', status: 'Ready for Pickup', time: '1m ago', statusColor: '#2563eb' },
+                    { id: 'Order #410', type: 'Delivery • Zomato', status: 'Prepping', time: '8m ago', statusColor: '#d97706' },
+                  ].map(ord => (
+                    <div key={ord.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.8rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <div>
+                        <span style={{ fontWeight: '800', color: 'var(--text-primary)', marginRight: '0.4rem' }}>{ord.id}</span>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>{ord.type}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{ord.time}</span>
+                        <span style={{ color: ord.statusColor, fontWeight: '700', fontSize: '0.74rem' }}>{ord.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
           </div>
+        </div>
+
+      </section>
+
+      {/* ─── 3. SECTION: COMPREHENSIVE PRODUCT SUITE (6 CARDS GRID) ─── */}
+      <section id="suite" className={styles.sectionWrapperCenter}>
+        <div className={styles.sectionBadge}>
+          COMPREHENSIVE PRODUCT SUITE
+        </div>
+        <h2 className={styles.sectionTitle}>
+          Everything You Need to Run Your Restaurant
+        </h2>
+        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.75rem' }}>
+          From the counter to the kitchen and back-office ledger, every module is natively integrated for zero miscommunication.
+        </p>
+
+        <div className={styles.grid6}>
+          {[
+            {
+              icon: Receipt,
+              title: 'Ultra-Fast Cloud POS',
+              desc: 'Point of sale terminal built for high concurrency. Split bills, custom modifiers & 1-click settlements.',
+            },
+            {
+              icon: ChefHat,
+              title: 'Zero-Latency Kitchen (KDS)',
+              desc: 'Instant digital KOT queues with preparation timers, color-coded delays, and station routing.',
+            },
+            {
+              icon: PackageCheck,
+              title: 'Raw Ingredient & PO Auto',
+              desc: 'Real-time recipe-level stock depletion, low-stock threshold warnings, and 1-click automated PO dispatch.',
+            },
+            {
+              icon: Smartphone,
+              title: 'Digital QR Dining & Pay',
+              desc: 'Frictionless table ordering with dynamic high-res menus, instant dietary filters, and direct UPI pay.',
+            },
+            {
+              icon: Store,
+              title: 'Aggregator Integrations',
+              desc: 'Unified order bridge for Zomato, Swiggy, and direct delivery channels from a single screen.',
+            },
+            {
+              icon: Bot,
+              title: 'AI Restaurant Intelligence',
+              desc: 'Predictive demand forecasting, weather impact analysis, dynamic dish combos, and auto menu digitizer.',
+            },
+          ].map(f => {
+            const Icon = f.icon;
+            return (
+              <div key={f.title} className={styles.featureCard}>
+                <div className={styles.featureIconBox}>
+                  <Icon size={20} color="var(--primary-emerald)" />
+                </div>
+                <h3 className={styles.featureTitle}>{f.title}</h3>
+                <p className={styles.featureDesc}>{f.desc}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* ── INVENTORY ── */}
-      <section id="inventory" style={{ padding: '5rem 6%', backgroundColor: WHITE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-          <SectionBadge>Inventory Control</SectionBadge>
-          <h2 style={{ fontSize: '2.4rem', fontWeight: '900', color: TEXT_DARK, marginBottom: '0.75rem', letterSpacing: '-0.5px' }}>
-            Never Run Out. Never Overstock.
+      {/* ─── 4. SECTION: A MODULAR SUITE TAILORED FOR YOUR GROWTH (FEATURE SPLIT) ─── */}
+      <section className={styles.sectionWrapper}>
+        <div style={{ textAlign: 'center', marginBottom: '2.75rem' }}>
+          <div className={styles.sectionBadge}>
+            LIVE KDS
+          </div>
+          <h2 className={styles.sectionTitle}>
+            A Modular Suite Tailored For Your Growth
           </h2>
-          <p style={{ color: TEXT_MID, fontSize: '1rem', maxWidth: '560px', margin: '0 auto 3rem', lineHeight: '1.6' }}>
-            Streamline restaurant margins with precision stock maps and automated purchasing.
+          <p className={styles.sectionSubtitle}>
+            Select individual components or activate the full operating suite. RASTRORATO adapts to your existing floor workflow.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-            {[
-              { icon: '📋', title: 'Recipe Mapping', desc: 'Link every menu item to ingredients. Auto-deduct inventory values instantly as plates get ordered and settled.' },
-              { icon: '📦', title: 'Real-time Stock Tracking', desc: 'Eliminate manual stock-taking. Receive alerts immediately as key supplies (milk, coffee beans) approach minimum limits.' },
-              { icon: '🛒', title: 'Automated Purchase Orders', desc: 'Draft and dispatch formatted purchase orders directly to pre-configured suppliers as stock drops past replenishment thresholds.' },
-            ].map(item => (
-              <div key={item.title} style={{ backgroundColor: CREAM, borderRadius: '14px', padding: '1.75rem', border: `1px solid ${BORDER}`, textAlign: 'left', transition: '0.2s' }}
-                onMouseOver={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                onMouseOut={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-                <div style={{ fontSize: '1.75rem', marginBottom: '0.85rem' }}>{item.icon}</div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: TEXT_DARK, marginBottom: '0.5rem' }}>{item.title}</h3>
-                <p style={{ fontSize: '0.85rem', color: TEXT_MID, lineHeight: '1.55' }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
         </div>
-      </section>
 
-      {/* ── CRM & LOYALTY ── */}
-      <section id="crm-loyalty" style={{ padding: '4rem 6%', backgroundColor: CREAM }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
-          {/* Left */}
+        <div className={styles.splitGrid}>
           <div>
-            <SectionBadge>CRM & Loyalty</SectionBadge>
-            <h2 style={{ fontSize: '2.3rem', fontWeight: '900', color: TEXT_DARK, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>
-              Know Your Regulars. Reward Their Loyalty.
-            </h2>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
-              Build lasting visitor relationships with a built-in guest ledger, smart milestone metrics, and automated rewards.
+            <div style={{ color: 'var(--primary-emerald)', fontWeight: '800', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem' }}>
+              Operational Efficiency
+            </div>
+            <h3 style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2rem)', fontWeight: '900', color: 'var(--text-primary)', lineHeight: '1.2', marginBottom: '1rem', letterSpacing: '-0.4px' }}>
+              Control Your Kitchen Flow with Live KDS Pipelines
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: '1.65', marginBottom: '1.5rem' }}>
+              Eliminate paper tickets and lost modifications. Our kitchen display synchronizes instantly with waitstaff terminals and QR tables, giving head chefs full visibility over preparation times and bottle-necks.
             </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              <FeatureCheck><strong>Centralized Customer Database</strong> — Store detailed contact profiles, order histories, diet custom tags, and lifetime billing totals under one unified guest log.</FeatureCheck>
-              <FeatureCheck><strong>Loyalty Points & Rewards</strong> — Configure automated reward rules. Award custom points per spend that guests can redeem instantly at QR checkout.</FeatureCheck>
-              <FeatureCheck><strong>Targeted Segmentation Campaigns</strong> — Filter inactive guests (no visits in 30 days) and send specific custom offers or discounts to draw them back.</FeatureCheck>
-            </ul>
-          </div>
 
-          {/* Right: VIP Customer Segment Mockup */}
-          <div style={{ backgroundColor: WHITE, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}`, boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '1.25rem', color: TEXT_DARK }}>VIP Customer Segment</div>
-            {[
-              { initials: 'SJ', name: 'Sarah Jenkins', meta: '18 visits • Total spent: ₹7,400' },
-              { initials: 'DS', name: 'Deepak Sharma', meta: '14 visits • Total spent: ₹9,800' },
-            ].map(c => (
-              <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: '1rem', backgroundColor: CREAM, borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '0.75rem' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: OLIVE, color: WHITE, fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {c.initials}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '700', fontSize: '0.9rem', color: TEXT_DARK }}>{c.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: TEXT_SOFT }}>{c.meta}</div>
-                </div>
-                <span style={{ backgroundColor: OLIVE, color: WHITE, fontSize: '0.65rem', fontWeight: '800', padding: '3px 8px', borderRadius: '6px', letterSpacing: '0.5px' }}>VIP</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── AI SECTION ── */}
-      <section id="ai-copilot" style={{ padding: '5rem 6%', backgroundColor: WHITE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <SectionBadge>Feast AI</SectionBadge>
-            <h2 style={{ fontSize: '2.4rem', fontWeight: '900', color: TEXT_DARK, marginBottom: '0.75rem', letterSpacing: '-0.5px' }}>
-              AI That Runs Your Restaurant<br />While You Sleep
-            </h2>
-            <p style={{ color: TEXT_MID, fontSize: '1rem', maxWidth: '580px', margin: '0 auto', lineHeight: '1.6' }}>
-              Leverage smart algorithms to optimize pricing structures, auto-generate purchase schedules, and craft beautiful photo menus.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
-            {/* Left: AI feature cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {[
-                { title: "AI Copilot 'Ask Feast AI'", desc: 'An intelligent advisor integrated into your dashboard. Analyses historical trends, flags upcoming supply dips, detects quiet periods, and recommends re-engagement promotions.' },
-                { title: 'AI Menu Scanner & Extractor', desc: 'Transform physical menus to your digital board in seconds. Simply upload a photo; our vision model extracts items, prices, descriptions, and formats categories instantly.' },
-                { title: 'AI Photo Enrichment', desc: 'Transform simple text listings into gourmet sensory assets. Fetch, generate, or stylize food photography tailored to your exact dish listings automatically.' },
-              ].map(f => (
-                <div key={f.title} style={{ backgroundColor: CREAM, borderRadius: '12px', padding: '1.25rem 1.5rem', border: `1px solid ${BORDER}` }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: '800', color: TEXT_DARK, marginBottom: '0.4rem' }}>{f.title}</h3>
-                  <p style={{ fontSize: '0.83rem', color: TEXT_MID, lineHeight: '1.5', margin: 0 }}>{f.desc}</p>
+                'Zero-delay WebSocket ticket dispatch across multiple kitchen stations',
+                'Color-coded urgency alerts for orders exceeding standard prep time',
+                'One-tap fulfillment status updating servers and guests simultaneously',
+              ].map(bullet => (
+                <div key={bullet} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                  <CheckCircle size={18} color="var(--primary-emerald)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>{bullet}</span>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Right: AI Copilot Mockup */}
-            <div style={{ backgroundColor: CREAM, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}` }}>
-              <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1rem' }}>🤖</span> Feast AI Copilot
-              </div>
-              <div style={{ fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: TEXT_SOFT, fontWeight: '700', marginBottom: '0.75rem' }}>Daily Forecast</div>
-              <div style={{ backgroundColor: WHITE, borderRadius: '10px', padding: '1rem', marginBottom: '1rem', border: `1px solid ${BORDER}` }}>
-                <p style={{ fontSize: '0.85rem', color: TEXT_MID, lineHeight: '1.5', margin: 0, fontStyle: 'italic' }}>
-                  "Chai sales are predicted to spike by 30% today due to local rainy weather. Ensure milk inventory is topped up."
-                </p>
-              </div>
-              <button onClick={() => toast.success('Milk PO of 50L triggered!')}
-                style={{ width: '100%', backgroundColor: OLIVE, color: WHITE, border: 'none', fontWeight: '700', fontSize: '0.85rem', padding: '0.75rem', borderRadius: '8px', cursor: 'pointer' }}>
-                Autofill Milk PO (50 Liters)
-              </button>
-            </div>
+          <div style={{ borderRadius: '18px', overflow: 'hidden', border: '1px solid var(--border-light)', boxShadow: '0 15px 40px rgba(0,0,0,0.08)' }}>
+            <img 
+              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80" 
+              alt="Kitchen KDS Display" 
+              style={{ width: '100%', height: 'clamp(220px, 30vw, 340px)', objectFit: 'cover', display: 'block' }} 
+            />
           </div>
         </div>
       </section>
 
-      {/* ── AGGREGATORS ── */}
-      <section id="aggregators" style={{ padding: '4rem 6%', backgroundColor: CREAM }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
-          {/* Left: Delivery Integrations Mockup */}
-          <div style={{ backgroundColor: WHITE, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}`, boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '1.25rem', color: TEXT_DARK }}>Delivery Integrations</div>
-            {[
-              { name: 'Ubereats', status: 'Connected', ok: true },
-              { name: 'Zomato', status: 'Connected', ok: true },
-              { name: 'Swiggy', status: 'Enabled', ok: false },
-            ].map(p => (
-              <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: CREAM, borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '0.75rem', border: `1px solid ${BORDER}` }}>
-                <span style={{ fontWeight: '700', fontSize: '0.9rem', color: TEXT_DARK }}>{p.name}</span>
-                <span style={{ backgroundColor: p.ok ? '#e8f5e9' : OLIVE_LIGHT, color: p.ok ? '#2e7d32' : OLIVE, fontSize: '0.72rem', fontWeight: '700', padding: '3px 10px', borderRadius: '100px' }}>
-                  {p.status}
+      {/* ─── 5. KEY METRICS STRIP (4 STATS) ─── */}
+      <section style={{ backgroundColor: '#ffffff', borderTop: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)', padding: 'clamp(2.5rem, 5vw, 3.5rem) 5%' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }} className={styles.metricsGrid}>
+          {[
+            { num: '2,500+', label: 'Active Food Outlets' },
+            { num: '₹145Cr+', label: 'Annual GMV Processed' },
+            { num: '99.99%', label: 'Cloud Uptime SLA' },
+            { num: '24/7', label: 'Dedicated Support Engine' },
+          ].map(m => (
+            <div key={m.label} className={styles.metricItem}>
+              <div className={styles.metricNumber}>{m.num}</div>
+              <div className={styles.metricLabel}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── 6. SECTION: DESIGNED FOR EVERY FOOD FORMAT (3 CARDS) ─── */}
+      <section id="formats" className={styles.sectionWrapperCenter}>
+        <div className={styles.sectionBadge}>
+          TAILORED FOR YOUR INDUSTRY
+        </div>
+        <h2 className={styles.sectionTitle}>
+          Designed for Every Food Format
+        </h2>
+        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.75rem' }}>
+          Built to fit the unique rhythm of quick-service kiosks, bustling cafes, and full-service dining establishments.
+        </p>
+
+        <div className={styles.grid3}>
+          {[
+            {
+              icon: Store,
+              title: 'QSR & Fast Food',
+              bullets: [
+                'High-volume counter POS billing',
+                'Token calling screen synchronization',
+                '45-second order-to-kitchen time',
+                'High concurrency cash drawers',
+              ],
+            },
+            {
+              icon: Coffee,
+              title: 'The Dining & Cafe',
+              bullets: [
+                'Visual floor plan & table mapper',
+                'Multi-course course firing',
+                'Barista station KOT display',
+                'Guest loyalty ledger & perks',
+              ],
+            },
+            {
+              icon: Building2,
+              title: 'Cloud Kitchens',
+              bullets: [
+                'Multi-brand virtual kitchen hub',
+                'Consolidated delivery streams',
+                'Shared commissary inventory',
+                'Brand-level P&L and metrics',
+              ],
+            },
+          ].map(c => {
+            const Icon = c.icon;
+            return (
+              <div key={c.title} className={styles.formatCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem' }}>
+                  <Icon size={22} color="var(--primary-emerald)" />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>{c.title}</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  {c.bullets.map(b => (
+                    <div key={b} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--primary-emerald)', fontWeight: '900' }}>•</span>
+                      <span>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ─── 7. SECTION: WORKS SEAMLESSLY ON ANY HARDWARE ─── */}
+      <section id="hardware" className={styles.sectionWrapperCenter} style={{ paddingTop: 0 }}>
+        <div className={styles.sectionBadge}>
+          HARDWARE AGNOSTIC
+        </div>
+        <h2 className={styles.sectionTitle}>
+          Works Seamlessly on Any Hardware
+        </h2>
+        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.5rem' }}>
+          No expensive proprietary hardware lock-ins. RASTRORATO runs on the devices and printers your restaurant already owns.
+        </p>
+
+        <div className={styles.grid3}>
+          {[
+            {
+              icon: Smartphone,
+              title: 'iOS & Android Tablets',
+              desc: 'Waiter & cashier mobile terminal',
+              badge: 'Zero Setup Time',
+            },
+            {
+              icon: Laptop,
+              title: 'Windows & Mac Desktops',
+              desc: 'Admin management & reporting',
+              badge: 'Browser Native',
+            },
+            {
+              icon: Printer,
+              title: 'Thermal & Bluetooth Printers',
+              desc: 'Thermal receipt & KOT printer sync',
+              badge: 'Universal Drivers',
+            },
+          ].map(h => {
+            const Icon = h.icon;
+            return (
+              <div key={h.title} className={styles.hardwareCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <Icon size={22} color="var(--primary-emerald)" />
+                  <div>
+                    <div style={{ fontWeight: '800', fontSize: '0.92rem', color: 'var(--text-primary)' }}>{h.title}</div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{h.desc}</div>
+                  </div>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--primary-emerald)', backgroundColor: 'rgba(5, 150, 105, 0.1)', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                  {h.badge}
                 </span>
               </div>
-            ))}
-          </div>
-
-          {/* Right */}
-          <div>
-            <SectionBadge>Aggregators & Tools</SectionBadge>
-            <h2 style={{ fontSize: '2.3rem', fontWeight: '900', color: TEXT_DARK, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>
-              Plug Into the Ecosystem
-            </h2>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
-              Import digital order streams seamlessly, and configure physical floor spaces without buying expensive custom developer bridges.
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              <FeatureCheck><strong>Aggregator Simulator Control</strong> — Test normal food dispatch streams (UberEats, Zomato, Swiggy) directly within your system mockups before going live.</FeatureCheck>
-              <FeatureCheck><strong>QR Generator Tool Suite</strong> — Generate and instantly print beautiful, high-resolution QR layout cards for up to 30 tables in one automated step.</FeatureCheck>
-            </ul>
-          </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* ── SAAS SCALE ── */}
-      <section style={{ padding: '4rem 6%', backgroundColor: WHITE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center' }}>
-          {/* Left */}
-          <div>
-            <SectionBadge>SaaS Architecture</SectionBadge>
-            <h2 style={{ fontSize: '2.3rem', fontWeight: '900', color: TEXT_DARK, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>
-              Built for Scale.<br />Built for You.
-            </h2>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '2rem' }}>
-              Whether you are running a single neighbourhood coffee shop or managing a nationwide franchise, FeastSpot's multi-tenant SaaS infrastructure scales with you every step of the way.
-            </p>
-            <button onClick={() => navigate('/register')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: OLIVE, color: WHITE, border: 'none', fontWeight: '700', fontSize: '0.95rem', padding: '0.85rem 1.75rem', borderRadius: '8px', cursor: 'pointer' }}>
-              Register Your Cafe <ChevronRight size={16} />
-            </button>
+      {/* ─── 8. SECTION: SEE HOW MUCH YOU CAN RECOVER (ROI CALCULATOR) ─── */}
+      <section className={styles.sectionWrapperCenter} style={{ paddingTop: 0 }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div className={styles.sectionBadge}>
+            PROFITABILITY CALCULATOR
           </div>
-
-          {/* Right: Super Admin Console Mockup */}
-          <div style={{ backgroundColor: CREAM, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}` }}>
-            <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '1rem', color: TEXT_DARK }}>Super Admin Console</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div style={{ backgroundColor: WHITE, borderRadius: '10px', padding: '0.85rem', border: `1px solid ${BORDER}` }}>
-                <div style={{ fontSize: '0.7rem', color: TEXT_SOFT, fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>All Cafes</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: TEXT_DARK }}>₹2.4M MoM</div>
-              </div>
-              <div style={{ backgroundColor: WHITE, borderRadius: '10px', padding: '0.85rem', border: `1px solid ${BORDER}` }}>
-                <div style={{ fontSize: '0.7rem', color: TEXT_SOFT, fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>Active Tenants</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: TEXT_DARK }}>12 Active</div>
-              </div>
-            </div>
-            {[
-              { name: 'Feast Bistro (Main)', status: 'Active' },
-              { name: 'Feast Express (Airport)', status: 'Active' },
-              { name: 'Feast Drive-Thru', status: 'Active' },
-            ].map(t => (
-              <div key={t.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: `1px solid ${BORDER}`, fontSize: '0.85rem' }}>
-                <span style={{ color: TEXT_DARK, fontWeight: '600' }}>{t.name}</span>
-                <span style={{ color: '#2e7d32', fontWeight: '700', fontSize: '0.78rem' }}>{t.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA BANNER ── */}
-      <section style={{ backgroundColor: '#2d4a1e', padding: '5rem 6%', textAlign: 'center' }}>
-        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '2.6rem', fontWeight: '900', color: WHITE, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>
-            Ready to Transform Your Restaurant?
+          <h2 className={styles.sectionTitle}>
+            See How Much You Can Recover
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', marginBottom: '2.5rem', lineHeight: '1.6' }}>
-            Join 500+ restaurants already using FeastSpot to tighten operations and unlock growth.
+          <p className={styles.sectionSubtitle}>
+            Calculate your projected monthly savings in prevented food waste, recovered labor hours, and table turnover lift.
           </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate('/register')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#a3d46a', color: '#1a2e05', border: 'none', fontWeight: '800', fontSize: '0.95rem', padding: '0.9rem 1.75rem', borderRadius: '8px', cursor: 'pointer', transition: '0.2s' }}
-              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-              Start Free Trial <ChevronRight size={16} />
-            </button>
-            <button onClick={() => navigate('/register')}
-              style={{ backgroundColor: 'transparent', color: WHITE, border: '2px solid rgba(255,255,255,0.35)', fontWeight: '700', fontSize: '0.95rem', padding: '0.9rem 1.75rem', borderRadius: '8px', cursor: 'pointer', transition: '0.2s' }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'}>
-              Schedule a Demo
-            </button>
+        </div>
+
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid var(--border-light)',
+          borderRadius: '20px',
+          padding: 'clamp(1.5rem, 4vw, 2.75rem)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+          boxSizing: 'border-box',
+        }}>
+          <div className={styles.calcGrid}>
+            
+            {/* Left Sliders */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                  <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Daily Orders</span>
+                  <span style={{ fontWeight: '800', color: 'var(--primary-emerald)' }}>{dailyOrders} orders/day</span>
+                </div>
+                <input
+                  type="range"
+                  min="40"
+                  max="600"
+                  step="10"
+                  value={dailyOrders}
+                  onChange={(e) => setDailyOrders(Number(e.target.value))}
+                  className={styles.customSlider}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                  <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Average Ticket Value</span>
+                  <span style={{ fontWeight: '800', color: 'var(--primary-emerald)' }}>₹{avgTicket}</span>
+                </div>
+                <input
+                  type="range"
+                  min="150"
+                  max="2500"
+                  step="50"
+                  value={avgTicket}
+                  onChange={(e) => setAvgTicket(Number(e.target.value))}
+                  className={styles.customSlider}
+                />
+              </div>
+            </div>
+
+            {/* Right Value Box */}
+            <div style={{
+              backgroundColor: 'var(--bg-card-muted)',
+              border: '1px solid var(--border-light)',
+              borderRadius: '16px',
+              padding: 'clamp(1.25rem, 3vw, 2rem)',
+              textAlign: 'left',
+              boxSizing: 'border-box',
+            }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: '700' }}>
+                Estimated Monthly Value Delivered:
+              </div>
+              <div style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: '900', color: 'var(--primary-emerald)', marginBottom: '1rem' }}>
+                ₹{monthlySavings.toLocaleString()} / mo
+              </div>
+
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: '700' }}>
+                Estimated Extra Annual Revenue Lift:
+              </div>
+              <div style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: '900', color: 'var(--primary-emerald)', marginBottom: '1.25rem' }}>
+                + ₹{annualSavings.toLocaleString()} / yr
+              </div>
+
+              <button onClick={() => navigate('/register')} className={styles.btnPrimary} style={{ width: '100%', padding: '0.75rem', fontSize: '0.88rem' }}>
+                Claim This ROI — Start Free
+              </button>
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ backgroundColor: '#0d0d0d', color: '#94a3b8', padding: '4rem 6% 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          {/* Footer top - 4 columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: '2.5rem', paddingBottom: '3rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            {/* Brand */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.05rem', color: WHITE, marginBottom: '1rem' }}>
-                <div style={{ width: '26px', height: '26px', backgroundColor: OLIVE, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <UtensilsCrossed size={14} color={WHITE} />
-                </div>
-                FeastSpot
+      {/* ─── 9. SECTION: SCHEDULE YOUR FREE 1-ON-1 DEMO (LIGHT FORM) ─── */}
+      <section id="demo-form" className={styles.sectionWrapper} style={{ paddingTop: 0 }}>
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid var(--border-light)',
+          borderRadius: '20px',
+          padding: 'clamp(1.5rem, 4vw, 3.5rem)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+          boxSizing: 'border-box',
+        }}>
+          <div className={styles.splitGrid}>
+            
+            {/* Left Info */}
+            <div style={{ textAlign: 'left' }}>
+              <div className={styles.sectionBadge} style={{ marginBottom: '0.75rem' }}>
+                GET A GUIDED TOUR
               </div>
-              <p style={{ fontSize: '0.83rem', lineHeight: '1.65', color: '#94a3b8', maxWidth: '240px' }}>
-                Our all-in-one operating system designed to elevate margins, power kitchen ops, and keep customers coming back.
+              <h2 style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)', fontWeight: '900', color: 'var(--text-primary)', lineHeight: '1.2', marginBottom: '0.85rem', letterSpacing: '-0.4px' }}>
+                Schedule Your Free 1-on-1 Product Demo
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+                Our restaurant technology specialist will walk you through the entire platform and configure a custom setup for your venue.
               </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {[
+                  '30-minute personalized walkthrough',
+                  'Free physical menu digitization & setup',
+                  'Dedicated onboarding specialist support',
+                ].map(item => (
+                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                    <CheckCircle size={17} color="var(--primary-emerald)" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Product */}
-            <div>
-              <h4 style={{ color: WHITE, fontWeight: '700', fontSize: '0.85rem', marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Product</h4>
-              {[['Features', '/features/pos-billing'], ['POS Terminal', '/features/pos-billing'], ['KOT Monitor', '/features/kitchen-ops'], ['Inventory', '/features/inventory'], ['AI Copilot', '/features/ai-copilot']].map(([l, p]) => (
-                <div key={l} style={{ marginBottom: '0.6rem' }}>
-                  <span onClick={() => navigate(p)} style={{ color: '#94a3b8', fontSize: '0.83rem', cursor: 'pointer', transition: '0.2s' }}
-                    onMouseOver={e => e.target.style.color = WHITE} onMouseOut={e => e.target.style.color = '#94a3b8'}>{l}</span>
+            {/* Right Form */}
+            <div style={{ backgroundColor: 'var(--bg-card-muted)', borderRadius: '16px', padding: 'clamp(1.25rem, 3vw, 2rem)', border: '1px solid var(--border-light)', textAlign: 'left', boxSizing: 'border-box' }}>
+              {demoSubmitted ? (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🎉</div>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>Demo Booked!</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem' }}>We will contact you on <strong>{demoForm.phone}</strong> shortly.</p>
                 </div>
-              ))}
+              ) : (
+                <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Your Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={demoForm.name}
+                      onChange={(e) => setDemoForm({ ...demoForm, name: e.target.value })}
+                      style={{ width: '100%', padding: '0.7rem 0.85rem', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid var(--border-light)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontSize: '16px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>WhatsApp / Phone Number</label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +91 98765 43210"
+                      value={demoForm.phone}
+                      onChange={(e) => setDemoForm({ ...demoForm, phone: e.target.value })}
+                      style={{ width: '100%', padding: '0.7rem 0.85rem', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid var(--border-light)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontSize: '16px' }}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>City</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Bangalore"
+                        value={demoForm.city}
+                        onChange={(e) => setDemoForm({ ...demoForm, city: e.target.value })}
+                        style={{ width: '100%', padding: '0.7rem 0.85rem', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid var(--border-light)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontSize: '16px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Outlet Type</label>
+                      <select
+                        value={demoForm.outletType}
+                        onChange={(e) => setDemoForm({ ...demoForm, outletType: e.target.value })}
+                        style={{ width: '100%', padding: '0.7rem 0.85rem', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid var(--border-light)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontSize: '16px' }}
+                      >
+                        <option value="Cafe & Dining">Cafe & Dining</option>
+                        <option value="QSR & Fast Food">QSR & Fast Food</option>
+                        <option value="Pizzeria">Pizzeria</option>
+                        <option value="Fine Dining">Fine Dining</option>
+                        <option value="Cloud Kitchen">Cloud Kitchen</option>
+                        <option value="Bakery">Bakery</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" className={styles.btnPrimary} style={{ width: '100%', padding: '0.8rem', fontSize: '0.92rem', marginTop: '0.3rem' }}>
+                    Book Free Demo
+                  </button>
+                </form>
+              )}
             </div>
 
-            {/* SaaS OS */}
-            <div>
-              <h4 style={{ color: WHITE, fontWeight: '700', fontSize: '0.85rem', marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SaaS OS</h4>
-              {[['Franchise Hub', '/about'], ['Inventory PO', '/features/inventory'], ['CRM Loyalty', '/features/crm-loyalty'], ['AI Copilot', '/features/ai-copilot'], ['Aggregators', '/features/pos-billing']].map(([l, p]) => (
-                <div key={l} style={{ marginBottom: '0.6rem' }}>
-                  <span onClick={() => navigate(p)} style={{ color: '#94a3b8', fontSize: '0.83rem', cursor: 'pointer', transition: '0.2s' }}
-                    onMouseOver={e => e.target.style.color = WHITE} onMouseOut={e => e.target.style.color = '#94a3b8'}>{l}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 10. SECTION: PREDICTABLE PLANS FOR EVERY STAGE (PRICING) ─── */}
+      <section id="pricing" className={styles.sectionWrapperCenter} style={{ paddingTop: 0 }}>
+        <div className={styles.sectionBadge}>
+          SIMPLE & TRANSPARENT
+        </div>
+        <h2 className={styles.sectionTitle}>
+          Predictable Plans for Every Stage
+        </h2>
+
+        {/* Billing Switch */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', backgroundColor: '#ffffff', padding: '0.35rem 0.5rem', borderRadius: '100px', border: '1px solid var(--border-light)', margin: '1rem auto 2.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            onClick={() => setAnnualBilling(false)}
+            style={{
+              background: !annualBilling ? 'var(--primary-emerald)' : 'transparent',
+              color: !annualBilling ? '#ffffff' : 'var(--text-muted)',
+              border: 'none',
+              padding: '0.35rem 0.9rem',
+              borderRadius: '100px',
+              fontWeight: '800',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Monthly Billing
+          </button>
+          <button
+            onClick={() => setAnnualBilling(true)}
+            style={{
+              background: annualBilling ? 'var(--primary-emerald)' : 'transparent',
+              color: annualBilling ? '#ffffff' : 'var(--text-muted)',
+              border: 'none',
+              padding: '0.35rem 1rem',
+              borderRadius: '100px',
+              fontWeight: '800',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            Annual (Save 25%)
+          </button>
+        </div>
+
+        <div className={styles.grid3}>
+          {[
+            {
+              name: 'Starter Kiosk',
+              desc: 'Perfect for single-station cafes & quick-bite kiosks.',
+              monthly: 1999,
+              annual: 1499,
+              featured: false,
+              features: [
+                'Unlimited Cloud POS & Receipts',
+                'QR Dynamic Menu & Ordering',
+                'Basic Kitchen KOT Display',
+                'Daily Revenue Analytics',
+                'Email Support (Standard SLA)',
+              ],
+            },
+            {
+              name: 'Growth Pro',
+              desc: 'For high-volume restaurants & busy dining rooms.',
+              monthly: 3999,
+              annual: 2999,
+              featured: true,
+              badge: 'Most Popular',
+              features: [
+                'All Starter Features Included',
+                'Full Kitchen KDS (Multi-Station)',
+                'Recipe-Level Inventory & Auto-PO',
+                'Customer Loyalty & CRM Rewards',
+                'RASTRORATO AI Copilot & Insights',
+                '24/7 Priority WhatsApp Support',
+              ],
+            },
+            {
+              name: 'Franchise Enterprise',
+              desc: 'Multi-outlet chains, food courts, and commissaries.',
+              monthly: 7499,
+              annual: 5999,
+              featured: false,
+              features: [
+                'Everything in Growth Pro',
+                'Multi-Tenant Super Admin Console',
+                'Central Commissary Recipe Sync',
+                'Custom White-Label QR Branding',
+                'Dedicated Account Strategist',
+                '99.99% Guaranteed SLA Uptime',
+              ],
+            },
+          ].map(p => (
+            <div
+              key={p.name}
+              className={`${styles.pricingCard} ${p.featured ? styles.pricingCardFeatured : ''}`}
+            >
+              {p.badge && (
+                <div className={styles.pricingBadge}>
+                  {p.badge}
                 </div>
-              ))}
+              )}
+
+              <div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>{p.name}</h3>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>{p.desc}</p>
+                
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', marginBottom: '1.5rem' }}>
+                  <span style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--text-primary)' }}>
+                    ₹{annualBilling ? p.annual.toLocaleString() : p.monthly.toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>/ month</span>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  {p.features.map(f => (
+                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                      <Check size={16} color="var(--primary-emerald)" style={{ flexShrink: 0 }} />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/register')}
+                className={p.featured ? styles.btnPrimary : styles.btnSecondary}
+                style={{ width: '100%', marginTop: '2rem', padding: '0.75rem', fontSize: '0.88rem' }}
+              >
+                Start 14-Day Free Trial
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── 11. SECTION: FREQUENTLY ASKED QUESTIONS (FAQ) ─── */}
+      <section id="faq" className={styles.sectionWrapperCenter} style={{ maxWidth: '850px', paddingTop: 0 }}>
+        <div className={styles.sectionBadge}>
+          CLEAR ANSWERS
+        </div>
+        <h2 className={styles.sectionTitle}>
+          Frequently Asked Questions
+        </h2>
+        <p className={styles.sectionSubtitle} style={{ marginBottom: '2.5rem' }}>
+          Have questions before switching? Here is everything you need to know about migrating to RASTRORATO.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left' }}>
+          {[
+            {
+              q: 'How long does it take to set up and go live with RASTRORATO?',
+              a: 'Most cafes and restaurants go live in under 10 minutes. Our automated AI menu scanner digitizes your existing physical paper menu in seconds, and our team is on standby to assist with table QR printing and staff training.',
+            },
+            {
+              q: 'Do I need to buy expensive proprietary POS hardware?',
+              a: 'No! RASTRORATO is 100% hardware-agnostic. It runs seamlessly on iPads, Android tablets, Windows PCs, and Mac laptops. It connects natively with standard USB, Bluetooth, and Wi-Fi thermal receipt printers.',
+            },
+            {
+              q: 'Can RASTRORATO operate if my internet goes down?',
+              a: 'Yes. RASTRORATO includes offline local resilience mode. Waiters can continue taking orders and printing KOTs locally, and all data automatically synchronizes with the cloud once your connection is restored.',
+            },
+            {
+              q: 'How does 0% commission QR dine-in ordering work?',
+              a: 'Guests scan a dynamic QR code placed on their table using their phone camera. They browse your digital menu, customize items, and pay directly via UPI (Google Pay, PhonePe, Paytm). The revenue lands 100% in your bank account with zero middleman commissions.',
+            },
+          ].map((faq, index) => (
+            <div key={faq.q} className={styles.faqItem}>
+              <button
+                className={styles.faqBtn}
+                onClick={() => setOpenFaq(openFaq === index ? -1 : index)}
+              >
+                <span>{faq.q}</span>
+                {openFaq === index ? <ChevronUp size={18} color="var(--primary-emerald)" /> : <ChevronDown size={18} color="var(--text-muted)" />}
+              </button>
+              {openFaq === index && (
+                <div style={{ padding: '0 1.4rem 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', borderTop: '1px solid #f1f5f9', paddingTop: '0.85rem' }}>
+                  {faq.a}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── 12. CONTRAST-RICH LUXURY FOOTER ─── */}
+      <footer style={{
+        backgroundColor: '#090d16',
+        color: '#94a3b8',
+        padding: 'clamp(3rem, 6vw, 4.5rem) 5% 2rem',
+        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          
+          <div className={styles.footerGrid} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '2.5rem' }}>
+            
+            {/* Col 1: Brand Info */}
+            <div>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <BrandLogo theme="dark" onClick={() => navigate('/')} showSubtitle={true} />
+              </div>
+              <p style={{ fontSize: '0.85rem', lineHeight: '1.65', color: '#cbd5e1', maxWidth: '300px', marginBottom: '1.25rem' }}>
+                The next-generation operating system empowering high-growth restaurants with cloud POS, real-time KDS, and intelligent AI forecasting.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', backgroundColor: 'rgba(5, 150, 105, 0.2)', color: '#34d399', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                  ● System Operational (99.99%)
+                </span>
+              </div>
             </div>
 
-            {/* Company */}
+            {/* Col 2: Platform Links */}
             <div>
-              <h4 style={{ color: WHITE, fontWeight: '700', fontSize: '0.85rem', marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Company</h4>
-              {[['About Us', '/about'], ['Careers', '/careers'], ['Press Kit', '/press-kit'], ['Contact', '/contact']].map(([l, p]) => (
-                <div key={l} style={{ marginBottom: '0.6rem' }}>
-                  <span onClick={() => navigate(p)} style={{ color: '#94a3b8', fontSize: '0.83rem', cursor: 'pointer', transition: '0.2s' }}
-                    onMouseOver={e => e.target.style.color = WHITE} onMouseOut={e => e.target.style.color = '#94a3b8'}>{l}</span>
-                </div>
-              ))}
+              <div style={{ color: '#ffffff', fontWeight: '800', fontSize: '0.9rem', marginBottom: '1.25rem' }}>Platform Suite</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.85rem' }}>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/features/pos-billing')}>Cloud POS Billing</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/features/kitchen-ops')}>Kitchen KDS</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/features/inventory')}>Recipe Inventory & POs</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/features/crm-loyalty')}>QR Table Dining</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/features/ai-copilot')}>RASTRORATO AI</span>
+              </div>
+            </div>
+
+            {/* Col 3: Company */}
+            <div>
+              <div style={{ color: '#ffffff', fontWeight: '800', fontSize: '0.9rem', marginBottom: '1.25rem' }}>Company</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.85rem' }}>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/about')}>About RASTRORATO</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/careers')}>Careers & Team</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/press-kit')}>Press & Media Kit</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/contact')}>Contact Support</span>
+              </div>
+            </div>
+
+            {/* Col 4: Fast CTA */}
+            <div>
+              <div style={{ color: '#ffffff', fontWeight: '800', fontSize: '0.9rem', marginBottom: '1.25rem' }}>Get Started</div>
+              <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.5', marginBottom: '1rem' }}>
+                Ready to transform your restaurant operations? Start your free 14-day trial today.
+              </p>
+              <button
+                onClick={() => navigate('/register')}
+                className={styles.btnPrimary}
+                style={{ width: '100%', padding: '0.65rem', fontSize: '0.84rem' }}
+              >
+                Launch Free Trial <ArrowRight size={14} />
+              </button>
+            </div>
+
+          </div>
+
+          {/* Bottom Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.5rem', fontSize: '0.78rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <span>© {new Date().getFullYear()} RASTRORATO Technologies Inc. All rights reserved.</span>
+            <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+              <span style={{ cursor: 'pointer' }} onClick={() => navigate('/contact')}>Privacy Policy</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => navigate('/contact')}>Terms of Service</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => navigate('/contact')}>Security Overview</span>
             </div>
           </div>
 
-          {/* Footer bottom */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-            <span>© {new Date().getFullYear()} FeastSpot. All rights reserved.</span>
-            {/* Social icons */}
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              {[
-                { label: 'Twitter/X', svg: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117Z" /></svg> },
-                { label: 'Instagram', svg: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg> },
-                { label: 'Facebook', svg: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg> },
-                { label: 'LinkedIn', svg: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg> },
-              ].map(s => (
-                <button key={s.label} aria-label={s.label} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', color: '#94a3b8', width: '34px', height: '34px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }}
-                  onMouseOver={e => { e.currentTarget.style.backgroundColor = OLIVE; e.currentTarget.style.color = WHITE; }}
-                  onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#94a3b8'; }}>
-                  {s.svg}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </footer>
+
+      {/* ─── 13. FLOATING AI PRODUCT CONCIERGE CHATBOT ─── */}
+      <LandingChatbot />
+
     </div>
   );
 }

@@ -12,20 +12,14 @@ import LandingPage from './components/LandingPage';
 import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilotPage, BookDemoPage } from './components/FeaturePages';
 import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
 
+import PageLoader from './components/PageLoader';
+
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
-          <p style={{ fontWeight: 700, color: '#64748b' }}>Authenticating...</p>
-        </div>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <PageLoader duration={800} />;
   }
 
   if (!user) {

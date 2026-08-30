@@ -141,7 +141,7 @@ const OrderStatus = () => {
 
         <div className={styles.footer}>
           <p>Table: <strong>{order.tableNumber}</strong> — Enjoy your meal!</p>
-          <div className={styles.poweredBy}>Powered by <span>RestroCloud OS</span></div>
+          <div className={styles.poweredBy}>Powered by <span>RASTRORATO OS</span></div>
         </div>
       </div>
     </div>

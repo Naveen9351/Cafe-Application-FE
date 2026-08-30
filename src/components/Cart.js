@@ -290,7 +290,7 @@ export default function Cart() {
       </AnimatePresence>
       <footer style={{ marginTop: '4rem', padding: '2rem 1rem', textAlign: 'center' }}>
         <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700' }}>
-          Powered by <span style={{ color: '#3b82f6', fontWeight: '800' }}>RestroCloud OS</span>
+          Powered by <span style={{ color: '#10b981', fontWeight: '800' }}>RASTRORATO OS</span>
         </p>
       </footer>
     </div>

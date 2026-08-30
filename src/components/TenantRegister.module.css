@@ -1,304 +1,315 @@
+/* TenantRegister.module.css - Pixel-Perfect Light Theme with Luxury Visuals */
+
 .container {
-    min-height: 100vh;
-    background-color: var(--bg-main);
-    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    position: relative;
-    overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8fafc;
+  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem;
+  box-sizing: border-box;
 }
 
-.container::before {
-    content: "";
-    position: absolute;
-    top: -10%;
-    left: -10%;
-    width: 40%;
-    height: 40%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+.glow1 {
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.12) 0%, rgba(249, 115, 22, 0.05) 50%, transparent 70%);
+  pointer-events: none;
+  filter: blur(80px);
 }
 
-.splitLayout {
-    display: flex;
-    width: 100%;
-    max-width: 1100px;
-    background: var(--bg-card);
-    border-radius: 40px;
-    overflow: hidden;
-    box-shadow: var(--shadow-premium);
-    min-height: 750px;
-    border: 1px solid var(--border-color);
-    z-index: 10;
+.glow2 {
+  position: absolute;
+  bottom: -120px;
+  left: 15%;
+  width: 550px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(80px);
 }
 
-/* Promo Side (Left) */
-.promoSide {
-    flex: 1;
-    background: linear-gradient(135deg, #1c1510 0%, #0c0907 100%);
-    padding: 4.5rem;
-    color: var(--text-primary);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
+.card {
+  display: flex;
+  width: 100%;
+  max-width: 940px;
+  height: 80vh;
+  max-height: 570px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), 0 0 30px rgba(5, 150, 105, 0.04);
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
 }
 
-.promoSide::after {
-    content: "";
-    position: absolute;
-    bottom: -10%;
-    right: -10%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+/* Visual Banner (Left Side) */
+.visualSide {
+  flex: 0.95;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.25rem 2rem;
 }
 
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    font-size: 1.6rem;
-    font-weight: 900;
-    margin-bottom: 5rem;
-    z-index: 10;
-    letter-spacing: -0.03em;
+.bgImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
 }
 
-.logo {
-    width: 42px;
-    height: 42px;
-    object-fit: contain;
+.visualOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(9, 13, 22, 0.7) 0%, rgba(9, 13, 22, 0.96) 100%);
+  z-index: 2;
 }
 
-.accent {
-    color: var(--primary);
+.visualContent {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
-.promoTitle {
-    font-size: 3rem;
-    font-weight: 900;
-    line-height: 1.1;
-    margin-bottom: 2rem;
-    z-index: 10;
-    letter-spacing: -0.04em;
-    color: var(--text-primary);
+.visualCenter {
+  margin: auto 0;
 }
 
-.promoText {
-    color: var(--text-secondary);
-    font-size: 1.2rem;
-    margin-bottom: 3.5rem;
-    z-index: 10;
-    max-width: 90%;
-    line-height: 1.6;
+.visualCenter h2 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
 }
 
-.benefitsList {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 4.5rem 0;
-    z-index: 10;
+.visualCenter p {
+  font-size: 0.84rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
 }
 
-.benefitsList li {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-    font-size: 1.15rem;
-    color: var(--text-primary);
-    font-weight: 700;
+.perksList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
-.checkIcon {
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
-    padding: 6px;
-    border-radius: 10px;
+.perkItem {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  font-weight: 600;
 }
 
-.testimonial {
-    margin-top: auto;
-    background: var(--bg-main);
-    padding: 2.5rem;
-    border-radius: 28px;
-    border: 1px solid var(--border-color);
-    z-index: 10;
-    box-shadow: var(--shadow-md);
+.testimonialMini {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.testimonial p {
-    font-style: italic;
-    color: var(--text-primary);
-    margin-bottom: 1.25rem;
-    font-size: 1rem;
-    line-height: 1.6;
-    font-weight: 500;
+.testimonialMini span {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  font-style: italic;
 }
 
-.testimonial span {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+.testimonialMini small {
+  font-size: 0.74rem;
+  color: #34d399;
+  font-weight: 700;
 }
 
-/* Form Side (Right) */
+/* Form Container (Right Side) */
 .formSide {
-    flex: 1.2;
-    padding: 4.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    background: var(--bg-card);
+  flex: 1.15;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2.25rem 2.75rem;
+  background: #ffffff;
 }
 
-.formCard {
-    width: 100%;
-    max-width: 450px;
-    margin: 0 auto;
+.header {
+  margin-bottom: 1.25rem;
 }
 
-.formCard h2 {
-    font-size: 2.25rem;
-    color: var(--text-primary);
-    margin-bottom: 0.75rem;
-    font-weight: 900;
-    letter-spacing: -0.02em;
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.4px;
 }
 
-.subHeader {
-    color: var(--text-secondary);
-    margin-bottom: 3rem;
-    font-weight: 600;
+.header p {
+  font-size: 0.84rem;
+  color: #64748b;
+  margin: 0;
 }
 
 .form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
 .row {
-    display: flex;
-    gap: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
 }
 
+/* Input Fields with Embedded Icons */
 .inputGroup {
-    position: relative;
-    flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
-.inputIcon {
-    position: absolute;
-    left: 1.35rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    z-index: 1;
+.icon {
+  position: absolute;
+  left: 0.95rem;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 2;
+  transition: color 0.2s ease;
 }
 
-.form input,
-.form textarea {
-    width: 100%;
-    padding: 1.1rem 1.35rem 1.1rem 3.5rem;
-    border: 2px solid var(--border-color);
-    border-radius: 18px;
-    font-size: 1rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background: #120e0c;
-    font-family: inherit;
-    color: var(--text-primary);
-    box-sizing: border-box;
+.inputGroup input {
+  width: 100%;
+  padding: 0.68rem 0.85rem 0.68rem 2.55rem;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
-.form textarea {
-    padding-top: 1.25rem;
-    resize: none;
-    min-height: 120px;
+.inputGroup input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
 }
 
-.form input:focus,
-.form textarea:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: #120e0c;
-    box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.15);
+.inputGroup input:focus {
+  background: #ffffff;
+  border-color: #059669;
+  box-shadow: 0 0 0 3.5px rgba(5, 150, 105, 0.15);
 }
 
-.form input::placeholder,
-.form textarea::placeholder {
-    color: var(--text-muted);
+.inputGroup:focus-within .icon {
+  color: #059669;
 }
 
+/* Submit Action Button */
 .submitBtn {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: white;
-    border: none;
-    padding: 1.25rem;
-    border-radius: 18px;
-    font-weight: 800;
-    font-size: 1.15rem;
-    cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.85rem;
-    margin-top: 1.5rem;
-    box-shadow: 0 15px 30px -5px rgba(217, 119, 6, 0.3);
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.8rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  margin-top: 0.35rem;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3);
+  width: 100%;
 }
 
 .submitBtn:hover {
-    background: linear-gradient(135deg, var(--accent), var(--primary));
-    transform: translateY(-2px);
-    box-shadow: 0 20px 40px -5px rgba(217, 119, 6, 0.45);
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
 }
 
 .submitBtn:active {
-    transform: scale(0.98);
+  transform: translateY(0);
 }
 
 .submitBtn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
-.loginLink {
-    text-align: center;
-    margin-top: 2.5rem;
-    color: var(--text-secondary);
-    font-size: 1rem;
-    font-weight: 600;
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
-.loginLink a {
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 800;
-    margin-left: 0.35rem;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.loginLink a:hover {
-    text-decoration: underline;
+.footer {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
 
-@media (max-width: 900px) {
-    .splitLayout {
-        flex-direction: column;
-        max-width: 550px;
-    }
+.link {
+  color: #059669;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
 
-    .promoSide {
-        display: none;
-    }
+.link:hover {
+  color: #047857;
+  text-decoration: underline;
+}
 
-    .formSide {
-        padding: 4rem 2.5rem;
-    }
+@media (max-width: 768px) {
+  .card {
+    flex-direction: column;
+    height: auto;
+    max-height: none;
+  }
+  .visualSide {
+    display: none;
+  }
+  .formSide {
+    padding: 2rem 1.5rem;
+  }
 }

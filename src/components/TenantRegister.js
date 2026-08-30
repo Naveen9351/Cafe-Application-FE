@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Store, Mail, Lock, Phone, MapPin, ArrowRight, CheckCircle } from 'lucide-react';
+import { Store, Mail, Lock, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import styles from './TenantRegister.module.css';
-import logo from '../assets/logo.png'; // Assuming logo is in src/assets/logo.png
+import BrandLogo from './BrandLogo';
 
 const TenantRegister = () => {
     const [formData, setFormData] = useState({
@@ -28,93 +28,146 @@ const TenantRegister = () => {
         const success = await registerTenant(formData);
         setLoading(false);
         if (success) {
-            navigate('/login');
+            navigate('/admin');
         }
     };
 
     return (
         <div className={styles.container}>
-            <div className={styles.splitLayout}>
-                {/* Left Side - Promotional */}
-                <motion.div
-                    initial={{ opacity: 0, x: -50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className={styles.promoSide}
-                >
-                    <div className={styles.brand}>
-                        <img src={logo} alt="RestroCloud Logo" className={styles.logo} />
-                        <span>RestroCloud<span className={styles.accent}>OS</span></span>
-                    </div>
+            {/* Ambient glows */}
+            <div className={styles.glow1} />
+            <div className={styles.glow2} />
 
-                    <h1 className={styles.promoTitle}>Start Your Digital Journey Today.</h1>
-                    <p className={styles.promoText}>
-                        Join thousands of cafes and restaurants transforming their operations.
-                    </p>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className={styles.card}
+            >
+                {/* Left Side: Gourmet Visual Banner */}
+                <div className={styles.visualSide}>
+                    <img 
+                        src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" 
+                        alt="Modern Cafe Dining Room" 
+                        className={styles.bgImage}
+                    />
+                    <div className={styles.visualOverlay} />
+                    
+                    <div className={styles.visualContent}>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <BrandLogo theme="dark" size="sm" showSubtitle={true} onClick={() => navigate('/')} />
+                        </div>
 
-                    <ul className={styles.benefitsList}>
-                        <li><CheckCircle size={20} className={styles.checkIcon} /> Free 14-day trial</li>
-                        <li><CheckCircle size={20} className={styles.checkIcon} /> No credit card required</li>
-                        <li><CheckCircle size={20} className={styles.checkIcon} /> Instant setup</li>
-                    </ul>
+                        <div className={styles.visualCenter}>
+                            <h2>Power Your Restaurant With Next-Gen AI</h2>
+                            <p>Get started with your 14-day free trial. Setup takes under 2 minutes.</p>
 
-                    <div className={styles.testimonial}>
-                        <p>"Changed the way we handle orders. Simply amazing!"</p>
-                        <span>- The Coffee House</span>
-                    </div>
-                </motion.div>
-
-                {/* Right Side - Form */}
-                <motion.div
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    className={styles.formSide}
-                >
-                    <div className={styles.formCard}>
-                        <h2>Create your account</h2>
-                        <p className={styles.subHeader}>Get started with your free account</p>
-
-                        <form onSubmit={handleSubmit} className={styles.form}>
-                            <div className={styles.inputGroup}>
-                                <Store className={styles.inputIcon} size={18} />
-                                <input name="businessName" placeholder="Restaurant / Cafe Name" onChange={handleChange} required />
-                            </div>
-
-                            <div className={styles.row}>
-                                <div className={styles.inputGroup}>
-                                    <Mail className={styles.inputIcon} size={18} />
-                                    <input name="email" type="email" placeholder="Email Address" onChange={handleChange} required />
+                            <div className={styles.perksList}>
+                                <div className={styles.perkItem}>
+                                    <CheckCircle2 size={16} color="#10b981" />
+                                    <span>Instant QR menu & live KOT kitchen sync</span>
                                 </div>
-                                <div className={styles.inputGroup}>
-                                    <Phone className={styles.inputIcon} size={18} />
-                                    <input name="phone" placeholder="Phone Number" onChange={handleChange} required />
+                                <div className={styles.perkItem}>
+                                    <CheckCircle2 size={16} color="#10b981" />
+                                    <span>No credit card required • Cancel anytime</span>
+                                </div>
+                                <div className={styles.perkItem}>
+                                    <CheckCircle2 size={16} color="#10b981" />
+                                    <span>24/7 WhatsApp & priority onboarding</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className={styles.inputGroup}>
-                                <Lock className={styles.inputIcon} size={18} />
-                                <input name="password" type="password" placeholder="Create Password" onChange={handleChange} required />
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <MapPin className={styles.inputIcon} size={18} />
-                                <textarea name="address" placeholder="Business Address" onChange={handleChange} rows="2" />
-                            </div>
-
-                            <button type="submit" disabled={loading} className={styles.submitBtn}>
-                                {loading ? 'Creating Account...' : (
-                                    <>Get Started <ArrowRight size={18} /></>
-                                )}
-                            </button>
-                        </form>
-
-                        <p className={styles.loginLink}>
-                            Already have an account? <Link to="/login">Log in</Link>
-                        </p>
+                        <div className={styles.testimonialMini}>
+                            <span>“Slashed kitchen wait times by 50% in 1 week.”</span>
+                            <small>— Urban Sourdough Bistro</small>
+                        </div>
                     </div>
-                </motion.div>
-            </div>
+                </div>
+
+                {/* Right Side: Streamlined Zero-Scroll Signup Form */}
+                <div className={styles.formSide}>
+                    <div className={styles.header}>
+                        <h2>Create Cafe Account</h2>
+                        <p>Join 500+ restaurants growing with RASTRORATO</p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className={styles.form}>
+                        <div className={styles.inputGroup}>
+                            <Store className={styles.icon} size={16} />
+                            <input
+                                name="businessName"
+                                placeholder="Restaurant / Cafe Name"
+                                value={formData.businessName}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className={styles.row}>
+                            <div className={styles.inputGroup}>
+                                <Mail className={styles.icon} size={16} />
+                                <input
+                                    name="email"
+                                    type="email"
+                                    placeholder="Work Email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+                            <div className={styles.inputGroup}>
+                                <Phone className={styles.icon} size={16} />
+                                <input
+                                    name="phone"
+                                    placeholder="Phone Number"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.inputGroup}>
+                            <Lock className={styles.icon} size={16} />
+                            <input
+                                name="password"
+                                type="password"
+                                placeholder="Create Secure Password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className={styles.inputGroup}>
+                            <MapPin className={styles.icon} size={16} />
+                            <input
+                                name="address"
+                                placeholder="City / Branch Location"
+                                value={formData.address}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <button type="submit" className={styles.submitBtn} disabled={loading}>
+                            {loading ? <div className={styles.spinner} /> : (
+                                <>
+                                    <Sparkles size={16} /> Launch 14-Day Free Trial <ArrowRight size={16} />
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    <div className={styles.footer}>
+                        <span>Already registered?</span>
+                        <Link to="/login" className={styles.link}>
+                            Sign In to Portal
+                        </Link>
+                    </div>
+                </div>
+            </motion.div>
         </div>
     );
 };
