@@ -309,6 +309,20 @@ export default function LandingPage() {
       {/* ─── 2. HERO SECTION WITH RICH MICRO-ANIMATIONS ─── */}
       <section className={styles.sectionWrapperCenter} style={{ paddingTop: 'clamp(2.5rem, 6vw, 4.5rem)' }}>
         
+        {/* Animated Floating Badges for Visual Wow Factor */}
+        <div className={styles.floatingBadge} style={{ top: '8%', left: '4%', display: 'var(--floating-display, flex)' }}>
+          <Zap size={14} color="var(--primary-emerald)" />
+          <span>&lt; 50ms POS Latency</span>
+        </div>
+        <div className={styles.floatingBadgeAlt} style={{ top: '15%', right: '4%', display: 'var(--floating-display, flex)' }}>
+          <Flame size={14} color="var(--accent-orange)" />
+          <span>2.4x Table Turnover</span>
+        </div>
+        <div className={styles.floatingBadge} style={{ top: '65%', left: '2%', display: 'var(--floating-display, flex)' }}>
+          <ShieldCheck size={14} color="var(--primary-emerald)" />
+          <span>99.99% Uptime SLA</span>
+        </div>
+
         {/* Top Badge */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.8 }}
@@ -337,7 +351,7 @@ export default function LandingPage() {
         >
           The Operating System<br />
           for<br />
-          <span style={{ color: 'var(--primary-emerald)' }}>High-Growth Restaurants</span>
+          <span className={styles.gradientTitle}>High-Growth Restaurants</span>
         </motion.h1>
 
         {/* Subtitle */}

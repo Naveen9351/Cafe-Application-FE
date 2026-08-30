@@ -72,11 +72,20 @@
     transform: translateY(0px) rotate(0deg);
   }
   50% {
-    transform: translateY(-12px) rotate(3deg);
+    transform: translateY(-14px) rotate(2deg);
   }
 }
 
-@keyframes shimmerBorder {
+@keyframes floatReverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(14px) rotate(-2deg);
+  }
+}
+
+@keyframes textGradientShimmer {
   0% {
     background-position: 0% 50%;
   }
@@ -88,24 +97,60 @@
   }
 }
 
-/* Floating Particle Badge */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(5, 150, 105, 0.2), 0 0 30px rgba(5, 150, 105, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(5, 150, 105, 0.4), 0 0 50px rgba(5, 150, 105, 0.2);
+  }
+}
+
+/* Floating Particle Badges */
 .floatingBadge {
   position: absolute;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(5, 150, 105, 0.2);
+  border: 1px solid rgba(5, 150, 105, 0.25);
   border-radius: 100px;
-  padding: 0.45rem 1rem;
+  padding: 0.5rem 1.1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 800;
   color: var(--primary-emerald);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.07);
   pointer-events: none;
   z-index: 2;
   animation: floatSlow 5s ease-in-out infinite;
+}
+
+.floatingBadgeAlt {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(234, 88, 12, 0.25);
+  border-radius: 100px;
+  padding: 0.5rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--accent-orange);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.07);
+  pointer-events: none;
+  z-index: 2;
+  animation: floatReverse 6s ease-in-out infinite;
+}
+
+.gradientTitle {
+  background: linear-gradient(135deg, #059669 0%, #047857 50%, #ea580c 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textGradientShimmer 6s linear infinite;
 }
 
 /* Section Header Badge */
