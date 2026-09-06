@@ -1,0 +1,821 @@
+.settingsContainer {
+  display: flex;
+  flex-direction: column;
+  background-color: transparent;
+  padding: 0.25rem 0.25rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
+}
+
+/* Top Header */
+.topHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pageTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.15rem 0;
+}
+
+.pageSubtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.topActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.discardBtn {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.discardBtn:hover {
+  background-color: #f1f5f9;
+}
+
+.saveBtn {
+  background-color: #4f46e5;
+  border: none;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  transition: all 0.15s ease;
+}
+
+.saveBtn:hover {
+  background-color: #4338ca;
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+}
+
+/* Layout */
+.layoutBody {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Sub-Sidebar */
+.subSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.navGroup {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.groupLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.navItem:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.activeNav {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+/* Pro Enterprise Plan Card */
+.enterpriseCard {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 1.25rem;
+  color: #ffffff;
+}
+
+.planHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.planPill {
+  background-color: #4f46e5;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.checkIcon {
+  color: #38bdf8;
+  font-size: 0.85rem;
+}
+
+.planTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+}
+
+.planSub {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0 0 1rem 0;
+}
+
+.planButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.manageBtn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.manageBtn:hover {
+  background: #334155;
+}
+
+.upgradeBtn {
+  background: #ffffff;
+  border: none;
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.upgradeBtn:hover {
+  background: #f1f5f9;
+}
+
+/* Cards Area */
+.cardsArea {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sectionCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cardHeader h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.infoIcon {
+  color: #94a3b8;
+}
+
+.copyBtn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #4f46e5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.copyBtn:hover {
+  background: #eef2ff;
+}
+
+.cardBody {
+  padding: 1.5rem;
+}
+
+/* Identity Section */
+.identityGrid {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 1.75rem;
+}
+
+.logoDropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fieldLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.logoBox {
+  width: 140px;
+  height: 140px;
+  border-radius: 10px;
+  border: 1.5px dashed #cbd5e1;
+  background-color: #f8fafc;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.5rem;
+}
+
+.replaceOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  color: #4f46e5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.logoBox:hover .replaceOverlay {
+  opacity: 1;
+}
+
+.replaceOverlay small {
+  font-size: 0.65rem;
+  color: #64748b;
+}
+
+.formCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.inputGroup label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.inputGroup input {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #0f172a;
+  background-color: #f8fafc;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.inputGroup input:focus {
+  border-color: #4f46e5;
+  background-color: #ffffff;
+}
+
+/* Operating Hours */
+.hoursList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.hourRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.hourRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.daySwitch {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 140px;
+}
+
+.dayName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.timeInputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timeField {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #0f172a;
+  width: 110px;
+  text-align: center;
+  background: #ffffff;
+}
+
+.toLabel {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.deleteHourBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 4px;
+}
+
+.deleteHourBtn:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.closedTag {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* Switch Toggle UI */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: 0.3s;
+  border-radius: 22px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background-color: #4f46e5;
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* Branding & Theme */
+.brandingSplit {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 2rem;
+}
+
+.brandingLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.paletteList {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.colorChip {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.colorChip:hover {
+  transform: scale(1.1);
+}
+
+.activeColor {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.addColorChip {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.qrBrandCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.qrBrandHead {
+  display: flex;
+  justify-content: space-between;
+}
+
+.qrBrandHead h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+  color: #0f172a;
+}
+
+.qrBrandHead p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+  max-width: 280px;
+}
+
+.qrIconTag {
+  font-size: 1.25rem;
+}
+
+.configQrBtn {
+  align-self: flex-start;
+  background: #ffffff;
+  border: 1px solid #4f46e5;
+  color: #4f46e5;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.configQrBtn:hover {
+  background: #eef2ff;
+}
+
+/* Mock Invoice Preview */
+.invoicePreviewCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.previewTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.mockInvoice {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.mockHead {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.mockLogo {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.mockLines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lineLong {
+  width: 90px;
+  height: 6px;
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.lineShort {
+  width: 50px;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.mockDivider {
+  height: 1px;
+  background: #f1f5f9;
+}
+
+.mockItemRow {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.mockFooter {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+
+.pillLight {
+  width: 40px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.pillDark {
+  width: 30px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* Finance & Tax */
+.taxSwitchesRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.taxCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.taxInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.taxIconBox {
+  font-size: 1.25rem;
+}
+
+.taxInfo strong {
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.taxInfo p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.1rem 0 0 0;
+}
+
+/* Payment Methods */
+.paymentSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.paymentMethodsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.paymentMethodCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.activePayment {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #4f46e5;
+}
+
+.payTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.payIcon {
+  font-size: 1.25rem;
+}
+
+.paymentMethodCard h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem 0;
+  color: #0f172a;
+}
+
+.paymentMethodCard p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0 0 0.85rem 0;
+}
+
+.configuredBadge {
+  font-size: 0.75rem;
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+.connectLink {
+  background: none;
+  border: none;
+  color: #0284c7;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.alwaysActiveBadge {
+  font-size: 0.75rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Settings Footer */
+.settingsFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.footerLinks {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.footerLinks a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.footerLinks a:hover {
+  text-decoration: underline;
+}
