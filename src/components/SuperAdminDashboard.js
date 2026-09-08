@@ -12,6 +12,7 @@ const API = window.location.hostname === 'localhost' || window.location.hostname
 
 const SuperAdminDashboard = () => {
     const [tenants, setTenants] = useState([]);
+    const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -25,27 +26,34 @@ const SuperAdminDashboard = () => {
         activesubs: 0
     });
 
-    const fetchTenants = async () => {
+    const fetchTenantsAndLeads = async () => {
         if (user?.role !== 'super_admin') return;
 
         try {
             const token = localStorage.getItem('token');
-            const tenantsRes = await axios.get(`${API}/tenants`, {
-                headers: { 'x-auth-token': token }
-            });
-            const fetchedTenants = tenantsRes.data;
-            setTenants(fetchedTenants);
+            const [tenantsRes, leadsRes] = await Promise.allSettled([
+                axios.get(`${API}/tenants`, { headers: { 'x-auth-token': token } }),
+                axios.get(`${API}/leads`, { headers: { 'x-auth-token': token } })
+            ]);
 
-            const active = fetchedTenants.filter(t => t.subscription.isActive).length;
-            // Calculate revenue based on plan price
-            const revenue = fetchedTenants.reduce((acc, t) => acc + (t.subscription.price || 0), 0);
-            const orders = fetchedTenants.reduce((acc, t) => acc + (t.subscription.orderCount || 0), 0);
+            if (tenantsRes.status === 'fulfilled') {
+                const fetchedTenants = tenantsRes.value.data;
+                setTenants(fetchedTenants);
 
-            setStats({
-                totalRevenue: revenue,
-                totalOrders: orders,
-                activesubs: active
-            });
+                const active = fetchedTenants.filter(t => t.subscription.isActive).length;
+                const revenue = fetchedTenants.reduce((acc, t) => acc + (t.subscription.price || 0), 0);
+                const orders = fetchedTenants.reduce((acc, t) => acc + (t.subscription.orderCount || 0), 0);
+
+                setStats({
+                    totalRevenue: revenue,
+                    totalOrders: orders,
+                    activesubs: active
+                });
+            }
+
+            if (leadsRes.status === 'fulfilled') {
+                setLeads(leadsRes.value.data || []);
+            }
 
             setLoading(false);
         } catch (err) {
@@ -55,7 +63,7 @@ const SuperAdminDashboard = () => {
     };
 
     useEffect(() => {
-        fetchTenants();
+        fetchTenantsAndLeads();
     }, [user]);
 
     const handleUpdatePlan = async (e) => {
@@ -211,6 +219,83 @@ const SuperAdminDashboard = () => {
                                         </td>
                                     </tr>
                                 ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* DEMO INQUIRIES & LEADS SECTION */}
+                <div className={styles.tableSection} style={{ marginTop: '2rem' }}>
+                    <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <h2>Website Demo Inquiries ({leads.length})</h2>
+                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Prospective restaurant owners who requested a live walkthrough</p>
+                        </div>
+                    </div>
+
+                    <div className={styles.tableWrapper}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Contact Name</th>
+                                    <th>Restaurant</th>
+                                    <th>Outlet Type</th>
+                                    <th>City</th>
+                                    <th>Phone / Email</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {leads.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                            No demo requests yet. Submissions from the landing page will appear here in real-time.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    leads.map(lead => (
+                                        <tr key={lead._id || lead.id}>
+                                            <td className={styles.nameCell}>
+                                                <div className={styles.avatar} style={{ background: '#4f46e5' }}>
+                                                    {(lead.name || 'L').charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <div className={styles.tenantName}>{lead.name}</div>
+                                                    <div className={styles.tenantId}>{lead.phone}</div>
+                                                </div>
+                                            </td>
+                                            <td style={{ fontWeight: '600' }}>{lead.restaurantName || lead.outletName || 'N/A'}</td>
+                                            <td>
+                                                <span className={`${styles.badge}`} style={{ background: '#f1f5f9', color: '#334155' }}>
+                                                    {lead.outletType || 'Cafe'}
+                                                </span>
+                                            </td>
+                                            <td>{lead.city || 'India'}</td>
+                                            <td>
+                                                <div style={{ fontSize: '0.82rem' }}>
+                                                    <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 'bold' }}>{lead.phone}</a>
+                                                    {lead.email && <div style={{ color: '#64748b' }}>{lead.email}</div>}
+                                                </div>
+                                            </td>
+                                            <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                                {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'Recent'}
+                                            </td>
+                                            <td>
+                                                <span 
+                                                    className={`${styles.badge}`} 
+                                                    style={{ 
+                                                        background: lead.status === 'converted' ? '#dcfce7' : lead.status === 'contacted' ? '#fef3c7' : '#e0e7ff',
+                                                        color: lead.status === 'converted' ? '#166534' : lead.status === 'contacted' ? '#92400e' : '#3730a3',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {(lead.status || 'new').toUpperCase()}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>

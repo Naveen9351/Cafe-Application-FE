@@ -16,7 +16,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
   // Local active orders state (synced with parent orders + simulated test orders)
   const [localOrders, setLocalOrders] = useState([]);
 
-  // Initialize demo orders if none are present
+  // Initialize demo orders if none are present (in INR ₹)
   const defaultDemoOrders = [
     {
       _id: 'ord_163',
@@ -29,11 +29,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
       timeMinutes: 4,
       createdAt: new Date(Date.now() - 4 * 60000).toISOString(),
       items: [
-        { name: 'Dry-Aged Angus Truffle Burger', quantity: 1, modifiers: 'Brioche • Truffle Fries', price: 28.00 },
-        { name: 'Crispy Calamari', quantity: 1, modifiers: 'Garlic Aioli Dip', price: 16.50 }
+        { name: 'Dry-Aged Angus Truffle Burger', quantity: 1, modifiers: 'Brioche • Truffle Fries', price: 340.00 },
+        { name: 'Crispy Calamari', quantity: 1, modifiers: 'Garlic Aioli Dip', price: 210.00 }
       ],
       specialInstructions: 'No onions in risotto, extra lemon on the side please.',
-      totalAmount: 44.50
+      totalAmount: 550.00
     },
     {
       _id: 'ord_184',
@@ -46,11 +46,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
       timeMinutes: 14,
       createdAt: new Date(Date.now() - 14 * 60000).toISOString(),
       items: [
-        { name: 'Angus Truffle Burger', quantity: 2, modifiers: 'Brioche • Med Well', price: 56.00 },
-        { name: 'Crispy Calamari', quantity: 1, modifiers: 'Garlic Aioli Dip', price: 16.50 }
+        { name: 'Angus Truffle Burger', quantity: 2, modifiers: 'Brioche • Med Well', price: 680.00 },
+        { name: 'Crispy Calamari', quantity: 1, modifiers: 'Garlic Aioli Dip', price: 210.00 }
       ],
       specialInstructions: '',
-      totalAmount: 72.50
+      totalAmount: 890.00
     },
     {
       _id: 'ord_103',
@@ -63,11 +63,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
       timeMinutes: 21,
       createdAt: new Date(Date.now() - 21 * 60000).toISOString(),
       items: [
-        { name: 'Smoked Signature Bourbon', quantity: 2, modifiers: 'Cedar Mist', price: 34.00 },
-        { name: 'Ceremonial Matcha Latte', quantity: 1, modifiers: 'Oat Milk', price: 8.50 }
+        { name: 'Smoked Signature Bourbon Mocktail', quantity: 2, modifiers: 'Cedar Mist', price: 420.00 },
+        { name: 'Ceremonial Matcha Latte', quantity: 1, modifiers: 'Oat Milk', price: 180.00 }
       ],
       specialInstructions: '',
-      totalAmount: 42.50
+      totalAmount: 600.00
     },
     {
       _id: 'ord_182',
@@ -80,11 +80,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
       timeMinutes: 25,
       createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
       items: [
-        { name: 'Artisan Margherita Pizza', quantity: 1, modifiers: 'Extra Basil Oil', price: 22.00 },
-        { name: 'Burrata & Pesto Salad', quantity: 1, modifiers: 'Sourdough Toast', price: 18.00 }
+        { name: 'Artisan Margherita Pizza', quantity: 1, modifiers: 'Extra Basil Oil', price: 390.00 },
+        { name: 'Burrata & Pesto Salad', quantity: 1, modifiers: 'Sourdough Toast', price: 280.00 }
       ],
       specialInstructions: 'Dressing on the side.',
-      totalAmount: 40.00
+      totalAmount: 670.00
     },
     {
       _id: 'ord_181',
@@ -97,10 +97,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
       timeMinutes: 19,
       createdAt: new Date(Date.now() - 19 * 60000).toISOString(),
       items: [
-        { name: 'Valrhona Chocolate Fondant', quantity: 2, modifiers: 'Vanilla Gelato', price: 26.00 }
+        { name: 'Valrhona Chocolate Fondant', quantity: 2, modifiers: 'Vanilla Gelato', price: 320.00 }
       ],
       specialInstructions: '',
-      totalAmount: 26.00
+      totalAmount: 320.00
     }
   ];
 
@@ -249,7 +249,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     </div>
                     <div className={styles.receiptRow}>
                       <span>Total Bill</span>
-                      <strong>$44.50</strong>
+                      <strong>₹550.00</strong>
                     </div>
                   </div>
 
@@ -393,7 +393,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     )}
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>${Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
                       <button 
                         type="button" 
                         className={styles.acceptPrepBtn}
@@ -448,7 +448,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     </div>
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>${Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
                       <button 
                         type="button" 
                         className={styles.markReadyBtn}
@@ -503,7 +503,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     </div>
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>${Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
                       <button 
                         type="button" 
                         className={styles.serveTableBtn}
@@ -558,7 +558,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     </div>
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>${Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
                       <button 
                         type="button" 
                         className={styles.recallBtn}

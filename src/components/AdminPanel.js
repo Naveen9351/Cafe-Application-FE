@@ -508,7 +508,9 @@ function AdminPanel() {
                       <span className={styles.kpiLabel}>GROSS SALES</span>
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 12.4%</span>
                     </div>
-                    <div className={styles.kpiValue}>$42,850<small>.00</small></div>
+                    <div className={styles.kpiValue}>
+                      ₹{(orders.length > 0 ? orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0) : 42850).toLocaleString('en-IN')}<small>.00</small>
+                    </div>
                     <div className={styles.sparklineBarRow}>
                       <div className={styles.sparkBar} style={{ height: '30%' }}></div>
                       <div className={styles.sparkBar} style={{ height: '45%' }}></div>
@@ -526,7 +528,9 @@ function AdminPanel() {
                       <span className={styles.kpiLabel}>NET PROFIT</span>
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 8.2%</span>
                     </div>
-                    <div className={styles.kpiValue}>$18,320<small>.00</small></div>
+                    <div className={styles.kpiValue}>
+                      ₹{Math.round((orders.length > 0 ? orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0) * 0.42 : 18320)).toLocaleString('en-IN')}<small>.00</small>
+                    </div>
                     <div className={styles.sparklineBarRow}>
                       <div className={styles.sparkBar} style={{ height: '25%' }}></div>
                       <div className={styles.sparkBar} style={{ height: '35%' }}></div>
@@ -544,7 +548,9 @@ function AdminPanel() {
                       <span className={styles.kpiLabel}>AVG TICKET</span>
                       <span className={`${styles.trendBadge} ${styles.trendDown}`}>↘ 1.5%</span>
                     </div>
-                    <div className={styles.kpiValue}>$64<small>.20</small></div>
+                    <div className={styles.kpiValue}>
+                      ₹{orders.length > 0 ? Math.round(orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0) / orders.length) : '480'}<small>.00</small>
+                    </div>
                     <div className={styles.sparklineBarRow}>
                       <div className={styles.sparkBar} style={{ height: '65%' }}></div>
                       <div className={styles.sparkBar} style={{ height: '70%' }}></div>
@@ -562,7 +568,7 @@ function AdminPanel() {
                       <span className={styles.kpiLabel}>TOTAL ORDERS</span>
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 24.0%</span>
                     </div>
-                    <div className={styles.kpiValue}>682</div>
+                    <div className={styles.kpiValue}>{orders.length > 0 ? orders.length : 682}</div>
                     <div className={styles.sparklineBarRow}>
                       <div className={styles.sparkBar} style={{ height: '30%' }}></div>
                       <div className={styles.sparkBar} style={{ height: '40%' }}></div>
@@ -664,7 +670,7 @@ function AdminPanel() {
                           <span>Table 12 • 4 items</span>
                           <span className={styles.timeMuted}>8m ago</span>
                         </div>
-                        <div className={styles.ticketPrice}>$124.50</div>
+                        <div className={styles.ticketPrice}>₹640.00</div>
                       </div>
 
                       {/* Ticket 2 */}
@@ -677,7 +683,7 @@ function AdminPanel() {
                           <span>Pickup • 2 items</span>
                           <span className={styles.timeMuted}>3m ago</span>
                         </div>
-                        <div className={styles.ticketPrice}>$42.00</div>
+                        <div className={styles.ticketPrice}>₹280.00</div>
                       </div>
 
                       {/* Ticket 3 */}
@@ -690,7 +696,7 @@ function AdminPanel() {
                           <span>Delivery • 7 items</span>
                           <span className={styles.timeMuted}>15m ago</span>
                         </div>
-                        <div className={styles.ticketPrice}>$210.80</div>
+                        <div className={styles.ticketPrice}>₹1,250.00</div>
                       </div>
 
                       {/* Ticket 4 */}
@@ -703,7 +709,7 @@ function AdminPanel() {
                           <span>Table 4 • 1 item</span>
                           <span className={styles.timeMuted}>Just now</span>
                         </div>
-                        <div className={styles.ticketPrice}>$18.00</div>
+                        <div className={styles.ticketPrice}>₹180.00</div>
                       </div>
                     </div>
 
@@ -952,9 +958,9 @@ function AdminPanel() {
                             <div className={styles.cardTitlePriceRow}>
                               <h3 className={styles.dishName} onClick={() => handleOpenEditDrawer(item)}>{item.name}</h3>
                               <div className={styles.priceTagGroup}>
-                                <span className={styles.salePrice}>${Number(item.salePrice || item.price).toFixed(2)}</span>
+                                <span className={styles.salePrice}>₹{Number(item.salePrice || item.price).toFixed(2)}</span>
                                 {item.basePrice && item.basePrice > (item.salePrice || item.price) && (
-                                  <span className={styles.strikeBasePrice}>${Number(item.basePrice).toFixed(2)}</span>
+                                  <span className={styles.strikeBasePrice}>₹{Number(item.basePrice).toFixed(2)}</span>
                                 )}
                               </div>
                             </div>
@@ -1092,21 +1098,21 @@ function AdminPanel() {
                           {/* Base Price & Sale Price */}
                           <div className={styles.drawerPriceRow}>
                             <div className={styles.drawerField}>
-                              <label>Base Price ($)</label>
+                              <label>Base Price (₹)</label>
                               <input 
                                 type="number" 
-                                step="0.01"
-                                placeholder="32.00"
+                                step="1"
+                                placeholder="350.00"
                                 value={drawerForm.basePrice}
                                 onChange={(e) => setDrawerForm({ ...drawerForm, basePrice: e.target.value })}
                               />
                             </div>
                             <div className={styles.drawerField}>
-                              <label>Sale Price ($)</label>
+                              <label>Sale Price (₹)</label>
                               <input 
                                 type="number" 
-                                step="0.01"
-                                placeholder="28.00"
+                                step="1"
+                                placeholder="290.00"
                                 value={drawerForm.salePrice}
                                 onChange={(e) => setDrawerForm({ ...drawerForm, salePrice: e.target.value })}
                                 required

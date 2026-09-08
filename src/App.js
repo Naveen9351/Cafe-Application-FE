@@ -9,7 +9,11 @@ import AdminPanel from './components/AdminPanel';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import TenantRegister from './components/TenantRegister';
 import LandingPage from './components/LandingPage';
-import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilotPage, BookDemoPage } from './components/FeaturePages';
+import BookDemoPage from './components/BookDemoPage';
+import PricingPage from './components/PricingPage';
+import ProductsPage from './components/ProductsPage';
+import SolutionsPage from './components/SolutionsPage';
+import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilotPage } from './components/FeaturePages';
 import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
 
 import PageLoader from './components/PageLoader';
@@ -48,13 +52,19 @@ function AppRoutes() {
       <Route path="/register" element={<TenantRegister />} />
       <Route path="/register-business" element={<TenantRegister />} />
 
+      {/* Marketing / Landing Subpages */}
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/products" element={<ProductsPage />} />
+      <Route path="/solutions" element={<SolutionsPage />} />
+      <Route path="/demo" element={<BookDemoPage />} />
+      <Route path="/book-demo" element={<BookDemoPage />} />
+
       {/* Feature / Marketing Pages */}
       <Route path="/features/pos-billing" element={<POSBillingPage />} />
       <Route path="/features/kitchen-ops" element={<KitchenOpsPage />} />
       <Route path="/features/inventory" element={<InventoryPage />} />
       <Route path="/features/crm-loyalty" element={<CRMLoyaltyPage />} />
       <Route path="/features/ai-copilot" element={<AICopilotPage />} />
-      <Route path="/demo" element={<BookDemoPage />} />
 
       {/* Info / Company Pages */}
       <Route path="/about" element={<AboutPage />} />
