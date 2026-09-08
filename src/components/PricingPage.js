@@ -5,30 +5,32 @@ import PricingCalculator from './interactive/PricingCalculator';
 import FAQSection from './sections/FAQSection';
 import CTASection from './sections/CTASection';
 import LeadCaptureModal from './interactive/LeadCaptureModal';
+import { CreditCard } from 'lucide-react';
 
 export default function PricingPage() {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white antialiased">
-      <Navbar onOpenDemo={() => setIsDemoModalOpen(true)} />
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+      <Navbar onOpenDemoModal={() => setIsDemoModalOpen(true)} />
 
-      <main className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-24">
+      <main style={{ padding: '140px 20px 80px 20px', maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 60 }}>
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold mb-4 tracking-wide uppercase">
-            Simple, Transparent Indian Pricing
+        <div style={{ textAlign: 'center', maxWidth: 840, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="badge-pill badge-blue">
+            <CreditCard style={{ width: 14, height: 14 }} />
+            <span>Simple, Transparent Indian Pricing in ₹</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-            Plans Designed for High-Growth Indian Restaurants
+          <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+            Plans Engineered for Restaurant Velocity
           </h1>
-          <p className="mt-4 text-slate-400 text-base sm:text-lg">
-            Choose the tier that fits your outlet capacity. Switch plans anytime or request custom multi-chain enterprise pricing.
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
+            Choose the tier that fits your table count. Switch plans anytime or request custom multi-chain enterprise pricing.
           </p>
         </div>
 
         {/* Pricing component */}
-        <PricingCalculator onOpenDemo={() => setIsDemoModalOpen(true)} />
+        <PricingCalculator onOpenDemoModal={() => setIsDemoModalOpen(true)} />
 
         {/* FAQ Section */}
         <FAQSection onOpenDemo={() => setIsDemoModalOpen(true)} />

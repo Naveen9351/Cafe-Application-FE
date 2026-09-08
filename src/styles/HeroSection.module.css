@@ -1,0 +1,360 @@
+/* HeroSection CSS Module */
+.heroSection {
+  position: relative;
+  padding-top: 120px;
+  padding-bottom: 80px;
+  overflow: hidden;
+  background: var(--bg-mesh-hero);
+}
+
+/* Animated floating orbs in background */
+.heroSection::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  right: 8%;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.07) 0%, transparent 70%);
+  animation: orbitFloat 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.heroSection::after {
+  content: '';
+  position: absolute;
+  bottom: 15%;
+  left: 5%;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%);
+  animation: orbitFloat 10s ease-in-out 3s infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ambientCone1 {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.14) 0%, rgba(79, 70, 229, 0.06) 60%, transparent 80%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 1;
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+.ambientCone2 {
+  position: absolute;
+  top: 100px;
+  left: -80px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.heroContent {
+  height: 80vh;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 960px;
+  margin: 2rem auto 36px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-primary-border);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+  animation: pulseSubtle 2s infinite ease-in-out;
+}
+
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4vw, 50px);
+  font-weight: 900;
+  color: var(--text-main);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+
+.typingPhrase {
+  display: inline-block;
+  white-space: nowrap;
+  color: var(--color-primary);
+}
+
+.typeCursor {
+  display: inline-block;
+  margin-left: 2px;
+  font-weight: 300;
+  color: var(--color-primary);
+  animation: cursorBlink 0.8s infinite;
+}
+
+@keyframes cursorBlink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.heroSubtitle {
+  font-size: clamp(14px, 1.6vw, 17px);
+  color: var(--text-muted);
+  max-width: 680px;
+  line-height: 1.6;
+  font-weight: 400;
+  margin: 0;
+}
+
+.heroCtas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.trustMetrics {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.metricItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.metricItem:hover {
+  color: var(--color-primary);
+}
+
+/* Hero Visual Showcase Cards */
+.heroShowcaseGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 32px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.heroCardImg {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+  height: 140px;
+  background: #f1f5f9;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+
+.heroCardImg:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.18);
+}
+
+.heroCardImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.heroCardImg:hover img {
+  transform: scale(1.08);
+}
+
+.heroCardOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 14px;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, transparent 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heroCardLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.heroCardPill {
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(37, 99, 235, 0.9);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+/* 3D Visual Console Mockup Box */
+.simulatorWrapper {
+  position: relative;
+  z-index: 2;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-xl);
+  margin-top: 3rem;
+}
+
+.simulatorTopRibbon {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 16px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* ── Live Auto-Scrolling Marquee Feature Ticker ── */
+.marqueeBar {
+  margin-top: 36px;
+  padding: 12px 0;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+/* Fade edges */
+.marqueeBar::before,
+.marqueeBar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.marqueeBar::before {
+  left: 0;
+  background: linear-gradient(to right, #ffffff, transparent);
+}
+
+.marqueeBar::after {
+  right: 0;
+  background: linear-gradient(to left, #ffffff, transparent);
+}
+
+.marqueeTrack {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  animation: marqueeScroll 30s linear infinite;
+  width: max-content;
+}
+
+.marqueeTrack:hover {
+  animation-play-state: paused;
+}
+
+.marqueeChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.marqueeChip:hover {
+  color: var(--color-primary);
+}
+
+.marqueeDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+@media (max-width: 768px) {
+  .heroShowcaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .typingPhrase {
+    white-space: normal;
+  }
+}

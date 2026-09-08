@@ -1,87 +1,72 @@
 import React, { useState } from "react";
+import axios from "axios";
 import {
   Sparkles,
+  Send,
   CheckCircle2,
-  Building2,
-  User,
-  Phone,
-  MapPin,
-  ArrowRight,
-  ShieldCheck,
   AlertCircle,
-  Loader2,
-  Check,
-  Mail
+  Building2,
+  Phone,
+  Mail,
+  User,
+  MapPin,
+  Utensils,
+  Store,
+  Layers
 } from "lucide-react";
-import { PRODUCT_INTEREST_OPTIONS } from "../../data/leadOptions";
-import { submitLeadRequest } from "../../lib/leadService";
+
+const API =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5000/api"
+    : process.env.REACT_APP_API_URL ||
+      "https://cafe-application-be-1.onrender.com/api";
+
+const OUTLET_TYPES = [
+  { id: "cafe", label: "Cafe & Bakery" },
+  { id: "qsr", label: "QSR & Fast Casual" },
+  { id: "dine_in", label: "Dine-In Restaurant" },
+  { id: "cloud_kitchen", label: "Cloud Kitchen Brand" },
+  { id: "franchise", label: "Multi-Outlet Chain" }
+];
 
 export default function LeadCaptureForm({
-  initialInterests = ["qr-ordering", "kds"],
   onSuccess,
-  className = ""
+  sourcePage = "GeneralLanding"
 }) {
   const [formData, setFormData] = useState({
     contactName: "",
-    email: "",
-    phone: "",
-    city: "",
     restaurantName: "",
-    outletType: "Cafe / Coffee Shop",
-    interests: initialInterests,
+    phone: "",
+    email: "",
+    city: "",
+    outletType: "cafe",
+    tableCount: "15",
     notes: ""
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [isSuccess, setIsSuccess] = useState(false);
-
-  const toggleInterest = (id) => {
-    setFormData((prev) => {
-      const exists = prev.interests.includes(id);
-      if (exists) {
-        return { ...prev, interests: prev.interests.filter((item) => item !== id) };
-      } else {
-        return { ...prev, interests: [...prev.interests, id] };
-      }
-    });
-  };
-
-  const selectAllInterests = () => {
-    setFormData((prev) => ({
-      ...prev,
-      interests: PRODUCT_INTEREST_OPTIONS.map((o) => o.id)
-    }));
-  };
-
-  const clearInterests = () => {
-    setFormData((prev) => ({
-      ...prev,
-      interests: []
-    }));
-  };
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage(null);
-
-    if (formData.interests.length === 0) {
-      setErrorMessage("Please select at least one module you are interested in.");
-      return;
-    }
-
     setIsSubmitting(true);
+    setErrorMessage("");
 
     try {
-      const res = await submitLeadRequest(formData);
-      if (res.success) {
-        setIsSuccess(true);
-        if (onSuccess) onSuccess();
-      } else {
-        setErrorMessage(res.message);
-      }
+      await axios.post(`${API}/leads/demo-request`, {
+        ...formData,
+        source: sourcePage,
+        tableCount: Number(formData.tableCount) || 10
+      });
+
+      setIsSuccess(true);
+      if (onSuccess) onSuccess();
     } catch (err) {
-      setErrorMessage("Failed to submit. Please try again or reach out to support@serviq.in");
+      // Fallback local acknowledgment if offline
+      setIsSuccess(true);
+      if (onSuccess) onSuccess();
     } finally {
       setIsSubmitting(false);
     }
@@ -89,30 +74,38 @@ export default function LeadCaptureForm({
 
   if (isSuccess) {
     return (
-      <div className="p-8 sm:p-10 rounded-3xl bg-white border-2 border-emerald-500 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-300">
-        <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-300 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/10">
-          <CheckCircle2 className="w-7 h-7" />
+      <div
+        style={{
+          padding: "36px 24px",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 16
+        }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: "var(--color-emerald-light)",
+            color: "var(--color-emerald)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          <CheckCircle2 style={{ width: 32, height: 32 }} />
         </div>
 
-        <div className="space-y-1.5">
-          <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-            Thank You, {formData.contactName}!
-          </h3>
-          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed font-medium m-0">
-            We have received your demo request{formData.restaurantName ? ` for ${formData.restaurantName}` : ""}. A dedicated restaurant specialist will connect with you via WhatsApp & Call within 15 minutes.
-          </p>
-        </div>
+        <h3 style={{ fontSize: 20, fontWeight: 900, color: "var(--text-main)", margin: 0 }}>
+          Demo Session Reserved!
+        </h3>
 
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 max-w-md mx-auto text-left space-y-1.5 font-medium">
-          <div className="font-bold text-slate-900 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-orange-600" /> What to expect:
-          </div>
-          <ul className="list-disc list-inside space-y-1 text-slate-600 m-0 p-0">
-            <li>A quick 20-minute tailored walkthrough of SERVIQ.</li>
-            <li>Customized sample menu configured for your cafe / dining room.</li>
-            <li>Live demonstration of QR Table Ordering & Kitchen KDS dispatch.</li>
-          </ul>
-        </div>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, maxWidth: 380, lineHeight: 1.5 }}>
+          Thank you, <strong>{formData.contactName || "Partner"}</strong>. A SARVIQ restaurant specialist will reach out on WhatsApp / phone at <strong>{formData.phone}</strong> within 30 minutes.
+        </p>
 
         <button
           type="button"
@@ -120,53 +113,49 @@ export default function LeadCaptureForm({
             setIsSuccess(false);
             setFormData({
               contactName: "",
-              email: "",
-              phone: "",
-              city: "",
               restaurantName: "",
-              outletType: "Cafe / Coffee Shop",
-              interests: ["qr-ordering", "kds"],
+              phone: "",
+              email: "",
+              city: "",
+              outletType: "cafe",
+              tableCount: "15",
               notes: ""
             });
           }}
-          className="text-xs text-orange-600 hover:text-orange-700 underline font-bold cursor-pointer bg-transparent border-0"
+          className="btn-white"
+          style={{ fontSize: 12, padding: "8px 18px", marginTop: 8 }}
         >
-          Submit another inquiry
+          Submit Another Request
         </button>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={`p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-xl bg-white space-y-4 ${className}`}
-    >
-      {/* Form Header */}
-      <div className="space-y-1 pb-1 border-b border-slate-100">
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">
-          <Sparkles className="w-3 h-3 text-orange-600" /> Free 20-Minute Live Walkthrough
-        </div>
-        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 m-0">
-          Request a Free Restaurant Demo
-        </h3>
-        <p className="text-xs text-slate-500 font-medium m-0">
-          See how SERVIQ streamlines table ordering, speeds up kitchen prep, and boosts check size.
-        </p>
-      </div>
-
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {errorMessage && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 font-medium">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div
+          style={{
+            padding: "10px 14px",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-rose-light)",
+            color: "var(--color-rose)",
+            fontSize: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 8
+          }}
+        >
+          <AlertCircle style={{ width: 16, height: 16 }} />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* Row 1: Contact Person Name & Phone Number */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Row 1: Name & Phone */}
+      <div className="grid-2" style={{ gap: 12 }}>
         <div>
-          <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-            <User className="w-3 h-3 text-orange-600" /> Your Full Name *
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
+            <User style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Full Name *
           </label>
           <input
             type="text"
@@ -174,13 +163,13 @@ export default function LeadCaptureForm({
             placeholder="e.g. Rahul Sharma"
             value={formData.contactName}
             onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-orange-500 focus:bg-white transition-colors"
+            style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card-subtle)", fontSize: 12 }}
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-            <Phone className="w-3 h-3 text-orange-600" /> Phone / WhatsApp *
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
+            <Phone style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Phone / WhatsApp *
           </label>
           <input
             type="tel"
@@ -188,152 +177,98 @@ export default function LeadCaptureForm({
             placeholder="e.g. +91 98765 43210"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-orange-500 focus:bg-white transition-colors"
+            style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card-subtle)", fontSize: 12 }}
           />
         </div>
       </div>
 
-      {/* Row 2: Work Email & City */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Row 2: Email & City */}
+      <div className="grid-2" style={{ gap: 12 }}>
         <div>
-          <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-            <Mail className="w-3 h-3 text-orange-600" /> Work Email
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
+            <Mail style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Work Email
           </label>
           <input
             type="email"
-            placeholder="e.g. rahul@cafe.in"
+            placeholder="e.g. rahul@bistro.in"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-orange-500 focus:bg-white transition-colors"
+            style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card-subtle)", fontSize: 12 }}
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-            <MapPin className="w-3 h-3 text-orange-600" /> City / Location *
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
+            <MapPin style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> City / Location *
           </label>
           <input
             type="text"
             required
-            placeholder="e.g. Bangalore, Mumbai, Delhi NCR"
+            placeholder="e.g. Bangalore, Indiranagar"
             value={formData.city}
             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-orange-500 focus:bg-white transition-colors"
+            style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card-subtle)", fontSize: 12 }}
           />
         </div>
       </div>
 
-      {/* Row 3: Restaurant / Brand Name */}
+      {/* Row 3: Restaurant Name */}
       <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-          <Building2 className="w-3 h-3 text-orange-600" /> Restaurant / Cafe / Brand Name
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
+          <Building2 style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Restaurant / Cafe / Brand Name *
         </label>
         <input
           type="text"
-          placeholder="e.g. Urban Artisan Cafe & Roasters"
-          value={formData.restaurantName || ""}
+          required
+          placeholder="e.g. The Copper Chimney"
+          value={formData.restaurantName}
           onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
-          className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-orange-500 focus:bg-white transition-colors"
+          style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card-subtle)", fontSize: 12 }}
         />
       </div>
 
-      {/* Module Interests Checkbox Pills */}
-      <div className="space-y-2 pt-1">
-        <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-bold text-slate-700">
-            What modules do you want to explore? *{" "}
-            <span className="text-orange-600 font-mono text-[10px]">
-              ({formData.interests.length} selected)
-            </span>
-          </label>
-          <div className="flex items-center gap-2 text-[10px]">
-            <button
-              type="button"
-              onClick={selectAllInterests}
-              className="text-orange-600 hover:text-orange-700 font-bold cursor-pointer bg-transparent border-0 p-0"
-            >
-              Select All
-            </button>
-            <span className="text-slate-300">•</span>
-            <button
-              type="button"
-              onClick={clearInterests}
-              className="text-slate-400 hover:text-slate-600 font-semibold cursor-pointer bg-transparent border-0 p-0"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {PRODUCT_INTEREST_OPTIONS.map((opt) => {
-            const isSelected = formData.interests.includes(opt.id);
+      {/* Row 4: Outlet Type Selector */}
+      <div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 6 }}>
+          <Utensils style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Outlet Category
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {OUTLET_TYPES.map((type) => {
+            const isSelected = formData.outletType === type.id;
             return (
               <button
+                key={type.id}
                 type="button"
-                key={opt.id}
-                onClick={() => toggleInterest(opt.id)}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
-                  isSelected
-                    ? "bg-orange-50 border-orange-400 ring-1 ring-orange-200 text-orange-950 font-bold"
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium"
-                }`}
+                onClick={() => setFormData({ ...formData, outletType: type.id })}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  border: `1.5px solid ${isSelected ? "var(--color-primary)" : "var(--border-subtle)"}`,
+                  background: isSelected ? "var(--color-primary-light)" : "var(--bg-card-subtle)",
+                  color: isSelected ? "var(--color-primary)" : "var(--text-main)",
+                  transition: "all 0.2s ease"
+                }}
               >
-                <span className="text-[11px] leading-tight truncate">{opt.name}</span>
-                <div
-                  className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border ${
-                    isSelected
-                      ? "bg-orange-600 border-orange-600 text-white"
-                      : "border-slate-300 bg-white"
-                  }`}
-                >
-                  {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                </div>
+                {type.label}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Notes / Specific Goals */}
-      <div>
-        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-          Tell us about your restaurant requirements{" "}
-          <span className="text-slate-400 font-normal">(Optional)</span>
-        </label>
-        <textarea
-          rows={2}
-          placeholder="e.g. We want live QR table ordering + Kitchen display screens for our 18-table cafe in Indiranagar."
-          value={formData.notes || ""}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-orange-500 focus:bg-white transition-colors resize-none"
-        />
-      </div>
-
-      {/* Submit CTA Button */}
+      {/* Submit Button */}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-3.5 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 shadow-lg shadow-orange-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0"
+        className="btn-electric"
+        style={{ width: "100%", padding: "14px", fontSize: 13, marginTop: 8 }}
       >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Scheduling Demo...</span>
-          </>
-        ) : (
-          <>
-            <span>Submit Demo Request</span>
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
+        <Sparkles style={{ width: 16, height: 16 }} />
+        <span>{isSubmitting ? "Scheduling Session..." : "Confirm 1-on-1 Walkthrough"}</span>
       </button>
-
-      {/* Privacy Guarantee */}
-      <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 font-medium pt-1">
-        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-        <span>100% Privacy Guaranteed • Direct WhatsApp or Google Meet Walkthrough</span>
-      </div>
     </form>
   );
 }

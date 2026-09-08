@@ -6,192 +6,146 @@ import {
   Phone,
   Mail,
   MapPin,
-  ArrowRight,
-  Sparkles,
-  Lock,
-  Compass
+  Sparkles
 } from "lucide-react";
-import ServiqLogo from "../brand/ServiqLogo";
+import SarviqLogo from "../brand/SarviqLogo";
 
-export default function Footer({ onOpenDemoModal }) {
+export default function Footer({ onOpenDemoModal, onOpenDemo }) {
+  const triggerDemo = onOpenDemo || onOpenDemoModal;
+
   return (
-    <footer className="bg-slate-950 text-slate-400 pt-16 pb-12 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <footer style={{ background: "#0f172a", color: "#94a3b8", paddingTop: 80, paddingBottom: 40, borderTop: "1px solid #1e293b" }}>
+      <div className="container">
+        
         {/* Top 4-Column Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 40, marginBottom: 60 }}>
+          
           {/* Col 1: Brand & Mission */}
-          <div className="lg:col-span-2 space-y-4">
-            <Link to="/" className="inline-block group focus:outline-none no-underline">
-              <ServiqLogo size="lg" theme="dark" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <Link to="/" style={{ textDecoration: "none" }}>
+              <SarviqLogo size="lg" theme="dark" />
             </Link>
 
-            <p className="text-xs sm:text-sm text-slate-400 max-w-sm leading-relaxed m-0">
-              SERVIQ is the modern restaurant technology platform uniting guest QR Table Ordering, real-time Kitchen Display Systems (KDS), POS billing, live inventory, and AI forecasting into one connected console.
+            <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, maxWidth: 360, margin: 0 }}>
+              SARVIQ is the autonomous AI-powered restaurant operating system uniting guest QR Table Ordering, real-time Kitchen Display Systems (KDS), POS billing, live recipe inventory, and predictive telemetry into one connected console.
             </p>
 
-            <div className="pt-2 space-y-2 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-orange-400" />
-                <span>support@serviq.in</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12, color: "#cbd5e1", marginTop: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Mail style={{ width: 14, height: 14, color: "var(--color-primary)" }} />
+                <span>support@sarviq.com</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-orange-400" />
-                <span>+91 96801 32562 (Direct / WhatsApp Support)</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Phone style={{ width: 14, height: 14, color: "var(--color-emerald)" }} />
+                <span>+91 96801 32562 (Direct Indian WhatsApp Support)</span>
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-orange-400" />
-                <span>Bangalore • Mumbai • Delhi NCR • Global Cloud</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <MapPin style={{ width: 14, height: 14, color: "var(--color-indigo)" }} />
+                <span>Bangalore • Mumbai • Delhi NCR • Cloud Infrastructure</span>
               </div>
             </div>
           </div>
 
-          {/* Col 2: Core Products */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-white">
-              Core Products
-            </h4>
-            <ul className="space-y-2 text-xs list-none p-0 m-0">
-              <li>
-                <Link
-                  to="/products#qr-ordering"
-                  className="text-slate-400 hover:text-orange-400 transition-colors flex items-center gap-1.5 no-underline"
-                >
-                  <QrCode className="w-3 h-3 text-orange-400" />
-                  <span>QR Table Ordering</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products#kds"
-                  className="text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5 no-underline"
-                >
-                  <LayoutGrid className="w-3 h-3 text-emerald-400" />
-                  <span>Kitchen Display (KDS)</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/products#pos" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Point of Sale (POS)
-                </Link>
-              </li>
-              <li>
-                <Link to="/products#digital-menu" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Digital Menu Management
-                </Link>
-              </li>
-              <li>
-                <Link to="/products#table-management" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Table & Floor Tracking
-                </Link>
-              </li>
-              <li>
-                <Link to="/menu" className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1.5 no-underline">
-                  <Compass className="w-3 h-3" />
-                  <span>Customer QR Menu Demo</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Col 3: Restaurant Solutions */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-white">
-              Solutions
-            </h4>
-            <ul className="space-y-2 text-xs list-none p-0 m-0">
-              <li>
-                <Link to="/solutions#restaurants" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Full-Service & Casual Dining
-                </Link>
-              </li>
-              <li>
-                <Link to="/solutions#cafes" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Cafes & Bakeries
-                </Link>
-              </li>
-              <li>
-                <Link to="/solutions#qsrs" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Quick-Service (QSRs)
-                </Link>
-              </li>
-              <li>
-                <Link to="/solutions#cloud-kitchens" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Cloud & Ghost Kitchens
-                </Link>
-              </li>
-              <li>
-                <Link to="/solutions#multi-outlet" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Multi-Outlet Restaurant Groups
-                </Link>
-              </li>
-              <li>
-                <Link to="/pricing" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Transparent INR Pricing
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Col 4: Portals & Access */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-white">
-              Access & Portals
-            </h4>
-            <ul className="space-y-2 text-xs list-none p-0 m-0">
-              <li>
-                <Link to="/login" className="text-slate-300 hover:text-orange-400 font-bold transition-colors no-underline">
-                  → Restaurant Admin Login
-                </Link>
-              </li>
-              <li>
-                <Link to="/register" className="text-slate-300 hover:text-orange-400 font-bold transition-colors no-underline">
-                  → Start 14-Day Free Trial
-                </Link>
-              </li>
-              <li>
-                <Link to="/about" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  About SERVIQ
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className="text-slate-400 hover:text-white transition-colors no-underline">
-                  Contact Hospitality Team
-                </Link>
-              </li>
-              <li>
-                {onOpenDemoModal ? (
-                  <button
-                    onClick={onOpenDemoModal}
-                    className="text-orange-400 hover:text-orange-300 font-bold bg-transparent border-0 p-0 text-xs cursor-pointer flex items-center gap-1"
-                  >
-                    <span>Request a Demo Walkthrough</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                ) : (
-                  <Link to="/demo" className="text-orange-400 hover:text-orange-300 font-bold transition-colors no-underline">
-                    Request a Demo Walkthrough
-                  </Link>
-                )}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          {/* Col 2: Flagship Products */}
           <div>
-            © {new Date().getFullYear()} SERVIQ Restaurant OS. All rights reserved.
+            <h4 style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: "#ffffff", marginBottom: 16 }}>
+              Flagship Suite
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              <Link to="/products" style={{ color: "#94a3b8", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+                <QrCode style={{ width: 14, height: 14, color: "var(--color-primary)" }} />
+                <span>Dynamic QR Table Ordering</span>
+              </Link>
+              <Link to="/products" style={{ color: "#94a3b8", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+                <LayoutGrid style={{ width: 14, height: 14, color: "var(--color-indigo)" }} />
+                <span>Multi-Station KDS Queue</span>
+              </Link>
+              <Link to="/features/inventory" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Recipe Inventory Depletion
+              </Link>
+              <Link to="/features/pos-billing" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Cloud POS Terminal in ₹
+              </Link>
+              <Link to="/features/crm-loyalty" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                WhatsApp CRM & Marketing
+              </Link>
+              <Link to="/features/ai-copilot" style={{ color: "#94a3b8", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+                <Sparkles style={{ width: 14, height: 14, color: "#fde047" }} />
+                <span>SARVIQ AI Forecasting</span>
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-4 sm:gap-6">
-            <span>Engineered for Indian Hospitality</span>
-            <span>•</span>
-            <Link to="/login" className="text-slate-500 hover:text-slate-400 no-underline">
-              Portal Access
-            </Link>
-            <span>•</span>
-            <span>Terms of Service</span>
+
+          {/* Col 3: Outlet Solutions */}
+          <div>
+            <h4 style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: "#ffffff", marginBottom: 16 }}>
+              Outlet Solutions
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              <Link to="/solutions" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Specialty Cafes & Bakeries
+              </Link>
+              <Link to="/solutions" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                QSR & Fast Food Counters
+              </Link>
+              <Link to="/solutions" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Full Service & Fine Dining
+              </Link>
+              <Link to="/solutions" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Cloud Kitchen Hubs & Brands
+              </Link>
+              <Link to="/solutions" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Multi-Outlet Chains & Franchises
+              </Link>
+            </div>
+          </div>
+
+          {/* Col 4: Platform & Support */}
+          <div>
+            <h4 style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: "#ffffff", marginBottom: 16 }}>
+              Resources & Access
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              <Link to="/pricing" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Pricing Plans in ₹
+              </Link>
+              <Link to="/menu" style={{ color: "var(--color-emerald)", fontWeight: 800, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+                <QrCode style={{ width: 14, height: 14 }} />
+                <span>Live Customer QR Menu</span>
+              </Link>
+              <Link to="/about" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                About SARVIQ
+              </Link>
+              <Link to="/contact" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Contact Support
+              </Link>
+              <Link to="/careers" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Careers
+              </Link>
+              <Link to="/login" style={{ color: "#94a3b8", textDecoration: "none" }}>
+                Staff / Admin Login
+              </Link>
+              <Link to="/register" style={{ color: "var(--color-primary)", fontWeight: 800, textDecoration: "none" }}>
+                Register Restaurant
+              </Link>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Bottom Copyright */}
+        <div style={{ paddingTop: 28, borderTop: "1px solid #1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, fontSize: 12, color: "#64748b" }}>
+          <div>
+            © {new Date().getFullYear()} SARVIQ Technologies India Pvt. Ltd. All rights reserved.
+          </div>
+
+          <div style={{ display: "flex", gap: 20 }}>
+            <Link to="/press-kit" style={{ color: "#64748b", textDecoration: "none" }}>Press Kit</Link>
+            <Link to="/contact" style={{ color: "#64748b", textDecoration: "none" }}>Privacy Policy</Link>
+            <Link to="/contact" style={{ color: "#64748b", textDecoration: "none" }}>Terms of Service</Link>
           </div>
         </div>
+
       </div>
     </footer>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,8 @@ import {
   Plus, Search, Trash2, Edit3, LayoutDashboard, ShoppingBag, QrCode, BarChart3, X, LogOut, Loader, TrendingUp, IndianRupee,
   UtensilsCrossed, Coffee, Pizza, Sandwich, IceCream, GlassWater, Martini, Cake, Soup, Cookie, Grid,
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
-  TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers
+  TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
+  ChevronRight, RefreshCw, Smartphone, CreditCard
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,26 +25,36 @@ const API = window.location.hostname === 'localhost' || window.location.hostname
   ? 'http://localhost:5000/api'
   : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
-// Available Categories with Icons
-const availableCategories = [
+// Available Categories with Icons and match aliases
+const standardCategories = [
   { id: "all", name: "All Items", icon: "UtensilsCrossed", Component: UtensilsCrossed },
-  { id: "appetizers", name: "Appetizers", count: 12, icon: "Cookie", Component: Cookie },
-  { id: "main-courses", name: "Main Courses", count: 24, icon: "UtensilsCrossed", Component: UtensilsCrossed },
-  { id: "desserts", name: "Desserts", count: 8, icon: "Cake", Component: Cake },
-  { id: "beverages", name: "Beverages", count: 15, icon: "GlassWater", Component: GlassWater },
-  { id: "burger", name: "Burgers & Sandwiches", count: 9, icon: "Sandwich", Component: Sandwich },
-  { id: "pizza", name: "Artisan Pizza", count: 7, icon: "Pizza", Component: Pizza },
-  { id: "coffee", name: "Specialty Coffee", count: 11, icon: "Coffee", Component: Coffee },
+  { id: "main-courses", name: "Main Courses", aliases: ['main-courses', 'main_courses', 'main-course', 'main_course', 'mains', 'main', 'pasta', 'curry', 'rice', 'entree', 'food'], icon: "UtensilsCrossed", Component: UtensilsCrossed },
+  { id: "appetizers", name: "Appetizers", aliases: ['appetizer', 'appetizers', 'starter', 'starters', 'snack', 'snacks', 'salad', 'salads'], icon: "Cookie", Component: Cookie },
+  { id: "desserts", name: "Desserts", aliases: ['dessert', 'desserts', 'sweet', 'sweets', 'cake', 'ice_cream', 'pastry'], icon: "Cake", Component: Cake },
+  { id: "beverages", name: "Beverages", aliases: ['beverage', 'beverages', 'drink', 'drinks', 'mocktail', 'cocktail', 'cold drink', 'shake', 'beverage/drinks'], icon: "GlassWater", Component: GlassWater },
+  { id: "burger", name: "Burgers & Sandwiches", aliases: ['burger', 'burgers', 'sandwich', 'sandwiches', 'wrap', 'wraps'], icon: "Sandwich", Component: Sandwich },
+  { id: "pizza", name: "Artisan Pizza", aliases: ['pizza', 'pizzas'], icon: "Pizza", Component: Pizza },
+  { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino', 'tea'], icon: "Coffee", Component: Coffee },
 ];
 
-// Rich default dishes for gourmet presentation
+const itemMatchesCategory = (item, catId) => {
+  if (catId === 'all') return true;
+  const itemCat = (item.category || '').toLowerCase().trim();
+  const catObj = standardCategories.find(c => c.id === catId);
+  if (catObj && catObj.aliases) {
+    return catObj.aliases.some(a => itemCat.includes(a) || a.includes(itemCat));
+  }
+  return itemCat === catId.toLowerCase();
+};
+
+// Rich gourmet items
 const defaultGourmetItems = [
   {
     _id: 'item_1',
     name: 'Wagyu Truffle Burger',
-    description: 'Premium wagyu beef patty, black truffle oil, fontina cheese, and arugula on a toasted brioche bun.',
-    price: 28.00,
-    basePrice: 32.00,
+    description: 'Premium wagyu patty, black truffle oil, fontina cheese, and arugula on toasted brioche.',
+    price: 480.00,
+    basePrice: 520.00,
     category: 'main-courses',
     isVeg: false,
     isRecommended: true,
@@ -54,10 +65,10 @@ const defaultGourmetItems = [
   },
   {
     _id: 'item_2',
-    name: 'Classic Pomodoro',
-    description: 'Handmade fettuccine tossed in a slow-simmered San Marzano tomato sauce with fresh basil and aged parmesan.',
-    price: 19.50,
-    basePrice: 19.50,
+    name: 'Classic Pomodoro Fettuccine',
+    description: 'Handmade pasta tossed in slow-simmered San Marzano tomato sauce with fresh basil and aged parmesan.',
+    price: 360.00,
+    basePrice: 360.00,
     category: 'main-courses',
     isVeg: true,
     isRecommended: false,
@@ -68,24 +79,24 @@ const defaultGourmetItems = [
   },
   {
     _id: 'item_3',
-    name: 'Grilled Norwegian Salmon',
-    description: 'Sustainable Atlantic salmon, charcoal-grilled, served with seasonal asparagus and lemon beurre blanc.',
-    price: 34.00,
-    basePrice: 34.00,
+    name: 'Grilled Atlantic Salmon',
+    description: 'Charcoal-grilled Atlantic salmon served with seasonal asparagus and lemon herb reduction.',
+    price: 640.00,
+    basePrice: 680.00,
     category: 'main-courses',
     isVeg: false,
     isRecommended: false,
     prepTime: '20-25 min',
     rating: 4.8,
-    available: false, // Out of Stock demonstration
+    available: true,
     image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&q=80&w=600'
   },
   {
     _id: 'item_4',
     name: 'Crispy Truffle Calamari',
     description: 'Lightly dusted tender calamari served with charred lemon and house-made roasted garlic aioli dip.',
-    price: 16.50,
-    basePrice: 18.00,
+    price: 290.00,
+    basePrice: 320.00,
     category: 'appetizers',
     isVeg: false,
     isRecommended: true,
@@ -97,9 +108,9 @@ const defaultGourmetItems = [
   {
     _id: 'item_5',
     name: 'Burrata Caprese Salad',
-    description: 'Creamy pugliese burrata, heirloom cherry tomatoes, cold-pressed olive oil, aged balsamic, and toasted sourdough.',
-    price: 17.00,
-    basePrice: 17.00,
+    description: 'Creamy pugliese burrata, heirloom cherry tomatoes, cold-pressed olive oil, aged balsamic, and sourdough.',
+    price: 310.00,
+    basePrice: 310.00,
     category: 'appetizers',
     isVeg: true,
     isRecommended: false,
@@ -112,8 +123,8 @@ const defaultGourmetItems = [
     _id: 'item_6',
     name: 'Valrhona Chocolate Fondant',
     description: 'Molten dark chocolate lava cake served warm with Madagascar vanilla bean gelato and berry coulis.',
-    price: 14.00,
-    basePrice: 14.00,
+    price: 240.00,
+    basePrice: 240.00,
     category: 'desserts',
     isVeg: true,
     isRecommended: true,
@@ -121,6 +132,81 @@ const defaultGourmetItems = [
     rating: 5.0,
     available: true,
     image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&q=80&w=600'
+  }
+];
+
+// Initial dynamic live orders seed
+const initialDynamicOrders = [
+  {
+    _id: 'ORD-2849',
+    orderNumber: '2849',
+    tableNumber: '12',
+    channel: 'Dine-in',
+    status: 'preparing',
+    createdAt: new Date(Date.now() - 8 * 60000).toISOString(),
+    totalAmount: 640.00,
+    total: 640.00,
+    items: [
+      { name: 'Wagyu Truffle Burger', quantity: 1, price: 480 },
+      { name: 'Cold Brew Coffee', quantity: 1, price: 160 }
+    ]
+  },
+  {
+    _id: 'ORD-2850',
+    orderNumber: '2850',
+    tableNumber: 'Pickup',
+    channel: 'Takeaway',
+    status: 'ready',
+    createdAt: new Date(Date.now() - 3 * 60000).toISOString(),
+    totalAmount: 280.00,
+    total: 280.00,
+    items: [
+      { name: 'Valrhona Chocolate Fondant', quantity: 1, price: 240 },
+      { name: 'Espresso', quantity: 1, price: 40 }
+    ]
+  },
+  {
+    _id: 'ORD-2845',
+    orderNumber: '2845',
+    tableNumber: 'Delivery',
+    channel: 'Zomato',
+    status: 'out_for_delivery',
+    createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
+    totalAmount: 1250.00,
+    total: 1250.00,
+    items: [
+      { name: 'Grilled Atlantic Salmon', quantity: 1, price: 640 },
+      { name: 'Classic Pomodoro Fettuccine', quantity: 1, price: 360 },
+      { name: 'Crispy Calamari', quantity: 1, price: 250 }
+    ]
+  },
+  {
+    _id: 'ORD-2851',
+    orderNumber: '2851',
+    tableNumber: '4',
+    channel: 'Dine-in',
+    status: 'preparing',
+    createdAt: new Date(Date.now() - 1 * 60000).toISOString(),
+    totalAmount: 180.00,
+    total: 180.00,
+    items: [
+      { name: 'Specialty Coffee Latte', quantity: 1, price: 180 }
+    ]
+  },
+  {
+    _id: 'ORD-2840',
+    orderNumber: '2840',
+    tableNumber: '8',
+    channel: 'Dine-in',
+    status: 'completed',
+    createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
+    totalAmount: 920.00,
+    total: 920.00,
+    items: [
+      { name: 'Wagyu Truffle Burger', quantity: 1, price: 480 },
+      { name: 'Burrata Caprese Salad', quantity: 1, price: 310 },
+      { name: 'Mineral Water', quantity: 1, price: 130 }
+    ]
   }
 ];
 
@@ -135,18 +221,18 @@ export const getValidFoodImage = (item) => {
   return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
 };
 
-function AdminPanel() {
+export default function AdminPanel() {
   const { user, tenantId, socket, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'menu', 'kds', 'pos', 'inventory', 'crm', 'aggregators', 'settings', 'qrcodes'
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [items, setItems] = useState(defaultGourmetItems);
-  const [orders, setOrders] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
+  const [orders, setOrders] = useState(initialDynamicOrders);
   const [tenantInfo, setTenantInfo] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Menu Management State
-  const [selectedCategory, setSelectedCategory] = useState('main-courses');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [menuSearchQuery, setMenuSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('low-to-high');
   const [selectedItemIds, setSelectedItemIds] = useState([]);
@@ -168,26 +254,30 @@ function AdminPanel() {
 
   // Daily Performance Checklist State
   const [checklist, setChecklist] = useState([
-    { id: 1, text: 'Morning Inventory Sync', time: '06:00 AM', done: true, overdue: false },
-    { id: 2, text: 'Staff Shift Handover', time: '14:00 PM', done: false, overdue: true },
-    { id: 3, text: 'Review Nightly Closure Reports', time: '10:00 PM', done: false, overdue: false }
+    { id: 1, text: 'Morning Station & Inventory Sync', time: '08:00 AM', done: true, overdue: false },
+    { id: 2, text: 'Staff Shift Handover & KDS Calibration', time: '02:00 PM', done: false, overdue: false },
+    { id: 3, text: 'Review Daily P&L & Recipe Depletions', time: '10:00 PM', done: false, overdue: false }
   ]);
+  const [newChecklistText, setNewChecklistText] = useState('');
 
-  // QR Code State
-  const [qrCount, setQrCount] = useState(10);
-  const [generatedQrs, setGeneratedQrs] = useState(10);
+  // Clock ticker for live relative time
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
-    if (!user || !tenantId) return;
     const token = localStorage.getItem('token');
 
     // Fetch Tenant Info
-    axios.get(`${API}/tenants/public/${tenantId}`)
-      .then((res) => setTenantInfo(res.data))
-      .catch((err) => console.error(err));
+    if (tenantId) {
+      axios.get(`${API}/tenants/public/${tenantId}`)
+        .then((res) => setTenantInfo(res.data))
+        .catch((err) => console.log('Tenant info fetch error:', err));
+    }
 
-    // Fetch Menu Items from API, merge with defaults if empty
-    axios.get(`${API}/menu?tenantId=${tenantId}`)
+    // Fetch Menu Items from API
+    axios.get(`${API}/menu${tenantId ? `?tenantId=${tenantId}` : ''}`)
       .then((res) => {
         if (res.data && res.data.length > 0) {
           const enriched = res.data.map(d => ({
@@ -204,23 +294,24 @@ function AdminPanel() {
           setItems(enriched);
         }
       })
-      .catch((err) => console.error('Fetch menu error:', err));
+      .catch((err) => console.log('Fetch menu error, keeping gourmet items:', err));
 
-    // Fetch Orders
-    axios.get(`${API}/orders`, { headers: { 'x-auth-token': token } })
-      .then((res) => setOrders(res.data))
-      .catch((err) => console.error(err));
+    // Fetch Orders from API
+    if (token) {
+      axios.get(`${API}/orders`, { headers: { 'x-auth-token': token } })
+        .then((res) => {
+          if (res.data && res.data.length > 0) {
+            setOrders(res.data);
+          }
+        })
+        .catch((err) => console.log('Orders fetch error, using dynamic orders state:', err));
+    }
 
-    // Fetch Analytics
-    axios.get(`${API}/orders/analytics`, { headers: { 'x-auth-token': token } })
-      .then(res => setAnalytics(res.data))
-      .catch(err => console.error(err));
-
-    // Sockets
+    // Live Sockets
     if (socket) {
       socket.on('newOrder', (newOrder) => {
         setOrders((prev) => [newOrder, ...prev]);
-        toast.success("New Order Received!");
+        toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-4)}`);
       });
       socket.on('orderUpdate', (updatedOrder) => {
         setOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
@@ -234,6 +325,56 @@ function AdminPanel() {
       }
     };
   }, [user, tenantId, socket]);
+
+  // ── Dynamic Metric Calculations ──
+  const metrics = useMemo(() => {
+    const grossSales = orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
+    const totalOrdersCount = orders.length;
+    const avgTicket = totalOrdersCount > 0 ? Math.round(grossSales / totalOrdersCount) : 0;
+    const netProfit = Math.round(grossSales * 0.42); // estimated 42% restaurant margin
+    const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+
+    // Dynamic Sparkline heights (7 bars across 24h)
+    const sparklines = [
+      Math.max(25, Math.min(95, Math.round((grossSales * 0.15) % 80 + 20))),
+      Math.max(30, Math.min(95, Math.round((grossSales * 0.28) % 75 + 25))),
+      Math.max(35, Math.min(95, Math.round((grossSales * 0.42) % 70 + 30))),
+      Math.max(45, Math.min(95, Math.round((grossSales * 0.65) % 65 + 35))),
+      Math.max(55, Math.min(95, Math.round((grossSales * 0.85) % 60 + 40))),
+      Math.max(75, Math.min(98, Math.round((grossSales * 0.95) % 40 + 60))),
+      100
+    ];
+
+    // Dynamic Top Item
+    const itemFrequency = {};
+    orders.forEach(o => {
+      (o.items || []).forEach(it => {
+        itemFrequency[it.name] = (itemFrequency[it.name] || 0) + (it.quantity || 1);
+      });
+    });
+    const topItemName = Object.keys(itemFrequency).sort((a,b) => itemFrequency[b] - itemFrequency[a])[0] || 'Wagyu Truffle Burger';
+
+    return {
+      grossSales,
+      totalOrdersCount,
+      avgTicket,
+      netProfit,
+      activeOrders,
+      sparklines,
+      topItemName
+    };
+  }, [orders]);
+
+  // Relative Time Helper
+  const getRelativeTime = (dateStr) => {
+    if (!dateStr) return 'Just now';
+    const diffMs = currentTime - new Date(dateStr);
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    return `${diffHours}h ago`;
+  };
 
   // Handlers for Drawer & Menu Items
   const handleOpenAddDrawer = () => {
@@ -302,14 +443,14 @@ function AdminPanel() {
   const handleStatusUpdate = async (orderId, status) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API}/orders/${orderId}/status`, { status }, { headers: { 'x-auth-token': token } });
-      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status } : o));
-      toast.success(`Order updated to ${status}`);
+      if (token) {
+        await axios.put(`${API}/orders/${orderId}/status`, { status }, { headers: { 'x-auth-token': token } });
+      }
     } catch (err) {
-      console.error('Update status error:', err);
-      // Update locally for smooth offline / demo simulation
-      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status } : o));
+      console.log('Update status on server failed, updating local state:', err);
     }
+    setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status } : o));
+    toast.success(`Order status updated to ${status.toUpperCase()}`);
   };
 
   const handleToggleItemAvailability = (itemId) => {
@@ -350,9 +491,24 @@ function AdminPanel() {
     ));
   };
 
+  const handleAddChecklistItem = (e) => {
+    e.preventDefault();
+    if (!newChecklistText.trim()) return;
+    const newItem = {
+      id: Date.now(),
+      text: newChecklistText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      done: false,
+      overdue: false
+    };
+    setChecklist(prev => [...prev, newItem]);
+    setNewChecklistText('');
+    toast.success('Task added to checklist');
+  };
+
   // Filtered menu items
   const filteredMenuItems = items.filter(item => {
-    const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
+    const matchesCat = itemMatchesCategory(item, selectedCategory);
     const matchesSearch = item.name.toLowerCase().includes(menuSearchQuery.toLowerCase()) || 
                           (item.description && item.description.toLowerCase().includes(menuSearchQuery.toLowerCase()));
     return matchesCat && matchesSearch;
@@ -362,18 +518,21 @@ function AdminPanel() {
     return 0;
   });
 
+  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || 'SARVIQ Flagship Bistro';
+  const restaurantInitials = restaurantDisplayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
   return (
     <div className={styles.adminLayout}>
       <Toaster position="top-right" />
 
-      {/* TOP GLOBAL BAR (MaitreD Pro style) */}
+      {/* TOP GLOBAL BAR */}
       <header className={styles.topGlobalBar}>
         <div className={styles.topBarLeft}>
           <div className={styles.brandTitleWrap} onClick={() => navigate('/')}>
-            <div className={styles.brandIconSquare}>GB</div>
+            <div className={styles.brandIconSquare}>{restaurantInitials}</div>
             <div>
-              <span className={styles.brandTitle}>The Grand Bistro</span>
-              <span className={styles.brandSub}>ADMIN TERMINAL</span>
+              <span className={styles.brandTitle}>{restaurantDisplayName}</span>
+              <span className={styles.brandSub}>SARVIQ AI TERMINAL</span>
             </div>
           </div>
         </div>
@@ -383,28 +542,39 @@ function AdminPanel() {
           <Search size={16} className={styles.searchIcon} />
           <input 
             type="text" 
-            placeholder="Search analytics, orders, or staff..." 
+            placeholder="Search orders, dishes, customers, or KDS stations..." 
             className={styles.topSearchInput}
+            value={menuSearchQuery}
+            onChange={(e) => setMenuSearchQuery(e.target.value)}
           />
         </div>
 
         {/* Right User Actions */}
         <div className={styles.topBarRight}>
-          <button type="button" className={styles.iconCircleBtn} title="Notifications">
+          <button 
+            type="button" 
+            className={styles.iconCircleBtn} 
+            title="Notifications"
+            onClick={() => toast.success(`SARVIQ telemetry active • ${metrics.activeOrders.length} live orders`)}
+          >
             <Bell size={18} />
           </button>
-          <button type="button" className={styles.supportBtn}>
+          <button 
+            type="button" 
+            className={styles.supportBtn}
+            onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SARVIQ%20Support', '_blank')}
+          >
             <HelpCircle size={16} /> <span>Support</span>
           </button>
           <div className={styles.profileBadge}>
             <img 
               src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100" 
-              alt="Alex Mercer" 
+              alt="User Avatar" 
               className={styles.profileAvatar} 
             />
             <div className={styles.profileText}>
-              <span className={styles.profileName}>{user?.name || "Alex Mercer"}</span>
-              <span className={styles.profileRole}>OWNER</span>
+              <span className={styles.profileName}>{user?.name || "Admin"}</span>
+              <span className={styles.profileRole}>{user?.role ? user.role.toUpperCase() : "OWNER"}</span>
             </div>
           </div>
         </div>
@@ -427,7 +597,7 @@ function AdminPanel() {
               onClick={() => setActiveTab('kds')}
             >
               <ChefHat size={18} /> <span>Live Orders & KDS</span>
-              <span className={styles.navPill}>4</span>
+              <span className={styles.navPill}>{metrics.activeOrders.length}</span>
             </button>
             <button 
               className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
@@ -490,109 +660,106 @@ function AdminPanel() {
           <AnimatePresence mode="wait">
 
             {/* ========================================================= */}
-            {/* 1. EXECUTIVE ADMIN DASHBOARD (MaitreD Pro Reference)     */}
+            {/* 1. EXECUTIVE ADMIN DASHBOARD                             */}
             {/* ========================================================= */}
             {activeTab === 'dashboard' && (
               <motion.div 
                 key="dash" 
-                initial={{ opacity: 0, y: 10 }} 
+                initial={{ opacity: 0, y: 12 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
                 className={styles.dashboardView}
               >
-                {/* 4 TOP METRIC CARDS WITH SPARKLINES */}
+                {/* 4 TOP METRIC CARDS WITH DYNAMIC VALUES & SPARKLINES */}
                 <div className={styles.metricsGrid}>
                   {/* Card 1: Gross Sales */}
-                  <div className={styles.kpiCard}>
+                  <motion.div whileHover={{ y: -3 }} className={styles.kpiCard}>
                     <div className={styles.kpiHeader}>
                       <span className={styles.kpiLabel}>GROSS SALES</span>
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 12.4%</span>
                     </div>
                     <div className={styles.kpiValue}>
-                      ₹{(orders.length > 0 ? orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0) : 42850).toLocaleString('en-IN')}<small>.00</small>
+                      ₹{metrics.grossSales.toLocaleString('en-IN')}<small>.00</small>
                     </div>
                     <div className={styles.sparklineBarRow}>
-                      <div className={styles.sparkBar} style={{ height: '30%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '45%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '40%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '60%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '55%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkHighlight}`} style={{ height: '90%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkHighlight}`} style={{ height: '100%' }}></div>
+                      {metrics.sparklines.map((h, i) => (
+                        <div 
+                          key={i} 
+                          className={`${styles.sparkBar} ${i >= 5 ? styles.sparkHighlight : ''}`} 
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Card 2: Net Profit */}
-                  <div className={styles.kpiCard}>
+                  <motion.div whileHover={{ y: -3 }} className={styles.kpiCard}>
                     <div className={styles.kpiHeader}>
-                      <span className={styles.kpiLabel}>NET PROFIT</span>
+                      <span className={styles.kpiLabel}>EST. NET PROFIT</span>
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 8.2%</span>
                     </div>
                     <div className={styles.kpiValue}>
-                      ₹{Math.round((orders.length > 0 ? orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0) * 0.42 : 18320)).toLocaleString('en-IN')}<small>.00</small>
+                      ₹{metrics.netProfit.toLocaleString('en-IN')}<small>.00</small>
                     </div>
                     <div className={styles.sparklineBarRow}>
-                      <div className={styles.sparkBar} style={{ height: '25%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '35%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '40%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '45%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkPurple}`} style={{ height: '70%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkPurple}`} style={{ height: '85%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkPurple}`} style={{ height: '95%' }}></div>
+                      {metrics.sparklines.map((h, i) => (
+                        <div 
+                          key={i} 
+                          className={`${styles.sparkBar} ${i >= 4 ? styles.sparkPurple : ''}`} 
+                          style={{ height: `${Math.max(20, Math.round(h * 0.85))}%` }}
+                        />
+                      ))}
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Card 3: Avg Ticket */}
-                  <div className={styles.kpiCard}>
+                  <motion.div whileHover={{ y: -3 }} className={styles.kpiCard}>
                     <div className={styles.kpiHeader}>
                       <span className={styles.kpiLabel}>AVG TICKET</span>
-                      <span className={`${styles.trendBadge} ${styles.trendDown}`}>↘ 1.5%</span>
+                      <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 4.5%</span>
                     </div>
                     <div className={styles.kpiValue}>
-                      ₹{orders.length > 0 ? Math.round(orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0) / orders.length) : '480'}<small>.00</small>
+                      ₹{metrics.avgTicket.toLocaleString('en-IN')}<small>.00</small>
                     </div>
                     <div className={styles.sparklineBarRow}>
-                      <div className={styles.sparkBar} style={{ height: '65%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '70%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '60%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '75%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '55%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '60%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '50%' }}></div>
+                      {[65, 70, 60, 75, 55, 80, 70].map((h, i) => (
+                        <div key={i} className={styles.sparkBar} style={{ height: `${h}%` }} />
+                      ))}
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Card 4: Total Orders */}
-                  <div className={styles.kpiCard}>
+                  <motion.div whileHover={{ y: -3 }} className={styles.kpiCard}>
                     <div className={styles.kpiHeader}>
                       <span className={styles.kpiLabel}>TOTAL ORDERS</span>
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 24.0%</span>
                     </div>
-                    <div className={styles.kpiValue}>{orders.length > 0 ? orders.length : 682}</div>
+                    <div className={styles.kpiValue}>{metrics.totalOrdersCount}</div>
                     <div className={styles.sparklineBarRow}>
-                      <div className={styles.sparkBar} style={{ height: '30%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '40%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '50%' }}></div>
-                      <div className={styles.sparkBar} style={{ height: '65%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkDark}`} style={{ height: '80%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkDark}`} style={{ height: '90%' }}></div>
-                      <div className={`${styles.sparkBar} ${styles.sparkDark}`} style={{ height: '100%' }}></div>
+                      {metrics.sparklines.map((h, i) => (
+                        <div 
+                          key={i} 
+                          className={`${styles.sparkBar} ${i >= 4 ? styles.sparkDark : ''}`} 
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
                     </div>
-                  </div>
+                  </motion.div>
                 </div>
 
                 {/* MIDDLE SPLIT: REVENUE PERFORMANCE CHART + LIVE ORDERS SIDEBAR */}
                 <div className={styles.dashSplitGrid}>
                   
-                  {/* Left: Revenue Performance Interactive Curve */}
+                  {/* Left: Revenue Performance Dynamic Curve */}
                   <div className={styles.chartPanelCard}>
                     <div className={styles.chartHeader}>
                       <div>
                         <h3>Revenue Performance</h3>
-                        <p>Real-time tracking over last 24 hours</p>
+                        <p>Real-time telemetry tracking over last 24 hours</p>
                       </div>
                       <div className={styles.chartLegend}>
-                        <span className={styles.legendDotBlack}>● Revenue</span>
+                        <span className={styles.legendDotBlack}>● Revenue (₹)</span>
                         <span className={styles.legendDotPurple}>● Orders</span>
                       </div>
                     </div>
@@ -601,7 +768,7 @@ function AdminPanel() {
                       <svg className={styles.svgCurve} viewBox="0 0 700 240" preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="revGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.15" />
+                            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.2" />
                             <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
                           </linearGradient>
                         </defs>
@@ -632,8 +799,8 @@ function AdminPanel() {
                         />
 
                         {/* Peak indicator */}
-                        <circle cx="330" cy="140" r="14" fill="#e2e8f0" fillOpacity="0.6" />
-                        <circle cx="330" cy="140" r="5" fill="#0f172a" />
+                        <circle cx="670" cy="80" r="14" fill="#e0e7ff" fillOpacity="0.7" />
+                        <circle cx="670" cy="80" r="5" fill="#4f46e5" />
                       </svg>
 
                       {/* Time markers */}
@@ -649,68 +816,55 @@ function AdminPanel() {
                     </div>
                   </div>
 
-                  {/* Right: Live Orders Widget (MaitreD style) */}
+                  {/* Right: Live Orders Dynamic Widget */}
                   <div className={styles.liveOrdersPanelCard}>
                     <div className={styles.panelHeadRow}>
                       <div>
                         <h3>Live Orders</h3>
-                        <span className={styles.activeDotPill}>● 14 Active</span>
+                        <span className={styles.activeDotPill}>● {metrics.activeOrders.length} Active</span>
                       </div>
-                      <Filter size={16} color="#64748b" style={{ cursor: 'pointer' }} />
+                      <button 
+                        type="button" 
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                        onClick={() => toast.success("Refreshed live queue")}
+                      >
+                        <RefreshCw size={15} />
+                      </button>
                     </div>
 
                     <div className={styles.liveOrdersMiniList}>
-                      {/* Ticket 1 */}
-                      <div className={styles.miniOrderTicket}>
-                        <div className={styles.ticketTopRow}>
-                          <span className={styles.orderCode}>#ORD-2849</span>
-                          <span className={`${styles.statusChip} ${styles.prepChip}`}>PREPARING</span>
-                        </div>
-                        <div className={styles.ticketSubRow}>
-                          <span>Table 12 • 4 items</span>
-                          <span className={styles.timeMuted}>8m ago</span>
-                        </div>
-                        <div className={styles.ticketPrice}>₹640.00</div>
-                      </div>
+                      {orders.slice(0, 4).map((order) => {
+                        const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-6) || 'ORD'}`;
+                        const totalAmt = Number(order.total || order.totalAmount) || 0;
+                        const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
+                        const tableText = order.tableNumber ? (order.tableNumber.toLowerCase().includes('pickup') || order.tableNumber.toLowerCase().includes('delivery') ? order.tableNumber : `Table ${order.tableNumber}`) : (order.channel || 'Dine-in');
 
-                      {/* Ticket 2 */}
-                      <div className={styles.miniOrderTicket}>
-                        <div className={styles.ticketTopRow}>
-                          <span className={styles.orderCode}>#ORD-2850</span>
-                          <span className={`${styles.statusChip} ${styles.readyChip}`}>READY</span>
-                        </div>
-                        <div className={styles.ticketSubRow}>
-                          <span>Pickup • 2 items</span>
-                          <span className={styles.timeMuted}>3m ago</span>
-                        </div>
-                        <div className={styles.ticketPrice}>₹280.00</div>
-                      </div>
+                        const isPrep = order.status === 'preparing' || order.status === 'pending';
+                        const isReady = order.status === 'ready';
+                        const isDelivery = order.status === 'out_for_delivery' || order.channel === 'Zomato';
 
-                      {/* Ticket 3 */}
-                      <div className={styles.miniOrderTicket}>
-                        <div className={styles.ticketTopRow}>
-                          <span className={styles.orderCode}>#ORD-2845</span>
-                          <span className={`${styles.statusChip} ${styles.deliveryChip}`}>OUT FOR DELIVERY</span>
-                        </div>
-                        <div className={styles.ticketSubRow}>
-                          <span>Delivery • 7 items</span>
-                          <span className={styles.timeMuted}>15m ago</span>
-                        </div>
-                        <div className={styles.ticketPrice}>₹1,250.00</div>
-                      </div>
-
-                      {/* Ticket 4 */}
-                      <div className={styles.miniOrderTicket}>
-                        <div className={styles.ticketTopRow}>
-                          <span className={styles.orderCode}>#ORD-2851</span>
-                          <span className={`${styles.statusChip} ${styles.prepChip}`}>PREPARING</span>
-                        </div>
-                        <div className={styles.ticketSubRow}>
-                          <span>Table 4 • 1 item</span>
-                          <span className={styles.timeMuted}>Just now</span>
-                        </div>
-                        <div className={styles.ticketPrice}>₹180.00</div>
-                      </div>
+                        return (
+                          <motion.div 
+                            key={order._id}
+                            whileHover={{ scale: 1.02, x: 2 }}
+                            className={styles.miniOrderTicket}
+                            onClick={() => setActiveTab('kds')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className={styles.ticketTopRow}>
+                              <span className={styles.orderCode}>{orderCode}</span>
+                              <span className={`${styles.statusChip} ${isPrep ? styles.prepChip : isReady ? styles.readyChip : isDelivery ? styles.deliveryChip : styles.prepChip}`}>
+                                {(order.status || 'pending').replace('_', ' ').toUpperCase()}
+                              </span>
+                            </div>
+                            <div className={styles.ticketSubRow}>
+                              <span>{tableText} • {itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
+                              <span className={styles.timeMuted}>{getRelativeTime(order.createdAt)}</span>
+                            </div>
+                            <div className={styles.ticketPrice}>₹{totalAmt.toFixed(2)}</div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
 
                     <button 
@@ -718,7 +872,7 @@ function AdminPanel() {
                       className={styles.viewAllOrdersBtn}
                       onClick={() => setActiveTab('kds')}
                     >
-                      View All Active Orders
+                      View All Active Orders ({orders.length})
                     </button>
                   </div>
                 </div>
@@ -727,529 +881,460 @@ function AdminPanel() {
                 <div className={styles.bottomDashGrid}>
                   
                   {/* AI Predictive Scaling Card */}
-                  <div className={styles.aiInsightCard}>
+                  <motion.div whileHover={{ y: -3 }} className={styles.aiInsightCard}>
                     <div className={styles.aiIconSquare}>
                       <TrendingUp size={22} color="#4f46e5" />
                     </div>
                     <div>
-                      <h4>Predictive Scaling</h4>
-                      <p>Busy hour expected at 7 PM. Recommend +2 staff on floor.</p>
+                      <h4>SARVIQ Predictive Scaling</h4>
+                      <p>Peak dining velocity predicted at 7:30 PM. Bestseller is <strong>{metrics.topItemName}</strong>.</p>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* AI Upsell Opportunity Card (Dark) */}
-                  <div className={`${styles.aiInsightCard} ${styles.aiDarkCard}`}>
+                  <motion.div whileHover={{ y: -3 }} className={`${styles.aiInsightCard} ${styles.aiDarkCard}`}>
                     <div className={styles.aiDarkIconSquare}>
                       <Sparkles size={22} color="#ffffff" />
                     </div>
                     <div>
-                      <h4>AI Upsell Opportunity</h4>
-                      <p>Dessert pairings are currently at 12%. Trigger promo at 8 PM?</p>
+                      <h4>AI Upsell Intelligence</h4>
+                      <p>Guest table QR modifier attachments are up +24%. High conversion on Truffle Aioli.</p>
                     </div>
-                  </div>
+                  </motion.div>
 
-                  {/* Daily Performance Checklist */}
+                  {/* Daily Performance Checklist Card */}
                   <div className={styles.checklistCard}>
-                    <h4>DAILY PERFORMANCE CHECKLIST</h4>
-                    <div className={styles.checkItemsList}>
-                      {checklist.map(chk => (
+                    <div className={styles.checklistHead}>
+                      <h4>Daily Shift Checklist</h4>
+                      <span className={styles.taskCountBadge}>
+                        {checklist.filter(c => c.done).length}/{checklist.length} Complete
+                      </span>
+                    </div>
+
+                    <div className={styles.checklistItems}>
+                      {checklist.map((item) => (
                         <div 
-                          key={chk.id} 
-                          className={`${styles.checkItemRow} ${chk.done ? styles.checkDone : ''}`}
-                          onClick={() => handleToggleChecklist(chk.id)}
+                          key={item.id} 
+                          className={`${styles.checkItemRow} ${item.done ? styles.checkDone : ''}`}
+                          onClick={() => handleToggleChecklist(item.id)}
                         >
-                          <div className={styles.checkLeft}>
-                            {chk.done ? (
-                              <CheckSquare size={16} color="#0f172a" />
-                            ) : (
-                              <Square size={16} color="#94a3b8" />
-                            )}
-                            <span>{chk.text}</span>
+                          <div className={styles.checkboxSquare}>
+                            {item.done ? <CheckSquare size={16} color="#4f46e5" /> : <Square size={16} color="#94a3b8" />}
                           </div>
-                          {chk.overdue ? (
-                            <span className={styles.overdueBadge}>OVERDUE</span>
-                          ) : (
-                            <span className={styles.checkTime}>{chk.time}</span>
-                          )}
+                          <div className={styles.checkTextWrap}>
+                            <span className={styles.checkText}>{item.text}</span>
+                            <span className={styles.checkTime}>{item.time}</span>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
 
-                  {/* MaitreD Pro Premium Promotion */}
-                  <div className={styles.premiumPromoCard}>
-                    <h4>MaitreD Pro Premium</h4>
-                    <p>Unlock AI-powered inventory forecasting and payroll automation.</p>
-                    <div className={styles.trialRow}>
-                      <span>Trial progress</span>
-                      <strong>85%</strong>
-                    </div>
-                    <div className={styles.progressBar}>
-                      <div className={styles.progressFill} style={{ width: '85%' }}></div>
-                    </div>
-                    <button type="button" className={styles.upgradeNowBtn}>Upgrade Now</button>
+                    <form onSubmit={handleAddChecklistItem} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      <input 
+                        type="text" 
+                        placeholder="+ Add task..."
+                        value={newChecklistText}
+                        onChange={(e) => setNewChecklistText(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <button 
+                        type="submit" 
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          background: '#4f46e5',
+                          color: '#fff',
+                          border: 'none',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add
+                      </button>
+                    </form>
                   </div>
 
                 </div>
+
               </motion.div>
             )}
 
             {/* ========================================================= */}
-            {/* 2. MENU MANAGEMENT & SLIDE-OVER DRAWER (Reference 5)      */}
+            {/* 2. LIVE ORDERS & KITCHEN DISPLAY SYSTEM (KDS)             */}
+            {/* ========================================================= */}
+            {activeTab === 'kds' && (
+              <motion.div 
+                key="kds" 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <KOTMonitor 
+                  orders={orders} 
+                  onUpdateStatus={handleStatusUpdate} 
+                />
+              </motion.div>
+            )}
+
+            {/* ========================================================= */}
+            {/* 3. MENU MANAGEMENT & 86 ITEM SYNC                         */}
             {/* ========================================================= */}
             {activeTab === 'menu' && (
               <motion.div 
                 key="menu" 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0 }}
-                className={styles.menuMgmtView}
+                transition={{ duration: 0.3 }}
+                className={styles.menuManagementView}
               >
-                <div className={styles.menuSplitLayout}>
-                  
-                  {/* Left Category Navigation Sidebar */}
-                  <aside className={styles.categoryNavAside}>
-                    <div className={styles.catAsideHead}>
-                      <span>CATEGORIES</span>
-                      <button type="button" className={styles.editCatsLink}>EDIT</button>
-                    </div>
-
-                    <div className={styles.catNavList}>
-                      {availableCategories.map(cat => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          className={`${styles.catNavItem} ${selectedCategory === cat.id ? styles.activeCatNavItem : ''}`}
-                          onClick={() => setSelectedCategory(cat.id)}
-                        >
-                          <div className={styles.catTitleLeft}>
-                            <Grid size={14} />
-                            <span>{cat.name}</span>
-                          </div>
-                          {cat.count && <span className={styles.catCountPill}>{cat.count}</span>}
-                        </button>
-                      ))}
-                    </div>
-
+                {/* Top Action Header */}
+                <div className={styles.menuHeaderRow}>
+                  <div>
+                    <h2 className={styles.sectionHeading}>Menu Catalog & Digital 86 Sync</h2>
+                    <p className={styles.sectionSubtitle}>Manage pricing in ₹, modifiers, dietary badges, and live out-of-stock items.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {selectedItemIds.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={handleBulkDelete}
+                        className={styles.bulkDeleteBtn}
+                      >
+                        <Trash2 size={16} /> Delete Selected ({selectedItemIds.length})
+                      </button>
+                    )}
                     <button 
                       type="button" 
-                      className={styles.addCategoryBtn}
-                      onClick={() => toast.success('Category creator opened')}
+                      onClick={handleOpenAddDrawer}
+                      className={styles.addNewItemBtn}
                     >
-                      + Add Category
+                      <Plus size={16} /> Add New Dish
                     </button>
-                  </aside>
-
-                  {/* Right Menu Items Content */}
-                  <div className={styles.menuMainContent}>
-                    
-                    {/* Breadcrumbs & Header Actions */}
-                    <div className={styles.menuHeaderRow}>
-                      <div>
-                        <div className={styles.menuBreadcrumb}>MENU &gt; {selectedCategory.toUpperCase().replace('-', ' ')}</div>
-                        <h2 className={styles.menuPageTitle}>{availableCategories.find(c => c.id === selectedCategory)?.name || 'Main Courses'}</h2>
-                        <p className={styles.menuPageSub}>Manage your signature entrées, steaks, and pasta dishes.</p>
-                      </div>
-
-                      <div className={styles.menuHeaderButtons}>
-                        <button type="button" className={styles.exportCsvBtn}>
-                          <Download size={14} /> Export CSV
-                        </button>
-                        <button 
-                          type="button" 
-                          className={styles.addMenuItemBtn}
-                          onClick={handleOpenAddDrawer}
-                        >
-                          + Add Menu Item
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Filter & Search Toolbar */}
-                    <div className={styles.menuToolbar}>
-                      <div className={styles.toolbarSearch}>
-                        <Search size={16} color="#94a3b8" />
-                        <input 
-                          type="text" 
-                          placeholder="Filter by name, ingredients, or tags..."
-                          value={menuSearchQuery}
-                          onChange={(e) => setMenuSearchQuery(e.target.value)}
-                        />
-                      </div>
-
-                      <div className={styles.toolbarRight}>
-                        <select 
-                          className={styles.sortSelect}
-                          value={sortOption}
-                          onChange={(e) => setSortOption(e.target.value)}
-                        >
-                          <option value="low-to-high">Price: Low to High</option>
-                          <option value="high-to-low">Price: High to Low</option>
-                        </select>
-                        <button type="button" className={styles.filtersBtn}>
-                          <Filter size={14} /> Filters
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Bulk Selection Bar (Shows when items selected) */}
-                    {selectedItemIds.length > 0 && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: -10 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        className={styles.bulkActionBar}
-                      >
-                        <div className={styles.bulkLeft}>
-                          <input type="checkbox" checked={true} readOnly />
-                          <span>{selectedItemIds.length} items selected</span>
-                        </div>
-                        <div className={styles.bulkActions}>
-                          <button type="button" className={styles.bulkBtn}><Edit3 size={14} /> Bulk Edit</button>
-                          <button type="button" className={styles.bulkBtn}><Layers size={14} /> Move to Category</button>
-                          <button type="button" className={styles.bulkDeleteBtn} onClick={handleBulkDelete}><Trash2 size={14} /> Delete</button>
-                          <button type="button" className={styles.bulkCloseBtn} onClick={() => setSelectedItemIds([])}><X size={16} /></button>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* FOOD CARDS GRID */}
-                    <div className={styles.foodCardsGrid}>
-                      {filteredMenuItems.map(item => (
-                        <div 
-                          key={item._id} 
-                          className={`${styles.gourmetCard} ${!item.available ? styles.cardOutOfStock : ''}`}
-                        >
-                          {/* Image Container with Badges */}
-                          <div className={styles.cardImageContainer}>
-                            <img 
-                              src={getValidFoodImage(item)} 
-                              alt={item.name} 
-                              className={styles.cardImage} 
-                            />
-                            
-                            {/* Badges */}
-                            <div className={styles.imageBadges}>
-                              {item.isRecommended && (
-                                <span className={styles.recommendedBadge}>RECOMMENDED</span>
-                              )}
-                              <span className={item.isVeg ? styles.vegBadge : styles.nonVegBadge}>
-                                ● {item.isVeg ? 'VEG' : 'NON-VEG'}
-                              </span>
-                            </div>
-
-                            {/* Select checkbox */}
-                            <input 
-                              type="checkbox" 
-                              className={styles.itemSelectBox}
-                              checked={selectedItemIds.includes(item._id)}
-                              onChange={() => handleToggleSelectItem(item._id)}
-                            />
-
-                            {/* Out of Stock Overlay Banner */}
-                            {!item.available && (
-                              <div className={styles.outOfStockOverlay}>
-                                <span>OUT OF STOCK</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Card Content */}
-                          <div className={styles.cardBody}>
-                            <div className={styles.cardTitlePriceRow}>
-                              <h3 className={styles.dishName} onClick={() => handleOpenEditDrawer(item)}>{item.name}</h3>
-                              <div className={styles.priceTagGroup}>
-                                <span className={styles.salePrice}>₹{Number(item.salePrice || item.price).toFixed(2)}</span>
-                                {item.basePrice && item.basePrice > (item.salePrice || item.price) && (
-                                  <span className={styles.strikeBasePrice}>₹{Number(item.basePrice).toFixed(2)}</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <p className={styles.dishDesc}>{item.description}</p>
-
-                            {/* Meta row & Availability Switch */}
-                            <div className={styles.cardMetaRow}>
-                              <div className={styles.timeRating}>
-                                <span className={styles.metaChip}><Clock size={12} /> {item.prepTime || '15-20 min'}</span>
-                                <span className={styles.metaChip}><Star size={12} color="#f59e0b" fill="#f59e0b" /> {item.rating || '4.9'}</span>
-                              </div>
-
-                              <div className={styles.availabilityToggle}>
-                                <span className={styles.availText}>Available</span>
-                                <label className={styles.switch}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={item.available !== false} 
-                                    onChange={() => handleToggleItemAvailability(item._id)} 
-                                  />
-                                  <span className={styles.slider}></span>
-                                </label>
-                              </div>
-                            </div>
-
-                            {/* Card Footer Actions */}
-                            <div className={styles.cardBottomActions}>
-                              <button 
-                                type="button" 
-                                className={styles.editCardBtn}
-                                onClick={() => handleOpenEditDrawer(item)}
-                              >
-                                <Edit3 size={13} /> Edit Dish
-                              </button>
-                              <button 
-                                type="button" 
-                                className={styles.deleteCardBtn}
-                                onClick={() => handleDeleteItem(item._id, item.name)}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* + Add New Item Dashed Card */}
-                      <div className={styles.addNewItemCard} onClick={handleOpenAddDrawer}>
-                        <div className={styles.addPlusCircle}>+</div>
-                        <h4>Add New Item</h4>
-                        <p>Click to create a new dish in this category</p>
-                      </div>
-                    </div>
-
                   </div>
                 </div>
 
-                {/* SLIDE-OVER DRAWER: EDIT / ADD MENU ITEM (Reference 5) */}
-                <AnimatePresence>
-                  {isDrawerOpen && (
-                    <>
-                      <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        exit={{ opacity: 0 }}
-                        className={styles.drawerBackdrop}
-                        onClick={() => setIsDrawerOpen(false)}
-                      />
-                      <motion.aside 
-                        initial={{ x: '100%' }} 
-                        animate={{ x: 0 }} 
-                        exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className={styles.slideDrawer}
+                {/* Categories Bar */}
+                <div className={styles.categoriesPillRow}>
+                  {standardCategories.map((cat) => {
+                    const IconComp = cat.Component;
+                    const isActive = selectedCategory === cat.id;
+                    const count = cat.id === 'all' 
+                      ? items.length 
+                      : items.filter(i => itemMatchesCategory(i, cat.id)).length;
+
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`${styles.categoryPill} ${isActive ? styles.activeCategoryPill : ''}`}
                       >
-                        <div className={styles.drawerHeader}>
-                          <h2>{editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}</h2>
-                          <button 
-                            type="button" 
-                            className={styles.drawerCloseBtn}
-                            onClick={() => setIsDrawerOpen(false)}
-                          >
-                            <X size={20} />
-                          </button>
-                        </div>
+                        <IconComp size={15} />
+                        <span>{cat.name}</span>
+                        <span className={styles.catCountBadge}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                        <form onSubmit={handleSaveDrawerItem} className={styles.drawerForm}>
-                          {/* Image Banner */}
-                          <div className={styles.drawerImagePreview}>
-                            <img 
-                              src={drawerForm.image || (editingItem ? getValidFoodImage(editingItem) : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600')} 
-                              alt="Dish Preview" 
-                            />
-                            <label className={styles.changePhotoBtn}>
-                              <Upload size={14} /> Change Photo
-                              <input 
-                                type="file" 
-                                accept="image/*" 
-                                style={{ display: 'none' }}
-                                onChange={(e) => {
-                                  if (e.target.files && e.target.files[0]) {
-                                    const url = URL.createObjectURL(e.target.files[0]);
-                                    setDrawerForm({ ...drawerForm, image: url });
-                                    toast.success('Photo updated');
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
+                {/* Items Grid */}
+                <div className={styles.menuItemsGrid}>
+                  {filteredMenuItems.map((item) => {
+                    const isSelected = selectedItemIds.includes(item._id);
 
-                          {/* Item Name */}
-                          <div className={styles.drawerField}>
-                            <label>Item Name</label>
-                            <input 
-                              type="text" 
-                              placeholder="e.g. Wagyu Truffle Burger"
-                              value={drawerForm.name}
-                              onChange={(e) => setDrawerForm({ ...drawerForm, name: e.target.value })}
-                              required
-                            />
-                          </div>
-
-                          {/* Description */}
-                          <div className={styles.drawerField}>
-                            <label>Description</label>
-                            <textarea 
-                              rows={4}
-                              placeholder="Describe the dish ingredients, preparation style, and allergens..."
-                              value={drawerForm.description}
-                              onChange={(e) => setDrawerForm({ ...drawerForm, description: e.target.value })}
-                            />
-                          </div>
-
-                          {/* Base Price & Sale Price */}
-                          <div className={styles.drawerPriceRow}>
-                            <div className={styles.drawerField}>
-                              <label>Base Price (₹)</label>
-                              <input 
-                                type="number" 
-                                step="1"
-                                placeholder="350.00"
-                                value={drawerForm.basePrice}
-                                onChange={(e) => setDrawerForm({ ...drawerForm, basePrice: e.target.value })}
-                              />
-                            </div>
-                            <div className={styles.drawerField}>
-                              <label>Sale Price (₹)</label>
-                              <input 
-                                type="number" 
-                                step="1"
-                                placeholder="290.00"
-                                value={drawerForm.salePrice}
-                                onChange={(e) => setDrawerForm({ ...drawerForm, salePrice: e.target.value })}
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          {/* Dietary & Recommended Switches */}
-                          <div className={styles.drawerTogglesRow}>
-                            <label className={styles.checkboxLabel}>
-                              <input 
-                                type="checkbox" 
-                                checked={drawerForm.isVeg}
-                                onChange={(e) => setDrawerForm({ ...drawerForm, isVeg: e.target.checked })}
-                              />
-                              <span>Vegetarian Dish (VEG)</span>
-                            </label>
-                            <label className={styles.checkboxLabel}>
-                              <input 
-                                type="checkbox" 
-                                checked={drawerForm.isRecommended}
-                                onChange={(e) => setDrawerForm({ ...drawerForm, isRecommended: e.target.checked })}
-                              />
-                              <span>Feature as "RECOMMENDED"</span>
-                            </label>
-                          </div>
-
-                          {/* Drawer Actions */}
-                          <div className={styles.drawerFooter}>
+                    return (
+                      <motion.div 
+                        key={item._id} 
+                        whileHover={{ y: -4 }}
+                        className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
+                      >
+                        <div className={styles.dishImageWrap}>
+                          <img 
+                            src={getValidFoodImage(item)} 
+                            alt={item.name} 
+                            className={styles.dishImage}
+                            loading="lazy"
+                          />
+                          <div className={styles.dishImageOverlay}>
                             <button 
                               type="button" 
-                              className={styles.drawerCancelBtn}
-                              onClick={() => setIsDrawerOpen(false)}
+                              onClick={() => handleToggleSelectItem(item._id)}
+                              className={styles.selectCheckboxBtn}
                             >
-                              Cancel
+                              {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
                             </button>
-                            <button 
-                              type="submit" 
-                              className={styles.drawerSaveBtn}
+                            <div className={styles.dishBadges}>
+                              <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
+                                {item.isVeg ? '● VEG' : '▲ NON-VEG'}
+                              </span>
+                              {!item.available && (
+                                <span className={styles.soldOutPill}>OUT OF STOCK</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className={styles.dishBody}>
+                          <div className={styles.dishTitleRow}>
+                            <h4 className={styles.dishName}>{item.name}</h4>
+                            <div className={styles.dishPrice}>₹{(item.salePrice || item.price).toFixed(2)}</div>
+                          </div>
+                          <p className={styles.dishDescription}>{item.description}</p>
+                          
+                          <div className={styles.dishMetaRow}>
+                            <span className={styles.prepTimeBadge}>
+                              <Clock size={12} /> {item.prepTime || '15-20 min'}
+                            </span>
+                            <span className={styles.ratingBadge}>
+                              <Star size={12} fill="#f59e0b" color="#f59e0b" /> {item.rating || 4.8}
+                            </span>
+                          </div>
+
+                          <div className={styles.dishActionsRow}>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleItemAvailability(item._id)}
+                              className={`${styles.toggleStockBtn} ${item.available ? styles.stockActive : styles.stockInactive}`}
                             >
-                              Save Changes
+                              {item.available ? 'Mark Out of Stock' : 'Mark In Stock'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditDrawer(item)}
+                              className={styles.editDishBtn}
+                              title="Edit"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item._id, item.name)}
+                              className={styles.deleteDishBtn}
+                              title="Delete"
+                            >
+                              <Trash2 size={15} />
                             </button>
                           </div>
-                        </form>
-                      </motion.aside>
-                    </>
-                  )}
-                </AnimatePresence>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </motion.div>
             )}
 
             {/* ========================================================= */}
-            {/* 3. 4-STAGE KITCHEN DISPLAY & LIVE ORDERS (Ref 1 & 3)      */}
+            {/* 4. POINT OF SALE (POS) TERMINAL                           */}
             {/* ========================================================= */}
-            {activeTab === 'kds' && (
-              <motion.div key="kds" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <KOTMonitor orders={orders} onUpdateStatus={handleStatusUpdate} />
-              </motion.div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 4. RESTAURANT SETTINGS & BRANDING (Reference 4)           */}
-            {/* ========================================================= */}
-            {activeTab === 'settings' && (
-              <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <RestaurantSettings tenantInfo={tenantInfo} />
-              </motion.div>
-            )}
-
-            {/* POS Billing Tab */}
             {activeTab === 'pos' && (
-              <motion.section key="pos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: '100%' }}>
+              <motion.div 
+                key="pos" 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
                 <POSTerminal 
-                  tenantId={tenantId} 
                   menuItems={items} 
-                  onOrderPlaced={() => {
-                    const token = localStorage.getItem('token');
-                    axios.get(`${API}/orders`, { headers: { 'x-auth-token': token } })
-                      .then((res) => setOrders(res.data))
-                      .catch((err) => console.error(err));
+                  onOrderCreated={(newOrder) => {
+                    setOrders(prev => [newOrder, ...prev]);
+                    toast.success("Order punched to KDS!");
                   }} 
                 />
-              </motion.section>
+              </motion.div>
             )}
 
-            {/* Inventory Tab */}
+            {/* ========================================================= */}
+            {/* 5. INVENTORY & RECIPE DEPLETION                           */}
+            {/* ========================================================= */}
             {activeTab === 'inventory' && (
-              <motion.section key="inventory" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <InventoryRecipes tenantId={tenantId} menuItems={items} />
-              </motion.section>
+              <motion.div 
+                key="inventory" 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <InventoryRecipes orders={orders} />
+              </motion.div>
             )}
 
-            {/* CRM & Loyalty Tab */}
+            {/* ========================================================= */}
+            {/* 6. CRM & WHATSAPP GUEST LOYALTY                           */}
+            {/* ========================================================= */}
             {activeTab === 'crm' && (
-              <motion.section key="crm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <CRMLoyalty tenantId={tenantId} />
-              </motion.section>
+              <motion.div 
+                key="crm" 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <CRMLoyalty orders={orders} />
+              </motion.div>
             )}
 
-            {/* Table QR Codes Tab */}
+            {/* ========================================================= */}
+            {/* 7. TABLE QR CODES GENERATOR                               */}
+            {/* ========================================================= */}
             {activeTab === 'qrcodes' && (
-              <motion.section key="qrcodes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={styles.qrSection}>
-                <div className={styles.sectionHeader}>
-                  <h2>Table QR Codes Generator</h2>
-                </div>
-                <div className={styles.qrControls}>
-                  <label>Number of Tables (Max 30): </label>
-                  <input
-                    type="number"
-                    value={qrCount}
-                    onChange={(e) => setQrCount(e.target.value)}
-                    className={styles.inputSmall}
-                    max="30"
-                    min="1"
-                  />
-                  <button className={styles.actionBtn} onClick={() => { setGeneratedQrs(Number(qrCount)); toast.success(`Generated ${qrCount} Table QRs!`); }}>Generate QRs</button>
-                  <button className={styles.printBtn} onClick={() => window.print()}>Print All</button>
-                </div>
-                <div className={styles.qrGrid}>
-                  {Array.from({ length: generatedQrs }, (_, i) => i + 1).map((n) => (
-                    <div key={n} className={styles.qrCard}>
-                      <QRCodeComponent url={`${window.location.origin}/menu?table=${n}&tenant=${tenantId || 'demo'}`} />
-                      <h3>Table {n}</h3>
-                      <a href={`${window.location.origin}/menu?table=${n}&tenant=${tenantId || 'demo'}`} target="_blank" rel="noopener noreferrer" className={styles.qrLink}>
-                        Open Table Link
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </motion.section>
+              <motion.div 
+                key="qrcodes" 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <QRCodeComponent />
+              </motion.div>
+            )}
+
+            {/* ========================================================= */}
+            {/* 8. RESTAURANT SETTINGS                                    */}
+            {/* ========================================================= */}
+            {activeTab === 'settings' && (
+              <motion.div 
+                key="settings" 
+                initial={{ opacity: 0, y: 12 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <RestaurantSettings />
+              </motion.div>
             )}
 
           </AnimatePresence>
         </main>
       </div>
+
+      {/* DRAWER FOR ADDING / EDITING DISH */}
+      {isDrawerOpen && (
+        <div className={styles.drawerBackdrop} onClick={() => setIsDrawerOpen(false)}>
+          <motion.div 
+            initial={{ x: 400, opacity: 0 }} 
+            animate={{ x: 0, opacity: 1 }} 
+            exit={{ x: 400, opacity: 0 }}
+            className={styles.drawerContainer} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.drawerHeader}>
+              <h3>{editingItem ? 'Edit Dish' : 'Add New Dish'}</h3>
+              <button 
+                type="button" 
+                onClick={() => setIsDrawerOpen(false)}
+                className={styles.closeDrawerBtn}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDrawerItem} className={styles.drawerForm}>
+              <div className={styles.formGroup}>
+                <label>Dish Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Wagyu Truffle Burger"
+                  value={drawerForm.name}
+                  onChange={(e) => setDrawerForm({ ...drawerForm, name: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Description</label>
+                <textarea 
+                  rows={3}
+                  placeholder="Ingredients and flavour profile..."
+                  value={drawerForm.description}
+                  onChange={(e) => setDrawerForm({ ...drawerForm, description: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formRow2}>
+                <div className={styles.formGroup}>
+                  <label>Sale Price (₹) *</label>
+                  <input 
+                    type="number" 
+                    required
+                    placeholder="340"
+                    value={drawerForm.salePrice}
+                    onChange={(e) => setDrawerForm({ ...drawerForm, salePrice: e.target.value })}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Base / MRP Price (₹)</label>
+                  <input 
+                    type="number" 
+                    placeholder="380"
+                    value={drawerForm.basePrice}
+                    onChange={(e) => setDrawerForm({ ...drawerForm, basePrice: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Category</label>
+                <select 
+                  value={drawerForm.category}
+                  onChange={(e) => setDrawerForm({ ...drawerForm, category: e.target.value })}
+                >
+                  {standardCategories.filter(c => c.id !== 'all').map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Image URL</label>
+                <input 
+                  type="url" 
+                  placeholder="https://images.unsplash.com/..."
+                  value={drawerForm.image}
+                  onChange={(e) => setDrawerForm({ ...drawerForm, image: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formCheckboxRow}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={drawerForm.isVeg}
+                    onChange={(e) => setDrawerForm({ ...drawerForm, isVeg: e.target.checked })}
+                  />
+                  <span>Vegetarian Dish (Veg)</span>
+                </label>
+              </div>
+
+              <div className={styles.drawerActions}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsDrawerOpen(false)}
+                  className={styles.cancelBtn}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.saveBtn}
+                >
+                  Save Dish
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
     </div>
   );
 }
-
-export default AdminPanel;

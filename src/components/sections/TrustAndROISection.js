@@ -1,49 +1,138 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import ROICalculator from '../interactive/ROICalculator';
 import AnalyticsInteractivePreview from '../interactive/AnalyticsInteractivePreview';
+import { TrendingUp } from 'lucide-react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function TrustAndROISection({ onOpenDemo }) {
-  return (
-    <section className="py-24 bg-gradient-to-b from-slate-900/50 via-slate-950 to-slate-900/50 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.08),transparent_50%)] pointer-events-none" />
+  const sectionRef = useRef(null);
+  const headerRef = useRef(null);
+  const roiRef = useRef(null);
+  const analyticsHeaderRef = useRef(null);
+  const analyticsRef = useRef(null);
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-20">
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Header Animation
+      gsap.fromTo(
+        headerRef.current,
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headerRef.current,
+            start: "top 90%",
+            toggleActions: "play none none reverse"
+          }
+        }
+      );
+
+      // ROI Calculator Entrance
+      if (roiRef.current) {
+        gsap.fromTo(
+          roiRef.current,
+          { opacity: 0, y: 40, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: roiRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // Analytics Header & Preview Entrance
+      if (analyticsHeaderRef.current) {
+        gsap.fromTo(
+          analyticsHeaderRef.current,
+          { opacity: 0, y: 25 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.7,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: analyticsHeaderRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      if (analyticsRef.current) {
+        gsap.fromTo(
+          analyticsRef.current,
+          { opacity: 0, y: 45, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: analyticsRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section ref={sectionRef} style={{ padding: "100px 0", background: "var(--bg-card-subtle)", borderTop: "1px solid var(--border-subtle)", position: "relative" }}>
+      <div className="container">
+        
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4 tracking-wide uppercase">
-            Data-Driven Profit Engine
+        <div ref={headerRef} style={{ textAlign: "center", maxWidth: 760, margin: "0 auto 50px auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <div className="badge-pill badge-blue">
+            <TrendingUp style={{ width: 14, height: 14 }} />
+            <span>Data-Driven Profit Engine</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
-            Measurable ROI,{' '}
-            <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
-              Guaranteed from Day 1
-            </span>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
+            Measurable ROI, <span className="gradient-text">Guaranteed from Day 1</span>
           </h2>
-          <p className="mt-4 text-lg text-slate-400">
-            Calculate your estimated monthly revenue lift, reduced food waste, and labor savings with Serviq.
+          <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
+            Calculate your estimated monthly revenue lift, reduced ticket errors, and labor savings with SARVIQ.
           </p>
         </div>
 
-        {/* ROI Calculator Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-12">
-            <ROICalculator onOpenDemo={onOpenDemo} />
-          </div>
+        {/* ROI Calculator Component */}
+        <div ref={roiRef} style={{ marginBottom: 60 }}>
+          <ROICalculator onOpenDemoModal={onOpenDemo} />
         </div>
 
         {/* Live Analytics Dashboard Preview */}
-        <div className="pt-10 border-t border-slate-800">
-          <div className="text-center max-w-2xl mx-auto mb-10">
-            <h3 className="text-2xl sm:text-3xl font-bold text-white">
+        <div style={{ paddingTop: 40, borderTop: "1px solid var(--border-subtle)" }}>
+          <div ref={analyticsHeaderRef} style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 30px auto" }}>
+            <h3 style={{ fontSize: 24, fontWeight: 900, color: "var(--text-main)", margin: "0 0 8px 0" }}>
               Real-Time Visibility into Every Rupee & Order
             </h3>
-            <p className="text-slate-400 mt-2 text-sm sm:text-base">
+            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
               Monitor speed of service, top items, revenue channels, and staff performance in a unified live control room.
             </p>
           </div>
-          <AnalyticsInteractivePreview />
+          <div ref={analyticsRef}>
+            <AnalyticsInteractivePreview />
+          </div>
         </div>
+
       </div>
     </section>
   );

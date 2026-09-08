@@ -89,7 +89,7 @@ const TenantRegister = () => {
                 <div className={styles.formSide}>
                     <div className={styles.header}>
                         <h2>Create Cafe Account</h2>
-                        <p>Join 500+ restaurants growing with RASTRORATO</p>
+                        <p>Join 500+ restaurants growing with SARVIQ</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className={styles.form}>

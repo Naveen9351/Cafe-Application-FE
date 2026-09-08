@@ -1,110 +1,276 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   QrCode,
   ArrowRight,
-  Zap,
-  Sliders,
-  RefreshCw,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  CheckCircle2,
+  Zap
 } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import GuidedQRExperience from "../interactive/GuidedQRExperience";
+import ScannableQRWidget from "../interactive/ScannableQRWidget";
+import { FLAGSHIP_PRODUCTS } from "../../data/productsData";
+import styles from "../../styles/FlagshipSections.module.css";
 
-export default function FlagshipQROrderingSection({ onOpenDemoModal }) {
-  const features = [
-    {
-      title: "Unique QR Code for Every Table",
-      desc: "Assign custom stands or decals to every booth, high-top, or patio table. Orders automatically carry the exact table identity.",
-      icon: QrCode
-    },
-    {
-      title: "Photo-Rich Menus & Modifiers",
-      desc: "Let guests select steak temperatures, swap sides, add extra sauces, or specify custom allergy exclusions with clear imagery in ₹.",
-      icon: Sliders
-    },
-    {
-      title: "No App Download Friction",
-      desc: "Opens instantly in mobile Safari or Chrome in under 1 second without forcing account creation, downloads, or passwords.",
-      icon: Zap
-    },
-    {
-      title: "Instant 86-Item Menu Control",
-      desc: "Sold-out dishes can be toggled off immediately from any smartphone or tablet to prevent disappointed diners.",
-      icon: RefreshCw
-    }
-  ];
+gsap.registerPlugin(ScrollTrigger);
+
+export default function FlagshipQROrderingSection({ onOpenDemo }) {
+  const qrProduct = FLAGSHIP_PRODUCTS[0];
+  const sectionRef = useRef(null);
+  const headerRef = useRef(null);
+  const spotlightsRef = useRef(null);
+  const widgetRef = useRef(null);
+  const guidedRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Header Animation
+      gsap.fromTo(
+        headerRef.current,
+        { opacity: 0, y: 35 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headerRef.current,
+            start: "top 90%",
+            toggleActions: "play none none reverse"
+          }
+        }
+      );
+
+      // Spotlight Image Cards Stagger & 3D tilt entrance
+      if (spotlightsRef.current) {
+        gsap.fromTo(
+          spotlightsRef.current.children,
+          { opacity: 0, y: 40, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.8,
+            stagger: 0.2,
+            ease: "back.out(1.4)",
+            scrollTrigger: {
+              trigger: spotlightsRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // Live Scannable Widget
+      if (widgetRef.current) {
+        gsap.fromTo(
+          widgetRef.current,
+          { opacity: 0, y: 45 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: widgetRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // Guided Simulator Box
+      if (guidedRef.current) {
+        gsap.fromTo(
+          guidedRef.current,
+          { opacity: 0, y: 50 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: guidedRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section id="qr-ordering" className="py-16 relative bg-white border-t border-slate-200 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-12">
-        {/* Section Header */}
-        <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200">
-            <Sparkles className="w-3 h-3 text-orange-600" /> Front-of-House Dining
+    <section ref={sectionRef} className={`${styles.section} ${styles.sectionLight}`}>
+      <div className="container">
+        
+        {/* Header Row */}
+        <div ref={headerRef} className={styles.headerRow}>
+          <div className={styles.headerLeft}>
+            <div className="badge-pill badge-blue">
+              <QrCode style={{ width: 14, height: 14 }} />
+              <span>{qrProduct.badge} • Flagship Innovation</span>
+            </div>
+            <h2 className={styles.title}>
+              {qrProduct.name}
+            </h2>
+            <p className={styles.desc}>
+              {qrProduct.description}
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight m-0">
-            QR Table Ordering.{" "}
-            <span className="text-orange-600 bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent block mt-1">
-              Delight Guests. Accelerate Table Turns.
-            </span>
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium m-0">
-            Replace slow physical menus with a frictionless digital ordering experience. 
-            Diners browse vivid dish photography, configure modifiers effortlessly, and submit orders directly from their seats.
-          </p>
-        </div>
 
-        {/* Interactive 4-Step Guided QR Stepper + Phone Experience */}
-        <GuidedQRExperience />
-
-        {/* Features 4-Grid & Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-          {features.map((f, idx) => {
-            const Icon = f.icon;
-            return (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-orange-300 hover:shadow-xs transition-all space-y-1.5"
-              >
-                <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-xs font-bold text-slate-900 m-0">{f.title}</h3>
-                <p className="text-[11px] text-slate-600 leading-relaxed font-medium m-0">{f.desc}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          {onOpenDemoModal ? (
+          <div className={styles.headerActions}>
             <button
-              type="button"
-              onClick={onOpenDemoModal}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 shadow-md shadow-orange-500/25 hover:scale-[1.01] transition-all flex items-center gap-1.5 cursor-pointer border-0"
+              onClick={onOpenDemo}
+              className="btn-electric"
+              style={{ fontSize: 13, padding: "12px 24px" }}
             >
-              <span>Book QR Ordering Demo</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Schedule QR Walkthrough</span>
+              <ArrowRight style={{ width: 15, height: 15 }} />
             </button>
-          ) : (
             <Link
-              to="/demo"
-              className="px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 shadow-md shadow-orange-500/25 hover:scale-[1.01] transition-all flex items-center gap-1.5 no-underline"
+              to="/menu"
+              className="btn-white"
+              style={{ fontSize: 13, padding: "12px 20px" }}
             >
-              <span>Book QR Ordering Demo</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Open Full Screen QR Menu</span>
+              <ArrowRight style={{ width: 14, height: 14 }} />
             </Link>
-          )}
-
-          <Link
-            to="/menu"
-            className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-50 border border-slate-200 transition-colors flex items-center gap-1 shadow-2xs no-underline"
-          >
-            <span>Live Guest Menu Preview</span>
-            <ArrowRight className="w-3 h-3" />
-          </Link>
+          </div>
         </div>
+
+        {/* Visual Spotlight Grid with Interactive Hover Transforms */}
+        <div
+          ref={spotlightsRef}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 20,
+            marginBottom: 32
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 'var(--radius-xl)',
+              overflow: 'hidden',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-md)',
+              position: 'relative',
+              height: 200,
+              background: '#f8fafc',
+              transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 20px 40px -10px rgba(37,99,235,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            }}
+          >
+            <img
+              src="https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80"
+              alt="Gourmet Food Experience"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: '12px 18px',
+                background: 'linear-gradient(to top, rgba(15,23,42,0.9), rgba(15,23,42,0.4) 60%, transparent)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}
+            >
+              <Sparkles style={{ width: 14, height: 14, color: '#60a5fa' }} />
+              Visual Dish Descriptions & AI Modifiers
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderRadius: 'var(--radius-xl)',
+              overflow: 'hidden',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-md)',
+              position: 'relative',
+              height: 200,
+              background: '#f8fafc',
+              transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 20px 40px -10px rgba(16,185,129,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            }}
+          >
+            <img
+              src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80"
+              alt="Artisan Dining"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: '12px 18px',
+                background: 'linear-gradient(to top, rgba(15,23,42,0.9), rgba(15,23,42,0.4) 60%, transparent)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}
+            >
+              <Zap style={{ width: 14, height: 14, color: '#34d399' }} />
+              Instant UPI Table Settlement (GPay / PhonePe)
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Interactive Showcases */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          {/* Live Scannable Real Camera QR Card */}
+          <div ref={widgetRef}>
+            <ScannableQRWidget />
+          </div>
+
+          {/* Guided Step Walkthrough Card */}
+          <div ref={guidedRef} className={styles.cardContainer}>
+            <div className={styles.cardHeader}>
+              <span style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>
+                Live Interactive Ordering Stage Simulator
+              </span>
+              <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>
+                Interactive
+              </span>
+            </div>
+
+            <GuidedQRExperience />
+          </div>
+        </div>
+
       </div>
     </section>
   );

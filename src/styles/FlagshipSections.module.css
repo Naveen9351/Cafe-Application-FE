@@ -1,0 +1,124 @@
+/* FlagshipSections CSS Module */
+.section {
+  padding: 100px 0;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sectionLight {
+  background: var(--bg-card-subtle);
+}
+
+.sectionWhite {
+  background: #ffffff;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 50px;
+}
+
+.headerLeft {
+  max-width: 700px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 900;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 12px 0 16px 0;
+}
+
+.desc {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.headerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.showcaseGrid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 36px;
+}
+
+.metricCard {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.25s ease;
+}
+
+.metricCard:hover {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.metricValue {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--color-primary);
+  margin-bottom: 6px;
+}
+
+.metricTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.metricDesc {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.cardContainer {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 1024px) {
+  .headerRow { flex-direction: column; align-items: flex-start; }
+  .showcaseGrid { grid-template-columns: 1fr; }
+  .metricsRow { grid-template-columns: 1fr; }
+}

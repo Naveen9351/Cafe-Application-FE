@@ -2,42 +2,42 @@ import React from 'react';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
 import LeadCaptureForm from './interactive/LeadCaptureForm';
-import { CheckCircle2, ShieldCheck, Sparkles, PhoneCall, Clock, Calendar } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Sparkles, Clock, Calendar } from 'lucide-react';
 
 export default function BookDemoPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white antialiased">
-      <Navbar onOpenDemo={() => {}} />
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+      <Navbar onOpenDemoModal={() => {}} />
 
-      <main className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+      <main style={{ padding: '140px 20px 80px 20px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 48, alignItems: 'start' }}>
           
           {/* Left Column: Value proposition */}
-          <div className="lg:col-span-5 space-y-8">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-4">
-                <Sparkles className="w-3.5 h-3.5" />
-                Live 1-on-1 Product Demo
+              <div className="badge-pill badge-blue" style={{ marginBottom: 16 }}>
+                <Sparkles style={{ width: 14, height: 14 }} />
+                <span>Live 1-on-1 Product Demo</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-                Experience the Power of Serviq for Your Food Outlet
+              <h1 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+                Experience the Velocity of SARVIQ for Your Food Outlet
               </h1>
-              <p className="mt-4 text-slate-400 text-base leading-relaxed">
-                Schedule a 15-minute customized walkthrough with our restaurant technology engineers. See how Serviq solves rush-hour bottlenecks, speeds up kitchen output, and maximizes table turnover.
+              <p style={{ marginTop: 16, fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                Schedule a 15-minute customized walkthrough with our restaurant technology engineers. See how SARVIQ solves rush-hour bottlenecks, speeds up kitchen throughput, and maximizes table turnover.
               </p>
             </div>
 
             {/* What to expect list */}
-            <div className="space-y-4 pt-4 border-t border-slate-800">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
                 What happens during the demo?
-              </h3>
+              </div>
               
-              <div className="space-y-3.5">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[
                   {
                     title: 'Tailored Workflow Audit',
-                    desc: 'We review your seating capacity, kitchen stations, and existing billing hardware.',
+                    desc: 'We review your table capacity, kitchen stations, and existing billing hardware.',
                   },
                   {
                     title: 'Live QR & KDS Demonstration',
@@ -52,13 +52,13 @@ export default function BookDemoPage() {
                     desc: 'Get exact pricing tailored to your restaurant count with zero lock-in contracts.',
                   },
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 'var(--radius-sm)', background: 'var(--color-primary-light)', border: '1px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                      <CheckCircle2 style={{ width: 15, height: 15, color: 'var(--color-primary)' }} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">{item.title}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{item.desc}</p>
+                      <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{item.title}</h4>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0 0', lineHeight: 1.4 }}>{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -66,28 +66,26 @@ export default function BookDemoPage() {
             </div>
 
             {/* Quick trust metrics */}
-            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-cyan-400" />
+            <div className="card-luxury" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Clock style={{ width: 16, height: 16, color: 'var(--color-primary)' }} />
                 <span>15 Min Session</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-emerald-400" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Calendar style={{ width: 16, height: 16, color: 'var(--color-emerald)' }} />
                 <span>Same-Day Availability</span>
               </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-indigo-400" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ShieldCheck style={{ width: 16, height: 16, color: 'var(--color-indigo)' }} />
                 <span>No Commitment</span>
               </div>
             </div>
           </div>
 
           {/* Right Column: Interactive Form */}
-          <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-xl relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-            
-            <h2 className="text-2xl font-bold text-white mb-2">Request Your Demo</h2>
-            <p className="text-slate-400 text-sm mb-8">
+          <div className="card-luxury" style={{ padding: '36px 32px' }}>
+            <h2 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-main)', margin: '0 0 8px 0' }}>Request Your Demo</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 24px 0', lineHeight: 1.5 }}>
               Fill in your outlet details below. A restaurant tech specialist will reach out within 30 minutes.
             </p>
 
@@ -97,7 +95,7 @@ export default function BookDemoPage() {
         </div>
       </main>
 
-      <Footer onOpenDemo={() => {}} />
+      <Footer onOpenDemoModal={() => {}} />
     </div>
   );
 }

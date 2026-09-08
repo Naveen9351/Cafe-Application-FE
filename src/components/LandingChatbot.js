@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Sparkles, X, Send, Bot, MessageSquare, ArrowRight, CornerDownLeft } from 'lucide-react';
-import BrandLogo from './BrandLogo';
+import { Sparkles, X, Send, Bot, MessageSquare, ArrowRight, CornerDownLeft, CheckCircle2, Phone, Zap } from 'lucide-react';
+import styles from '../styles/Chatbot.module.css';
 
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
   : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
-export default function LandingChatbot() {
+export default function LandingChatbot({ onOpenDemo }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: `Hello! 👋 I'm the **RASTRORATO AI Concierge**.\n\nI'm here to help you understand how RASTRORATO can power your restaurant, cafe, or cloud kitchen.\n\nAsk me anything about features, pricing plans, hardware support, or booking a live demo!`
+      text: `Hello! 👋 Welcome to **SARVIQ**.\n\nI am your AI Restaurant Growth Specialist. Ask me anything about our **Zero-Latency QR Menus**, **Real-Time KDS Displays**, **Indian UPI Payments**, or **Pricing Plans (₹)**!`
     }
   ]);
 
@@ -45,268 +45,167 @@ export default function LandingChatbot() {
       if (response.data && response.data.reply) {
         setMessages(prev => [...prev, { role: 'assistant', text: response.data.reply }]);
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', text: "I'm having trouble connecting right now. Please try again!" }]);
+        throw new Error('No reply');
       }
     } catch (err) {
-      console.error("Chatbot request error:", err);
-      // Fallback local response
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: `RASTRORATO is the all-in-one operating system for high-growth dining! It includes fast POS billing, live kitchen KDS, recipe inventory & POs, and 0% commission QR ordering. You can launch a 14-day free trial on the top right!`
-        }
-      ]);
+      // Intelligent fallback responses based on intent
+      const lower = textToSend.toLowerCase();
+      let reply = '';
+      if (lower.includes('price') || lower.includes('cost') || lower.includes('rupee') || lower.includes('plan')) {
+        reply = `**SARVIQ Pricing Plans (in ₹ INR)**:\n\n• **Starter (₹1,499/mo)**: Digital QR Menu, Live Kitchen KDS, UPI Instant Payments, up to 10 tables.\n• **Growth Pro (₹2,999/mo)**: Multi-station line routing, Recipe-level Inventory, Real-Time Analytics, unlimited tables.\n• **Enterprise (₹5,999/mo)**: Multi-location Franchise OS, Central Menu Sync, 24/7 SLA.\n\nWould you like to book a 1-on-1 walkthrough?`;
+      } else if (lower.includes('qr') || lower.includes('menu') || lower.includes('order')) {
+        reply = `**SARVIQ QR Dining** allows guests to scan table-specific QR codes with zero app downloads. They can view high-res visual menus, customize toppings/variants, and order with instant UPI payments. Orders route immediately to the kitchen KDS in < 50ms!`;
+      } else if (lower.includes('kds') || lower.includes('kitchen') || lower.includes('kot')) {
+        reply = `**SARVIQ Kitchen Display System (KDS)** replaces paper tickets completely! Orders appear instantly with color-coded SLA timers. Chefs can filter by station (Grill, Bar, Fryer, Bakery) and tap to notify floor staff when plated.`;
+      } else if (lower.includes('demo') || lower.includes('trial') || lower.includes('book')) {
+        reply = `We'd love to show you SARVIQ in action! Click the **'Schedule Demo'** button below or choose a preferred date/time on our demo booking page.`;
+      } else {
+        reply = `Thank you for asking! SARVIQ provides an autonomous operating system for modern restaurants in India — uniting QR digital ordering, multi-station KDS, recipe inventory depletion, and UPI billing into a single cloud console. Would you like to schedule a 15-minute live demo?`;
+      }
+      setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
     } finally {
       setLoading(false);
     }
   };
 
   const quickPrompts = [
-    "What is RASTRORATO?",
-    "Show me pricing plans",
-    "Does it work with my thermal printer?",
-    "How does the KDS kitchen screen work?",
+    "How does QR Table Ordering work?",
+    "What are the pricing plans in ₹?",
+    "Does it support Kitchen KDS?",
+    "How do I book a live demo?"
   ];
 
   return (
-    <div style={{ position: 'fixed', bottom: 'clamp(12px, 3vw, 24px)', right: 'clamp(12px, 3vw, 24px)', zIndex: 999 }}>
-      
-      {/* ── 1. FLOATING TRIGGER BUTTON ── */}
+    <div className={styles.floatingContainer}>
+      {/* Floating Trigger Button */}
       {!isOpen && (
-        <motion.button
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.95 }}
+        <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.55rem',
-            background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '100px',
-            padding: 'clamp(0.65rem, 2vw, 0.85rem) clamp(1rem, 3vw, 1.4rem)',
-            fontWeight: '800',
-            fontSize: 'clamp(0.82rem, 2vw, 0.92rem)',
-            cursor: 'pointer',
-            boxShadow: '0 8px 30px rgba(5, 150, 105, 0.4), 0 0 20px rgba(5, 150, 105, 0.2)',
-            outline: 'none',
-          }}
+          className={styles.triggerBtn}
+          aria-label="Open SARVIQ AI Concierge"
         >
-          <Sparkles size={16} color="#fde68a" />
-          <span>Ask RASTRORATO AI</span>
-          <span style={{
-            width: '7px',
-            height: '7px',
-            borderRadius: '50%',
-            backgroundColor: '#34d399',
-            boxShadow: '0 0 8px #34d399',
-          }} />
-        </motion.button>
+          <div className={styles.pulseRing} />
+          <Bot style={{ width: 17, height: 17 }} />
+          <span>SARVIQ AI Concierge</span>
+          <Sparkles style={{ width: 13, height: 13, opacity: 0.8 }} />
+        </button>
       )}
 
-      {/* ── 2. EXPANDED CHATBOT WINDOW ── */}
+      {/* Interactive Chat Window Drawer */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            style={{
-              width: 'min(390px, calc(100vw - 24px))',
-              height: 'min(560px, calc(100vh - 70px))',
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 35px rgba(5, 150, 105, 0.08)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              fontFamily: "'Outfit', 'Inter', sans-serif",
-            }}
-          >
+          <div className={styles.chatWindow}>
             {/* Header */}
-            <div style={{
-              padding: '1rem 1.25rem',
-              backgroundColor: '#f8fafc',
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <BrandLogo theme="light" size="sm" showText={false} />
+            <div className={styles.chatHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bot style={{ width: 18, height: 18 }} />
+                </div>
                 <div>
-                  <div style={{ fontWeight: '900', fontSize: '0.98rem', color: '#0f172a', lineHeight: 1.2 }}>
-                    RASTRORATO AI
+                  <div style={{ fontWeight: 900, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>SARVIQ AI Concierge</span>
+                    <span style={{ fontSize: 9, fontWeight: 900, background: 'var(--color-emerald)', color: '#ffffff', padding: '1px 5px', borderRadius: 4 }}>ONLINE</span>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669' }} />
-                    Product Concierge
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)' }}>
+                    Ask about QR, KDS, Stock & Pricing
                   </div>
                 </div>
               </div>
 
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#ffffff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Close Chat"
               >
-                <X size={16} />
+                <X style={{ width: 16, height: 16 }} />
               </button>
             </div>
 
-            {/* Quick Prompt Chips */}
-            <div style={{
-              padding: '0.6rem 0.85rem',
-              backgroundColor: '#ffffff',
-              borderBottom: '1px solid #f1f5f9',
-              display: 'flex',
-              gap: '0.45rem',
-              overflowX: 'auto',
-              whiteSpace: 'nowrap',
-              scrollbarWidth: 'none',
-            }}>
-              {quickPrompts.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handleSend(p)}
-                  style={{
-                    backgroundColor: 'rgba(5, 150, 105, 0.08)',
-                    border: '1px solid rgba(5, 150, 105, 0.2)',
-                    borderRadius: '100px',
-                    padding: '0.3rem 0.75rem',
-                    fontSize: '0.74rem',
-                    fontWeight: '700',
-                    color: '#059669',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#059669'; e.currentTarget.style.color = '#ffffff'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5, 150, 105, 0.08)'; e.currentTarget.style.color = '#059669'; }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-
-            {/* Message Log */}
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.85rem',
-              backgroundColor: '#fafbfc',
-            }}>
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
-                    padding: '0.75rem 1rem',
-                    borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    backgroundColor: m.role === 'user' ? '#059669' : '#ffffff',
-                    color: m.role === 'user' ? '#ffffff' : '#1e293b',
-                    fontSize: '0.84rem',
-                    lineHeight: '1.55',
-                    border: m.role === 'user' ? 'none' : '1px solid #e2e8f0',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {m.text}
-                </div>
-              ))}
+            {/* Message Stream */}
+            <div className={styles.messageStream}>
+              {messages.map((msg, index) => {
+                const isAssistant = msg.role === 'assistant';
+                return (
+                  <div
+                    key={index}
+                    className={isAssistant ? styles.msgBubbleAssistant : styles.msgBubbleUser}
+                  >
+                    {msg.text}
+                  </div>
+                );
+              })}
 
               {loading && (
-                <div style={{
-                  alignSelf: 'flex-start',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  padding: '0.65rem 1rem',
-                  borderRadius: '16px 16px 16px 4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontSize: '0.8rem',
-                  color: '#64748b',
-                }}>
-                  <Sparkles size={14} color="#059669" />
-                  <span>Thinking...</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-subtle)', padding: 8 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-primary)' }} />
+                  <span>SARVIQ AI is typing...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Footer */}
+            {/* Quick Prompt Chips */}
+            <div className={styles.quickPromptsBar}>
+              {quickPrompts.map((prompt, idx) => (
+                <button
+                  type="button"
+                  key={idx}
+                  onClick={() => handleSend(prompt)}
+                  className={styles.promptChip}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            {/* Input Bar */}
             <form
-              onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-              style={{
-                padding: '0.75rem 1rem',
-                backgroundColor: '#ffffff',
-                borderTop: '1px solid #e2e8f0',
-                display: 'flex',
-                gap: '0.5rem',
-                alignItems: 'center',
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
               }}
+              className={styles.inputBar}
             >
               <input
                 type="text"
-                placeholder="Ask anything about RASTRORATO..."
+                placeholder="Ask anything about SARVIQ..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '10px',
-                  backgroundColor: '#f8fafc',
-                  border: '1.5px solid #e2e8f0',
-                  color: '#0f172a',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                }}
+                className={styles.inputField}
               />
               <button
                 type="submit"
-                disabled={loading || !query.trim()}
-                style={{
-                  backgroundColor: query.trim() ? '#059669' : '#e2e8f0',
-                  color: query.trim() ? '#ffffff' : '#94a3b8',
-                  border: 'none',
-                  borderRadius: '10px',
-                  padding: '0.65rem 0.85rem',
-                  cursor: query.trim() ? 'pointer' : 'default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
-                }}
+                disabled={!query.trim() || loading}
+                className={styles.sendBtn}
               >
-                <Send size={15} />
+                <Send style={{ width: 15, height: 15 }} />
               </button>
             </form>
 
-          </motion.div>
+            {/* Book Demo Shortcut Footer */}
+            {onOpenDemo && (
+              <div style={{ padding: '8px 14px', background: 'var(--color-primary-light)', borderTop: '1px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
+                <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
+                  Ready to see SARVIQ in action?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onOpenDemo();
+                  }}
+                  className="btn-electric"
+                  style={{ padding: '4px 10px', fontSize: 10 }}
+                >
+                  Schedule Demo →
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

@@ -13,7 +13,7 @@ import FAQSection from './sections/FAQSection';
 import CTASection from './sections/CTASection';
 import LeadCaptureModal from './interactive/LeadCaptureModal';
 import LiveActivityToast from './interactive/LiveActivityToast';
-import WhatsAppFloatButton from './interactive/WhatsAppFloatButton';
+import LandingChatbot from './LandingChatbot';
 
 export default function LandingPage() {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
@@ -22,19 +22,19 @@ export default function LandingPage() {
   const handleCloseDemo = () => setIsDemoModalOpen(false);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white antialiased overflow-x-hidden">
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--bg-main)", color: "var(--text-main)", overflowX: "hidden" }}>
       {/* Top sticky navigation */}
-      <Navbar onOpenDemo={handleOpenDemo} />
+      <Navbar onOpenDemoModal={handleOpenDemo} />
 
       {/* Main Landing Page Sections */}
       <main>
-        {/* 1. Hero Section with Connected Simulator */}
+        {/* 1. Hero Section with GSAP motion, Rotating Headline & Connected Simulator */}
         <HeroSection onOpenDemo={handleOpenDemo} />
 
-        {/* 2. Connected End-to-End Workflow */}
+        {/* 2. Infinite Connected Automation Loop Workflow */}
         <ConnectedWorkflowSection />
 
-        {/* 3. Flagship QR Table Ordering Showcase */}
+        {/* 3. Flagship QR Table Dining Showcase */}
         <FlagshipQROrderingSection onOpenDemo={handleOpenDemo} />
 
         {/* 4. Flagship Zero-Latency Kitchen Display System (KDS) */}
@@ -43,7 +43,7 @@ export default function LandingPage() {
         {/* 5. Before vs After Comparison */}
         <BeforeAfterSection />
 
-        {/* 6. Comprehensive Ecosystem (FOH, BOH, Analytics) */}
+        {/* 6. Comprehensive Ecosystem (FOH, BOH, AI Intelligence) */}
         <EcosystemSection />
 
         {/* 7. Measurable ROI & Live Analytics Preview */}
@@ -55,23 +55,23 @@ export default function LandingPage() {
         {/* 9. Frequently Asked Questions */}
         <FAQSection onOpenDemo={handleOpenDemo} />
 
-        {/* 10. Call to Action (Free Trial & Walkthrough) */}
+        {/* 10. High-Impact Call to Action */}
         <CTASection onOpenDemo={handleOpenDemo} />
       </main>
 
       {/* Footer */}
       <Footer onOpenDemo={handleOpenDemo} />
 
-      {/* Interactive Global Overlays & Modals */}
+      {/* Interactive Overlays & Dedicated AI Concierge (Zero Overlap) */}
       <LeadCaptureModal
         isOpen={isDemoModalOpen}
         onClose={handleCloseDemo}
-        title="Schedule a Personalized 1-on-1 Walkthrough"
-        subtitle="See how Serviq cuts table turn times and automates your kitchen in under 15 minutes."
+        title="Schedule a Personalized SARVIQ Walkthrough"
+        subtitle="See how SARVIQ cuts table turn times and automates your kitchen in under 15 minutes."
       />
 
       <LiveActivityToast />
-      <WhatsAppFloatButton onOpenDemo={handleOpenDemo} />
+      <LandingChatbot onOpenDemo={handleOpenDemo} />
     </div>
   );
 }

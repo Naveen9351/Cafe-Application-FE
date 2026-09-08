@@ -4,7 +4,7 @@ import { Layers, Package, Truck, AlertTriangle, Trash2, Plus, Sparkles } from 'l
 import toast from 'react-hot-toast';
 import styles from './InventoryRecipes.module.css';
 
-export default function InventoryRecipes({ tenantId, menuItems }) {
+export default function InventoryRecipes({ tenantId, menuItems = [], orders = [] }) {
   const [activeSubTab, setActiveSubTab] = useState('ingredients');
   const [ingredients, setIngredients] = useState([]);
   const [suppliers, setSuppliers] = useState([]);

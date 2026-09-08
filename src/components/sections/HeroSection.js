@@ -1,130 +1,307 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
   Sparkles,
   Utensils,
-  Clock,
   TrendingUp,
   Flame,
-  Store
+  Zap,
+  QrCode,
+  ShieldCheck,
+  Award
 } from "lucide-react";
+import { gsap } from "gsap";
 import LiveConnectedSimulator from "../interactive/LiveConnectedSimulator";
+import styles from "../../styles/HeroSection.module.css";
 
-export default function HeroSection({ onOpenDemoModal }) {
-  const marqueeItems = [
-    { label: "Fine Casual Bistros & Cafes", icon: Utensils },
-    { label: "< 8m Avg Kitchen Prep Time", icon: Clock },
-    { label: "+18% Check Size via Modifiers", icon: TrendingUp },
-    { label: "Multi-Station Line Splitting", icon: Flame },
-    { label: "100% Paperless KOTs", icon: Sparkles },
-    { label: "Zero App Download for Guests", icon: CheckCircle2 }
-  ];
+const ROTATING_PHRASES = [
+  "Scale High-Speed Kitchens",
+  "Table QR to Kitchen Line",
+  "Recipe-Level Stock Automation",
+  "Maximize Table Velocity",
+  "Zero-Latency KDS Queues"
+];
+
+const MARQUEE_ITEMS = [
+  { label: "Bistros, Cafes & Fine Dining", icon: Utensils },
+  { label: "< 50ms KOT Dispatch", icon: Zap },
+  { label: "+24% Check Size via Modifiers", icon: TrendingUp },
+  { label: "Multi-Station Kitchen Balancing", icon: Flame },
+  { label: "Recipe-Level Stock Depletion", icon: Sparkles },
+  { label: "UPI & Zero App Downloads", icon: CheckCircle2 },
+  { label: "AI-Powered Upsell Engine", icon: Sparkles },
+  { label: "Real-Time BI Dashboard", icon: TrendingUp },
+  { label: "Zomato & Swiggy Integration", icon: Utensils },
+  { label: "WhatsApp Order Receipts", icon: CheckCircle2 }
+];
+
+export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
+  const triggerDemo = onOpenDemo || onOpenDemoModal;
+
+  // Typewriter states
+  const [displayText, setDisplayText] = useState("");
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [typingSpeed, setTypingSpeed] = useState(60);
+
+  const heroRef = useRef(null);
+  const badgeRef = useRef(null);
+  const titleRef = useRef(null);
+  const subtitleRef = useRef(null);
+  const ctaRef = useRef(null);
+  const consoleRef = useRef(null);
+  const showcaseRef = useRef(null);
+  const marqueeRef = useRef(null);
+  const trustRef = useRef(null);
+
+  // GSAP Entrance Timeline
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+      tl.fromTo(
+        badgeRef.current,
+        { opacity: 0, y: -20, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.7 }
+      )
+        .fromTo(
+          titleRef.current,
+          { opacity: 0, y: 25 },
+          { opacity: 1, y: 0, duration: 0.8 },
+          "-=0.4"
+        )
+        .fromTo(
+          subtitleRef.current,
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.7 },
+          "-=0.5"
+        )
+        .fromTo(
+          ctaRef.current,
+          { opacity: 0, y: 20, scale: 0.98 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.6 },
+          "-=0.4"
+        )
+        .fromTo(
+          trustRef.current,
+          { opacity: 0, y: 12 },
+          { opacity: 1, y: 0, duration: 0.5 },
+          "-=0.3"
+        )
+        .fromTo(
+          showcaseRef.current?.children || [],
+          { opacity: 0, y: 30, scale: 0.95 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.15, ease: "back.out(1.4)" },
+          "-=0.3"
+        )
+        .fromTo(
+          consoleRef.current,
+          { opacity: 0, y: 35, scale: 0.98 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: "power2.out" },
+          "-=0.4"
+        )
+        .fromTo(
+          marqueeRef.current,
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.5 },
+          "-=0.3"
+        );
+    }, heroRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  // Character-by-character typewriter loop
+  useEffect(() => {
+    const currentPhrase = ROTATING_PHRASES[phraseIndex];
+
+    const handleType = () => {
+      if (!isDeleting) {
+        setDisplayText(currentPhrase.substring(0, displayText.length + 1));
+        setTypingSpeed(45);
+
+        if (displayText.length + 1 === currentPhrase.length) {
+          setTimeout(() => setIsDeleting(true), 2200);
+        }
+      } else {
+        setDisplayText(currentPhrase.substring(0, displayText.length - 1));
+        setTypingSpeed(25);
+
+        if (displayText.length === 0) {
+          setIsDeleting(false);
+          setPhraseIndex((prev) => (prev + 1) % ROTATING_PHRASES.length);
+          setTypingSpeed(300);
+        }
+      }
+    };
+
+    const timer = setTimeout(handleType, typingSpeed);
+    return () => clearTimeout(timer);
+  }, [displayText, isDeleting, phraseIndex, typingSpeed]);
+
+  // Doubled items for seamless marquee loop
+  const doubledMarquee = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
 
   return (
-    <section className="relative pt-24 pb-14 md:pt-28 md:pb-18 overflow-hidden bg-slate-50/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-8">
-        {/* Main Hero Header Content */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          {/* Top Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-700 shadow-2xs backdrop-blur-md hover:border-orange-300 transition-colors">
-            <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-ping" />
-            <span className="text-orange-600 font-extrabold">SERVIQ</span>
-            <span className="text-slate-400">•</span>
-            <span>The Operating System for Indian Dining & Cafes</span>
+    <section ref={heroRef} className={styles.heroSection}>
+      {/* Ambient Lighting Cones */}
+      <div className={styles.ambientCone1} />
+      <div className={styles.ambientCone2} />
+
+      <div className="container">
+        
+        {/* Main Hero Header */}
+        <div className={styles.heroContent}>
+          
+          {/* Top Badge */}
+          <div ref={badgeRef} className={styles.heroBadge}>
+            <span className={styles.pulseDot} />
+            <span>SARVIQ 2026 AI OS • Autonomous Restaurant Platform</span>
           </div>
 
-          {/* Main Headline */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.15] m-0">
-            Turn Tables Faster.{" "}
-            <span className="text-orange-600 bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent block mt-1">
-              From Table QR to Kitchen Line.
+          {/* Dynamic Headline with Active Typewriter */}
+          <h1 ref={titleRef} className={styles.heroTitle}>
+            The Autonomous OS for{" "}
+            <br />
+            <span className={`${styles.typingPhrase} gradient-text`}>
+              {displayText}
+              <span className={styles.typeCursor}>|</span>
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed m-0">
-            Everything your cafe, bistro, and dining room need in one connected console. 
-            Guests order effortlessly via <strong className="text-slate-900 font-bold">QR Table Menus</strong> in Indian Rupees (₹), 
-            tickets route instantly to your <strong className="text-slate-900 font-bold">Kitchen Display Screens</strong>, 
-            and your operations run smoothly through every weekend rush.
+          <p ref={subtitleRef} className={styles.heroSubtitle}>
+            Eliminate server wait times, coordinate multi-station kitchens with sub-50ms KDS queues, and automate raw ingredient stock depletion — all unified in one cloud console.
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
-            {onOpenDemoModal ? (
+          {/* Action CTAs */}
+          <div ref={ctaRef} className={styles.heroCtas}>
+            {triggerDemo ? (
               <button
                 type="button"
-                onClick={onOpenDemoModal}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 shadow-md shadow-orange-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer border-0"
+                onClick={triggerDemo}
+                className="btn-electric"
+                style={{ padding: "12px 24px", fontSize: 13 }}
               >
-                <span>Book a Free Demo</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Book a 15-Min Live Demo</span>
+                <ArrowRight style={{ width: 15, height: 15 }} />
               </button>
             ) : (
               <Link
                 to="/demo"
-                className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 shadow-md shadow-orange-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 no-underline"
+                className="btn-electric"
+                style={{ padding: "12px 24px", fontSize: 13 }}
               >
-                <span>Book a Free Demo</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Book a 15-Min Live Demo</span>
+                <ArrowRight style={{ width: 15, height: 15 }} />
               </Link>
             )}
 
             <Link
-              to="/register"
-              className="w-full sm:w-auto px-5 py-3 rounded-xl font-bold text-xs text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 shadow-2xs transition-all flex items-center justify-center gap-1.5 no-underline"
+              to="/menu"
+              className="btn-white"
+              style={{ padding: "12px 20px", fontSize: 13 }}
             >
-              <Store className="w-3.5 h-3.5 text-orange-600" />
-              <span>Start 14-Day Free Trial</span>
+              <QrCode style={{ width: 15, height: 15, color: "var(--color-emerald)" }} />
+              <span>Test Live Customer QR Menu</span>
             </Link>
 
             <Link
-              to="/login"
-              className="w-full sm:w-auto px-5 py-3 rounded-xl font-bold text-xs text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1.5 hover:border-slate-300 no-underline"
+              to="/pricing"
+              className="btn-secondary-pill"
+              style={{ padding: "9px 16px", fontSize: 12 }}
             >
-              <span>Admin Portal Login</span>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+              <span>Explore Plans in ₹</span>
+              <ArrowRight style={{ width: 13, height: 13 }} />
             </Link>
           </div>
 
-          {/* Trust Guarantees */}
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-600 font-semibold">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-orange-600" /> No App Download for Diners
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Real-Time Kitchen Station Routing
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" /> Zero Hardware Lock-In
-            </span>
+          {/* Trust Value Badges */}
+          <div ref={trustRef} className={styles.trustMetrics}>
+            <div className={styles.metricItem}>
+              <CheckCircle2 style={{ width: 15, height: 15, color: "var(--color-emerald)" }} />
+              <span>14-Day Free Trial</span>
+            </div>
+            <div className={styles.metricItem}>
+              <ShieldCheck style={{ width: 15, height: 15, color: "var(--color-primary)" }} />
+              <span>Zero Hardware Lock-in</span>
+            </div>
+            <div className={styles.metricItem}>
+              <Award style={{ width: 15, height: 15, color: "var(--color-indigo)" }} />
+              <span>Live in 20 Minutes</span>
+            </div>
           </div>
         </div>
 
-        {/* Live Interactive Product Simulator Stage */}
-        <div className="pt-2">
+        {/* ── Visual Showcase Image Cards ── */}
+        <div ref={showcaseRef} className={styles.heroShowcaseGrid}>
+          <div className={styles.heroCardImg}>
+            <img
+              src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"
+              alt="Modern Restaurant Dining"
+              loading="lazy"
+            />
+            <div className={styles.heroCardOverlay}>
+              <span className={styles.heroCardLabel}>Dine-In Atmosphere</span>
+              <span className={styles.heroCardPill}>Table QR Ready</span>
+            </div>
+          </div>
+
+          <div className={styles.heroCardImg}>
+            <img
+              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80"
+              alt="High-Speed Kitchen Display"
+              loading="lazy"
+            />
+            <div className={styles.heroCardOverlay}>
+              <span className={styles.heroCardLabel}>Kitchen KDS Line</span>
+              <span className={styles.heroCardPill}>&lt; 50ms Dispatch</span>
+            </div>
+          </div>
+
+          <div className={styles.heroCardImg}>
+            <img
+              src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80"
+              alt="Artisan Food & Drinks"
+              loading="lazy"
+            />
+            <div className={styles.heroCardOverlay}>
+              <span className={styles.heroCardLabel}>Recipe Inventory</span>
+              <span className={styles.heroCardPill}>Auto-Depleted</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Interactive Live Dual Simulator Box ── */}
+        <div ref={consoleRef} className={styles.simulatorWrapper}>
+          <div className={styles.simulatorTopRibbon}>
+            <Sparkles style={{ width: 14, height: 14 }} />
+            Interactive Live Sandbox: Tap to Place an Order Below!
+          </div>
+
           <LiveConnectedSimulator />
         </div>
 
-        {/* Live Animated Ticker Marquee */}
-        <div className="pt-4 overflow-hidden border-y border-slate-200/80 bg-white/70 py-2.5 rounded-2xl shadow-2xs">
-          <div className="flex gap-6 items-center text-xs font-semibold text-slate-700 overflow-x-auto">
-            {marqueeItems.map((item, idx) => {
+        {/* ── Auto-Scrolling Marquee Feature Ticker ── */}
+        <div ref={marqueeRef} className={styles.marqueeBar}>
+          <div className={styles.marqueeTrack}>
+            {doubledMarquee.map((item, idx) => {
               const Icon = item.icon;
               return (
-                <div key={idx} className="flex items-center gap-2 shrink-0">
-                  <span className="w-6 h-6 rounded-lg bg-orange-50 border border-orange-200 text-orange-600 flex items-center justify-center font-bold">
-                    <Icon className="w-3.5 h-3.5" />
-                  </span>
-                  <span>{item.label}</span>
-                  <span className="text-slate-300 ml-3">•</span>
-                </div>
+                <React.Fragment key={idx}>
+                  <div className={styles.marqueeChip}>
+                    <Icon style={{ width: 14, height: 14, color: "var(--color-primary)", flexShrink: 0 }} />
+                    <span>{item.label}</span>
+                  </div>
+                  <div className={styles.marqueeDivider} />
+                </React.Fragment>
               );
             })}
           </div>
         </div>
+
       </div>
     </section>
   );

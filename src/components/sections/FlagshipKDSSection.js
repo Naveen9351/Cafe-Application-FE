@@ -1,132 +1,204 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
+  LayoutGrid,
   ArrowRight,
-  Clock,
-  Layers,
-  GitFork,
-  Monitor
+  Sparkles,
+  Flame,
+  Zap,
+  CheckCircle2
 } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import KDSSimulator from "../interactive/KDSSimulator";
+import { FLAGSHIP_PRODUCTS } from "../../data/productsData";
+import styles from "../../styles/FlagshipSections.module.css";
 
-export default function FlagshipKDSSection({ onOpenDemoModal }) {
-  const workflowStages = [
-    { title: "New Order", color: "text-blue-700", bg: "bg-blue-100 border-blue-200" },
-    { title: "In Preparation", color: "text-amber-800", bg: "bg-amber-100 border-amber-200" },
-    { title: "Plating Ready", color: "text-emerald-800", bg: "bg-emerald-100 border-emerald-200" },
-    { title: "Served to Table", color: "text-slate-800", bg: "bg-slate-200 border-slate-300" }
-  ];
+gsap.registerPlugin(ScrollTrigger);
 
-  const kdsCapabilities = [
-    {
-      title: "Multi-Station Routing",
-      desc: "Split beverages to the bar, steaks to the grill, and appetizers to the fryer station displays automatically.",
-      icon: GitFork
-    },
-    {
-      title: "Color-Coded SLA Timers",
-      desc: "Tickets progress from Green (On Track) to Amber (Warning) and Red (Rush) to maintain ticket pacing.",
-      icon: Clock
-    },
-    {
-      title: "Course Pacing & Hold Firing",
-      desc: "Synchronize appetizer and entrée prep so tables receive food at the exact right moment.",
-      icon: Layers
-    },
-    {
-      title: "Hardware Flexibility",
-      desc: "Runs reliably on commercial Android tablets, iPads, touchscreen monitors, and kitchen bump bars.",
-      icon: Monitor
-    }
-  ];
+export default function FlagshipKDSSection({ onOpenDemo }) {
+  const kdsProduct = FLAGSHIP_PRODUCTS[1];
+  const sectionRef = useRef(null);
+  const headerRef = useRef(null);
+  const metricsRef = useRef(null);
+  const simulatorCardRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Header Animation
+      gsap.fromTo(
+        headerRef.current,
+        { opacity: 0, y: 35 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headerRef.current,
+            start: "top 90%",
+            toggleActions: "play none none reverse"
+          }
+        }
+      );
+
+      // 3 Metric Cards Stagger Pop-in
+      if (metricsRef.current) {
+        gsap.fromTo(
+          metricsRef.current.children,
+          { opacity: 0, y: 30, scale: 0.94 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.7,
+            stagger: 0.15,
+            ease: "back.out(1.5)",
+            scrollTrigger: {
+              trigger: metricsRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // KDS Simulator Slide-Up
+      if (simulatorCardRef.current) {
+        gsap.fromTo(
+          simulatorCardRef.current,
+          { opacity: 0, y: 45, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: simulatorCardRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section id="kds" className="py-16 relative bg-slate-50 border-t border-slate-200 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-8">
-        {/* Section Header */}
-        <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            Back-of-House Operations
+    <section ref={sectionRef} className={`${styles.section} ${styles.sectionWhite}`}>
+      <div className="container">
+        
+        {/* Header Row */}
+        <div ref={headerRef} className={styles.headerRow}>
+          <div className={styles.headerLeft}>
+            <div className="badge-pill badge-indigo">
+              <LayoutGrid style={{ width: 14, height: 14 }} />
+              <span>{kdsProduct.badge} • Kitchen Coordination Engine</span>
+            </div>
+            <h2 className={styles.title}>
+              {kdsProduct.name}
+            </h2>
+            <p className={styles.desc}>
+              {kdsProduct.description}
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight m-0">
-            Kitchen Display System (KDS).{" "}
-            <span className="text-emerald-700 bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent block mt-1">
-              Keep the Line Running at Peak Velocity.
+
+          <div className={styles.headerActions}>
+            <button
+              onClick={onOpenDemo}
+              className="btn-electric"
+              style={{ fontSize: 13, padding: "12px 24px" }}
+            >
+              <span>Schedule KDS Walkthrough</span>
+              <ArrowRight style={{ width: 15, height: 15 }} />
+            </button>
+            <Link
+              to="/features/kitchen-ops"
+              className="btn-white"
+              style={{ fontSize: 13, padding: "12px 20px" }}
+            >
+              <span>View Multi-Station Specs</span>
+              <ArrowRight style={{ width: 14, height: 14 }} />
+            </Link>
+          </div>
+        </div>
+
+        {/* 3 Metrics Cards */}
+        <div ref={metricsRef} className={styles.metricsRow}>
+          <div
+            className={styles.metricCard}
+            style={{ transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = "0 12px 30px rgba(37,99,235,0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+            }}
+          >
+            <div className={styles.metricValue}>&lt; 50ms</div>
+            <div className={styles.metricTitle}>Instant KOT Arrival Speed</div>
+            <p className={styles.metricDesc}>Zero waiting for servers to punch tickets at stationary POS.</p>
+          </div>
+
+          <div
+            className={styles.metricCard}
+            style={{ transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = "0 12px 30px rgba(16,185,129,0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+            }}
+          >
+            <div className={styles.metricValue} style={{ color: "var(--color-emerald)" }}>0 Paper KOTs</div>
+            <div className={styles.metricTitle}>100% Digital Queue Accuracy</div>
+            <p className={styles.metricDesc}>Eliminates lost tickets, grease damage, and thermal paper waste.</p>
+          </div>
+
+          <div
+            className={styles.metricCard}
+            style={{ transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = "0 12px 30px rgba(79,70,229,0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+            }}
+          >
+            <div className={styles.metricValue} style={{ color: "var(--color-indigo)" }}>4-Stage Flow</div>
+            <div className={styles.metricTitle}>Complete Kitchen Visibility</div>
+            <p className={styles.metricDesc}>New → Preparing → Ready → Served synchronized lifecycle.</p>
+          </div>
+        </div>
+
+        {/* Real Interactive KDS Grid Simulator */}
+        <div ref={simulatorCardRef} className={styles.cardContainer}>
+          <div className={styles.cardHeader}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: "var(--text-main)" }}>
+                Live Interactive Kitchen Display System (KDS)
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                Click "Start Preparing", "Mark Ready", or "Undo" on any ticket to test live state transitions.
+              </div>
+            </div>
+            <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>
+              Live Telemetry Active
             </span>
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium m-0">
-            Eliminate grease-stained paper slips and missed orders. SERVIQ KDS routes tickets to dedicated kitchen stations, tracks prep timers in real-time, and guarantees smooth food service.
-          </p>
-        </div>
+          </div>
 
-        {/* Workflow Progression Strip */}
-        <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold">
-          <span className="text-slate-500 uppercase tracking-wider text-[10px]">
-            Kitchen Order Lifecycle:
-          </span>
-          {workflowStages.map((stage, idx) => (
-            <React.Fragment key={idx}>
-              <span className={`px-2.5 py-0.5 rounded-lg border ${stage.bg} ${stage.color}`}>
-                {stage.title}
-              </span>
-              {idx < workflowStages.length - 1 && <span className="text-slate-400">→</span>}
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* Interactive KDS Terminal Stage */}
-        <div className="pt-1">
           <KDSSimulator />
         </div>
 
-        {/* 4 Capabilities Grid & CTA */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-          {kdsCapabilities.map((cap, idx) => {
-            const Icon = cap.icon;
-            return (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all space-y-1.5"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-xs font-bold text-slate-900 m-0">{cap.title}</h3>
-                <p className="text-[11px] text-slate-600 leading-relaxed font-medium m-0">{cap.desc}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Action Row */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          {onOpenDemoModal ? (
-            <button
-              type="button"
-              onClick={onOpenDemoModal}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 shadow-md shadow-emerald-600/25 hover:scale-[1.01] transition-all flex items-center gap-1.5 cursor-pointer border-0"
-            >
-              <span>Book KDS Live Demo</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          ) : (
-            <Link
-              to="/demo"
-              className="px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider uppercase text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 shadow-md shadow-emerald-600/25 hover:scale-[1.01] transition-all flex items-center gap-1.5 no-underline"
-            >
-              <span>Book KDS Live Demo</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          )}
-
-          <Link
-            to="/products#kds"
-            className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-100 border border-slate-200 transition-colors flex items-center gap-1 shadow-2xs no-underline"
-          >
-            <span>Kitchen Display Features</span>
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
       </div>
     </section>
   );

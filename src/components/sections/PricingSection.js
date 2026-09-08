@@ -1,27 +1,80 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import PricingCalculator from '../interactive/PricingCalculator';
+import { CreditCard } from 'lucide-react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function PricingSection({ onOpenDemo }) {
-  return (
-    <section id="pricing" className="py-24 bg-slate-950 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.06),transparent_60%)] pointer-events-none" />
+  const sectionRef = useRef(null);
+  const headerRef = useRef(null);
+  const pricingCardRef = useRef(null);
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-12">
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Header Animation
+      gsap.fromTo(
+        headerRef.current,
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headerRef.current,
+            start: "top 85%",
+            toggleActions: "play none none reverse"
+          }
+        }
+      );
+
+      // Pricing Calculator Container Entrance
+      if (pricingCardRef.current) {
+        gsap.fromTo(
+          pricingCardRef.current,
+          { opacity: 0, y: 40, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: pricingCardRef.current,
+              start: "top 80%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section ref={sectionRef} id="pricing" style={{ padding: "100px 0", background: "#ffffff", borderTop: "1px solid var(--border-subtle)", position: "relative" }}>
+      <div className="container">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold mb-4 tracking-wide uppercase">
-            Transparent Indian Pricing
+        <div ref={headerRef} style={{ textAlign: "center", maxWidth: 760, margin: "0 auto 50px auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <div className="badge-pill badge-blue">
+            <CreditCard style={{ width: 14, height: 14 }} />
+            <span>Transparent Indian Pricing in ₹</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
             Fair Plans for Every Stage of Growth
           </h2>
-          <p className="mt-4 text-lg text-slate-400">
+          <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
             No hidden setup fees. Free menu digitization, live onboarding, and 24/7 priority support across India.
           </p>
         </div>
 
         {/* Pricing Table Component */}
-        <PricingCalculator onOpenDemo={onOpenDemo} />
+        <div ref={pricingCardRef}>
+          <PricingCalculator onOpenDemoModal={onOpenDemo} />
+        </div>
       </div>
     </section>
   );

@@ -1,0 +1,511 @@
+/* SARVIQ Autonomous Animated Workflow CSS Module */
+.workflowSection {
+  position: relative;
+  padding: 110px 0;
+  background: radial-gradient(circle at 50% 0%, #0c1527 0%, #080d1a 60%, #030712 100%);
+  color: #f8fafc;
+  overflow: hidden;
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.ambientGlowTop {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(79, 70, 229, 0.08) 50%, transparent 75%);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ambientGlowBottom {
+  position: absolute;
+  bottom: -100px;
+  left: 30%;
+  width: 600px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.header {
+  text-align: center;
+  max-width: 860px;
+  margin: 0 auto 40px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+.brandBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  font-size: 11px;
+  font-weight: 800;
+  color: #60a5fa;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.25);
+}
+
+.pulseDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseAiDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseAiDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4.2vw, 50px);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: #94a3b8;
+  max-width: 680px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── 3D Three.js Visual Mesh Backdrop Container ── */
+.threeContainer {
+  margin-bottom: 36px;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Interactive Horizontal Timeline Scrubber ── */
+.scrubberWrapper {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl);
+  padding: 16px 24px;
+  margin-bottom: 36px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.scrubberTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.scrubberLegend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #cbd5e1;
+}
+
+.scrubberControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controlBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.controlBtn:hover {
+  background: rgba(37, 99, 235, 0.3);
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.timelineTrack {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.timelineProgressBar {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-50%);
+  z-index: 1;
+  border-radius: 4px;
+}
+
+.timelineProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #2563eb 50%, #7c3aed 100%);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 10px #3b82f6;
+}
+
+.timelineStepNode {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.2s ease;
+}
+
+.timelineStepNode:hover {
+  transform: translateY(-2px);
+}
+
+.nodeCircle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nodeCircleActive {
+  background: #2563eb;
+  border-color: #93c5fd;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.8), 0 0 0 4px rgba(37, 99, 235, 0.25);
+  transform: scale(1.15);
+}
+
+.nodeCircleCompleted {
+  background: #064e3b;
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.nodeLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.nodeLabelActive {
+  color: #60a5fa;
+  font-weight: 900;
+}
+
+/* ── Live Active Stage Master Showcase Banner ── */
+.activeShowcaseBanner {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.35) 0%, rgba(15, 23, 42, 0.85) 60%, rgba(30, 27, 75, 0.4) 100%);
+  border: 1.5px solid rgba(59, 130, 246, 0.4);
+  border-radius: var(--radius-xl);
+  padding: 28px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 36px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(37, 99, 235, 0.1);
+  animation: bannerGlow 3s infinite alternate ease-in-out;
+}
+
+@keyframes bannerGlow {
+  0% { border-color: rgba(59, 130, 246, 0.3); }
+  100% { border-color: rgba(99, 102, 241, 0.6); }
+}
+
+.bannerLeftGroup {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.bannerIconBox {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg);
+  background: rgba(37, 99, 235, 0.2);
+  border: 1.5px solid rgba(96, 165, 250, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #60a5fa;
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+}
+
+.bannerStageTag {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+
+.bannerHeading {
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 2px 0 6px 0;
+}
+
+.bannerText {
+  font-size: 14px;
+  color: #cbd5e1;
+  max-width: 580px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.bannerRightMetric {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  padding: 16px 24px;
+  text-align: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.bannerMetricLabel {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+
+.bannerMetricValue {
+  font-size: 18px;
+  font-weight: 900;
+  color: #38bdf8;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+/* ── 6-Card Interactive Stage Grid ── */
+.stageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  position: relative;
+  z-index: 2;
+}
+
+.stageCard {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 270px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stageCard:hover {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(37, 99, 235, 0.2);
+}
+
+.stageCardActive {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 25px rgba(37, 99, 235, 0.35) !important;
+  transform: translateY(-6px);
+}
+
+.cardAccentLine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981 0%, #2563eb 50%, #7c3aed 100%);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.cardIconBox {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #60a5fa;
+}
+
+.cardNumber {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+}
+
+.cardDesc {
+  font-size: 12.5px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+/* Dynamic Internal Stage Simulator Widgets */
+.internalWidget {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 11px;
+}
+
+.cardFooter {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+/* Micro Elements within each Stage Card */
+.menuPill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #f1f5f9;
+  font-weight: 700;
+  padding: 2px 0;
+}
+
+.aiPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(37, 99, 235, 0.25);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.stationRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.stationChip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+}
+
+.depletionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #cbd5e1;
+  font-size: 10.5px;
+  padding: 1px 0;
+}
+
+@media (max-width: 1024px) {
+  .stageGrid { grid-template-columns: repeat(2, 1fr); }
+  .activeShowcaseBanner { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 768px) {
+  .stageGrid { grid-template-columns: 1fr; }
+  .timelineTrack { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .timelineProgressBar { display: none; }
+}

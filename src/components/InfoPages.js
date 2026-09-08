@@ -1,273 +1,260 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle, ChevronRight, Mail, MapPin, Phone, Sparkles } from 'lucide-react';
-import BrandLogo from './BrandLogo';
+import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { CheckCircle, Mail, MapPin, Phone, Sparkles, ArrowRight, ShieldCheck, Zap, Globe, Users, Award } from 'lucide-react';
+import SarviqLogo from './brand/SarviqLogo';
+import Navbar from './layout/Navbar';
+import Footer from './layout/Footer';
 
-const OLIVE = '#059669';
-const OLIVE_LIGHT = 'rgba(16, 185, 129, 0.15)';
-const BG_DARK = '#0b0f19';
-const CARD_DARK = 'rgba(17, 24, 39, 0.7)';
-const BORDER = 'rgba(255, 255, 255, 0.08)';
-const WHITE = '#ffffff';
-const TEXT_DARK = '#f8fafc';
-const TEXT_MID = '#94a3b8';
-const TEXT_SOFT = '#64748b';
-
-const SectionBadge = ({ children }) => (
-  <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: OLIVE_LIGHT, color: '#34d399', fontWeight: '700', fontSize: '0.72rem', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '0.35rem 0.9rem', borderRadius: '100px', marginBottom: '1.25rem', border: '1px solid rgba(16,185,129,0.3)' }}>
-    {children}
-  </div>
-);
-
-const PageNav = () => {
-  const navigate = useNavigate();
-  return (
-    <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 6%', height: '70px', backgroundColor: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(16px)', borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, zIndex: 100 }}>
-      <BrandLogo size="md" showSubtitle={true} onClick={() => navigate('/')} />
-      <div style={{ display: 'flex', gap: '2rem', fontSize: '0.88rem', fontWeight: '600', color: TEXT_MID }}>
-        {[['POS Billing', '/features/pos-billing'], ['Kitchen Ops', '/features/kitchen-ops'], ['Inventory', '/features/inventory'], ['CRM & Loyalty', '/features/crm-loyalty'], ['RASTRORATO AI', '/features/ai-copilot']].map(([label, path]) => (
-          <span key={label} onClick={() => navigate(path)} style={{ cursor: 'pointer', transition: 'color 0.2s' }} onMouseOver={e => e.target.style.color = '#34d399'} onMouseOut={e => e.target.style.color = TEXT_MID}>{label}</span>
-        ))}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-        <button onClick={() => navigate('/login')} style={{ background: 'none', border: 'none', fontWeight: '700', fontSize: '0.88rem', color: WHITE, cursor: 'pointer' }}>Sign In</button>
-        <button onClick={() => navigate('/register')} style={{ backgroundColor: '#10b981', color: WHITE, border: 'none', fontWeight: '700', fontSize: '0.88rem', padding: '0.6rem 1.25rem', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>Start Free Trial</button>
-      </div>
-    </nav>
-  );
-};
-
-const PageFooter = () => {
-  const navigate = useNavigate();
-  return (
-    <footer style={{ backgroundColor: '#06090f', color: '#94a3b8', padding: '4rem 6% 2rem', borderTop: `1px solid ${BORDER}` }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', paddingBottom: '2.5rem', borderBottom: `1px solid ${BORDER}`, flexWrap: 'wrap', gap: '2rem' }}>
-        <BrandLogo size="sm" showSubtitle={true} onClick={() => navigate('/')} />
-        <div style={{ display: 'flex', gap: '3rem', flexWrap: 'wrap' }}>
-          {[['About Us', '/about'], ['Careers', '/careers'], ['Contact', '/contact'], ['Features', '/features/pos-billing']].map(([l, p]) => (
-            <span key={l} onClick={() => navigate(p)} style={{ color: '#94a3b8', fontSize: '0.86rem', cursor: 'pointer', transition: '0.2s' }} onMouseOver={e => e.target.style.color = WHITE} onMouseOut={e => e.target.style.color = '#94a3b8'}>{l}</span>
-          ))}
-        </div>
-      </div>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 0', fontSize: '0.8rem', color: '#64748b', textAlign: 'center' }}>
-        © {new Date().getFullYear()} RASTRORATO Technologies Inc. All rights reserved.
-      </div>
-    </footer>
-  );
-};
-
-/* ── ABOUT US PAGE ── */
+/* ── 1. ABOUT US PAGE ── */
 export function AboutPage() {
   const navigate = useNavigate();
   return (
-    <div style={{ backgroundColor: BG_DARK, color: TEXT_DARK, fontFamily: "'Outfit','Inter',sans-serif", minHeight: '100vh' }}>
-      <PageNav />
-      {/* Hero with Photo */}
-      <section style={{ position: 'relative', overflow: 'hidden', padding: '6rem 6%', textAlign: 'center', backgroundColor: '#090d16', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.18, zIndex: 0 }}>
-          <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1400&q=80" alt="Cafe Background" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-        <div style={{ maxWidth: '740px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <SectionBadge>Our Story</SectionBadge>
-          <h1 style={{ fontSize: '3.2rem', fontWeight: '900', color: WHITE, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-1px' }}>
-            Built by restaurant operators. For restaurant operators.
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+      <Navbar onOpenDemoModal={() => navigate('/demo')} />
+
+      {/* Hero */}
+      <section style={{ paddingTop: 140, paddingBottom: 60, paddingLeft: 20, paddingRight: 20, textAlign: 'center', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-mesh-hero)' }}>
+        <div style={{ maxWidth: 840, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="badge-pill badge-blue">
+            <Sparkles style={{ width: 14, height: 14 }} />
+            <span>Our Story & Vision</span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+            Built for Restaurant Operators. Powered by Autonomous AI.
           </h1>
-          <p style={{ color: TEXT_MID, fontSize: '1.1rem', lineHeight: '1.65' }}>
-            RASTRORATO was founded after our team spent years managing busy cafe operations and experiencing first-hand how painful fragmented legacy POS tools were. We built what we wished existed.
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.6, maxWidth: 680, margin: 0 }}>
+            SARVIQ was founded by seasoned food and technology veterans to eliminate paper tickets, waitstaff bottlenecks, and inventory chaos with a unified AI platform.
           </p>
         </div>
       </section>
 
-      {/* Mission & Gallery */}
-      <section style={{ padding: '5rem 6%', maxWidth: '1100px', margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center', marginBottom: '5rem' }}>
-          <div>
-            <SectionBadge>Our Mission</SectionBadge>
-            <h2 style={{ fontSize: '2.2rem', fontWeight: '900', color: WHITE, marginBottom: '1.25rem', lineHeight: '1.2', letterSpacing: '-0.5px' }}>
-              Make world-class restaurant tech accessible to every cafe
+      {/* Mission & Values */}
+      <section style={{ padding: '80px 20px', maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 60 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 40, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="badge-pill badge-blue" style={{ alignSelf: 'flex-start' }}>
+              The Mission
+            </div>
+            <h2 style={{ fontSize: 32, fontWeight: 900, margin: 0, color: 'var(--text-main)' }}>
+              Democratizing High-Velocity Tech for Every Food Venue
             </h2>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.65', marginBottom: '1rem' }}>
-              We believe every neighbourhood cafe deserves the same operational power as a large franchise chain. Our SaaS platform democratizes intelligent restaurant management for businesses of all sizes.
+            <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
+              We believe every cafe, QSR, and dining room in India deserves the same lightning-fast operational infrastructure as global enterprise chains.
             </p>
-            <p style={{ color: TEXT_MID, fontSize: '0.95rem', lineHeight: '1.65' }}>
-              From a single coffee kiosk to a 50-table multi-branch operation — RASTRORATO scales with you, grows with you, and works on any hardware you already own.
+            <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
+              From a single artisan coffee bar to a 50-location franchise network — SARVIQ runs autonomously on any phone, tablet, or browser with zero hardware lock-in.
             </p>
           </div>
-          <div style={{ borderRadius: '20px', overflow: 'hidden', height: '320px', border: `1px solid rgba(16,185,129,0.3)`, boxShadow: '0 15px 35px rgba(0,0,0,0.5)' }}>
-            <img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80" alt="Cafe Team" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ borderRadius: 'var(--radius-xl)', overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xl)', height: 320, background: '#f1f5f9' }}>
+            <img
+              src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"
+              alt="Restaurant Team"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </div>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '4rem' }}>
+        {/* 3 Core Pillars */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, paddingTop: 40, borderTop: '1px solid var(--border-subtle)' }}>
           {[
-            { stat: '500+', label: 'Active Cafes' },
-            { stat: '₹18.4M+', label: 'Monthly GMV' },
-            { stat: '99.99%', label: 'Uptime SLA' },
-            { stat: '4.9★', label: 'Average Rating' },
-          ].map(s => (
-            <div key={s.stat} style={{ backgroundColor: CARD_DARK, borderRadius: '16px', padding: '1.5rem', border: `1px solid ${BORDER}`, textAlign: 'center' }}>
-              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#34d399' }}>{s.stat}</div>
-              <div style={{ fontSize: '0.82rem', color: TEXT_MID, marginTop: '4px', fontWeight: '600' }}>{s.label}</div>
-            </div>
-          ))}
+            {
+              title: "Zero Latency",
+              desc: "From seated QR scans to kitchen KDS lines in under 50 milliseconds.",
+              icon: Zap,
+              color: "var(--color-primary)"
+            },
+            {
+              title: "Autonomous Recipe Sync",
+              desc: "Live raw material deduction ensures zero unexpected 86 items.",
+              icon: Sparkles,
+              color: "var(--color-indigo)"
+            },
+            {
+              title: "India-First Architecture",
+              desc: "Direct UPI payments, GST breakdown, WhatsApp CRM, and 24/7 priority support.",
+              icon: Award,
+              color: "var(--color-emerald)"
+            }
+          ].map((pillar, idx) => {
+            const Icon = pillar.icon;
+            return (
+              <div key={idx} className="card-luxury" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', background: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: pillar.color }}>
+                  <Icon style={{ width: 20, height: 20 }} />
+                </div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>{pillar.title}</h3>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>{pillar.desc}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
-      <PageFooter />
+
+      <Footer onOpenDemoModal={() => navigate('/demo')} />
     </div>
   );
 }
 
-/* ── CAREERS PAGE ── */
+/* ── 2. CAREERS PAGE ── */
 export function CareersPage() {
   const navigate = useNavigate();
-  const openings = [
-    { role: 'Senior Full Stack Engineer', dept: 'Engineering', type: 'Full-time', location: 'Bangalore / Remote' },
-    { role: 'Product Designer (UI/UX)', dept: 'Design', type: 'Full-time', location: 'Bangalore' },
-    { role: 'Customer Success Manager', dept: 'Operations', type: 'Full-time', location: 'Mumbai / Remote' },
-    { role: 'Sales Development Representative', dept: 'Sales', type: 'Full-time', location: 'Delhi / Remote' },
+  const jobs = [
+    { title: "Senior Fullstack Engineer (React / Node.js)", team: "Core Platform", loc: "Bangalore / Remote", type: "Full-Time" },
+    { title: "Lead AI & Telemetry Specialist", team: "AI Labs", loc: "Remote (India)", type: "Full-Time" },
+    { title: "Enterprise Account Executive (HORECA)", team: "Growth & Sales", loc: "Mumbai / Delhi NCR", type: "Full-Time" },
+    { title: "Customer Success & Onboarding Lead", team: "Operations", loc: "Bangalore", type: "Full-Time" },
   ];
 
   return (
-    <div style={{ backgroundColor: BG_DARK, color: TEXT_DARK, fontFamily: "'Outfit','Inter',sans-serif", minHeight: '100vh' }}>
-      <PageNav />
-      <section style={{ position: 'relative', overflow: 'hidden', padding: '6rem 6%', textAlign: 'center', backgroundColor: '#090d16', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.18, zIndex: 0 }}>
-          <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1400&q=80" alt="Team Background" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-        <div style={{ maxWidth: '700px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <SectionBadge>We're Hiring</SectionBadge>
-          <h1 style={{ fontSize: '3.2rem', fontWeight: '900', color: WHITE, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-1px' }}>
-            Build the future of restaurant tech
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+      <Navbar onOpenDemoModal={() => navigate('/demo')} />
+
+      <section style={{ paddingTop: 140, paddingBottom: 60, paddingLeft: 20, paddingRight: 20, textAlign: 'center', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-mesh-hero)' }}>
+        <div style={{ maxWidth: 840, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="badge-pill badge-blue">
+            <Users style={{ width: 14, height: 14 }} />
+            <span>We Are Hiring</span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+            Build the Future of Dining at SARVIQ
           </h1>
-          <p style={{ color: TEXT_MID, fontSize: '1.05rem', lineHeight: '1.65' }}>
-            Join a passionate team building tools that directly help thousands of restaurants operate better, smarter, and faster.
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
+            Join our team of engineers, designers, and food enthusiasts creating the next generation of autonomous restaurant infrastructure.
           </p>
         </div>
       </section>
 
-      <section style={{ padding: '5rem 6%', maxWidth: '900px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: WHITE, marginBottom: '2rem' }}>Open Positions</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {openings.map(job => (
-            <div key={job.role} style={{ backgroundColor: CARD_DARK, borderRadius: '14px', padding: '1.5rem 2rem', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-              onClick={() => navigate('/contact')}>
+      <section style={{ padding: '80px 20px', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Open Opportunities</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {jobs.map((job, idx) => (
+            <div key={idx} className="card-luxury" style={{ padding: 24, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <div style={{ fontWeight: '800', fontSize: '1.05rem', color: WHITE, marginBottom: '4px' }}>{job.role}</div>
-                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.82rem', color: TEXT_SOFT }}>
-                  <span>{job.dept}</span>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>{job.title}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+                  <span>{job.team}</span>
                   <span>•</span>
-                  <span>{job.type}</span>
+                  <span>{job.loc}</span>
                   <span>•</span>
-                  <span>{job.location}</span>
+                  <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{job.type}</span>
                 </div>
               </div>
-              <div style={{ backgroundColor: OLIVE_LIGHT, color: '#34d399', fontWeight: '700', fontSize: '0.82rem', padding: '0.45rem 1rem', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                Apply →
-              </div>
+              <a
+                href="mailto:careers@sarviq.com"
+                className="btn-electric"
+                style={{ padding: '8px 18px', fontSize: 12 }}
+              >
+                Apply Now
+              </a>
             </div>
           ))}
         </div>
       </section>
-      <PageFooter />
+
+      <Footer onOpenDemoModal={() => navigate('/demo')} />
     </div>
   );
 }
 
-/* ── PRESS KIT PAGE ── */
+/* ── 3. PRESS KIT PAGE ── */
 export function PressKitPage() {
   const navigate = useNavigate();
   return (
-    <div style={{ backgroundColor: BG_DARK, color: TEXT_DARK, fontFamily: "'Outfit','Inter',sans-serif", minHeight: '100vh' }}>
-      <PageNav />
-      <section style={{ padding: '5.5rem 6%', textAlign: 'center', backgroundColor: '#090d16', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-          <SectionBadge>Media & Press</SectionBadge>
-          <h1 style={{ fontSize: '3rem', fontWeight: '900', color: WHITE, lineHeight: '1.15', marginBottom: '1.25rem', letterSpacing: '-0.5px' }}>Press Kit</h1>
-          <p style={{ color: TEXT_MID, fontSize: '1.05rem', lineHeight: '1.65' }}>
-            Everything you need to write about RASTRORATO. Download assets, read our boilerplate, or get in touch with our media team.
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+      <Navbar onOpenDemoModal={() => navigate('/demo')} />
+
+      <section style={{ paddingTop: 140, paddingBottom: 60, paddingLeft: 20, paddingRight: 20, textAlign: 'center', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-mesh-hero)' }}>
+        <div style={{ maxWidth: 840, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="badge-pill badge-blue">
+            <Globe style={{ width: 14, height: 14 }} />
+            <span>Media & Resources</span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+            SARVIQ Press Kit & Brand Assets
+          </h1>
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
+            Download high-resolution official brand marks, executive bios, and company milestones.
           </p>
         </div>
       </section>
-      <PageFooter />
+
+      <section style={{ padding: '80px 20px', maxWidth: 900, margin: '0 auto' }}>
+        <div className="card-luxury" style={{ padding: 36, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>Official Brand Assets</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+            <div style={{ padding: 24, borderRadius: 'var(--radius-lg)', background: 'var(--bg-card-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <SarviqLogo size="lg" theme="light" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>SVG Primary Mark</span>
+            </div>
+            <div style={{ padding: 24, borderRadius: 'var(--radius-lg)', background: '#0f172a', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <SarviqLogo size="lg" theme="dark" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#cbd5e1' }}>Dark Background Variant</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer onOpenDemoModal={() => navigate('/demo')} />
     </div>
   );
 }
 
-/* ── CONTACT PAGE ── */
+/* ── 4. CONTACT PAGE ── */
 export function ContactPage() {
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [sent, setSent] = useState(false);
-
+  const navigate = useNavigate();
   return (
-    <div style={{ backgroundColor: BG_DARK, color: TEXT_DARK, fontFamily: "'Outfit','Inter',sans-serif", minHeight: '100vh' }}>
-      <PageNav />
-      <section style={{ padding: '5.5rem 6%', textAlign: 'center', backgroundColor: '#090d16', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-          <SectionBadge>Get in Touch</SectionBadge>
-          <h1 style={{ fontSize: '3rem', fontWeight: '900', color: WHITE, lineHeight: '1.15', marginBottom: '1rem', letterSpacing: '-0.5px' }}>We'd love to hear from you</h1>
-          <p style={{ color: TEXT_MID, fontSize: '1rem', lineHeight: '1.65' }}>Whether you have a question, want a demo, or just want to say hello — our team is ready to respond.</p>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+      <Navbar onOpenDemoModal={() => navigate('/demo')} />
+
+      <section style={{ paddingTop: 140, paddingBottom: 60, paddingLeft: 20, paddingRight: 20, textAlign: 'center', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-mesh-hero)' }}>
+        <div style={{ maxWidth: 840, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="badge-pill badge-blue">
+            <Phone style={{ width: 14, height: 14 }} />
+            <span>24/7 Specialist Support</span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+            We Are Here to Help Your Food Business
+          </h1>
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
+            Have questions about billing, POS integrations, or custom franchise deployments? Talk to our dedicated team.
+          </p>
         </div>
       </section>
 
-      <section style={{ padding: '5rem 6%', maxWidth: '1100px', margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'start' }}>
-          <div>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: WHITE, marginBottom: '2rem' }}>Contact Information</h2>
-            {[
-              { icon: <Mail size={20} style={{ color: '#10b981' }} />, label: 'Email', val: 'support@rastrorato.com' },
-              { icon: <Phone size={20} style={{ color: '#10b981' }} />, label: 'WhatsApp & Phone', val: '+91 98765 43210' },
-              { icon: <MapPin size={20} style={{ color: '#10b981' }} />, label: 'Headquarters', val: 'Koramangala, Bangalore, India' },
-            ].map(c => (
-              <div key={c.label} style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ width: '42px', height: '42px', backgroundColor: OLIVE_LIGHT, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{c.icon}</div>
-                <div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: '700', color: TEXT_SOFT, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>{c.label}</div>
-                  <div style={{ fontSize: '0.95rem', color: WHITE, fontWeight: '600' }}>{c.val}</div>
-                </div>
-              </div>
-            ))}
+      <section style={{ padding: '80px 20px', maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
+        <div className="card-luxury" style={{ padding: 28, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '1px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Mail style={{ width: 20, height: 20 }} />
           </div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Email Support</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: 0 }}>support@sarviq.com</p>
+          <a href="mailto:support@sarviq.com" style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-primary)', textDecoration: 'none', marginTop: 4 }}>
+            Write to Us →
+          </a>
+        </div>
 
-          <div style={{ backgroundColor: CARD_DARK, borderRadius: '20px', padding: '2.5rem', border: `1px solid ${BORDER}` }}>
-            {sent ? (
-              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: '800', color: WHITE, marginBottom: '0.75rem' }}>Message Sent!</h2>
-                <p style={{ color: TEXT_MID, fontSize: '0.95rem' }}>We'll get back to you within 24 hours.</p>
-              </div>
-            ) : (
-              <>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: WHITE, marginBottom: '1.75rem' }}>Send Us a Message</h2>
-                <form onSubmit={e => { e.preventDefault(); if (form.name && form.email) setSent(true); }} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-                  {[
-                    { label: 'Your Name', field: 'name', type: 'text', placeholder: 'Full Name' },
-                    { label: 'Email Address', field: 'email', type: 'email', placeholder: 'you@company.com' },
-                  ].map(f => (
-                    <div key={f.field}>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: TEXT_MID, marginBottom: '0.4rem' }}>{f.label}</label>
-                      <input type={f.type} placeholder={f.placeholder} value={form[f.field]}
-                        onChange={e => setForm({ ...form, [f.field]: e.target.value })}
-                        style={{ width: '100%', border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.9rem', outline: 'none', backgroundColor: 'rgba(0,0,0,0.3)', color: WHITE, boxSizing: 'border-box' }} />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: TEXT_MID, marginBottom: '0.4rem' }}>Message</label>
-                    <textarea placeholder="How can we help your restaurant?" value={form.message}
-                      onChange={e => setForm({ ...form, message: e.target.value })}
-                      rows={4}
-                      style={{ width: '100%', border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.9rem', outline: 'none', backgroundColor: 'rgba(0,0,0,0.3)', color: WHITE, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                  </div>
-                  <button type="submit" style={{ backgroundColor: '#10b981', color: WHITE, border: 'none', fontWeight: '700', fontSize: '1rem', padding: '0.9rem', borderRadius: '10px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}>
-                    Send Message →
-                  </button>
-                </form>
-              </>
-            )}
+        <div className="card-luxury" style={{ padding: 28, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'var(--color-emerald-light)', color: 'var(--color-emerald)', border: '1px solid var(--color-emerald-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Phone style={{ width: 20, height: 20 }} />
           </div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Direct WhatsApp</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: 0 }}>+91 96801 32562</p>
+          <a href="https://wa.me/919680132562" target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-emerald)', textDecoration: 'none', marginTop: 4 }}>
+            Chat on WhatsApp →
+          </a>
+        </div>
+
+        <div className="card-luxury" style={{ padding: 28, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'var(--color-indigo-light)', color: 'var(--color-indigo)', border: '1px solid rgba(79, 70, 229, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <MapPin style={{ width: 20, height: 20 }} />
+          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Offices</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: 0 }}>Bangalore • Mumbai • Delhi NCR</p>
+          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--color-indigo)', marginTop: 4 }}>Pan-India Support</span>
         </div>
       </section>
-      <PageFooter />
+
+      <Footer onOpenDemoModal={() => navigate('/demo')} />
     </div>
   );
 }

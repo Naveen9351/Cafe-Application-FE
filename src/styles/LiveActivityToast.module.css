@@ -1,0 +1,141 @@
+.toastContainer {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 999;
+  max-width: 360px;
+  width: calc(100vw - 48px);
+  pointer-events: auto;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toastVisible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.toastHidden {
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  pointer-events: none;
+}
+
+.toastCard {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 36px -6px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.08);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toastCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px -6px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(37, 99, 235, 0.15);
+}
+
+.iconWrapper {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: 1px solid transparent;
+}
+
+.contentWrapper {
+  flex: 1;
+  min-width: 0;
+  padding-right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.venueName {
+  font-size: 11px;
+  font-weight: 900;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.timeAgo {
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: monospace;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.actionText {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.metricText {
+  font-size: 11px;
+  font-weight: 800;
+  color: #059669;
+  font-family: monospace;
+  margin: 0;
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.closeButton:hover {
+  color: #334155;
+  background: #f1f5f9;
+}

@@ -1,121 +1,98 @@
 export const PRICING_TIERS = [
   {
     id: "starter",
-    name: "Starter",
-    tagline: "Essential digital ordering for cafes & single-location dining spots",
-    priceMonthly: 1999,
-    priceAnnual: 1499,
-    billingPeriod: "per month, billed annually",
-    description: "Launch frictionless table QR ordering and upgrade from paper menus in under 24 hours.",
-    highlights: [
-      "Dynamic Table QR Code Generator",
-      "Photo-Rich Digital Menu with Modifiers",
-      "Unlimited Menu Items & Categories",
-      "Order Management Dashboard",
-      "Pay-at-Table & Digital Receipts",
-      "Dedicated Onboarding & Live Chat Support"
-    ],
+    name: "SARVIQ Starter",
+    badge: "For Single Outlets",
+    description: "Essential AI digital ordering and kitchen queue for fast-paced cafes and QSR counters.",
+    priceMonthly: 1499,
+    priceAnnual: 1199,
+    popular: false,
     features: [
-      "Table QR Ordering (Unlimited scans)",
-      "Instant 86 Item Availability Toggle",
-      "Modifiers, Add-ons & Allergen Badges",
-      "Daily Sales & Order Volume Reports",
-      "Single Terminal / Tablet Access",
-      "Thermal Receipt & Order Printing"
+      "Dynamic Digital QR Table Menus in ₹",
+      "Real-Time 4-Stage Kitchen Display (KDS)",
+      "Instant UPI Payments (PhonePe, GPay, Paytm)",
+      "Up to 10 Active Dine-In Tables",
+      "Basic Sales & Orders Telemetry",
+      "Standard WhatsApp Support",
     ],
-    ctaText: "Get Started Free",
-    ctaVariant: "outline"
+    ctaText: "Launch Free Trial",
   },
   {
     id: "growth",
-    name: "Growth",
-    tagline: "Connected QR ordering + Kitchen Display System for busy dining rooms",
-    badge: "MOST POPULAR",
+    name: "SARVIQ Growth Pro",
+    badge: "Most Popular",
+    description: "Complete autonomous restaurant OS with multi-station line splitting and recipe inventory.",
+    priceMonthly: 2999,
+    priceAnnual: 2399,
     popular: true,
-    priceMonthly: 3999,
-    priceAnnual: 2999,
-    billingPeriod: "per month, billed annually",
-    description: "Connect front-of-house guest ordering directly with real-time back-of-house kitchen display stations.",
-    highlights: [
-      "Everything in Starter, plus:",
-      "Full Kitchen Display System (KDS)",
-      "Multi-Station Routing (Grill, Bar, Expo)",
-      "Visual SLA Timers & Sound Alerts",
-      "Floorplan & Table Occupancy Map",
-      "Direct Online Ordering Web Storefront (0% fee)",
-      "Priority 24/7 Phone & WhatsApp Support"
-    ],
     features: [
-      "Up to 4 Concurrent KDS Station Screens",
-      "Course Pacing & Hold Firing Control",
-      "Automated SMS Customer Pickup Notifications",
-      "Item-Level Margin & Hourly Sales Reports",
-      "Staff Role Permissions & PIN Access",
-      "Front Counter POS Compatibility"
+      "Everything in Starter, plus:",
+      "Unlimited Tables & QR Generation",
+      "Multi-Station KDS Routing (Grill, Bar, Fryer, Expo)",
+      "Recipe-Level Raw Ingredient Stock Depletion",
+      "Automated PO Generation & Vendor WhatsApp Alerts",
+      "Split Billing & Custom Course Pacing",
+      "Priority 24/7 Phone & WhatsApp Support",
     ],
-    ctaText: "Book a Free Demo",
-    ctaVariant: "primary"
+    ctaText: "Start 14-Day Free Trial",
   },
   {
     id: "enterprise",
-    name: "Enterprise",
-    tagline: "Full-scale platform for high-volume venues, franchises & multi-unit chains",
-    priceMonthly: 7999,
-    priceAnnual: 5999,
-    billingPeriod: "per location/month, billed annually",
-    description: "Complete connected restaurant operating system with multi-outlet cloud, inventory, CRM, and custom integrations.",
-    highlights: [
-      "Everything in Growth, plus:",
-      "Multi-Location Central Management Console",
-      "Unlimited KDS Screens & Kitchen Stations",
-      "Live Inventory & Recipe Tracking",
-      "Automated Guest Loyalty & Rewards",
-      "Custom Hardware & POS Integration Support",
-      "Dedicated Hospitality Specialist & Onboarding"
-    ],
+    name: "SARVIQ Enterprise Multi-Chain",
+    badge: "For Franchises & Chains",
+    description: "Global franchise governance, central menu deployment, and multi-location BI analytics.",
+    priceMonthly: 5999,
+    priceAnnual: 4799,
+    popular: false,
     features: [
-      "Centralized Master Menu Publishing",
-      "Chain-wide Benchmarking & Consolidated Reports",
-      "Seamless Existing POS Compatibility",
-      "Custom Hardware & Bump Bar Configuration",
-      "99.99% Cloud Reliability Guarantee",
-      "Staff Training & On-Site Setup Assistance"
+      "Everything in Growth Pro, plus:",
+      "Multi-Outlet Centralized Menu Hub",
+      "Aggregator Bridge (Zomato & Swiggy Sync)",
+      "Franchise Royalty & Audit Ledgers",
+      "Predictive AI Demand Forecasting",
+      "Custom Hardware Integrations & SSO",
+      "Dedicated Technical Account Manager",
     ],
-    ctaText: "Talk to Restaurant Sales",
-    ctaVariant: "default"
-  }
+    ctaText: "Contact Enterprise Sales",
+  },
 ];
 
 export const PRICING_COMPARISON_CATEGORIES = [
   {
-    category: "Ordering & Front-of-House",
+    category: "Ordering & Dining Front-End",
     items: [
-      { name: "Table-Specific QR Stand Generator", starter: true, growth: true, enterprise: true },
-      { name: "Photo-Rich Digital Menu with Modifiers", starter: true, growth: true, enterprise: true },
-      { name: "Instant 86-Item Sold Out Toggle", starter: true, growth: true, enterprise: true },
-      { name: "Pay-at-Table & Digital Receipts", starter: true, growth: true, enterprise: true },
-      { name: "Direct Online Ordering Storefront (0% fee)", starter: false, growth: true, enterprise: true }
+      { name: "Dynamic QR Table Ordering in ₹", starter: true, growth: true, enterprise: true },
+      { name: "Instant UPI Payments (PhonePe, GPay, Paytm)", starter: true, growth: true, enterprise: true },
+      { name: "Split Billing & Course Ordering", starter: false, growth: true, enterprise: true },
+      { name: "Table Capacities & Active QR Limits", starter: "Up to 10 Tables", growth: "Unlimited", enterprise: "Unlimited" },
+      { name: "Custom Brand Watermark & Domain", starter: false, growth: true, enterprise: true },
     ]
   },
   {
-    category: "Kitchen & Back-of-House (KDS)",
+    category: "Kitchen Display System (KDS)",
     items: [
-      { name: "Digital Kitchen Display System (KDS)", starter: false, growth: true, enterprise: true },
-      { name: "Multi-Station Splitting (Grill, Bar, Fryer)", starter: false, growth: true, enterprise: true },
-      { name: "Color-Coded SLA Countdown Timers", starter: false, growth: true, enterprise: true },
-      { name: "Expo Pass Screen (Quality Control)", starter: false, growth: true, enterprise: true },
-      { name: "Concurrent KDS Stations", starter: "1 Station", growth: "Up to 4 Screens", enterprise: "Unlimited" }
+      { name: "Real-time Order State Transition (4-Stage)", starter: true, growth: true, enterprise: true },
+      { name: "Audio Alerts & Chime Notifications", starter: true, growth: true, enterprise: true },
+      { name: "Multi-Station Kitchen Routing (Grill, Bar, Fryer)", starter: false, growth: true, enterprise: true },
+      { name: "Kitchen SLA Telemetry & Prep Delay Alarms", starter: false, growth: true, enterprise: true },
     ]
   },
   {
-    category: "Management & Growth",
+    category: "Inventory & Recipe Automation",
     items: [
-      { name: "Floorplan & Seating Management", starter: false, growth: true, enterprise: true },
-      { name: "Sales & Hourly Velocity Reporting", starter: true, growth: true, enterprise: true },
-      { name: "Ingredient & Recipe Depletion", starter: false, growth: false, enterprise: true },
-      { name: "Guest Loyalty & CRM Engine", starter: false, growth: false, enterprise: true },
-      { name: "Multi-Outlet Central Management", starter: false, growth: false, enterprise: true },
-      { name: "24/7 Dedicated Support", starter: "Live Chat", growth: "Priority Phone", enterprise: "Dedicated Specialist" }
+      { name: "Item-level Stock Count Tracking", starter: true, growth: true, enterprise: true },
+      { name: "Recipe BOM (Bill of Materials) Depletion", starter: false, growth: true, enterprise: true },
+      { name: "Automated Reorder Alerts via WhatsApp", starter: false, growth: true, enterprise: true },
+      { name: "Vendor Purchase Order (PO) Management", starter: false, growth: true, enterprise: true },
+    ]
+  },
+  {
+    category: "Intelligence, Scale & Governance",
+    items: [
+      { name: "Real-Time Revenue & KOT Analytics", starter: "Standard", growth: "Advanced Real-Time", enterprise: "Predictive BI" },
+      { name: "Multi-Outlet Centralized Menu Hub", starter: false, growth: false, enterprise: true },
+      { name: "Zomato & Swiggy Aggregator Bridge", starter: false, growth: false, enterprise: true },
+      { name: "Dedicated 24/7 SLA & Tech Support", starter: "Community/Email", growth: "Priority WhatsApp", enterprise: "Dedicated TAM + Phone" },
     ]
   }
 ];

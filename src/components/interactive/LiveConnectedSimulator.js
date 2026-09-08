@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import QRMenuSimulator from "./QRMenuSimulator";
 import KDSSimulator from "./KDSSimulator";
-import { Utensils, CheckCircle2 } from "lucide-react";
+import { Utensils, CheckCircle2, Sparkles } from "lucide-react";
+import styles from "../../styles/Simulator.module.css";
 
 export default function LiveConnectedSimulator() {
   const [syncedTicket, setSyncedTicket] = useState(null);
@@ -12,79 +13,75 @@ export default function LiveConnectedSimulator() {
       id: `live-${Date.now()}`,
       orderNumber: `#${Math.floor(Math.random() * 80) + 106}`,
       tableNumber: order.tableNumber,
-      orderType: "Dine-In",
-      serverName: "Table QR",
       timeMinutes: 0,
-      timeSeconds: 0,
       status: "New",
       station: "Grill",
       totalAmount: order.total,
       items: order.items.map((i) => ({
         name: i.name,
         quantity: i.quantity,
-        notes: i.notes,
-        station: "Grill"
+        notes: i.notes
       }))
     };
 
     setSyncedTicket(newKdsTicket);
     setFlashSync(true);
-    setTimeout(() => setFlashSync(false), 2500);
+    setTimeout(() => setFlashSync(false), 3000);
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className={styles.simulatorContainer}>
       {/* Interactive Guidance Banner */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-slate-200 shadow-md shadow-slate-200/50">
-        <div className="flex items-center gap-2.5 text-left">
-          <div className="w-7 h-7 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold shrink-0">
-            <Utensils className="w-3.5 h-3.5" />
+      <div className={styles.guidanceBanner}>
+        <div className={styles.guidanceLeft}>
+          <div className={styles.guidanceIcon}>
+            <Utensils style={{ width: 18, height: 18 }} />
           </div>
           <div>
-            <h4 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 m-0">
+            <div className={styles.guidanceTitle}>
               <span>Interactive Dual-Screen Workflow</span>
-              <span className="text-[8px] px-1.5 py-0.2 rounded-full bg-orange-100 text-orange-800 font-bold uppercase tracking-wider">
+              <span className="badge-pill badge-blue" style={{ fontSize: 9 }}>
                 Live Sync
               </span>
-            </h4>
-            <p className="text-[10px] text-slate-600 font-medium m-0">
-              Tap "Send Order to Kitchen" on the phone (Left) to see it appear live in the New Orders column on the KDS board (Right).
-            </p>
+            </div>
+            <div className={styles.guidanceDesc}>
+              Add an item on the phone (Left) and tap "Send to Kitchen" — watch it appear live on the KDS board (Right) in real time!
+            </div>
           </div>
         </div>
 
         {flashSync && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-[11px] font-bold shadow-md shadow-emerald-600/30 animate-in fade-in zoom-in-95 shrink-0">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>Order Arrived in New Orders!</span>
+          <div className="badge-pill badge-emerald" style={{ padding: "6px 14px" }}>
+            <CheckCircle2 style={{ width: 14, height: 14 }} />
+            <span>KOT Arrived in New Orders Column!</span>
           </div>
         )}
       </div>
 
       {/* Side-by-Side Dual Showcase */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+      <div className={styles.dualGrid}>
         {/* Left: Guest QR Phone App */}
-        <div className="lg:col-span-4 flex flex-col items-center justify-between">
-          <div className="w-full mb-1.5 flex items-center justify-between text-[11px] text-slate-700 px-1 font-bold">
-            <span className="flex items-center gap-1.5 text-slate-900">
-              <span className="w-2 h-2 rounded-full bg-orange-500" />
+        <div className={styles.phoneColumn}>
+          <div className={styles.columnHeader}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-primary)" }} />
               1. Guest Dining Phone
             </span>
-            <span className="text-[10px] text-slate-500 font-normal">Table #14</span>
+            <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>Table #14</span>
           </div>
           <QRMenuSimulator onOrderPlaced={handleOrderPlacedFromPhone} />
         </div>
 
-        {/* Right: 4-Stage Kitchen Display System (KDS) Board */}
-        <div className="lg:col-span-8 flex flex-col justify-between">
-          <div className="w-full mb-1.5 flex items-center justify-between text-[11px] text-slate-700 px-1 font-bold">
-            <span className="flex items-center gap-1.5 text-slate-900">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              2. Real-Time 4-Stage Kitchen Display Board (KDS)
+        {/* Right: Kitchen Display System (KDS) Board */}
+        <div>
+          <div className={styles.columnHeader}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-indigo)" }} />
+              2. Multi-Station Kitchen Display (KDS)
             </span>
-            <span className="text-[10px] text-slate-500 font-normal">New → In Kitchen → Ready → Served</span>
+            <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 500 }}>Chef View</span>
           </div>
-          <KDSSimulator externalTicket={syncedTicket} />
+          <KDSSimulator incomingTicket={syncedTicket} />
         </div>
       </div>
     </div>

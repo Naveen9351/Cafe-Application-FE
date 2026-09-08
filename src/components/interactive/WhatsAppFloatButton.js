@@ -7,23 +7,23 @@ export default function WhatsAppFloatButton() {
   const whatsappUrl =
     "https://wa.me/919680132562?text=" +
     encodeURIComponent(
-      "Hi SERVIQ team, I want to see a live demo and set up QR Table Ordering & Kitchen Display for my cafe/restaurant."
+      "Hi SARVIQ team, I want to see a live demo and set up QR Table Ordering & Kitchen Display for my cafe/restaurant."
     );
 
   return (
     <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2">
       {/* Friendly Tooltip Pill */}
       {showTooltip && (
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-xl shadow-slate-900/10 text-xs font-bold text-slate-800 animate-in fade-in slide-in-from-right-4 duration-300">
+        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-700 shadow-2xl text-xs font-bold text-slate-200 animate-in fade-in slide-in-from-right-4 duration-300">
           <span className="w-2 h-2 rounded-full bg-[#25D366] animate-ping" />
-          <span>Quick WhatsApp Demo Help</span>
+          <span>Quick SARVIQ Demo Help</span>
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               setShowTooltip(false);
             }}
-            className="text-slate-400 hover:text-slate-700 ml-1 cursor-pointer bg-transparent border-0"
+            className="text-slate-400 hover:text-white ml-1 cursor-pointer bg-transparent border-0"
             title="Dismiss tooltip"
           >
             <X className="w-3.5 h-3.5" />
@@ -36,8 +36,8 @@ export default function WhatsAppFloatButton() {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-2xl shadow-[#25D366]/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group focus:outline-none ring-4 ring-white"
-        title="Chat with SERVIQ on WhatsApp (+91 96801 32562)"
+        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-2xl shadow-[#25D366]/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group focus:outline-none ring-2 ring-emerald-400/40"
+        title="Chat with SARVIQ on WhatsApp (+91 96801 32562)"
       >
         <svg
           viewBox="0 0 32 32"
