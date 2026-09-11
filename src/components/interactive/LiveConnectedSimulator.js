@@ -15,7 +15,6 @@ export default function LiveConnectedSimulator() {
       tableNumber: order.tableNumber,
       timeMinutes: 0,
       status: "New",
-      station: "Grill",
       totalAmount: order.total,
       items: order.items.map((i) => ({
         name: i.name,
@@ -39,7 +38,7 @@ export default function LiveConnectedSimulator() {
           </div>
           <div>
             <div className={styles.guidanceTitle}>
-              <span>Interactive Dual-Screen Workflow</span>
+              <span>Live Connected Restaurant Simulator</span>
               <span className="badge-pill badge-blue" style={{ fontSize: 9 }}>
                 Live Sync
               </span>

@@ -1,7 +1,7 @@
 export const PRICING_TIERS = [
   {
     id: "starter",
-    name: "SARVIQ Starter",
+    name: "SERVIQ Starter",
     badge: "For Single Outlets",
     description: "Essential AI digital ordering and kitchen queue for fast-paced cafes and QSR counters.",
     priceMonthly: 1499,
@@ -19,7 +19,7 @@ export const PRICING_TIERS = [
   },
   {
     id: "growth",
-    name: "SARVIQ Growth Pro",
+    name: "SERVIQ Growth Pro",
     badge: "Most Popular",
     description: "Complete autonomous restaurant OS with multi-station line splitting and recipe inventory.",
     priceMonthly: 2999,
@@ -38,7 +38,7 @@ export const PRICING_TIERS = [
   },
   {
     id: "enterprise",
-    name: "SARVIQ Enterprise Multi-Chain",
+    name: "SERVIQ Enterprise Multi-Chain",
     badge: "For Franchises & Chains",
     description: "Global franchise governance, central menu deployment, and multi-location BI analytics.",
     priceMonthly: 5999,

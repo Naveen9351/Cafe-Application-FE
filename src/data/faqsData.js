@@ -1,13 +1,13 @@
 export const FAQS = [
   {
     category: "General",
-    question: "What is SARVIQ and how does it work?",
-    answer: "SARVIQ is an autonomous AI-powered restaurant operating system. It synchronizes digital QR table menus, real-time Kitchen Display Systems (KDS), cloud POS billing, recipe-level inventory, and real-time revenue analytics into one unified console."
+    question: "What is SERVIQ and how does it work?",
+    answer: "SERVIQ is an autonomous AI-powered restaurant operating system. It synchronizes digital QR table menus, real-time Kitchen Display Systems (KDS), cloud POS billing, recipe-level inventory, and real-time revenue analytics into one unified console."
   },
   {
     category: "QR Ordering",
     question: "Do guests need to download an application to order?",
-    answer: "No. Guests simply point their phone camera at the table QR code. SARVIQ opens instantly in their native mobile browser with a high-resolution visual menu in Indian Rupees (₹), offering one-tap UPI payments."
+    answer: "No. Guests simply point their phone camera at the table QR code. SERVIQ opens instantly in their native mobile browser with a high-resolution visual menu in Indian Rupees (₹), offering one-tap UPI payments."
   },
   {
     category: "Kitchen (KDS)",
@@ -17,16 +17,16 @@ export const FAQS = [
   {
     category: "Payments",
     question: "Which payment gateways and UPI methods are supported?",
-    answer: "SARVIQ integrates natively with all major Indian UPI rails (Google Pay, PhonePe, Paytm, BHIM, CRED), NetBanking, and credit/debit cards with instant settlement capabilities."
+    answer: "SERVIQ integrates natively with all major Indian UPI rails (Google Pay, PhonePe, Paytm, BHIM, CRED), NetBanking, and credit/debit cards with instant settlement capabilities."
   },
   {
     category: "Hardware",
-    question: "What hardware is required to run SARVIQ?",
-    answer: "Zero hardware lock-in. SARVIQ runs in any modern browser on Android tablets, iPads, touch POS terminals, smart TVs, PCs, and thermal receipt printers."
+    question: "What hardware is required to run SERVIQ?",
+    answer: "Zero hardware lock-in. SERVIQ runs in any modern browser on Android tablets, iPads, touch POS terminals, smart TVs, PCs, and thermal receipt printers."
   },
   {
     category: "Pricing & Trial",
-    question: "Can I try SARVIQ before committing?",
+    question: "Can I try SERVIQ before committing?",
     answer: "Yes! We offer a full-featured 14-day free trial with complimentary menu digitization and on-call specialist onboarding."
   }
 ];

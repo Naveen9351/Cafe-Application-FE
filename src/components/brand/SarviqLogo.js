@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function SarviqLogo({
+export default function ServiqLogo({
   size = 'md',
   theme = 'light',
   showSubtitle = true,
@@ -140,7 +140,7 @@ export default function SarviqLogo({
               margin: 0
             }}
           >
-            SARVIQ
+            SERVIQ
           </span>
 
           {showBadge && (

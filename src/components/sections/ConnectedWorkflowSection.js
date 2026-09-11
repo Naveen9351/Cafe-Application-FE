@@ -21,7 +21,7 @@ import {
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Three3DRestaurantEcosystem from "../interactive/Three3DRestaurantEcosystem";
-import styles from "../../styles/SarviqWorkflow.module.css";
+import styles from "../../styles/ServiqWorkflow.module.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -48,7 +48,7 @@ export default function ConnectedWorkflowSection() {
   const scrubberRef = useRef(null);
   const stageGridRef = useRef(null);
 
-  // 6 Structured SARVIQ Workflow Stages
+  // 6 Structured SERVIQ Workflow Stages
   const stages = [
     {
       id: "table-qr",
@@ -75,7 +75,7 @@ export default function ConnectedWorkflowSection() {
       label: "AI Engine",
       title: "02 — AI Modifier Engine",
       headline: "Intelligent Dietary Analysis & Modifier Upselling",
-      desc: "SARVIQ AI analyzes dietary tags (Veg/Non-Veg), sides, and pairing combinations to dynamically recommend high-margin add-ons.",
+      desc: "SERVIQ AI analyzes dietary tags (Veg/Non-Veg), sides, and pairing combinations to dynamically recommend high-margin add-ons.",
       icon: Cpu,
       metricLabel: "Potential AOV Uplift",
       metricValue: "+24% Lift",
@@ -284,7 +284,7 @@ export default function ConnectedWorkflowSection() {
         <div ref={headerRef} className={styles.header}>
           <div className={styles.brandBadge}>
             <span className={styles.pulseDot} />
-            <span>SARVIQ Autonomous Operating System • Continuous Live Flow</span>
+            <span>SERVIQ Autonomous Operating System • Continuous Live Flow</span>
           </div>
 
           <h2 className={styles.title}>
@@ -309,7 +309,7 @@ export default function ConnectedWorkflowSection() {
           <div className={styles.scrubberTopRow}>
             <div className={styles.scrubberLegend}>
               <Repeat style={{ width: 14, height: 14, color: "#60a5fa" }} />
-              <span>SARVIQ Order Lifecycle Progress:</span>
+              <span>SERVIQ Order Lifecycle Progress:</span>
               <span style={{ color: "#38bdf8", fontFamily: "var(--font-mono)" }}>
                 Step {activeStep + 1} of 6
               </span>

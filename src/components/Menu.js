@@ -81,7 +81,7 @@ export default function Menu() {
         fetchTenantInfo(storedTenant);
       } else {
         setTenantId("demo-tenant");
-        setTenantInfo({ name: "SARVIQ Flagship Bistro", address: "Indiranagar, Bangalore" });
+        setTenantInfo({ name: "SERVIQ Flagship Bistro", address: "Indiranagar, Bangalore" });
       }
     }
 
@@ -171,15 +171,31 @@ export default function Menu() {
   });
 
   const handleAdd = (item) => {
+    if (!item.available && item.available !== undefined) {
+      toast.error(`${item.name} is currently out of stock`);
+      return;
+    }
+
+    const discount = item.discount || {};
+    let finalPrice = item.price;
+    if (discount.isDiscounted && discount.value > 0) {
+      if (discount.type === 'percentage') {
+        finalPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+      } else {
+        finalPrice = Math.max(0, item.price - discount.value);
+      }
+    }
+
     addItem({
       id: item._id,
       name: item.name,
-      price: item.price,
+      price: finalPrice,
+      originalPrice: item.price,
       category: item.category,
       image: item.image,
     });
-    toast.success(`${item.name} añadido!`, {
-      icon: '☕',
+    toast.success(`Added ${item.name} to order!`, {
+      icon: '🍽️',
       style: { borderRadius: '14px', background: theme.bgCard, color: theme.textMain, border: `1px solid ${theme.border}` },
     });
   };
@@ -205,7 +221,7 @@ export default function Menu() {
               <div style={{ backgroundColor: theme.bgHeader, padding: '2rem 1.5rem 1.5rem', borderBottomLeftRadius: '28px', borderBottomRightRadius: '28px', transition: 'background-color 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <MenuIcon size={22} color={theme.textMain} />
-                  <span style={{ fontSize: '1.1rem', fontWeight: '800', color: theme.textMain }}>Coffee</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: '800', color: theme.textMain }}>Digital Menu</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {/* Theme Toggle Button */}
                     <button 
@@ -217,7 +233,7 @@ export default function Menu() {
                     <Link to={`/cart?table=${tableNumber}`} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <ShoppingBag size={22} color={theme.textMain} />
                       {cartTotalItems > 0 && (
-                        <span style={{ position: 'absolute', top: '-5px', right: '-8px', backgroundColor: theme.accent, color: isDarkMode ? 'white' : '#1a2e05', fontSize: '0.6rem', fontWeight: '800', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                        <span style={{ position: 'absolute', top: '-5px', right: '-8px', backgroundColor: theme.accent, color: isDarkMode ? 'white' : '#1a2e05', fontSize: '0.6rem', fontWeight: '800', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {cartTotalItems}
                         </span>
                       )}
@@ -227,8 +243,10 @@ export default function Menu() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <div>
-                    <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: theme.textMain }}>Good morning, Iv</h2>
-                    <p style={{ fontSize: '0.85rem', color: theme.textMuted, marginTop: '2px' }}>What would you like to eat today?</p>
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: theme.textMain }}>Welcome Guest</h2>
+                    <p style={{ fontSize: '0.85rem', color: theme.textMuted, marginTop: '2px' }}>
+                      {tableNumber ? `Ordering for Table ${tableNumber}` : 'What would you like to enjoy today?'}
+                    </p>
                   </div>
                   <img 
                     src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" 
@@ -243,38 +261,14 @@ export default function Menu() {
                     <Search size={18} color={theme.textMuted} style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)' }} />
                     <input 
                       type="text" 
-                      placeholder="Search coffee, burgers..." 
+                      placeholder="Search dishes, drinks..." 
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       style={{ width: '100%', backgroundColor: theme.inputBg, border: isDarkMode ? 'none' : `1px solid ${theme.border}`, borderRadius: '12px', padding: '0.75rem 1rem 0.75rem 2.8rem', color: theme.inputText, fontSize: '0.9rem', outline: 'none' }}
                     />
                   </div>
-                  <button style={{ backgroundColor: theme.accent, border: 'none', borderRadius: '12px', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justify: 'center', cursor: 'pointer' }}>
+                  <button style={{ backgroundColor: theme.accent, border: 'none', borderRadius: '12px', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <Sliders size={18} color={isDarkMode ? '#ffffff' : '#1a2e05'} />
-                  </button>
-                </div>
-              </div>
-
-              {/* 🔥 Recommended for you */}
-              <div style={{ padding: '1rem 1.5rem 0' }}>
-                <div style={{ backgroundColor: theme.bgHeader, border: `1.5px dashed ${theme.accent}`, borderRadius: '18px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background-color 0.3s' }}>
-                  <div>
-                    <span style={{ color: theme.accent, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Recommended for you</span>
-                    <h3 style={{ color: theme.textMain, fontSize: '1rem', fontWeight: '800', marginTop: '4px' }}>Cappuccino + Croissant</h3>
-                    <p style={{ color: theme.textMuted, fontSize: '0.8rem', marginTop: '2px' }}>A perfect morning start combo</p>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      const capp = items.find(i => i.name.toLowerCase().includes('cappuccino')) || items[0];
-                      if (capp) {
-                        handleAdd(capp);
-                      } else {
-                        toast.error("Item currently unavailable");
-                      }
-                    }}
-                    style={{ backgroundColor: theme.accent, color: isDarkMode ? 'white' : '#1a2e05', border: 'none', borderRadius: '10px', padding: '0.5rem 1rem', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer' }}
-                  >
-                    Add +
                   </button>
                 </div>
               </div>
@@ -289,7 +283,7 @@ export default function Menu() {
                     border: 'none', padding: '0.55rem 1.1rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.8rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'background-color 0.3s'
                   }}
                 >
-                  Todo
+                  All Items
                 </button>
                 {categories.map((c) => (
                   <button
@@ -306,43 +300,105 @@ export default function Menu() {
                 ))}
               </section>
 
-              {/* Coffee Grid */}
+              {/* Dishes Grid */}
               <main style={{ padding: '1rem 1.5rem', flex: 1 }}>
                 {filteredItems.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '3rem 1rem', color: theme.textMuted }}>
-                    <p>No items found. Try searching for something else!</p>
+                    <p>No dishes found. Try searching for something else!</p>
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                    {filteredItems.map((item) => (
-                      <div 
-                        key={item._id} 
-                        style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '20px', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer', transition: 'background-color 0.3s, border-color 0.3s' }}
-                        onClick={() => setSelectedItem(item)}
-                      >
-                        <div style={{ borderRadius: '14px', overflow: 'hidden', height: '110px', position: 'relative' }}>
-                          <img 
-                            src={getValidFoodImage(item)} 
-                            alt={item.name} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                            onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
-                          />
+                    {filteredItems.map((item) => {
+                      const discount = item.discount || {};
+                      const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
+                      let discountedPrice = item.price;
+                      if (hasDiscount) {
+                        if (discount.type === 'percentage') {
+                          discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+                        } else {
+                          discountedPrice = Math.max(0, item.price - discount.value);
+                        }
+                      }
+                      const isOutOfStock = item.available === false || item.isAvailable === false;
+
+                      return (
+                        <div 
+                          key={item._id} 
+                          style={{ 
+                            backgroundColor: theme.bgCard, 
+                            border: `1px solid ${theme.border}`, 
+                            borderRadius: '20px', 
+                            padding: '0.75rem', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            justifyContent: 'space-between', 
+                            cursor: isOutOfStock ? 'not-allowed' : 'pointer', 
+                            opacity: isOutOfStock ? 0.6 : 1,
+                            transition: 'background-color 0.3s, border-color 0.3s' 
+                          }}
+                          onClick={() => !isOutOfStock && setSelectedItem(item)}
+                        >
+                          <div style={{ borderRadius: '14px', overflow: 'hidden', height: '110px', position: 'relative' }}>
+                            <img 
+                              src={getValidFoodImage(item)} 
+                              alt={item.name} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
+                            />
+                            {hasDiscount && (
+                              <span style={{ position: 'absolute', top: 6, left: 6, background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: 4 }}>
+                                {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                              </span>
+                            )}
+                            {isOutOfStock && (
+                              <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                OUT OF STOCK
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ marginTop: '0.65rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ fontSize: '10px', color: item.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 800 }}>
+                                {item.isVeg !== false ? '●' : '▲'}
+                              </span>
+                              <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>{item.name}</h3>
+                            </div>
+                            <p style={{ fontSize: '0.7rem', color: theme.textMuted, marginTop: '2px', lineClamp: '1' }}>{item.description || "Prepared fresh to order"}</p>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.65rem' }}>
+                            <div>
+                              {hasDiscount ? (
+                                <div>
+                                  <span style={{ fontSize: '1rem', fontWeight: '900', color: '#16a34a' }}>₹{discountedPrice}</span>
+                                  <span style={{ fontSize: '0.75rem', color: theme.textMuted, textDecoration: 'line-through', marginLeft: 4 }}>₹{item.price}</span>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '1rem', fontWeight: '900', color: theme.textMain }}>₹{item.price}</span>
+                              )}
+                            </div>
+                            <button 
+                              disabled={isOutOfStock}
+                              onClick={(e) => { e.stopPropagation(); handleAdd(item); }}
+                              style={{ 
+                                backgroundColor: isOutOfStock ? '#94a3b8' : theme.accent, 
+                                border: 'none', 
+                                width: '28px', 
+                                height: '28px', 
+                                borderRadius: '50%', 
+                                color: isDarkMode ? 'white' : '#1a2e05', 
+                                fontWeight: '800', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                cursor: isOutOfStock ? 'not-allowed' : 'pointer' 
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ marginTop: '0.65rem' }}>
-                          <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: theme.textMain }}>{item.name}</h3>
-                          <p style={{ fontSize: '0.7rem', color: theme.textMuted, marginTop: '2px', lineClamp: '1' }}>{item.description || "Leche o crema opcional"}</p>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.65rem' }}>
-                          <span style={{ fontSize: '1rem', fontWeight: '900', color: theme.textMain }}>₹{item.price}</span>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleAdd(item); }}
-                            style={{ backgroundColor: theme.accent, border: 'none', width: '28px', height: '28px', borderRadius: '50%', color: isDarkMode ? 'white' : '#1a2e05', fontWeight: '800', display: 'flex', alignItems: 'center', justify: 'center', cursor: 'pointer' }}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </main>

@@ -65,7 +65,7 @@ export default function PageLoader({ onLoaded, duration = 1200 }) {
           >
             <img
               src="/logos/logo-gif.gif"
-              alt="SARVIQ Loading"
+              alt="SERVIQ Loading"
               style={{
                 width: '100%',
                 height: '100%',
@@ -83,7 +83,7 @@ export default function PageLoader({ onLoaded, duration = 1200 }) {
               letterSpacing: '0.5px',
               margin: '0 0 0.35rem'
             }}>
-              SARVIQ
+              SERVIQ
             </h2>
             <p style={{
               fontSize: '0.8rem',

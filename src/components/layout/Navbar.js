@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { FLAGSHIP_PRODUCTS } from "../../data/productsData";
 import { SOLUTIONS } from "../../data/solutionsData";
-import SarviqLogo from "../brand/SarviqLogo";
+import ServiqLogo from "../brand/ServiqLogo";
 import styles from "../../styles/Navbar.module.css";
 
 export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
@@ -51,7 +51,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
             onClick={closeDropdowns}
             className={styles.brandLink}
           >
-            <SarviqLogo size="md" theme="light" />
+            <ServiqLogo size="md" theme="light" />
           </Link>
 
           {/* Desktop Navigation Links (Single Row) */}
@@ -254,7 +254,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
           <Link to="/products" onClick={closeDropdowns} className={styles.navBtn}>Products Suite</Link>
           <Link to="/solutions" onClick={closeDropdowns} className={styles.navBtn}>Solutions for Outlets</Link>
           <Link to="/pricing" onClick={closeDropdowns} className={styles.navBtn}>Pricing (₹)</Link>
-          <Link to="/about" onClick={closeDropdowns} className={styles.navBtn}>About SARVIQ</Link>
+          <Link to="/about" onClick={closeDropdowns} className={styles.navBtn}>About SERVIQ</Link>
           <Link to="/contact" onClick={closeDropdowns} className={styles.navBtn}>Contact Support</Link>
           <Link to="/menu" onClick={closeDropdowns} className="badge-pill badge-emerald" style={{ alignSelf: 'flex-start' }}>
             <QrCode style={{ width: 14, height: 14 }} /> Live Customer QR Menu

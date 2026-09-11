@@ -106,7 +106,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
           <div className={styles.iconWrap}>
             <Users size={22} />
           </div>
-          <span>SARVIQ CRM & Guest Retention Engine</span>
+          <span>SERVIQ CRM & Guest Retention Engine</span>
         </h2>
       </div>
 

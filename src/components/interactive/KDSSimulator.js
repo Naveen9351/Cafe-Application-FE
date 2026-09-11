@@ -16,7 +16,6 @@ const INITIAL_TICKETS = [
     tableNumber: 14,
     timeMinutes: 1,
     status: "New",
-    station: "Grill",
     totalAmount: 665,
     items: [
       { name: "Dry-Aged Angus Truffle Burger", quantity: 2, notes: "Brioche • Med Well" },
@@ -29,7 +28,6 @@ const INITIAL_TICKETS = [
     tableNumber: 8,
     timeMinutes: 6,
     status: "Preparing",
-    station: "Bar",
     totalAmount: 480,
     items: [
       { name: "Iced Ceremonial Matcha Latte", quantity: 2, notes: "Oat Milk • Less Ice" }
@@ -41,7 +39,6 @@ const INITIAL_TICKETS = [
     tableNumber: 22,
     timeMinutes: 11,
     status: "Ready",
-    station: "Grill",
     totalAmount: 320,
     items: [
       { name: "Woodfired Artisan Margherita", quantity: 1, notes: "Extra Basil Oil" }

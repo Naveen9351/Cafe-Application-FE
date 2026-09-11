@@ -140,7 +140,7 @@ export default function FAQSection({ onOpenDemo }) {
             Got Questions? We Have Answers.
           </h2>
           <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
-            Everything you need to know about setting up SARVIQ, hardware compatibility, UPI payments, and Indian POS sync.
+            Everything you need to know about setting up SERVIQ, hardware compatibility, UPI payments, and Indian POS sync.
           </p>
         </div>
 

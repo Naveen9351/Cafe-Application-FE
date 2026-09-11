@@ -216,7 +216,7 @@ export default function BeforeAfterSection() {
             <span>Operational Shift</span>
           </div>
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
-            Traditional Dining Chaos <span style={{ color: "var(--text-light)" }}>vs</span> <span className="gradient-text">SARVIQ Velocity</span>
+            Traditional Dining Chaos <span style={{ color: "var(--text-light)" }}>vs</span> <span className="gradient-text">SERVIQ Velocity</span>
           </h2>
           <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
             See how forward-thinking restaurants replace legacy friction with autonomous digital speed.
@@ -285,7 +285,7 @@ export default function BeforeAfterSection() {
             </div>
           </div>
 
-          {/* Column 2: SARVIQ Autonomous OS */}
+          {/* Column 2: SERVIQ Autonomous OS */}
           <div
             ref={rightCardRef}
             className="card-luxury"
@@ -314,7 +314,7 @@ export default function BeforeAfterSection() {
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--color-primary-light)", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <CheckCircle2 style={{ width: 18, height: 18 }} />
                   </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text-main)", margin: 0 }}>SARVIQ Autonomous OS</h3>
+                  <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text-main)", margin: 0 }}>SERVIQ Autonomous OS</h3>
                 </div>
                 <span className="badge-pill badge-blue" style={{ fontSize: 10 }}>
                   AI Velocity

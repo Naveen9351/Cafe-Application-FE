@@ -212,6 +212,57 @@
   color: #059669;
 }
 
+.fieldWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.inputError input {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
+.inputError input:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3.5px rgba(239, 68, 68, 0.15) !important;
+}
+
+.inputError .icon {
+  color: #ef4444 !important;
+}
+
+.errorText {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-left: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.errorBanner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Eye Toggle Button */
 .eyeBtn {
   position: absolute;

@@ -206,7 +206,7 @@ export default function CTASection({ onOpenDemo }) {
                 lineHeight: 1.6
               }}
             >
-              Join hundreds of forward-thinking Indian cafes, QSRs, and dining rooms cutting wait times and maximizing table turn rates with SARVIQ.
+              Join hundreds of forward-thinking Indian cafes, QSRs, and dining rooms cutting wait times and maximizing table turn rates with SERVIQ.
             </p>
 
             {/* CTA Buttons */}

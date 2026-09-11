@@ -1,6 +1,6 @@
 import React from 'react';
-import SarviqLogo from './brand/SarviqLogo';
+import ServiqLogo from './brand/ServiqLogo';
 
 export default function BrandLogo(props) {
-  return <SarviqLogo {...props} />;
+  return <ServiqLogo {...props} />;
 }

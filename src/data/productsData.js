@@ -2,7 +2,7 @@ export const FLAGSHIP_PRODUCTS = [
   {
     id: "qr-ordering",
     slug: "qr-table-ordering",
-    name: "SARVIQ QR Table Dining",
+    name: "SERVIQ QR Table Dining",
     tagline: "Autonomous Dining Room Engine",
     badge: "Flagship FOH",
     description:
@@ -22,7 +22,7 @@ export const FLAGSHIP_PRODUCTS = [
   {
     id: "kds-kitchen",
     slug: "kitchen-display-system",
-    name: "SARVIQ Kitchen Display (KDS)",
+    name: "SERVIQ Kitchen Display (KDS)",
     tagline: "Zero-Latency Kitchen Queue OS",
     badge: "Flagship BOH",
     description:
@@ -44,7 +44,7 @@ export const FLAGSHIP_PRODUCTS = [
 export const ECOSYSTEM_PRODUCTS = [
   {
     id: "pos-billing",
-    title: "SARVIQ Cloud POS Billing",
+    title: "SERVIQ Cloud POS Billing",
     desc: "Lightning-fast billing terminal built for high weekend volume. Split bills, custom modifiers & 1-click settlements in ₹.",
     category: "Operations",
     badge: "FOH Engine",
@@ -65,7 +65,7 @@ export const ECOSYSTEM_PRODUCTS = [
   },
   {
     id: "ai-copilot",
-    title: "SARVIQ Autonomous AI Intelligence",
+    title: "SERVIQ Autonomous AI Intelligence",
     desc: "Predictive demand forecasting, dynamic weather-based combo recommendations, and automated menu digitizer.",
     category: "Intelligence",
     badge: "AI Native",

@@ -109,7 +109,7 @@ export default function TrustAndROISection({ onOpenDemo }) {
             Measurable ROI, <span className="gradient-text">Guaranteed from Day 1</span>
           </h2>
           <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
-            Calculate your estimated monthly revenue lift, reduced ticket errors, and labor savings with SARVIQ.
+            Calculate your estimated monthly revenue lift, reduced ticket errors, and labor savings with SERVIQ.
           </p>
         </div>
 

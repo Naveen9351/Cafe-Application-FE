@@ -40,9 +40,9 @@
 .card {
   display: flex;
   width: 100%;
-  max-width: 940px;
-  height: 80vh;
-  max-height: 570px;
+  max-width: 960px;
+  min-height: 540px;
+  max-height: 90vh;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 24px;
@@ -227,6 +227,112 @@
 
 .inputGroup:focus-within .icon {
   color: #059669;
+}
+
+.fieldWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.inputError input {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
+.inputError input:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3.5px rgba(239, 68, 68, 0.15) !important;
+}
+
+.inputError .icon {
+  color: #ef4444 !important;
+}
+
+.errorText {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-left: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.errorBanner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  line-height: 1.4;
+  margin-bottom: 0.25rem;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.2s ease;
+  z-index: 2;
+}
+
+.eyeBtn:hover {
+  color: #0f172a;
+}
+
+/* Password requirements checklist */
+.passwordRequirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.35rem 0.1rem 0;
+}
+
+.rulePill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.ruleMet {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.rulePending {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
 }
 
 /* Submit Action Button */

@@ -158,7 +158,7 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
           {/* Top Badge */}
           <div ref={badgeRef} className={styles.heroBadge}>
             <span className={styles.pulseDot} />
-            <span>SARVIQ 2026 AI OS • Autonomous Restaurant Platform</span>
+            <span>SERVIQ 2026 AI OS • Autonomous Restaurant Platform</span>
           </div>
 
           {/* Dynamic Headline with Active Typewriter */}

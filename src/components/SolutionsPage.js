@@ -29,7 +29,7 @@ export default function SolutionsPage() {
             Engineered for Every Restaurant Model
           </h1>
           <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
-            Whether you run a fast-paced cafe, fine dining venue, high-traffic QSR, or cloud kitchen chain, SARVIQ adapts to your exact layout.
+            Whether you run a fast-paced cafe, fine dining venue, high-traffic QSR, or cloud kitchen chain, SERVIQ adapts to your exact layout.
           </p>
         </div>
 

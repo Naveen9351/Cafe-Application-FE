@@ -104,7 +104,7 @@ export default function LeadCaptureForm({
         </h3>
 
         <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, maxWidth: 380, lineHeight: 1.5 }}>
-          Thank you, <strong>{formData.contactName || "Partner"}</strong>. A SARVIQ restaurant specialist will reach out on WhatsApp / phone at <strong>{formData.phone}</strong> within 30 minutes.
+          Thank you, <strong>{formData.contactName || "Partner"}</strong>. A SERVIQ restaurant specialist will reach out on WhatsApp / phone at <strong>{formData.phone}</strong> within 30 minutes.
         </p>
 
         <button
@@ -186,7 +186,7 @@ export default function LeadCaptureForm({
       <div className="grid-2" style={{ gap: 12 }}>
         <div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
-            <Mail style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Work Email
+            <Mail style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Email
           </label>
           <input
             type="email"

@@ -66,8 +66,8 @@ export default function LandingPage() {
       <LeadCaptureModal
         isOpen={isDemoModalOpen}
         onClose={handleCloseDemo}
-        title="Schedule a Personalized SARVIQ Walkthrough"
-        subtitle="See how SARVIQ cuts table turn times and automates your kitchen in under 15 minutes."
+        title="Schedule a Personalized SERVIQ Walkthrough"
+        subtitle="See how SERVIQ cuts table turn times and automates your kitchen in under 15 minutes."
       />
 
       <LiveActivityToast />

@@ -10,7 +10,7 @@ import {
 export default function ScannableQRWidget() {
   const [demoUrl, setDemoUrl] = useState("http://localhost:3001/menu");
   const [qrCodeSrc, setQrCodeSrc] = useState(
-    "https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=https://sarviq.com/menu&color=0f172a&bgcolor=ffffff&margin=1"
+    "https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=https://serviq.com/menu&color=0f172a&bgcolor=ffffff&margin=1"
   );
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function ScannableQRWidget() {
             }}
           >
             <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", color: "var(--color-primary)", textTransform: "uppercase" }}>
-              SARVIQ DINING
+              SERVIQ DINING
             </div>
             <div style={{ fontSize: 13, fontWeight: 900, color: "var(--text-main)", margin: "2px 0 8px 0" }}>
               TABLE #14
@@ -94,7 +94,7 @@ export default function ScannableQRWidget() {
             <div style={{ width: 130, height: 130, margin: "0 auto", padding: 6, borderRadius: 12, border: "1px solid var(--border-subtle)", background: "#ffffff" }}>
               <img
                 src={qrCodeSrc}
-                alt="Scan to test live SARVIQ guest menu"
+                alt="Scan to test live SERVIQ guest menu"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             </div>

@@ -141,16 +141,22 @@ export default function POSTerminal({ tenantId, menuItems = [], onOrderCreated, 
     const newOrderObj = {
       _id: `ord_${Date.now()}`,
       orderNumber: `${Math.floor(1000 + Math.random() * 9000)}`,
-      tenantId,
+      tenantId: tenantId || '6a762ef86c9d5c8be315f10a',
       tableNumber: tableNumber || '1',
       channel: 'Dine-in',
-      station: 'Grill',
       items: cart.map(c => ({
+        id: c.id,
         name: c.name,
         quantity: c.quantity,
         price: c.price,
+        variant: c.variant,
+        addons: c.addons,
         modifiers: c.addons && c.addons.length > 0 ? c.addons.map(a => a.name).join(', ') : ''
       })),
+      customerDetails: {
+        name: customerName || 'Walk-in Guest',
+        phone: customerPhone || ''
+      },
       customerName: customerName || 'Walk-in Guest',
       customerPhone: customerPhone || '',
       paymentMethod,

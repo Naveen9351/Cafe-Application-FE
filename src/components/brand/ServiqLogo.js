@@ -1,6 +1,3 @@
-import React from 'react';
-import SarviqLogo from './SarviqLogo';
+import ServiqLogo from './SarviqLogo';
 
-export default function ServiqLogo(props) {
-  return <SarviqLogo {...props} />;
-}
+export default ServiqLogo;

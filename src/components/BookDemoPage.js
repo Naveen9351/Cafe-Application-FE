@@ -20,10 +20,10 @@ export default function BookDemoPage() {
                 <span>Live 1-on-1 Product Demo</span>
               </div>
               <h1 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
-                Experience the Velocity of SARVIQ for Your Food Outlet
+                Experience the Velocity of SERVIQ for Your Food Outlet
               </h1>
               <p style={{ marginTop: 16, fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                Schedule a 15-minute customized walkthrough with our restaurant technology engineers. See how SARVIQ solves rush-hour bottlenecks, speeds up kitchen throughput, and maximizes table turnover.
+                Schedule a 15-minute customized walkthrough with our restaurant technology engineers. See how SERVIQ solves rush-hour bottlenecks, speeds up kitchen throughput, and maximizes table turnover.
               </p>
             </div>
 

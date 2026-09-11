@@ -17,7 +17,7 @@ const ACTIVITIES = [
   {
     id: "act-2",
     venue: "Smokehouse Bistro",
-    action: "Grill Station marked Order #104 Ready",
+    action: "Kitchen KDS marked Order #104 Ready",
     metric: "Prep time: 6m 20s (Target: <8m)",
     icon: Flame,
     iconBg: "#fffbeb",
