@@ -93,10 +93,24 @@ const SuperAdminDashboard = () => {
                 headers: { 'x-auth-token': token }
             });
             toast.success("Business deleted successfully");
-            fetchTenants();
+            fetchTenantsAndLeads();
         } catch (err) {
             console.error(err);
             toast.error("Failed to delete business");
+        }
+    };
+
+    const handleDeleteLead = async (id) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API}/leads/${id}`, {
+                headers: { 'x-auth-token': token }
+            });
+            toast.success("Lead inquiry deleted successfully");
+            fetchTenantsAndLeads();
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to delete lead inquiry");
         }
     };
 
@@ -247,57 +261,74 @@ const SuperAdminDashboard = () => {
                                     <th>Phone / Email</th>
                                     <th>Date</th>
                                     <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {(!Array.isArray(leads) || leads.length === 0) ? (
                                     <tr>
-                                        <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                        <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                             No demo requests yet. Submissions from the landing page will appear here in real-time.
                                         </td>
                                     </tr>
                                 ) : (
-                                    leads.map(lead => (
-                                        <tr key={lead._id || lead.id}>
-                                            <td className={styles.nameCell}>
-                                                <div className={styles.avatar} style={{ background: '#4f46e5' }}>
-                                                    {(lead.name || 'L').charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <div className={styles.tenantName}>{lead.name}</div>
-                                                    <div className={styles.tenantId}>{lead.phone}</div>
-                                                </div>
-                                            </td>
-                                            <td style={{ fontWeight: '600' }}>{lead.restaurantName || lead.outletName || 'N/A'}</td>
-                                            <td>
-                                                <span className={`${styles.badge}`} style={{ background: '#f1f5f9', color: '#334155' }}>
-                                                    {lead.outletType || 'Cafe'}
-                                                </span>
-                                            </td>
-                                            <td>{lead.city || 'India'}</td>
-                                            <td>
-                                                <div style={{ fontSize: '0.82rem' }}>
-                                                    <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 'bold' }}>{lead.phone}</a>
-                                                    {lead.email && <div style={{ color: '#64748b' }}>{lead.email}</div>}
-                                                </div>
-                                            </td>
-                                            <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                                {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'Recent'}
-                                            </td>
-                                            <td>
-                                                <span 
-                                                    className={`${styles.badge}`} 
-                                                    style={{ 
-                                                        background: lead.status === 'converted' ? '#dcfce7' : lead.status === 'contacted' ? '#fef3c7' : '#e0e7ff',
-                                                        color: lead.status === 'converted' ? '#166534' : lead.status === 'contacted' ? '#92400e' : '#3730a3',
-                                                        fontWeight: 'bold'
-                                                    }}
-                                                >
-                                                    {(lead.status || 'new').toUpperCase()}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    leads.map(lead => {
+                                        const contact = lead.fullName || lead.contactName || lead.name || 'Prospective Client';
+                                        const mail = lead.workEmail || lead.email || '';
+                                        return (
+                                            <tr key={lead._id || lead.id}>
+                                                <td className={styles.nameCell}>
+                                                    <div className={styles.avatar} style={{ background: '#4f46e5' }}>
+                                                        {contact.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div className={styles.tenantName}>{contact}</div>
+                                                        <div className={styles.tenantId}>{lead.phone}</div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ fontWeight: '600' }}>{lead.restaurantName || lead.outletName || 'N/A'}</td>
+                                                <td>
+                                                    <span className={`${styles.badge}`} style={{ background: '#f1f5f9', color: '#334155' }}>
+                                                        {lead.outletType || 'Cafe'}
+                                                    </span>
+                                                </td>
+                                                <td>{lead.city || 'India'}</td>
+                                                <td>
+                                                    <div style={{ fontSize: '0.82rem' }}>
+                                                        <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 'bold' }}>{lead.phone}</a>
+                                                        {mail && <div style={{ color: '#64748b' }}>{mail}</div>}
+                                                    </div>
+                                                </td>
+                                                <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                                    {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'Recent'}
+                                                </td>
+                                                <td>
+                                                    <span 
+                                                        className={`${styles.badge}`} 
+                                                        style={{ 
+                                                            background: lead.status === 'converted' ? '#dcfce7' : lead.status === 'contacted' ? '#fef3c7' : '#e0e7ff',
+                                                            color: lead.status === 'converted' ? '#166534' : lead.status === 'contacted' ? '#92400e' : '#3730a3',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        {(lead.status || 'new').toUpperCase()}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        className={styles.deleteBtn}
+                                                        onClick={() => {
+                                                            if (window.confirm(`Are you sure you want to delete demo lead for "${contact}"?`)) {
+                                                                handleDeleteLead(lead._id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

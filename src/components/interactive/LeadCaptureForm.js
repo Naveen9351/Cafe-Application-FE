@@ -76,15 +76,27 @@ export default function LeadCaptureForm({
     setErrorMessage("");
 
     try {
-      await axios.post(`${API}/leads/demo-request`, {
-        ...formData,
+      const payload = {
+        fullName: formData.contactName,
+        contactName: formData.contactName,
+        workEmail: formData.email,
+        email: formData.email,
+        phone: formData.phone,
+        restaurantName: formData.restaurantName,
+        outletType: formData.outletType,
+        locationsCount: `${formData.outletCount} outlet(s)`,
+        city: formData.city,
+        address: formData.address,
+        notes: `${formData.notes || ''} [Tables: ${formData.tableCount}] [State: ${formData.state}] [PrefDate: ${formData.preferredDate} ${formData.preferredTime}]`.trim(),
         source: sourcePage
-      });
+      };
+
+      await axios.post(`${API}/leads`, payload);
 
       setIsSuccess(true);
       if (onSuccess) onSuccess();
     } catch (err) {
-      // Fallback local acknowledgment if backend offline
+      console.error("Lead submission error:", err);
       setIsSuccess(true);
       if (onSuccess) onSuccess();
     } finally {
