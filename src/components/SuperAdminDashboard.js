@@ -37,12 +37,13 @@ const SuperAdminDashboard = () => {
             ]);
 
             if (tenantsRes.status === 'fulfilled') {
-                const fetchedTenants = tenantsRes.value.data;
+                const resTenants = tenantsRes.value.data;
+                const fetchedTenants = Array.isArray(resTenants) ? resTenants : (resTenants?.tenants || []);
                 setTenants(fetchedTenants);
 
-                const active = fetchedTenants.filter(t => t.subscription.isActive).length;
-                const revenue = fetchedTenants.reduce((acc, t) => acc + (t.subscription.price || 0), 0);
-                const orders = fetchedTenants.reduce((acc, t) => acc + (t.subscription.orderCount || 0), 0);
+                const active = fetchedTenants.filter(t => t.subscription?.isActive).length;
+                const revenue = fetchedTenants.reduce((acc, t) => acc + (t.subscription?.price || 0), 0);
+                const orders = fetchedTenants.reduce((acc, t) => acc + (t.subscription?.orderCount || 0), 0);
 
                 setStats({
                     totalRevenue: revenue,
@@ -52,7 +53,9 @@ const SuperAdminDashboard = () => {
             }
 
             if (leadsRes.status === 'fulfilled') {
-                setLeads(leadsRes.value.data || []);
+                const resData = leadsRes.value.data;
+                const leadsList = Array.isArray(resData) ? resData : (resData?.leads || []);
+                setLeads(leadsList);
             }
 
             setLoading(false);
@@ -247,7 +250,7 @@ const SuperAdminDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {leads.length === 0 ? (
+                                {(!Array.isArray(leads) || leads.length === 0) ? (
                                     <tr>
                                         <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                             No demo requests yet. Submissions from the landing page will appear here in real-time.
