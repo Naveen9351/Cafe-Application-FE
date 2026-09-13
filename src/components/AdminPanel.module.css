@@ -167,11 +167,20 @@
   letter-spacing: 0.05em;
 }
 
+.tenantLogoImg {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+}
+
 /* MAIN CONTAINER (FIXED SIDEBAR + INDEPENDENT SCROLLING BODY) */
 .mainContainer {
   display: flex;
   flex: 1;
-  align-items: flex-start;
+  width: 100%;
+  align-items: stretch;
   position: relative;
 }
 
@@ -287,11 +296,102 @@
 }
 
 /* CONTENT BODY (SCROLLABLE INDEPENDENTLY) */
+.mainContent,
 .contentBody {
   flex: 1;
   min-width: 0;
+  width: calc(100% - 215px);
   background-color: #f8fafc;
-  padding: 1rem 1.35rem;
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
+}
+
+/* DEDICATED POS SCREEN STYLES (NO SIDEBAR) */
+.posFullScreenLayout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f8fafc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
+}
+
+.posHeader {
+  height: 56px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.posHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.posBackBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posBackBtn:hover {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.posHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.posLiveBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.posPulseDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+}
+
+.posMainBody {
+  flex: 1;
+  width: 100%;
+  padding: 1.25rem 1.75rem;
+  box-sizing: border-box;
+  background-color: #f8fafc;
 }
 
 /* ========================================================= */
@@ -303,11 +403,12 @@
   gap: 1rem;
 }
 
-/* TOP METRICS GRID */
+/* TOP METRICS KPI GRID - 2 GRID LAYOUT */
+.kpiGrid,
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.85rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
 }
 
 .kpiCard {

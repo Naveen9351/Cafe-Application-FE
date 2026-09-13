@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   CreditCard,
   Store,
-  Lock
+  Lock,
+  Sun,
+  Moon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import styles from "./Cart.module.css";
@@ -38,6 +40,42 @@ export default function Cart() {
   const [isPlacing, setIsPlacing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("counter"); // counter or online
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Sync theme with localStorage (Default is Light Mode)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem("isDarkMode");
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
+  const theme = isDarkMode ? {
+    bgPage: '#090706',
+    bgContainer: '#14100c',
+    bgCard: '#18130e',
+    textMain: '#f5ebe0',
+    textMuted: '#a39282',
+    accent: '#e05c5c',
+    border: 'rgba(224, 92, 92, 0.2)',
+    cardBorder: 'rgba(255, 255, 255, 0.07)',
+    chipBg: '#1e1812',
+    inputBg: '#1f1913',
+    inputText: '#ffffff'
+  } : {
+    bgPage: '#f8fafc',
+    bgContainer: '#ffffff',
+    bgCard: '#ffffff',
+    textMain: '#0f172a',
+    textMuted: '#64748b',
+    accent: '#e05c5c',
+    border: '#e2e8f0',
+    cardBorder: '#e2e8f0',
+    chipBg: '#f1f5f9',
+    inputBg: '#f8fafc',
+    inputText: '#0f172a'
+  };
 
   useEffect(() => {
     const urlTable = searchParams.get("table");
@@ -109,22 +147,33 @@ export default function Cart() {
   const cartTotalItems = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={{ backgroundColor: theme.bgPage, color: theme.textMain }}>
       <Toaster position="top-center" />
 
-      <div className={styles.appContainer}>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => step === 1 ? navigate(-1) : setStep(1)}
-          className={styles.backBtn}
-        >
-          <ChevronLeft size={20} />
-          {step === 1 ? "Back to Menu" : "Back to Cart"}
-        </motion.button>
+      <div className={styles.appContainer} style={{ backgroundColor: theme.bgContainer, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => step === 1 ? navigate(-1) : setStep(1)}
+            className={styles.backBtn}
+            style={{ color: theme.textMuted, margin: 0 }}
+          >
+            <ChevronLeft size={20} />
+            {step === 1 ? "Back to Menu" : "Back to Cart"}
+          </motion.button>
+
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDarkMode ? <Sun size={19} color="#fbbe21" /> : <Moon size={19} color="#475569" />}
+          </button>
+        </div>
 
         <header className={styles.header}>
-          <h1 className={styles.title}>{step === 1 ? "Your Cart" : "Checkout"}</h1>
-          <p className={styles.subtitle}>
+          <h1 className={styles.title} style={{ color: theme.textMain }}>{step === 1 ? "Your Cart" : "Checkout"}</h1>
+          <p className={styles.subtitle} style={{ color: theme.textMuted }}>
             {step === 1 ? `Review your selection (${cartTotalItems} items)` : "Complete your order"}
           </p>
         </header>
@@ -132,7 +181,7 @@ export default function Cart() {
         {/* Steps Indicator */}
         <div className={styles.steps}>
           <div className={`${styles.step} ${styles.activeStep}`}>1</div>
-          <div className={`${styles.step} ${step === 2 ? styles.activeStep : ""}`}>2</div>
+          <div className={`${styles.step} ${step === 2 ? styles.activeStep : ""}`} style={step !== 2 ? { backgroundColor: theme.chipBg, borderColor: theme.border, color: theme.textMuted } : {}}>2</div>
         </div>
 
         <AnimatePresence mode="wait">
@@ -155,20 +204,20 @@ export default function Cart() {
             >
               <div className={styles.itemsList}>
                 {items.map((item) => (
-                  <motion.div layout key={item.id} className={styles.card}>
+                  <motion.div layout key={item.id} className={styles.card} style={{ backgroundColor: theme.bgCard, borderColor: theme.cardBorder }}>
                     <img src={item.image || "/placeholder-food.jpg"} alt={item.name} className={styles.itemImg} />
                     <div className={styles.cardBody}>
                       <div>
-                        <h3 className={styles.itemName}>{item.name}</h3>
+                        <h3 className={styles.itemName} style={{ color: theme.textMain }}>{item.name}</h3>
                         <p className={styles.itemPrice}>₹{item.price} each</p>
                       </div>
                       <div className={styles.actions}>
-                        <div className={styles.qtyWrapper}>
-                          <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className={styles.qtyBtn}>
+                        <div className={styles.qtyWrapper} style={{ backgroundColor: theme.chipBg, borderColor: theme.border }}>
+                          <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className={styles.qtyBtn} style={{ color: theme.textMuted }}>
                             <Minus size={16} />
                           </button>
-                          <span className={styles.qty}>{item.quantity}</span>
-                          <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={styles.qtyBtn}>
+                          <span className={styles.qty} style={{ color: theme.textMain }}>{item.quantity}</span>
+                          <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={styles.qtyBtn} style={{ color: theme.textMuted }}>
                             <Plus size={16} />
                           </button>
                         </div>
@@ -181,16 +230,16 @@ export default function Cart() {
                 ))}
               </div>
 
-              <div className={styles.summary}>
-                <div className={styles.row}>
+              <div className={styles.summary} style={{ backgroundColor: theme.bgPage, borderColor: theme.border }}>
+                <div className={styles.row} style={{ color: theme.textMuted }}>
                   <span>Subtotal</span>
                   <span>₹{total.toFixed(2)}</span>
                 </div>
-                <div className={styles.row}>
+                <div className={styles.row} style={{ color: theme.textMuted }}>
                   <span>Service Fee</span>
                   <span>₹0.00</span>
                 </div>
-                <div className={styles.totalRow}>
+                <div className={styles.totalRow} style={{ color: theme.textMain, borderColor: theme.border }}>
                   <span>Total</span>
                   <span>₹{total.toFixed(2)}</span>
                 </div>
@@ -211,21 +260,23 @@ export default function Cart() {
             >
               <div className={styles.formSection}>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Where are you sitting?</label>
+                  <label className={styles.label} style={{ color: theme.textMain }}>Where are you sitting?</label>
                   <input
                     type="number"
                     placeholder="Enter Table Number"
                     className={styles.input}
+                    style={{ backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }}
                     value={tableNumber}
                     onChange={(e) => setTableNumber(e.target.value)}
                   />
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Payment Method</label>
+                  <label className={styles.label} style={{ color: theme.textMain }}>Payment Method</label>
                   <div className={styles.paymentTabs}>
                     <div
                       className={`${styles.payTab} ${paymentMethod === "counter" ? styles.activePayTab : ""}`}
+                      style={paymentMethod === "counter" ? { backgroundColor: 'rgba(224, 92, 92, 0.08)', color: theme.textMain, borderColor: '#e05c5c' } : { backgroundColor: theme.inputBg, color: theme.textMuted, borderColor: theme.border }}
                       onClick={() => setPaymentMethod("counter")}
                     >
                       <Store className={styles.payIcon} />
@@ -233,6 +284,7 @@ export default function Cart() {
                     </div>
                     <div
                       className={`${styles.payTab} ${paymentMethod === "online" ? styles.activePayTab : ""}`}
+                      style={paymentMethod === "online" ? { backgroundColor: 'rgba(224, 92, 92, 0.08)', color: theme.textMain, borderColor: '#e05c5c' } : { backgroundColor: theme.inputBg, color: theme.textMuted, borderColor: theme.border }}
                       onClick={() => setPaymentMethod("online")}
                     >
                       <CreditCard className={styles.payIcon} />

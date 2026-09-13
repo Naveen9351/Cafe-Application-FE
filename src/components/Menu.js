@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useCartContext } from "../context/CartContext";
 import { Link, useSearchParams } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Sun, Moon
+  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Sun, Moon, Sparkles, Heart
 } from "lucide-react";
 import { getValidFoodImage } from "./AdminPanel";
 import styles from "./Menu.module.css";
 
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
+  ? 'http://localhost:5000/api'
+  : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
 export default function Menu() {
   const [items, setItems] = useState([]);
@@ -20,50 +20,78 @@ export default function Menu() {
   const [tableNumber, setTableNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [tenantId, setTenantId] = useState("");
-  const [tenantInfo, setTenantInfo] = useState({ name: "The Landmark Cafe", address: "Buenos Aires, AR" });
-  
-  // Selected Item for Detail view (Screen 2)
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedSize, setSelectedSize] = useState("mediana"); // chica, mediana, grande
+  const [tenantInfo, setTenantInfo] = useState({ name: "SERVIQ Gourmet Cafe", address: "Premium Dining Area" });
 
-  const { addItem, items: cartItems } = useCartContext();
+  // Selected Item & Variant for Detail View (Screen 2)
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+
+  const { addItem, items: cartItems, getCartTotal } = useCartContext();
   const [searchParams] = useSearchParams();
 
   const [categories, setCategories] = useState([]);
+  // Light Theme by default, synced via localStorage
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem("isDarkMode");
+    return saved !== null ? JSON.parse(saved) : false;
+  });
 
-  // Theme support
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  useEffect(() => {
+    localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
+  // Animation States for Flying Cart Particles & Cart Badge Bounce
+  const [flyingParticles, setFlyingParticles] = useState([]);
+  const [isCartBouncing, setIsCartBouncing] = useState(false);
+  const cartIconRef = useRef(null);
+  const bottomCartRef = useRef(null);
+
+  // Auto-set initial selected variant whenever selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      const vars = selectedItem.variants || selectedItem.sizes || selectedItem.portionSizes || [];
+      if (Array.isArray(vars) && vars.length > 0) {
+        setSelectedVariant(vars[0]);
+      } else {
+        setSelectedVariant(null);
+      }
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [selectedItem]);
 
   const theme = isDarkMode ? {
-    bgPage: '#0c0907',
-    bgHeader: '#232530',
-    bgCard: '#1c1510',
-    bgInner: '#191512',
-    textMain: '#ffffff',
-    textMuted: '#b5a494',
+    bgPage: '#090706',
+    bgHeader: '#14100c',
+    bgCard: '#18130e',
+    bgInner: '#1e1812',
+    textMain: '#f5ebe0',
+    textMuted: '#a39282',
     accent: '#e05c5c',
-    border: 'rgba(217, 119, 6, 0.15)',
-    cardTitle: '#ffffff',
-    inputBg: '#ffffff',
-    inputText: '#111827',
-    catBg: '#f5ebe0',
-    catText: '#8c7d70',
-    avatarBorder: '#e05c5c',
+    accentGlow: 'rgba(224, 92, 92, 0.4)',
+    border: 'rgba(224, 92, 92, 0.2)',
+    cardBorder: 'rgba(255, 255, 255, 0.07)',
+    inputBg: '#1f1913',
+    inputText: '#ffffff',
+    catBg: '#1e1812',
+    catText: '#a39282',
+    badgeBg: '#e05c5c',
   } : {
-    bgPage: '#f9faf6',
+    bgPage: '#f8fafc',
     bgHeader: '#ffffff',
     bgCard: '#ffffff',
-    bgInner: '#f1f2ee',
-    textMain: '#1e293b',
+    bgInner: '#f1f5f9',
+    textMain: '#0f172a',
     textMuted: '#64748b',
-    accent: '#84cc16',
-    border: '#e4e5e1',
-    cardTitle: '#1e293b',
-    inputBg: '#f1f2ee',
-    inputText: '#1e293b',
-    catBg: '#f1f2ee',
+    accent: '#e05c5c',
+    accentGlow: 'rgba(224, 92, 92, 0.25)',
+    border: '#e2e8f0',
+    cardBorder: '#e2e8f0',
+    inputBg: '#f1f5f9',
+    inputText: '#0f172a',
+    catBg: '#f1f5f9',
     catText: '#64748b',
-    avatarBorder: '#84cc16',
+    badgeBg: '#e05c5c',
   };
 
   useEffect(() => {
@@ -81,7 +109,7 @@ export default function Menu() {
         fetchTenantInfo(storedTenant);
       } else {
         setTenantId("demo-tenant");
-        setTenantInfo({ name: "SERVIQ Flagship Bistro", address: "Indiranagar, Bangalore" });
+        setTenantInfo({ name: "SERVIQ Gourmet Bistro", address: "Indiranagar, Bangalore" });
       }
     }
 
@@ -104,7 +132,7 @@ export default function Menu() {
         }
       })
       .catch((err) => {
-        console.log("Using dynamic gourmet catalog:", err);
+        console.log("Using dynamic gourmet catalog fallback:", err);
         setItems(defaultGourmetItemsFallback);
       });
   }, [searchParams]);
@@ -118,35 +146,44 @@ export default function Menu() {
       category: 'main-courses',
       rating: 4.9,
       isVeg: false,
-      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600'
+      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600',
+      sizes: [
+        { name: 'Single Patty', price: 480 },
+        { name: 'Double Wagyu', price: 620 }
+      ]
     },
     {
       _id: 'dish_2',
-      name: 'Classic Pomodoro Fettuccine',
-      description: 'Handmade pasta tossed in slow-simmered San Marzano tomato sauce with fresh basil and aged parmesan.',
-      price: 360.00,
-      category: 'main-courses',
-      rating: 4.7,
+      name: 'Smoked Vanilla Cold Brew',
+      description: '24-hour slow steeped Ethiopian single-origin coffee with housemade Madagascar vanilla bean syrup.',
+      price: 189.00,
+      category: 'beverages',
+      rating: 4.8,
       isVeg: true,
-      image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&q=80&w=600'
+      image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=600',
+      sizes: [
+        { name: 'Small (250ml)', price: 189 },
+        { name: 'Medium (350ml)', price: 239 },
+        { name: 'Large (500ml)', price: 279 }
+      ]
     },
     {
       _id: 'dish_3',
-      name: 'Grilled Atlantic Salmon',
-      description: 'Sustainable Atlantic salmon, charcoal-grilled, served with seasonal asparagus and lemon beurre blanc.',
-      price: 640.00,
-      category: 'main-courses',
+      name: 'Valrhona Molten Chocolate Lava',
+      description: 'Warm dark chocolate fondant with Madagascar vanilla gelato.',
+      price: 249.00,
+      category: 'desserts',
       rating: 4.8,
-      isVeg: false,
-      image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&q=80&w=600'
+      isVeg: true,
+      image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&q=80&w=600'
     },
     {
       _id: 'dish_4',
       name: 'Burrata Caprese Salad',
       description: 'Creamy pugliese burrata, heirloom cherry tomatoes, cold-pressed olive oil, aged balsamic, and toasted sourdough.',
-      price: 310.00,
+      price: 289.00,
       category: 'appetizers',
-      rating: 4.6,
+      rating: 4.8,
       isVeg: true,
       image: 'https://images.unsplash.com/photo-1592417817098-8f3d6910985c?auto=format&fit=crop&q=80&w=600'
     }
@@ -170,33 +207,93 @@ export default function Menu() {
     return matchesCategory && matchesSearch;
   });
 
-  const handleAdd = (item) => {
+  const handleAdd = (item, event, overrideVariant = null) => {
     if (!item.available && item.available !== undefined) {
       toast.error(`${item.name} is currently out of stock`);
       return;
     }
 
-    const discount = item.discount || {};
-    let finalPrice = item.price;
-    if (discount.isDiscounted && discount.value > 0) {
-      if (discount.type === 'percentage') {
-        finalPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+    const chosenVariant = overrideVariant || selectedVariant;
+    let basePrice = item.price;
+    let variantLabel = '';
+
+    if (chosenVariant) {
+      if (typeof chosenVariant === 'object') {
+        basePrice = Number(chosenVariant.price) || item.price;
+        variantLabel = chosenVariant.name || chosenVariant.size || '';
       } else {
-        finalPrice = Math.max(0, item.price - discount.value);
+        variantLabel = String(chosenVariant);
       }
     }
 
+    const discount = item.discount || {};
+    let finalPrice = basePrice;
+    if (discount.isDiscounted && discount.value > 0) {
+      if (discount.type === 'percentage') {
+        finalPrice = Math.max(0, Math.round(basePrice * (1 - discount.value / 100)));
+      } else {
+        finalPrice = Math.max(0, basePrice - discount.value);
+      }
+    }
+
+    const cartId = variantLabel ? `${item._id}_${variantLabel}` : item._id;
+    const cartName = variantLabel ? `${item.name} (${variantLabel})` : item.name;
+
     addItem({
-      id: item._id,
-      name: item.name,
+      id: cartId,
+      name: cartName,
       price: finalPrice,
-      originalPrice: item.price,
+      originalPrice: basePrice,
       category: item.category,
-      image: item.image,
+      image: getValidFoodImage(item),
     });
-    toast.success(`Added ${item.name} to order!`, {
+
+    // Spawn Flying Particle Animation to Cart
+    if (event && event.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const startX = rect.left + rect.width / 2;
+      const startY = rect.top + rect.height / 2;
+
+      let targetX = window.innerWidth - 45;
+      let targetY = 40;
+
+      // Prefer top header cart icon if available, else bottom floating cart
+      if (cartIconRef.current) {
+        const cartRect = cartIconRef.current.getBoundingClientRect();
+        targetX = cartRect.left + cartRect.width / 2;
+        targetY = cartRect.top + cartRect.height / 2;
+      } else if (bottomCartRef.current) {
+        const cartRect = bottomCartRef.current.getBoundingClientRect();
+        targetX = cartRect.left + cartRect.width / 2;
+        targetY = cartRect.top + cartRect.height / 2;
+      }
+
+      const particleId = Date.now() + Math.random();
+      setFlyingParticles((prev) => [
+        ...prev,
+        {
+          id: particleId,
+          startX,
+          startY,
+          targetX,
+          targetY,
+          image: getValidFoodImage(item),
+        },
+      ]);
+    } else {
+      setIsCartBouncing(true);
+      setTimeout(() => setIsCartBouncing(false), 400);
+    }
+
+    toast.success(`Added ${item.name} to cart!`, {
       icon: '🍽️',
-      style: { borderRadius: '14px', background: theme.bgCard, color: theme.textMain, border: `1px solid ${theme.border}` },
+      style: {
+        borderRadius: '16px',
+        background: theme.bgCard,
+        color: theme.textMain,
+        border: `1px solid ${theme.accent}`,
+        boxShadow: `0 10px 30px ${theme.accentGlow}`
+      },
     });
   };
 
@@ -205,82 +302,129 @@ export default function Menu() {
   return (
     <div className={styles.page} style={{ backgroundColor: theme.bgPage, color: theme.textMain, transition: 'background-color 0.3s' }}>
       <Toaster position="top-center" />
+
+      {/* FLYING CART PARTICLES OVERLAY */}
+      {flyingParticles.map((p) => (
+        <motion.div
+          key={p.id}
+          initial={{ x: p.startX - 18, y: p.startY - 18, scale: 1, opacity: 1 }}
+          animate={{
+            x: [
+              p.startX - 18,
+              (p.startX + p.targetX) / 2 + (p.startX < p.targetX ? -40 : 40),
+              p.targetX - 18,
+            ],
+            y: [
+              p.startY - 18,
+              Math.min(p.startY, p.targetY) - 70,
+              p.targetY - 18,
+            ],
+            scale: [1, 1.25, 0.35],
+            opacity: [1, 1, 0.8],
+          }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          onAnimationComplete={() => {
+            setFlyingParticles((prev) => prev.filter((it) => it.id !== p.id));
+            setIsCartBouncing(true);
+            setTimeout(() => setIsCartBouncing(false), 450);
+          }}
+          style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            border: '2px solid #ffffff',
+            boxShadow: `0 8px 25px ${theme.accentGlow}`,
+          }}
+        >
+          <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </motion.div>
+      ))}
+
       <div className={styles.appContainer} style={{ backgroundColor: theme.bgPage, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}`, boxShadow: isDarkMode ? '0 20px 80px rgba(0, 0, 0, 0.8)' : '0 10px 40px rgba(0, 0, 0, 0.05)', transition: 'background-color 0.3s, border-color 0.3s' }}>
-        
+
         <AnimatePresence mode="wait">
           {!selectedItem ? (
             // SCREEN 1: Home Menu Browsing
             <motion.div
               key="menu-home"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}
             >
               {/* Top Header */}
-              <div style={{ backgroundColor: theme.bgHeader, padding: '2rem 1.5rem 1.5rem', borderBottomLeftRadius: '28px', borderBottomRightRadius: '28px', transition: 'background-color 0.3s' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <MenuIcon size={22} color={theme.textMain} />
-                  <span style={{ fontSize: '1.1rem', fontWeight: '800', color: theme.textMain }}>Digital Menu</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ backgroundColor: theme.bgHeader, padding: '1.25rem 1rem 1rem', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: `linear-gradient(135deg, ${theme.accent}, #b91c1c)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 15px ${theme.accentGlow}`, flexShrink: 0 }}>
+                      <Sparkles size={18} color="#ffffff" />
+                    </div>
+                    <div style={{ overflow: 'hidden' }}>
+                      <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.8px', color: theme.textMuted, fontWeight: '700', display: 'block' }}>Table #{tableNumber}</span>
+                      <h2 style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenantInfo.name || "SERVIQ Bistro"}</h2>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                     {/* Theme Toggle Button */}
-                    <button 
-                      onClick={() => setIsDarkMode(!isDarkMode)} 
+                    <button
+                      onClick={() => setIsDarkMode(!isDarkMode)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                     >
-                      {isDarkMode ? <Sun size={20} color="#fbbe21" /> : <Moon size={20} color="#475569" />}
+                      {isDarkMode ? <Sun size={19} color="#fbbe21" /> : <Moon size={19} color="#475569" />}
                     </button>
-                    <Link to={`/cart?table=${tableNumber}`} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <ShoppingBag size={22} color={theme.textMain} />
-                      {cartTotalItems > 0 && (
-                        <span style={{ position: 'absolute', top: '-5px', right: '-8px', backgroundColor: theme.accent, color: isDarkMode ? 'white' : '#1a2e05', fontSize: '0.6rem', fontWeight: '800', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {cartTotalItems}
-                        </span>
-                      )}
+
+                    {/* Cart Header Icon */}
+                    <Link to={`/cart?table=${tableNumber}`} ref={cartIconRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+                      <motion.div
+                        animate={isCartBouncing ? { scale: [1, 1.35, 0.9, 1.15, 1], rotate: [0, -10, 10, 0] } : { scale: 1 }}
+                        transition={{ duration: 0.45 }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <ShoppingBag size={21} color={theme.textMain} />
+                        {cartTotalItems > 0 && (
+                          <span style={{ position: 'absolute', top: '-5px', right: '-7px', backgroundColor: theme.accent, color: '#ffffff', fontSize: '0.6rem', fontWeight: '900', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${theme.accentGlow}` }}>
+                            {cartTotalItems}
+                          </span>
+                        )}
+                      </motion.div>
                     </Link>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <div>
-                    <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: theme.textMain }}>Welcome Guest</h2>
-                    <p style={{ fontSize: '0.85rem', color: theme.textMuted, marginTop: '2px' }}>
-                      {tableNumber ? `Ordering for Table ${tableNumber}` : 'What would you like to enjoy today?'}
-                    </p>
-                  </div>
-                  <img 
-                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" 
-                    alt="user" 
-                    style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${theme.avatarBorder}` }}
-                  />
-                </div>
-
                 {/* Search Box */}
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
                   <div style={{ position: 'relative', flex: 1 }}>
-                    <Search size={18} color={theme.textMuted} style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input 
-                      type="text" 
-                      placeholder="Search dishes, drinks..." 
+                    <Search size={16} color={theme.textMuted} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="text"
+                      placeholder="Would you like to eat something?..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ width: '100%', backgroundColor: theme.inputBg, border: isDarkMode ? 'none' : `1px solid ${theme.border}`, borderRadius: '12px', padding: '0.75rem 1rem 0.75rem 2.8rem', color: theme.inputText, fontSize: '0.9rem', outline: 'none' }}
+                      style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '14px', padding: '0.65rem 0.85rem 0.65rem 2.5rem', color: theme.inputText, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
-                  <button style={{ backgroundColor: theme.accent, border: 'none', borderRadius: '12px', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <Sliders size={18} color={isDarkMode ? '#ffffff' : '#1a2e05'} />
-                  </button>
+
                 </div>
               </div>
 
               {/* Categories Navigation */}
-              <section style={{ padding: '1.25rem 1.5rem 0.5rem', display: 'flex', gap: '0.65rem', overflowX: 'auto' }} className={styles.categoryBar}>
-                <button 
+              <section className={styles.categoryBar}>
+                <button
                   onClick={() => setSelectedCategory("all")}
                   style={{
                     backgroundColor: selectedCategory === "all" ? theme.accent : theme.catBg,
-                    color: selectedCategory === "all" ? (isDarkMode ? 'white' : '#1a2e05') : theme.catText,
-                    border: 'none', padding: '0.55rem 1.1rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.8rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'background-color 0.3s'
+                    color: selectedCategory === "all" ? '#ffffff' : theme.catText,
+                    border: selectedCategory === "all" ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                    padding: '0.45rem 0.95rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.78rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.25s ease',
+                    boxShadow: selectedCategory === "all" ? `0 4px 12px ${theme.accentGlow}` : 'none'
                   }}
                 >
                   All Items
@@ -291,8 +435,10 @@ export default function Menu() {
                     onClick={() => setSelectedCategory(c.id)}
                     style={{
                       backgroundColor: selectedCategory === c.id ? theme.accent : theme.catBg,
-                      color: selectedCategory === c.id ? (isDarkMode ? 'white' : '#1a2e05') : theme.catText,
-                      border: 'none', padding: '0.55rem 1.1rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.8rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'background-color 0.3s'
+                      color: selectedCategory === c.id ? '#ffffff' : theme.catText,
+                      border: selectedCategory === c.id ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                      padding: '0.45rem 0.95rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.78rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.25s ease',
+                      boxShadow: selectedCategory === c.id ? `0 4px 12px ${theme.accentGlow}` : 'none'
                     }}
                   >
                     {c.name}
@@ -301,13 +447,13 @@ export default function Menu() {
               </section>
 
               {/* Dishes Grid */}
-              <main style={{ padding: '1rem 1.5rem', flex: 1 }}>
+              <main style={{ padding: '0.5rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }}>
                 {filteredItems.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '3rem 1rem', color: theme.textMuted }}>
                     <p>No dishes found. Try searching for something else!</p>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                  <div className={styles.grid}>
                     {filteredItems.map((item) => {
                       const discount = item.discount || {};
                       const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -322,133 +468,209 @@ export default function Menu() {
                       const isOutOfStock = item.available === false || item.isAvailable === false;
 
                       return (
-                        <div 
-                          key={item._id} 
-                          style={{ 
-                            backgroundColor: theme.bgCard, 
-                            border: `1px solid ${theme.border}`, 
-                            borderRadius: '20px', 
-                            padding: '0.75rem', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            justifyContent: 'space-between', 
-                            cursor: isOutOfStock ? 'not-allowed' : 'pointer', 
+                        <motion.div
+                          key={item._id}
+                          layoutId={`dish-card-${item._id}`}
+                          transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                          style={{
+                            backgroundColor: theme.bgCard,
+                            border: `1px solid ${theme.cardBorder}`,
+                            borderRadius: '18px',
+                            padding: '0.65rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            cursor: isOutOfStock ? 'not-allowed' : 'pointer',
                             opacity: isOutOfStock ? 0.6 : 1,
-                            transition: 'background-color 0.3s, border-color 0.3s' 
+                            transition: 'box-shadow 0.25s, border-color 0.25s',
+                            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            overflow: 'hidden'
                           }}
+                          whileHover={!isOutOfStock ? { y: -3, borderColor: theme.accent } : {}}
+                          whileTap={!isOutOfStock ? { scale: 0.97 } : {}}
                           onClick={() => !isOutOfStock && setSelectedItem(item)}
                         >
-                          <div style={{ borderRadius: '14px', overflow: 'hidden', height: '110px', position: 'relative' }}>
-                            <img 
-                              src={getValidFoodImage(item)} 
-                              alt={item.name} 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          <div style={{ borderRadius: '14px', overflow: 'hidden', height: '105px', position: 'relative', width: '100%' }}>
+                            <motion.img
+                              layoutId={`dish-img-${item._id}`}
+                              src={getValidFoodImage(item)}
+                              alt={item.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
                             />
+                            <div style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', padding: '2px 6px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Star size={10} color="#fbbe21" fill="#fbbe21" />
+                              <span style={{ fontSize: '9px', color: '#ffffff', fontWeight: 800 }}>{item.rating || '4.8'}</span>
+                            </div>
+
                             {hasDiscount && (
-                              <span style={{ position: 'absolute', top: 6, left: 6, background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: 4 }}>
+                              <span style={{ position: 'absolute', top: 5, left: 5, background: '#ef4444', color: '#fff', fontSize: '8.5px', fontWeight: 900, padding: '2px 5px', borderRadius: 5, boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)' }}>
                                 {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
                               </span>
                             )}
                             {isOutOfStock && (
-                              <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(2px)', color: '#fff', fontSize: '10px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 OUT OF STOCK
                               </span>
                             )}
                           </div>
-                          <div style={{ marginTop: '0.65rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span style={{ fontSize: '10px', color: item.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 800 }}>
+
+                          <div style={{ marginTop: '0.5rem', width: '100%', minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', minWidth: 0 }}>
+                              <span style={{ fontSize: '10px', color: item.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 900, lineHeight: 1, flexShrink: 0 }}>
                                 {item.isVeg !== false ? '●' : '▲'}
                               </span>
-                              <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>{item.name}</h3>
+                              <motion.h3
+                                layoutId={`dish-title-${item._id}`}
+                                style={{ fontSize: '0.85rem', fontWeight: '800', color: theme.textMain, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}
+                              >
+                                {item.name}
+                              </motion.h3>
                             </div>
-                            <p style={{ fontSize: '0.7rem', color: theme.textMuted, marginTop: '2px', lineClamp: '1' }}>{item.description || "Prepared fresh to order"}</p>
+                            <p style={{ fontSize: '0.68rem', color: theme.textMuted, margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description || "Prepared fresh to order"}</p>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.65rem' }}>
-                            <div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem', width: '100%' }}>
+                            <div style={{ overflow: 'hidden' }}>
                               {hasDiscount ? (
-                                <div>
-                                  <span style={{ fontSize: '1rem', fontWeight: '900', color: '#16a34a' }}>₹{discountedPrice}</span>
-                                  <span style={{ fontSize: '0.75rem', color: theme.textMuted, textDecoration: 'line-through', marginLeft: 4 }}>₹{item.price}</span>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                                  <motion.span layoutId={`dish-price-${item._id}`} style={{ fontSize: '0.95rem', fontWeight: '900', color: '#16a34a' }}>₹{discountedPrice}</motion.span>
+                                  <span style={{ fontSize: '0.7rem', color: theme.textMuted, textDecoration: 'line-through' }}>₹{item.price}</span>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: '1rem', fontWeight: '900', color: theme.textMain }}>₹{item.price}</span>
+                                <motion.span layoutId={`dish-price-${item._id}`} style={{ fontSize: '0.95rem', fontWeight: '900', color: theme.textMain }}>₹{item.price}</motion.span>
                               )}
                             </div>
-                            <button 
+
+                            {/* Centered + Icon Button */}
+                            <motion.button
+                              whileHover={!isOutOfStock ? { scale: 1.12 } : {}}
+                              whileTap={!isOutOfStock ? { scale: 0.88 } : {}}
                               disabled={isOutOfStock}
-                              onClick={(e) => { e.stopPropagation(); handleAdd(item); }}
-                              style={{ 
-                                backgroundColor: isOutOfStock ? '#94a3b8' : theme.accent, 
-                                border: 'none', 
-                                width: '28px', 
-                                height: '28px', 
-                                borderRadius: '50%', 
-                                color: isDarkMode ? 'white' : '#1a2e05', 
-                                fontWeight: '800', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                cursor: isOutOfStock ? 'not-allowed' : 'pointer' 
+                              onClick={(e) => { e.stopPropagation(); handleAdd(item, e); }}
+                              style={{
+                                backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
+                                border: 'none',
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '50%',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 0,
+                                margin: 0,
+                                cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                                boxShadow: isOutOfStock ? 'none' : `0 3px 10px ${theme.accentGlow}`,
+                                flexShrink: 0
                               }}
                             >
-                              +
-                            </button>
+                              <Plus size={15} strokeWidth={3.2} style={{ display: 'block', margin: 'auto' }} />
+                            </motion.button>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>
                 )}
               </main>
 
-              {/* Breakfast Combo Banner */}
-              <div style={{ padding: '0 1.5rem 1.5rem' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.75rem' }}>Breakfast combos</h3>
-                <div style={{ display: 'flex', borderRadius: '20px', overflow: 'hidden', backgroundColor: theme.accent, height: '110px' }}>
-                  <div style={{ flex: 1.2, padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.95rem', fontWeight: '800', color: isDarkMode ? 'white' : '#1a2e05', lineHeight: '1.2' }}>Coffee with milk + 2 Croissants</span>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.15rem', fontWeight: '900', color: isDarkMode ? 'white' : '#1a2e05' }}>₹399</span>
-                      <button style={{ backgroundColor: theme.bgHeader, border: 'none', width: '28px', height: '28px', borderRadius: '50%', color: theme.textMain, display: 'flex', alignItems: 'center', justify: 'center' }}>+</button>
+              {/* Dynamic Combos & Special Offers */}
+              {(() => {
+                const comboItems = items.filter(it => {
+                  const cat = (it.category || '').toLowerCase();
+                  return cat.includes('combo') || cat.includes('offer') || it.isCombo || it.isOffer;
+                });
+
+                if (comboItems.length === 0) return null;
+
+                return (
+                  <div style={{ padding: '0 1rem 1.25rem', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>Combos & Special Offers</h3>
+                      <span style={{ fontSize: '0.72rem', fontWeight: '700', color: theme.accent, cursor: 'pointer' }}>Chef Special</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                      {comboItems.map((cb) => (
+                        <motion.div
+                          key={cb._id}
+                          layoutId={`dish-card-${cb._id}`}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setSelectedItem(cb)}
+                          style={{ display: 'flex', borderRadius: '18px', overflow: 'hidden', backgroundColor: theme.accent, height: '105px', boxShadow: `0 6px 20px ${theme.accentGlow}`, cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
+                        >
+                          <div style={{ flex: 1.2, padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
+                            <div>
+                              <motion.span layoutId={`dish-title-${cb._id}`} style={{ fontSize: '0.9rem', fontWeight: '800', color: '#ffffff', lineHeight: '1.2', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cb.name}</motion.span>
+                              <p style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.88)', margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cb.description || 'Special Chef Combo'}</p>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <motion.span layoutId={`dish-price-${cb._id}`} style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>₹{cb.price}</motion.span>
+
+                              {/* Centered + Icon Button for Combos */}
+                              <motion.button
+                                whileHover={{ scale: 1.12 }}
+                                whileTap={{ scale: 0.88 }}
+                                onClick={(e) => { e.stopPropagation(); handleAdd(cb, e); }}
+                                style={{
+                                  backgroundColor: '#ffffff',
+                                  border: 'none',
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '50%',
+                                  color: theme.accent,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  padding: 0,
+                                  margin: 0,
+                                  cursor: 'pointer',
+                                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
+                                  flexShrink: 0
+                                }}
+                              >
+                                <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
+                              </motion.button>
+                            </div>
+                          </div>
+                          <div style={{ flex: 0.8, overflow: 'hidden' }}>
+                            <motion.img layoutId={`dish-img-${cb._id}`} src={getValidFoodImage(cb)} alt={cb.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        </motion.div>
+                      ))}
                     </div>
                   </div>
-                  <div style={{ flex: 0.8 }}>
-                    <img src="https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=300" alt="combo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </motion.div>
           ) : (
-            // SCREEN 2: Coffee Product Detail Screen
+            // SCREEN 2: Product Detail View (Refined matching target UI)
             <motion.div
               key="menu-detail"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              style={{ display: 'flex', flexDirection: 'column', height: '100%', background: theme.bgPage }}
+              layoutId={`dish-card-${selectedItem._id}`}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: theme.bgPage, overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}
             >
-              {/* Product Large Header Image */}
-              <div style={{ position: 'relative', height: '240px', backgroundColor: theme.bgHeader, borderBottomLeftRadius: '28px', borderBottomRightRadius: '28px', overflow: 'hidden' }}>
-                <img 
-                  src={selectedItem.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"} 
-                  alt={selectedItem.name} 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
-                
-                {/* Back & Cart Floating Row */}
-                <div style={{ position: 'absolute', top: '1.5rem', left: '1.25rem', right: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <button 
-                    onClick={() => setSelectedItem(null)} 
-                    style={{ backgroundColor: 'rgba(12,9,7,0.5)', border: 'none', width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', cursor: 'pointer' }}
-                  >
-                    <ChevronLeft size={22} color="#ffffff" />
-                  </button>
-                  <Link to={`/cart?table=${tableNumber}`} style={{ backgroundColor: 'rgba(12,9,7,0.5)', width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', position: 'relative' }}>
-                    <ShoppingBag size={20} color="#ffffff" />
+              {/* Header Bar */}
+              <div style={{ padding: '1.25rem 1.25rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'none', borderBottom: `1px solid ${theme.border}`, boxSizing: 'border-box', width: '100%' }}>
+                <motion.button
+                  whileTap={{ scale: 0.88 }}
+                  onClick={() => setSelectedItem(null)}
+                  style={{ backgroundColor: 'transparent', border: `none`, width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', cursor: 'pointer', color: theme.textMain, boxShadow: 'none' }}
+                >
+                  <ChevronLeft size={22} color={theme.textMain} />
+                </motion.button>
+                <span style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain }}>Item Details</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+
+                  <Link to={`/cart?table=${tableNumber}`} style={{ backgroundColor: 'none', border: `none`, width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', position: 'relative', textDecoration: 'none', boxShadow: 'none' }}>
+                    <ShoppingBag size={18} color={theme.textMain} />
                     {cartTotalItems > 0 && (
-                      <span style={{ position: 'absolute', top: '-2px', right: '-2px', backgroundColor: theme.accent, color: isDarkMode ? 'white' : '#1a2e05', fontSize: '0.55rem', fontWeight: '800', width: '14px', height: '14px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                      <span style={{ position: 'absolute', top: '-4px', right: '-4px', backgroundColor: theme.accent, color: '#ffffff', fontSize: '0.58rem', fontWeight: '900', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(224, 92, 92, 0.4)' }}>
                         {cartTotalItems}
                       </span>
                     )}
@@ -456,114 +678,205 @@ export default function Menu() {
                 </div>
               </div>
 
-              {/* Title & Desc Container */}
-              <div style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h1 style={{ fontSize: '1.6rem', fontWeight: '800', color: theme.textMain }}>{selectedItem.name}</h1>
-                  <span style={{ fontSize: '1.6rem', fontWeight: '900', color: theme.accent }}>₹{selectedItem.price}</span>
-                </div>
-                <p style={{ color: theme.textMuted, fontSize: '0.9rem', marginTop: '0.5rem', lineHeight: '1.5' }}>
-                  {selectedItem.description || "Optional milk or cream, prepared with selected premium coffee beans."}
-                </p>
-
-                {/* Size Selector */}
-                <div style={{ marginTop: '2rem' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.75rem' }}>Size: Small, medium or large</h3>
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    {["small", "medium", "large"].map((sz) => (
-                      <button 
-                        key={sz} 
-                        onClick={() => setSelectedSize(sz)}
-                        style={{
-                          flex: 1,
-                          backgroundColor: selectedSize === sz ? (isDarkMode ? 'rgba(224, 92, 92, 0.15)' : '#ecfccb') : theme.bgCard,
-                          border: selectedSize === sz ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                          borderRadius: '12px',
-                          color: selectedSize === sz ? (isDarkMode ? '#e05c5c' : '#3f6212') : theme.textMuted,
-                          fontWeight: '700',
-                          fontSize: '0.85rem',
-                          padding: '0.75rem',
-                          textTransform: 'capitalize',
-                          cursor: 'pointer',
-                          transition: '0.2s'
-                        }}
-                      >
-                        {sz}
-                      </button>
-                    ))}
+              {/* Centered Floating Dish Hero Image */}
+              <div style={{ padding: '1.5rem 1.25rem 0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ width: '220px', height: '220px', borderRadius: '28px', overflow: 'hidden', boxShadow: `0 15px 40px ${theme.accentGlow}`, border: `2px solid ${theme.border}`, position: 'relative' }}>
+                  <motion.img
+                    layoutId={`dish-img-${selectedItem._id}`}
+                    transition={{ type: "spring", stiffness: 300, damping: 28 }}
+                    src={getValidFoodImage(selectedItem)}
+                    alt={selectedItem.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', padding: '3px 8px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Star size={12} color="#fbbe21" fill="#fbbe21" />
+                    <span style={{ fontSize: '11px', color: '#ffffff', fontWeight: 800 }}>{selectedItem.rating || '4.8'}</span>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <button 
-                    onClick={() => { handleAdd(selectedItem); setSelectedItem(null); }}
-                    style={{ backgroundColor: theme.accent, color: isDarkMode ? 'white' : '#1a2e05', border: 'none', fontWeight: '700', fontSize: '1rem', padding: '1rem', borderRadius: '14px', cursor: 'pointer', boxShadow: 'none' }}
-                  >
-                    Add to cart +
-                  </button>
-                  <Link to={`/cart?table=${tableNumber}`} style={{ textDecoration: 'none' }}>
-                    <button 
-                      style={{ width: '100%', backgroundColor: theme.catBg, color: theme.textMain, border: `1px solid ${theme.border}`, fontWeight: '700', fontSize: '1rem', padding: '1rem', borderRadius: '14px', cursor: 'pointer' }}
-                    >
-                      Place Order
-                    </button>
-                  </Link>
-                </div>
-
-                {/* Accompany Section */}
-                <div style={{ marginTop: '2.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain }}>Pair your coffee with:</h3>
-                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: theme.accent, cursor: 'pointer' }}>View all →</span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '1rem' }}>
-                    {/* Media Luna Card */}
-                    <div style={{ flex: 1, backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.75rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <img src="https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=150" alt="Croissant" style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
-                      <div style={{ marginTop: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.8rem', fontWeight: '800', color: theme.textMain }}>Croissant</h4>
-                        <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>₹120</span>
-                      </div>
-                    </div>
-                    {/* Tostado Card */}
-                    <div style={{ flex: 1, backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.75rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <img src="https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&q=80&w=150" alt="Toastie" style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
-                      <div style={{ marginTop: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.8rem', fontWeight: '800', color: theme.textMain }}>Toastie</h4>
-                        <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>₹120</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
               </div>
+
+              {/* Title, Outlet Info & Details */}
+              {(() => {
+                const availableVariants = selectedItem ? (selectedItem.variants || selectedItem.sizes || selectedItem.portionSizes || []) : [];
+                const currentPrice = selectedVariant
+                  ? (typeof selectedVariant === 'object' ? (Number(selectedVariant.price) || selectedItem.price) : selectedItem.price)
+                  : selectedItem.price;
+
+                return (
+                  <div style={{ padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                        <div>
+                          <motion.h1
+                            layoutId={`dish-title-${selectedItem._id}`}
+                            style={{ fontSize: '1.4rem', fontWeight: '900', color: theme.textMain, margin: 0 }}
+                          >
+                            {selectedItem.name}
+                          </motion.h1>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <span style={{ fontSize: '11px', color: selectedItem.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 900 }}>
+                              {selectedItem.isVeg !== false ? '● VEG' : '▲ NON-VEG'}
+                            </span>
+                            <span style={{ fontSize: '11px', color: theme.textMuted }}>• Fresh In Stock</span>
+                          </div>
+                        </div>
+                        <motion.div layoutId={`dish-price-${selectedItem._id}`} style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '1.4rem', fontWeight: '900', color: theme.accent }}>₹{currentPrice}</span>
+                        </motion.div>
+                      </div>
+
+                      {/* Restaurant Outlet Pill */}
+                      <div style={{ marginTop: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.4rem 0.85rem', borderRadius: '100px' }}>
+                        <Sparkles size={14} color={theme.accent} />
+                        <span style={{ fontSize: '0.78rem', fontWeight: '700', color: theme.textMain }}>{tenantInfo.name || "SERVIQ Gourmet Bistro"}</span>
+                      </div>
+
+                      <p style={{ color: theme.textMuted, fontSize: '0.85rem', marginTop: '0.85rem', lineHeight: '1.5' }}>
+                        {selectedItem.description || "Prepared with fresh organic ingredients, slow cooked to perfection."}
+                      </p>
+
+                      {/* Portion Size Options - DYNAMIC: ONLY SHOW IF ITEM HAS VARIANTS/SIZES */}
+                      {Array.isArray(availableVariants) && availableVariants.length > 0 && (
+                        <div style={{ marginTop: '1.25rem' }}>
+                          <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>Serving Portion Size</h3>
+                          <div style={{ display: 'flex', gap: '0.65rem' }}>
+                            {availableVariants.map((v, idx) => {
+                              const vName = typeof v === 'object' ? (v.name || v.size || `Option ${idx + 1}`) : String(v);
+                              const vPrice = typeof v === 'object' ? (Number(v.price) || selectedItem.price) : selectedItem.price;
+                              const isSelected = selectedVariant && (
+                                typeof selectedVariant === 'object' ? (selectedVariant.name === vName || selectedVariant.size === vName) : String(selectedVariant) === String(v)
+                              );
+
+                              return (
+                                <motion.button
+                                  key={vName || idx}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => setSelectedVariant(v)}
+                                  style={{
+                                    flex: 1,
+                                    backgroundColor: isSelected ? theme.accent : theme.bgCard,
+                                    border: isSelected ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                                    borderRadius: '12px',
+                                    color: isSelected ? '#ffffff' : theme.textMuted,
+                                    fontWeight: '800',
+                                    fontSize: '0.8rem',
+                                    padding: '0.65rem 0.4rem',
+                                    textTransform: 'capitalize',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: isSelected ? `0 4px 15px ${theme.accentGlow}` : 'none',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justify: 'center'
+                                  }}
+                                >
+                                  <span>{vName}</span>
+                                  {vPrice && vPrice !== selectedItem.price && (
+                                    <span style={{ fontSize: '0.7rem', opacity: 0.85, marginTop: '2px' }}>₹{vPrice}</span>
+                                  )}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pair with recommendation list */}
+                      <div style={{ marginTop: '1.5rem' }}>
+                        <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>People Also Ordered</h3>
+                        <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                          {items.filter(it => it._id !== selectedItem._id).slice(0, 3).map(rec => (
+                            <div key={rec._id} onClick={() => setSelectedItem(rec)} style={{ minWidth: '130px', backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.5rem', borderRadius: '14px', cursor: 'pointer' }}>
+                              <img src={getValidFoodImage(rec)} alt={rec.name} style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
+                              <h4 style={{ fontSize: '0.75rem', fontWeight: '800', color: theme.textMain, margin: '4px 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.name}</h4>
+                              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: theme.accent }}>₹{rec.price}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sticky Bottom Action Bar (Quantity + Add to Basket) */}
+                    <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={(e) => { handleAdd(selectedItem, e, selectedVariant); setSelectedItem(null); }}
+                        style={{ flex: 1, backgroundColor: theme.accent, color: '#ffffff', border: 'none', fontWeight: '800', fontSize: '0.98rem', padding: '0.95rem', borderRadius: '14px', cursor: 'pointer', boxShadow: `0 8px 25px ${theme.accentGlow}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                      >
+                        Add to Order • ₹{currentPrice}
+                        <Plus size={16} strokeWidth={3} />
+                      </motion.button>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Floating Cart Indicator */}
+        {/* Floating Bottom Center Overlapping Dishes Cart */}
         <AnimatePresence>
           {cartTotalItems > 0 && !selectedItem && (
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className={styles.cartBarWrapper}
+              ref={bottomCartRef}
+              initial={{ y: 100, scale: 0.8, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 100, scale: 0.8, opacity: 0 }}
+              whileTap={{ scale: 0.92 }}
+              className={styles.floatingCenterCart}
             >
-              <Link to={`/cart?table=${tableNumber}`} className={styles.cartBar}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div className={styles.cartIconBox}>
-                    <ShoppingBag size={20} />
-                    <span className={styles.badgeCount}>{cartTotalItems}</span>
+              <Link to={`/cart?table=${tableNumber}`} className={styles.cartCircleLink}>
+                <motion.div
+                  animate={isCartBouncing ? { scale: [1, 1.3, 0.9, 1.15, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className={styles.circularStackContainer}
+                >
+                  {/* Left Dish Image (if 3+ items) */}
+                  {cartItems.length >= 3 && (
+                    <img
+                      src={cartItems[2]?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
+                      alt={cartItems[2]?.name || "Dish"}
+                      className={`${styles.dishCircle} ${styles.dishCircleLeft}`}
+                      style={{ borderColor: theme.bgPage }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
+                    />
+                  )}
+
+                  {/* Right Dish Image (if 2+ items) */}
+                  {cartItems.length >= 2 && (
+                    <img
+                      src={cartItems[1]?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
+                      alt={cartItems[1]?.name || "Dish"}
+                      className={`${styles.dishCircle} ${styles.dishCircleRight}`}
+                      style={{ borderColor: theme.bgPage }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
+                    />
+                  )}
+
+                  {/* Center Main Dish Image (Latest or 1st item) */}
+                  <div className={styles.centerDishWrapper}>
+                    <img
+                      src={cartItems[0]?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
+                      alt={cartItems[0]?.name || "Dish"}
+                      className={`${styles.dishCircle} ${styles.dishCircleCenter}`}
+                      style={{ borderColor: theme.bgPage }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
+                    />
+
+                    {/* Total Item Count Badge */}
+                    <span className={styles.floatingBadge} style={{ backgroundColor: theme.accent, borderColor: theme.bgPage }}>
+                      {cartTotalItems}
+                    </span>
                   </div>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: '800', fontSize: '0.95rem' }}>Ver pedido</p>
-                    <p style={{ margin: 0, fontSize: '0.7rem', opacity: 0.7 }}>{cartTotalItems} item(s) seleccionado(s)</p>
-                  </div>
+                </motion.div>
+
+                {/* Sleek Bottom Price Label */}
+                <div className={styles.cartPillLabel} style={{ backgroundColor: isDarkMode ? '#1e1812' : '#ffffff', color: theme.textMain, borderColor: theme.border }}>
+                  <span>₹{getCartTotal().toFixed(0)}</span>
+                  <ChevronRight size={14} color={theme.accent} />
                 </div>
-                <ChevronRight size={20} />
               </Link>
             </motion.div>
           )}
@@ -573,3 +886,5 @@ export default function Menu() {
     </div>
   );
 }
+
+

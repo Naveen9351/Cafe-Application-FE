@@ -83,7 +83,7 @@ export default function CTASection({ onOpenDemo }) {
 
       // Continuous subtle pulse on the card border glow
       gsap.to(cardRef.current, {
-        boxShadow: "0 30px 70px rgba(37,99,235,0.55), 0 0 50px rgba(79,70,229,0.25)",
+        boxShadow: "0 30px 70px rgba(15,23,42,0.45), 0 0 50px rgba(5,150,105,0.25)",
         duration: 2,
         ease: "sine.inOut",
         yoyo: true,
@@ -103,10 +103,10 @@ export default function CTASection({ onOpenDemo }) {
           style={{
             borderRadius: "var(--radius-xl)",
             padding: "64px 48px",
-            background: "linear-gradient(135deg, #1d4ed8 0%, #2563eb 40%, #4f46e5 80%, #7c3aed 100%)",
+            background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #047857 100%)",
             color: "#ffffff",
             textAlign: "center",
-            boxShadow: "0 20px 50px rgba(37,99,235,0.35)",
+            boxShadow: "0 20px 50px rgba(15,23,42,0.35)",
             position: "relative",
             overflow: "hidden"
           }}

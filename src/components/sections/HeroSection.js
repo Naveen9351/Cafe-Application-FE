@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 import { gsap } from "gsap";
 import LiveConnectedSimulator from "../interactive/LiveConnectedSimulator";
+import flowVideo from "../../assets/video/ServiQ_product_animation_video.mp4";
 import styles from "../../styles/HeroSection.module.css";
+
+// Local premium assets provided by user
+import img1 from "../../assets/premium_photo-1673108852141-e8c3c22a4a22.jpg";
+import img2 from "../../assets/premium_vector-1682269608279-c30dcfc02e95.jpg";
+import img3 from "../../assets/premium_vector-1683141030927-d8f78a6be4bd.jpg";
 
 const ROTATING_PHRASES = [
   "Scale High-Speed Kitchens",
@@ -235,11 +241,11 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
           </div>
         </div>
 
-        {/* ── Visual Showcase Image Cards ── */}
+        {/* ── Visual Showcase Image Cards — local assets ── */}
         <div ref={showcaseRef} className={styles.heroShowcaseGrid}>
           <div className={styles.heroCardImg}>
             <img
-              src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"
+              src={img1}
               alt="Modern Restaurant Dining"
               loading="lazy"
             />
@@ -251,8 +257,8 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
 
           <div className={styles.heroCardImg}>
             <img
-              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80"
-              alt="High-Speed Kitchen Display"
+              src={img2}
+              alt="Restaurant Management System"
               loading="lazy"
             />
             <div className={styles.heroCardOverlay}>
@@ -263,8 +269,8 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
 
           <div className={styles.heroCardImg}>
             <img
-              src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80"
-              alt="Artisan Food & Drinks"
+              src={img3}
+              alt="Recipe & Inventory"
               loading="lazy"
             />
             <div className={styles.heroCardOverlay}>
@@ -272,6 +278,18 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
               <span className={styles.heroCardPill}>Auto-Depleted</span>
             </div>
           </div>
+        </div>
+
+        {/* ── ServiQ Product Flow Video ── */}
+        <div className={styles.animationWrapper}>
+          <video
+            src={flowVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }}
+          />
         </div>
 
         {/* ── Interactive Live Dual Simulator Box ── */}

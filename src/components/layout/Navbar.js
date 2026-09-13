@@ -20,6 +20,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
   const triggerDemo = onOpenDemo || onOpenDemoModal;
 
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [productsDropdownOpen, setProductsDropdownOpen] = useState(false);
   const [solutionsDropdownOpen, setSolutionsDropdownOpen] = useState(false);
@@ -27,10 +28,29 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
   const pathname = location.pathname;
 
   useEffect(() => {
+    let lastScrollY = window.scrollY;
+
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > 60) {
+        setScrolled(true);
+        if (currentScrollY > lastScrollY + 8) {
+          // Scrolling down -> hide header
+          setHidden(true);
+        } else if (lastScrollY - currentScrollY > 8) {
+          // Scrolling up -> show header with animation
+          setHidden(false);
+        }
+      } else {
+        setScrolled(false);
+        setHidden(false);
+      }
+
+      lastScrollY = currentScrollY;
     };
-    window.addEventListener("scroll", handleScroll);
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -41,7 +61,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
   };
 
   return (
-    <header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
+    <header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""} ${hidden ? styles.headerHidden : ""}`}>
       <div className="container">
         <div className={styles.navContainer}>
 

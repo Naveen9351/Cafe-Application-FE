@@ -74,9 +74,9 @@
 }
 
 .periodBtnActive {
-  background: var(--color-primary);
+  background: #0f172a;
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
 }
 
 /* KPI Cards */
@@ -99,7 +99,7 @@
 
 .kpiCard:hover {
   transform: translateY(-2px);
-  border-color: rgba(37, 99, 235, 0.2);
+  border-color: rgba(5, 150, 105, 0.2);
 }
 
 .kpiLabel {
@@ -189,8 +189,8 @@
 }
 
 .barPillPeak {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+  background: linear-gradient(180deg, #059669 0%, #047857 100%);
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
 }
 
 .barHour {
@@ -237,7 +237,7 @@
 
 .progressBarFill {
   height: 100%;
-  background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%);
+  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
   border-radius: var(--radius-full);
   transition: width 0.5s ease;
 }

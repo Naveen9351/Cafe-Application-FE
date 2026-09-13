@@ -40,9 +40,9 @@
 }
 
 .toggleBtnActive {
-  background: var(--color-primary);
+  background: #0f172a;
   color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .pricingGrid {
@@ -66,14 +66,14 @@
 }
 
 .priceCard:hover {
-  border-color: rgba(37, 99, 235, 0.4);
+  border-color: rgba(5, 150, 105, 0.3);
   transform: translateY(-4px);
   box-shadow: var(--shadow-xl);
 }
 
 .popularCard {
   border: 2px solid var(--color-primary) !important;
-  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.18) !important;
+  box-shadow: 0 16px 40px rgba(5, 150, 105, 0.15) !important;
   transform: translateY(-6px);
 }
 
@@ -82,7 +82,7 @@
   top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  background: #0f172a;
   color: #ffffff;
   font-size: 10px;
   font-weight: 800;
@@ -90,7 +90,7 @@
   text-transform: uppercase;
   padding: 4px 14px;
   border-radius: var(--radius-full);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
   display: flex;
   align-items: center;
   gap: 4px;

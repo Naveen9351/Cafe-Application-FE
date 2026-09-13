@@ -16,46 +16,31 @@ export default function PricingCalculator({
 
   return (
     <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 32 }}>
-      {/* Billing Cycle Toggle */}
+      {/* Duration Header Pills */}
       <div className={styles.toggleContainer}>
         <div className={styles.toggleWrapper}>
-          <button
-            type="button"
-            onClick={() => setBillingCycle("annual")}
-            className={`${styles.toggleBtn} ${billingCycle === "annual" ? styles.toggleBtnActive : ""}`}
-          >
-            <span>Annual Billing</span>
-            <span style={{ fontSize: 9, fontWeight: 900, background: "var(--color-emerald)", color: "#fff", padding: "2px 6px", borderRadius: 4 }}>
-              Save 25%
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setBillingCycle("monthly")}
-            className={`${styles.toggleBtn} ${billingCycle === "monthly" ? styles.toggleBtnActive : ""}`}
-          >
-            Monthly Billing
-          </button>
+          <div style={{ padding: "8px 16px", fontSize: 13, fontWeight: 800, color: "var(--text-main)", display: "flex", alignItems: "center", gap: 8 }}>
+            <Sparkles style={{ width: 14, height: 14, color: "var(--color-primary)" }} />
+            <span>Select Duration Plan: 1 Month (₹199) • 6 Months (₹999) • 1 Year (₹1,999)</span>
+          </div>
         </div>
       </div>
 
       {/* Pricing Cards 3-Col Grid */}
       <div className={styles.pricingGrid}>
         {tiers.map((tier) => {
-          const isAnnual = billingCycle === "annual";
-          const displayPrice = isAnnual ? (tier?.priceAnnual || 0) : (tier?.priceMonthly || 0);
-          const featureList = tier?.features || tier?.highlights || [];
+          const featureList = tier?.features || [];
+          const hasDiscount = tier?.savings > 0;
 
           return (
             <div
-              key={tier?.id || Math.random()}
+              key={tier?.id || tier?.name}
               className={`${styles.priceCard} ${tier?.popular ? styles.popularCard : ""}`}
             >
-              {tier?.popular && (
+              {tier?.badge && (
                 <div className={styles.popularBadge}>
                   <Sparkles style={{ width: 12, height: 12 }} />
-                  {tier?.badge || "Popular"}
+                  {tier?.badge}
                 </div>
               )}
 
@@ -63,26 +48,43 @@ export default function PricingCalculator({
                 <div className={styles.cardHeader}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <div className={styles.planName}>{tier?.name}</div>
-                    {!tier?.popular && tier?.badge && (
-                      <span className="badge-pill badge-blue" style={{ fontSize: 9 }}>
-                        {tier?.badge}
-                      </span>
-                    )}
+                    <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>
+                      {tier?.duration}
+                    </span>
                   </div>
                   <div className={styles.planDesc}>{tier?.description}</div>
                 </div>
 
                 {/* Price Display */}
                 <div className={styles.priceBox}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                     <span className={styles.priceVal}>
-                      ₹{displayPrice.toLocaleString("en-IN")}
+                      ₹{tier?.price?.toLocaleString("en-IN")}
                     </span>
-                    <span style={{ fontSize: 13, color: "var(--text-subtle)", fontWeight: 700 }}>/ month</span>
+                    <span style={{ fontSize: 13, color: "var(--text-subtle)", fontWeight: 700 }}>
+                      {tier?.periodText}
+                    </span>
+                    {hasDiscount && (
+                      <span style={{ fontSize: 13, color: "#94a3b8", textDecoration: "line-through", fontWeight: 600 }}>
+                        ₹{tier?.originalPrice?.toLocaleString("en-IN")}
+                      </span>
+                    )}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 4 }}>
-                    {isAnnual ? "Billed annually • Free onboarding" : "Billed monthly • Cancel anytime"}
-                  </div>
+
+                  {hasDiscount ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", padding: "2px 8px", borderRadius: 100 }}>
+                        {tier?.savingsText}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--text-subtle)", fontWeight: 600 }}>
+                        (₹{tier?.effectiveMonthly}/mo)
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 6 }}>
+                      {tier?.billingNote}
+                    </div>
+                  )}
                 </div>
 
                 {/* Highlights List */}
@@ -112,7 +114,7 @@ export default function PricingCalculator({
                     className={tier?.popular ? "btn-electric" : "btn-white"}
                     style={{ width: "100%", padding: "12px 16px", fontSize: 13 }}
                   >
-                    <span>{tier?.ctaText || "Get Started"}</span>
+                    <span>{tier?.ctaText}</span>
                     <ArrowRight style={{ width: 14, height: 14 }} />
                   </button>
                 ) : (
@@ -121,7 +123,7 @@ export default function PricingCalculator({
                     className={tier?.popular ? "btn-electric" : "btn-white"}
                     style={{ width: "100%", padding: "12px 16px", fontSize: 13 }}
                   >
-                    <span>{tier?.ctaText || "Get Started"}</span>
+                    <span>{tier?.ctaText}</span>
                     <ArrowRight style={{ width: 14, height: 14 }} />
                   </Link>
                 )}

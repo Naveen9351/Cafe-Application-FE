@@ -200,7 +200,7 @@ export default function BeforeAfterSection() {
           width: 280,
           height: 280,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(37,99,235,0.07) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(5,150,105,0.05) 0%, transparent 70%)",
           filter: "blur(60px)",
           pointerEvents: "none",
           animation: "orbitFloat 11s ease-in-out 4s infinite"
@@ -292,7 +292,7 @@ export default function BeforeAfterSection() {
             style={{
               padding: 32,
               border: "2px solid var(--color-primary)",
-              boxShadow: "0 16px 40px rgba(37,99,235,0.15)",
+              boxShadow: "0 16px 40px rgba(5,150,105,0.15)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -301,11 +301,11 @@ export default function BeforeAfterSection() {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-4px) scale(1.01)";
-              e.currentTarget.style.boxShadow = "0 22px 50px rgba(37,99,235,0.22)";
+              e.currentTarget.style.boxShadow = "0 22px 50px rgba(5,150,105,0.22)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "translateY(0) scale(1)";
-              e.currentTarget.style.boxShadow = "0 16px 40px rgba(37,99,235,0.15)";
+              e.currentTarget.style.boxShadow = "0 16px 40px rgba(5,150,105,0.15)";
             }}
           >
             <div>
@@ -316,7 +316,7 @@ export default function BeforeAfterSection() {
                   </div>
                   <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text-main)", margin: 0 }}>SERVIQ Autonomous OS</h3>
                 </div>
-                <span className="badge-pill badge-blue" style={{ fontSize: 10 }}>
+                <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>
                   AI Velocity
                 </span>
               </div>
@@ -340,7 +340,7 @@ export default function BeforeAfterSection() {
               </div>
             </div>
 
-            <div style={{ padding: 12, borderRadius: "var(--radius-md)", background: "var(--color-primary)", color: "#ffffff", fontSize: 12, fontWeight: 800, textAlign: "center", boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}>
+            <div style={{ padding: 12, borderRadius: "var(--radius-md)", background: "#0f172a", color: "#ffffff", fontSize: 12, fontWeight: 800, textAlign: "center", boxShadow: "0 4px 14px rgba(15,23,42,0.2)" }}>
               Result: 2.4x Faster table turns, zero ticket waste & 99.8% kitchen accuracy.
             </div>
           </div>

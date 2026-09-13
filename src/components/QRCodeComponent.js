@@ -286,7 +286,7 @@ const QRCodeComponent = () => {
               boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
             }}
           >
-            <Plus size={16} /> + Add Table
+            <Plus size={16} /> Add Table
           </button>
         </div>
       </div>

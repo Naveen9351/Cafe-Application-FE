@@ -1,126 +1,55 @@
-/* Premium Figma Coffee Shop App UI */
+/* Premium Figma Mobile Web App UI */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
 .page {
   min-height: 100vh;
-  background-color: #0c0907;
-  color: #f5ebe0;
-  padding-bottom: 120px;
+  width: 100%;
+  background-color: #f8fafc;
+  color: #0f172a;
+  padding-bottom: 110px;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow-x: hidden;
 }
 
-/* Mobile Mockup Container for Desktop, Fullscreen on Mobile */
+/* Mobile Mockup Container */
 .appContainer {
   width: 100%;
   max-width: 480px;
   min-height: 100vh;
-  background-color: #0c0907;
+  background-color: #ffffff;
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.8);
-  border-left: 1px solid rgba(217, 119, 6, 0.1);
-  border-right: 1px solid rgba(217, 119, 6, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  margin: 0 auto;
 }
 
-/* ---------- 1. SPLASH SCREEN ---------- */
-.splash {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  height: 100vh;
-  padding: 3rem 2rem;
-  background: radial-gradient(circle at center, #1c1510, #0c0907);
-  text-align: center;
-}
-
-.splashImage {
-  width: 280px;
-  height: 280px;
-  object-fit: cover;
-  border-radius: 50%;
-  border: 4px solid rgba(217, 119, 6, 0.2);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-  margin: auto 0;
-  animation: floatImg 6s ease-in-out infinite;
-}
-
-@keyframes floatImg {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
-}
-
-.splashTitle {
-  font-size: 2.25rem;
-  font-weight: 800;
-  line-height: 1.2;
-  color: #ffffff;
-  margin-bottom: 1rem;
-}
-
-.splashDesc {
-  color: #b5a494;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  max-width: 320px;
-  margin: 0 auto 2.5rem;
-}
-
-.splashBtn {
-  width: 100%;
-  background: linear-gradient(135deg, #d97706, #b45309);
-  color: white;
-  font-weight: 700;
-  font-size: 1rem;
-  padding: 1.1rem;
-  border-radius: 18px;
-  box-shadow: 0 10px 25px rgba(217, 119, 6, 0.3);
-  transition: all 0.3s ease;
-}
-
-.splashBtn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(217, 119, 6, 0.45);
-}
-
-/* ---------- 2. MAIN APP HOME SCREEN ---------- */
+/* Header & Nav */
 .header {
-  padding: 2rem 1.5rem 1rem;
+  padding: 1.5rem 1.25rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.locationTitle {
-  font-size: 0.75rem;
-  color: #8c7d70;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.locationName {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin-top: 2px;
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  object-fit: cover;
-  border: 1px solid rgba(217, 119, 6, 0.2);
-}
-
-/* Search & Filter Row */
+/* Search Row */
 .searchRow {
   display: flex;
-  gap: 0.75rem;
-  padding: 0 1.5rem 1.5rem;
+  gap: 0.65rem;
+  padding: 0 1.25rem 1rem;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .searchWrapper {
@@ -130,7 +59,7 @@
 
 .searchIcon {
   position: absolute;
-  left: 1.1rem;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%);
   color: #8c7d70;
@@ -139,253 +68,164 @@
 .searchInput {
   width: 100%;
   background-color: #191512;
-  border: 1px solid rgba(217, 119, 6, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
-  padding: 0.85rem 1rem 0.85rem 3rem;
+  padding: 0.75rem 1rem 0.75rem 2.6rem;
   color: #ffffff;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   outline: none;
+  box-sizing: border-box;
 }
 
 .filterBtn {
-  background-color: #d97706;
+  background-color: #e05c5c;
   color: white;
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
+  box-shadow: 0 4px 12px rgba(224, 92, 92, 0.3);
   transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.filterBtn:hover {
-  transform: scale(1.05);
-}
-
-/* Horizontal Categories Scroll */
-.categories {
-  padding: 0 1.5rem 1.5rem;
-  overflow-x: auto;
+/* Categories Bar */
+.categoryBar {
+  padding: 0.5rem 1.25rem 0.75rem;
   display: flex;
-  gap: 0.65rem;
+  gap: 0.5rem;
+  overflow-x: auto;
   scrollbar-width: none;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.categories::-webkit-scrollbar {
+.categoryBar::-webkit-scrollbar {
   display: none;
 }
 
-.categoryPill {
-  padding: 0.65rem 1.1rem;
-  border-radius: 10px;
-  background-color: #191512;
-  color: #b5a494;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border: 1px solid rgba(217, 119, 6, 0.1);
-  white-space: nowrap;
-  transition: all 0.3s ease;
-}
-
-.activePill {
-  background-color: #d97706 !important;
-  color: #ffffff !important;
-  border-color: #d97706 !important;
-  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.25);
-}
-
-/* Coffee Grid */
-.menu {
-  padding: 0 1.5rem;
-  flex: 1;
-}
-
+/* Dishes Grid */
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem;
-}
-
-/* Coffee Card */
-.card {
-  background: linear-gradient(145deg, #1b1613, #110e0c);
-  border: 1px solid rgba(217, 119, 6, 0.1);
-  border-radius: 18px;
-  padding: 0.75rem;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  border-color: #d97706;
-}
-
-.imgWrap {
-  position: relative;
-  border-radius: 14px;
-  overflow: hidden;
-  height: 130px;
-}
-
-.img {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  box-sizing: border-box;
+  align-items: stretch;
 }
 
-.ratingTag {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  background: rgba(12, 9, 7, 0.6);
-  backdrop-filter: blur(8px);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #f59e0b;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.cardBody {
-  margin-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.itemName {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #ffffff;
-  line-clamp: 1;
-}
-
-.desc {
-  font-size: 0.75rem;
-  color: #8c7d70;
-  line-clamp: 1;
-}
-
-.cardFooter {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 0.75rem;
-}
-
-.price {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.addBtn {
-  background-color: #d97706;
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.addBtn:hover {
-  transform: scale(1.1);
-  background-color: #f59e0b;
-}
-
-/* ---------- 3. FLOATING CART BAR ---------- */
-.cartBarWrapper {
+/* Floating Bottom Center Overlapping Dishes Cart */
+.floatingCenterCart {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
-  width: 100%;
-  max-width: 440px;
-  padding: 0 1rem;
-  z-index: 100;
-}
-
-.cartBar {
-  background: rgba(25, 21, 18, 0.85);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(217, 119, 6, 0.25);
-  border-radius: 18px;
-  padding: 0.9rem 1.25rem;
+  z-index: 1000;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  color: white;
-  text-decoration: none;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
 }
 
-.cartIconBox {
+.cartCircleLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  gap: 0.4rem;
+}
+
+.circularStackContainer {
   position: relative;
-  background-color: #d97706;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 64px;
+  min-width: 120px;
+  padding: 0 20px;
 }
 
-.badgeCount {
+.dishCircle {
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dishCircleCenter {
+  width: 58px;
+  height: 58px;
+  border: 3px solid #ffffff;
+  z-index: 3;
+  position: relative;
+}
+
+.dishCircleRight {
+  width: 48px;
+  height: 48px;
+  border: 2.5px solid #ffffff;
+  z-index: 2;
   position: absolute;
-  top: -5px;
-  right: -5px;
-  background-color: #ef4444;
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 800;
-  width: 18px;
-  height: 18px;
+  right: 0px;
+  top: 5px;
+  filter: brightness(0.95);
+}
+
+.dishCircleLeft {
+  width: 48px;
+  height: 48px;
+  border: 2.5px solid #ffffff;
+  z-index: 1;
+  position: absolute;
+  left: 0px;
+  top: 5px;
+  filter: brightness(0.9);
+}
+
+.centerDishWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.floatingBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: linear-gradient(135deg, #e05c5c, #ef4444);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  min-width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #191512;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(224, 92, 92, 0.5);
+  padding: 0 4px;
+  z-index: 10;
 }
 
-.empty {
+.cartPillLabel {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  color: #8c7d70;
-  text-align: center;
-}
-
-.emptyImg {
-  width: 140px;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.footer {
-  padding: 3rem 1.5rem;
-  text-align: center;
-  border-top: 1px solid rgba(217, 119, 6, 0.1);
-  background-color: #090706;
-  color: #8c7d70;
-}
-
-.footerBrand {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #ffffff;
-  margin-bottom: 0.5rem;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1.5px solid #cbd5e1;
+  padding: 0.35rem 0.95rem;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
 }

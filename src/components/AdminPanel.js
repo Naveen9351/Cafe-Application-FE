@@ -28,6 +28,7 @@ const API = window.location.hostname === 'localhost' || window.location.hostname
 // Standard Categories with Icons
 const standardCategories = [
   { id: "all", name: "All Items", icon: "UtensilsCrossed", Component: UtensilsCrossed },
+  { id: "combos", name: "Combos & Offers", aliases: ['combos', 'combo', 'offers', 'offer', 'deal', 'deals', 'special'], icon: "Sparkles", Component: Sparkles },
   { id: "main-courses", name: "Main Courses", aliases: ['main-courses', 'main_courses', 'main-course', 'main_course', 'mains', 'main', 'pasta', 'curry', 'rice', 'entree', 'food'], icon: "UtensilsCrossed", Component: UtensilsCrossed },
   { id: "appetizers", name: "Appetizers", aliases: ['appetizer', 'appetizers', 'starter', 'starters', 'snack', 'snacks', 'salad', 'salads'], icon: "Cookie", Component: Cookie },
   { id: "desserts", name: "Desserts", aliases: ['dessert', 'desserts', 'sweet', 'sweets', 'cake', 'ice_cream', 'pastry'], icon: "Cake", Component: Cake },
@@ -72,6 +73,31 @@ export default function AdminPanel() {
   const [dateRange, setDateRange] = useState('today'); // 'today', 'this_week', 'this_month', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const handleCustomStartDateChange = (val) => {
+    if (val > todayStr) {
+      toast.error('Future dates cannot be selected. Please select a past or current date.');
+      return;
+    }
+    setCustomStartDate(val);
+    if (customEndDate && customEndDate < val) {
+      setCustomEndDate(val);
+    }
+  };
+
+  const handleCustomEndDateChange = (val) => {
+    if (val > todayStr) {
+      toast.error('Future dates cannot be selected. Please select a past or current date.');
+      return;
+    }
+    if (customStartDate && val < customStartDate) {
+      toast.error('End date cannot be earlier than start date.');
+      return;
+    }
+    setCustomEndDate(val);
+  };
 
   // Menu Management State
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -512,8 +538,103 @@ export default function AdminPanel() {
     return 0;
   });
 
-  const restaurantDisplayName = tenantInfo?.name || user?.tenantName || 'SERVIQ Flagship Bistro';
+  const handleSaveTenantSettings = async (updatedSettings) => {
+    const token = localStorage.getItem('token');
+    try {
+      if (token && (tenantId || tenantInfo?._id)) {
+        const idToUpdate = tenantId || tenantInfo?._id;
+        await axios.put(`${API}/tenants/${idToUpdate}`, updatedSettings, {
+          headers: { 'x-auth-token': token }
+        });
+      }
+    } catch (err) {
+      console.log('API update tenant settings error:', err.message);
+    }
+    setTenantInfo(prev => ({
+      ...prev,
+      ...updatedSettings,
+      name: updatedSettings.name || updatedSettings.restaurantName || prev?.name,
+      logo: updatedSettings.logo || prev?.logo,
+      address: updatedSettings.address || updatedSettings.storeAddress || prev?.address,
+      phone: updatedSettings.phone || updatedSettings.primaryPhone || prev?.phone,
+      email: updatedSettings.email || updatedSettings.publicEmail || prev?.email,
+      gstNumber: updatedSettings.gstNumber || prev?.gstNumber,
+    }));
+    toast.success('Restaurant configuration saved successfully!');
+  };
+
+  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || "Deepak's Restaurant";
+  const restaurantLogo = tenantInfo?.logo || user?.restaurantLogo || tenantInfo?.logoUrl || null;
   const restaurantInitials = restaurantDisplayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+  const ownerName = tenantInfo?.ownerName || user?.name || "Deepak";
+  const ownerAvatar = tenantInfo?.ownerImage || user?.avatar || user?.profileImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100";
+
+  // Dedicated POS Billing Screen (Without Sidebar)
+  if (activeTab === 'pos') {
+    return (
+      <div className={styles.posFullScreenLayout}>
+        <Toaster position="top-right" />
+        
+        {/* POS Header Bar */}
+        <header className={styles.posHeader}>
+          <div className={styles.posHeaderLeft}>
+            <button 
+              type="button" 
+              className={styles.posBackBtn}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              ← Back to Dashboard
+            </button>
+
+            <div className={styles.brandTitleWrap} onClick={() => navigate('/')}>
+              {restaurantLogo ? (
+                <img src={restaurantLogo} alt="Restaurant Logo" className={styles.tenantLogoImg} />
+              ) : (
+                <div className={styles.brandIconSquare}>{restaurantInitials || 'SQ'}</div>
+              )}
+              <div>
+                <span className={styles.brandTitle}>{restaurantDisplayName}</span>
+                <span className={styles.brandSub}>SERVIQ POS BILLING & PAYMENTS</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.posHeaderRight}>
+            <div className={styles.posLiveBadge}>
+              <span className={styles.posPulseDot} />
+              <span>LIVE BILLING TERMINAL</span>
+            </div>
+
+            <div className={styles.profileBadge}>
+              <img 
+                src={ownerAvatar} 
+                alt="Owner Avatar" 
+                className={styles.profileAvatar} 
+              />
+              <div className={styles.profileText}>
+                <span className={styles.profileName}>{ownerName}</span>
+                <span className={styles.profileRole}>RESTAURANT OWNER</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Dedicated Full Width POS Billing Body */}
+        <main className={styles.posMainBody}>
+          <POSTerminal 
+            tenantId={tenantId}
+            menuItems={items} 
+            orders={orders}
+            onOrderPlaced={(newOrd) => {
+              setOrders(prev => [newOrd, ...prev]);
+              fetchOrders();
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.adminLayout}>
@@ -523,7 +644,11 @@ export default function AdminPanel() {
       <header className={styles.topGlobalBar}>
         <div className={styles.topBarLeft}>
           <div className={styles.brandTitleWrap} onClick={() => navigate('/')}>
-            <div className={styles.brandIconSquare}>{restaurantInitials || 'SQ'}</div>
+            {restaurantLogo ? (
+              <img src={restaurantLogo} alt="Restaurant Logo" className={styles.tenantLogoImg} />
+            ) : (
+              <div className={styles.brandIconSquare}>{restaurantInitials || 'SQ'}</div>
+            )}
             <div>
               <span className={styles.brandTitle}>{restaurantDisplayName}</span>
               <span className={styles.brandSub}>SERVIQ OS</span>
@@ -571,13 +696,13 @@ export default function AdminPanel() {
           </button>
           <div className={styles.profileBadge}>
             <img 
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100" 
-              alt="User Avatar" 
+              src={ownerAvatar} 
+              alt="Owner Avatar" 
               className={styles.profileAvatar} 
             />
             <div className={styles.profileText}>
-              <span className={styles.profileName}>{user?.name || "Admin"}</span>
-              <span className={styles.profileRole}>{user?.role ? user.role.toUpperCase() : "OWNER"}</span>
+              <span className={styles.profileName}>{ownerName}</span>
+              <span className={styles.profileRole}>RESTAURANT OWNER</span>
             </div>
           </div>
         </div>
@@ -619,12 +744,6 @@ export default function AdminPanel() {
               onClick={() => setActiveTab('inventory')}
             >
               <Truck size={18} /> <span>Inventory & PO</span>
-            </button>
-            <button 
-              className={`${styles.navLink} ${activeTab === 'crm' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('crm')}
-            >
-              <UserCheck size={18} /> <span>CRM & Loyalty</span>
             </button>
             <button 
               className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
@@ -718,15 +837,18 @@ export default function AdminPanel() {
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>From:</span>
                     <input 
                       type="date" 
+                      max={todayStr}
                       value={customStartDate} 
-                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      onChange={(e) => handleCustomStartDateChange(e.target.value)}
                       style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
                     />
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>To:</span>
                     <input 
                       type="date" 
+                      min={customStartDate || undefined}
+                      max={todayStr}
                       value={customEndDate} 
-                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      onChange={(e) => handleCustomEndDateChange(e.target.value)}
                       style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
                     />
                     <button
@@ -1211,6 +1333,7 @@ export default function AdminPanel() {
                 <POSTerminal 
                   tenantId={tenantId}
                   menuItems={items} 
+                  orders={orders}
                   onOrderPlaced={(newOrd) => {
                     setOrders(prev => [newOrd, ...prev]);
                     fetchOrders();
@@ -1275,7 +1398,10 @@ export default function AdminPanel() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <RestaurantSettings />
+                <RestaurantSettings 
+                  tenantInfo={tenantInfo}
+                  onSave={handleSaveTenantSettings}
+                />
               </motion.div>
             )}
 

@@ -74,7 +74,7 @@
 
 .metricCard:hover {
   background: #ffffff;
-  border-color: rgba(37, 99, 235, 0.3);
+  border-color: rgba(5, 150, 105, 0.3);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }

@@ -5,18 +5,24 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.95);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   padding: 10px 0;
+  transform: translateY(0);
 }
 
 .headerScrolled {
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.07);
   padding: 8px 0;
+}
+
+.headerHidden {
+  transform: translateY(-100%);
+  pointer-events: none;
 }
 
 .navContainer {

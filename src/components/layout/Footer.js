@@ -40,7 +40,7 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
                 <span>+91 96801 32562 (Direct Indian WhatsApp Support)</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <MapPin style={{ width: 14, height: 14, color: "var(--color-indigo)" }} />
+                <MapPin style={{ width: 14, height: 14, color: "var(--color-primary)" }} />
                 <span>Bangalore • Mumbai • Delhi NCR • Cloud Infrastructure</span>
               </div>
             </div>
@@ -57,7 +57,7 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
                 <span>Dynamic QR Table Ordering</span>
               </Link>
               <Link to="/products" style={{ color: "#94a3b8", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
-                <LayoutGrid style={{ width: 14, height: 14, color: "var(--color-indigo)" }} />
+                <LayoutGrid style={{ width: 14, height: 14, color: "var(--color-primary)" }} />
                 <span>Multi-Station KDS Queue</span>
               </Link>
               <Link to="/features/inventory" style={{ color: "#94a3b8", textDecoration: "none" }}>

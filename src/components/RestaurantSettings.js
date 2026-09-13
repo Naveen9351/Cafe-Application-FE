@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, Clock, Palette, DollarSign, CreditCard, 
   Upload, Trash2, CheckCircle, Info
@@ -12,11 +12,11 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   const [logoPreview, setLogoPreview] = useState(tenantInfo?.logo || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=200');
   
   const [form, setForm] = useState({
-    restaurantName: tenantInfo?.businessName || 'Gourmet Ops Kitchen',
+    restaurantName: tenantInfo?.name || tenantInfo?.businessName || 'Deepak\'s Cafe & Bistro',
     gstNumber: tenantInfo?.gstNumber || 'GSTIN29ABCDE1234F',
-    storeAddress: tenantInfo?.address || '1224 Michelin Avenue, Culinary District, Paris, France',
-    primaryPhone: tenantInfo?.phone || '+33 1 45 67 89 00',
-    publicEmail: tenantInfo?.email || 'contact@gourmetops.fr',
+    storeAddress: tenantInfo?.address || '1224 Culinary Heights, Bangalore, India',
+    primaryPhone: tenantInfo?.phone || '+91 96801 32562',
+    publicEmail: tenantInfo?.email || 'contact@serviq.ai',
     enableGst: true,
     enableGratuity: true,
     operatingHours: [
@@ -29,6 +29,24 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       { day: 'Sunday', enabled: false, open: 'Closed for Business', close: '' },
     ]
   });
+
+  useEffect(() => {
+    if (tenantInfo) {
+      setForm(prev => ({
+        ...prev,
+        restaurantName: tenantInfo.name || tenantInfo.businessName || prev.restaurantName,
+        gstNumber: tenantInfo.gstNumber || prev.gstNumber,
+        storeAddress: tenantInfo.address || prev.storeAddress,
+        primaryPhone: tenantInfo.phone || prev.primaryPhone,
+        publicEmail: tenantInfo.email || prev.publicEmail,
+        enableGst: tenantInfo.settings?.enableGst !== undefined ? tenantInfo.settings.enableGst : prev.enableGst,
+        enableGratuity: tenantInfo.settings?.enableGratuity !== undefined ? tenantInfo.settings.enableGratuity : prev.enableGratuity,
+        operatingHours: tenantInfo.settings?.operatingHours || prev.operatingHours,
+      }));
+      if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
+      if (tenantInfo.settings?.theme) setAccentColor(tenantInfo.settings.theme);
+    }
+  }, [tenantInfo]);
 
   const accentPresets = ['#4f46e5', '#059669', '#e11d48', '#0284c7', '#0f172a'];
 
@@ -63,12 +81,40 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
   const handleSave = (e) => {
     if (e) e.preventDefault();
-    if (onSave) onSave({ ...form, accentColor, logo: logoPreview });
-    toast.success('Restaurant settings saved successfully!');
+    if (onSave) {
+      onSave({
+        name: form.restaurantName,
+        restaurantName: form.restaurantName,
+        logo: logoPreview,
+        gstNumber: form.gstNumber,
+        address: form.storeAddress,
+        phone: form.primaryPhone,
+        email: form.publicEmail,
+        enableGst: form.enableGst,
+        enableGratuity: form.enableGratuity,
+        operatingHours: form.operatingHours,
+        accentColor
+      });
+    } else {
+      toast.success('Restaurant settings saved successfully!');
+    }
   };
 
   const handleDiscard = () => {
-    toast('Changes reset to defaults', { icon: '↩️' });
+    if (tenantInfo) {
+      setForm({
+        restaurantName: tenantInfo.name || tenantInfo.businessName || 'Deepak\'s Cafe & Bistro',
+        gstNumber: tenantInfo.gstNumber || 'GSTIN29ABCDE1234F',
+        storeAddress: tenantInfo.address || '1224 Culinary Heights, Bangalore',
+        primaryPhone: tenantInfo.phone || '+91 96801 32562',
+        publicEmail: tenantInfo.email || 'contact@serviq.ai',
+        enableGst: true,
+        enableGratuity: true,
+        operatingHours: tenantInfo.settings?.operatingHours || form.operatingHours
+      });
+      if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
+    }
+    toast('Changes reset to saved identity', { icon: '↩️' });
   };
 
   return (

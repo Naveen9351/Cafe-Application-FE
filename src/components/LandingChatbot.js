@@ -8,6 +8,71 @@ const API = window.location.hostname === 'localhost' || window.location.hostname
   ? 'http://localhost:5000/api'
   : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
+const renderFormattedText = (rawText) => {
+  if (!rawText) return null;
+
+  const lines = rawText.split('\n');
+
+  return lines.map((line, lIdx) => {
+    const parts = line.split(/(\*\*.*?\*\*)/g);
+    const lineContent = parts.map((part, pIdx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={pIdx}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+
+    return (
+      <React.Fragment key={lIdx}>
+        {lIdx > 0 && <br />}
+        {lineContent}
+      </React.Fragment>
+    );
+  });
+};
+
+function TypewriterMessage({ text, isLatest, onScroll }) {
+  const [displayedText, setDisplayedText] = useState(isLatest ? "" : text);
+  const [isTyping, setIsTyping] = useState(isLatest);
+
+  useEffect(() => {
+    if (!isLatest) {
+      setDisplayedText(text);
+      setIsTyping(false);
+      return;
+    }
+
+    setDisplayedText("");
+    setIsTyping(true);
+
+    let idx = 0;
+    const speed = 15;
+    const step = 2;
+
+    const timer = setInterval(() => {
+      idx += step;
+      if (idx >= text.length) {
+        setDisplayedText(text);
+        setIsTyping(false);
+        clearInterval(timer);
+        if (onScroll) onScroll();
+      } else {
+        setDisplayedText(text.slice(0, idx));
+        if (onScroll) onScroll();
+      }
+    }, speed);
+
+    return () => clearInterval(timer);
+  }, [text, isLatest]);
+
+  return (
+    <span>
+      {renderFormattedText(displayedText)}
+      {isTyping && <span className={styles.typeCursor}>▌</span>}
+    </span>
+  );
+}
+
 export default function LandingChatbot({ onOpenDemo }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -52,7 +117,7 @@ export default function LandingChatbot({ onOpenDemo }) {
       const lower = textToSend.toLowerCase();
       let reply = '';
       if (lower.includes('price') || lower.includes('cost') || lower.includes('rupee') || lower.includes('plan')) {
-        reply = `**SERVIQ Pricing Plans (in ₹ INR)**:\n\n• **Starter (₹1,499/mo)**: Digital QR Menu, Live Kitchen KDS, UPI Instant Payments, up to 10 tables.\n• **Growth Pro (₹2,999/mo)**: Multi-station line routing, Recipe-level Inventory, Real-Time Analytics, unlimited tables.\n• **Enterprise (₹5,999/mo)**: Multi-location Franchise OS, Central Menu Sync, 24/7 SLA.\n\nWould you like to book a 1-on-1 walkthrough?`;
+        reply = `**SERVIQ Pricing Plans (in ₹ INR)**:\n\n• **1 Month Plan (₹199)**: Dynamic QR Menu, Live KDS, UPI Payments, unlimited tables.\n• **6 Months Plan (₹999)**: Save 16% (₹166/mo effective rate), Multi-station KDS & Recipe Inventory.\n• **1 Year Plan (₹1,999)**: Best Value (2 Months FREE!), Central Menu Hub & Priority SLA.\n\nWould you like to schedule a 1-on-1 walkthrough?`;
       } else if (lower.includes('qr') || lower.includes('menu') || lower.includes('order')) {
         reply = `**SERVIQ QR Dining** allows guests to scan table-specific QR codes with zero app downloads. They can view high-res visual menus, customize toppings/variants, and order with instant UPI payments. Orders route immediately to the kitchen KDS in < 50ms!`;
       } else if (lower.includes('kds') || lower.includes('kitchen') || lower.includes('kot')) {
@@ -127,12 +192,22 @@ export default function LandingChatbot({ onOpenDemo }) {
             <div className={styles.messageStream}>
               {messages.map((msg, index) => {
                 const isAssistant = msg.role === 'assistant';
+                const isLatestAssistant = isAssistant && index === messages.length - 1;
+
                 return (
                   <div
                     key={index}
                     className={isAssistant ? styles.msgBubbleAssistant : styles.msgBubbleUser}
                   >
-                    {msg.text}
+                    {isAssistant ? (
+                      <TypewriterMessage
+                        text={msg.text}
+                        isLatest={isLatestAssistant}
+                        onScroll={scrollToBottom}
+                      />
+                    ) : (
+                      msg.text
+                    )}
                   </div>
                 );
               })}

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
 import HeroSection from './sections/HeroSection';
-import ConnectedWorkflowSection from './sections/ConnectedWorkflowSection';
 import FlagshipQROrderingSection from './sections/FlagshipQROrderingSection';
 import FlagshipKDSSection from './sections/FlagshipKDSSection';
 import BeforeAfterSection from './sections/BeforeAfterSection';
@@ -30,9 +29,6 @@ export default function LandingPage() {
       <main>
         {/* 1. Hero Section with GSAP motion, Rotating Headline & Connected Simulator */}
         <HeroSection onOpenDemo={handleOpenDemo} />
-
-        {/* 2. Infinite Connected Automation Loop Workflow */}
-        <ConnectedWorkflowSection />
 
         {/* 3. Flagship QR Table Dining Showcase */}
         <FlagshipQROrderingSection onOpenDemo={handleOpenDemo} />

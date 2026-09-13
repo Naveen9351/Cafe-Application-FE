@@ -26,21 +26,37 @@ export default function LeadCaptureModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div style={{ position: "fixed", inset: 0, zIndex: 100000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", overflowY: "auto" }}>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
+        style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(6px)" }}
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-xl my-8 z-10 animate-in zoom-in-95 fade-in duration-200">
+      <div style={{ position: "relative", width: "100%", maxWidth: "680px", margin: "auto", zIndex: 100001, background: "#ffffff", borderRadius: "20px", boxShadow: "0 25px 60px rgba(0,0,0,0.3)", padding: "28px", maxHeight: "90vh", overflowY: "auto" }}>
         <button
           onClick={onClose}
-          className="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 w-9 h-9 rounded-full bg-slate-900 text-white hover:bg-orange-600 flex items-center justify-center shadow-xl border-2 border-white transition-colors z-20 cursor-pointer"
+          style={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: "#0f172a",
+            color: "#ffffff",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            zIndex: 100002
+          }}
           aria-label="Close modal"
         >
-          <X className="w-5 h-5" />
+          <X style={{ width: 16, height: 16 }} />
         </button>
 
         <LeadCaptureForm
@@ -50,7 +66,6 @@ export default function LeadCaptureModal({
               onClose();
             }, 3000);
           }}
-          className="shadow-2xl max-h-[90vh] overflow-y-auto"
         />
       </div>
     </div>
