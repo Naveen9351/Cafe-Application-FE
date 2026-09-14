@@ -2,15 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { 
   ChefHat, Clock, CheckCircle, RefreshCw, 
   RotateCcw, Sparkles, Filter, ChevronRight, AlertCircle, 
-  Coffee, Utensils, Send, Check, Flame, ShoppingBag
+  Coffee, Utensils, Send, Check, Flame, ShoppingBag, Trash2, XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './KOTMonitor.module.css';
 
-export default function KOTMonitor({ orders = [], onUpdateStatus }) {
+export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder }) {
   const [orderChannel, setOrderChannel] = useState('All');
   const [now, setNow] = useState(Date.now());
   const [localOrders, setLocalOrders] = useState([]);
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [orderToPrep, setOrderToPrep] = useState(null);
+  const [prepTimeMinutes, setPrepTimeMinutes] = useState(20);
+  const [orderToEdit, setOrderToEdit] = useState(null);
+  const [editTimeMinutes, setEditTimeMinutes] = useState(20);
 
   // Live Timer ticker: updates every second with proper lifecycle cleanup
   useEffect(() => {
@@ -21,7 +27,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
   }, []);
 
   useEffect(() => {
-    if (orders && orders.length > 0) {
+    if (orders && Array.isArray(orders)) {
       const formatted = orders.map((o, idx) => ({
         _id: o._id || `ord_${idx}`,
         orderNumber: o.orderNumber || String(o._id).slice(-4),
@@ -30,64 +36,20 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
         orderType: o.orderType || 'dine-in',
         channel: o.channel || (o.orderType === 'takeaway' ? 'Takeaway' : o.orderType === 'delivery' ? 'Delivery' : 'Dine-in'),
         status: o.status || 'pending',
-        createdAt: o.createdAt || new Date(Date.now() - (idx + 1) * 3 * 60000).toISOString(),
+        createdAt: o.createdAt || new Date().toISOString(),
+        estimatedTime: Number(o.estimatedTime) || 20,
         items: o.items?.map(it => ({
           name: it.name || it.item?.name || 'Dish',
           quantity: it.quantity || 1,
           modifiers: it.variant?.name ? `Size: ${it.variant.name}` : (it.addons && it.addons.length > 0 ? it.addons.map(a => a.name).join(', ') : ''),
           price: (it.price || 0) * (it.quantity || 1)
-        })) || [{ name: 'Chef Special', quantity: 1, modifiers: '', price: 250 }],
+        })) || [{ name: 'Item', quantity: 1, modifiers: '', price: 100 }],
         specialInstructions: o.specialInstructions || '',
         totalAmount: o.total || o.totalAmount || 0
       }));
       setLocalOrders(formatted);
     } else {
-      setLocalOrders([
-        {
-          _id: 'ord_101',
-          orderNumber: '2849',
-          tableNumber: '14',
-          customerName: 'Sarah J.',
-          channel: 'Dine-in',
-          status: 'pending',
-          createdAt: new Date(Date.now() - 4 * 60000).toISOString(),
-          items: [
-            { name: 'Wagyu Truffle Burger', quantity: 1, modifiers: 'Brioche • Truffle Fries', price: 480.00 },
-            { name: 'Cold Brew Coffee', quantity: 1, modifiers: '', price: 160.00 }
-          ],
-          specialInstructions: 'No onions, extra lemon on the side.',
-          totalAmount: 640.00
-        },
-        {
-          _id: 'ord_102',
-          orderNumber: '2850',
-          tableNumber: '8',
-          customerName: 'Michael B.',
-          channel: 'Dine-in',
-          status: 'preparing',
-          createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
-          items: [
-            { name: 'Classic Pomodoro Fettuccine', quantity: 2, modifiers: 'Extra Parmesan', price: 720.00 },
-            { name: 'Crispy Truffle Calamari', quantity: 1, modifiers: 'Garlic Aioli Dip', price: 290.00 }
-          ],
-          specialInstructions: '',
-          totalAmount: 1010.00
-        },
-        {
-          _id: 'ord_103',
-          orderNumber: '2851',
-          tableNumber: '4',
-          customerName: 'Alex P.',
-          channel: 'Takeaway',
-          status: 'ready',
-          createdAt: new Date(Date.now() - 22 * 60000).toISOString(),
-          items: [
-            { name: 'Valrhona Chocolate Fondant', quantity: 2, modifiers: 'Vanilla Gelato', price: 480.00 }
-          ],
-          specialInstructions: '',
-          totalAmount: 480.00
-        }
-      ]);
+      setLocalOrders([]);
     }
   }, [orders]);
 
@@ -105,10 +67,41 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
     return Math.floor((now - new Date(createdAtStr).getTime()) / 60000);
   };
 
-  const handleUpdateStage = (orderId, newStatus) => {
-    setLocalOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
-    if (onUpdateStatus) onUpdateStatus(orderId, newStatus);
-    toast.success(`Order moved to ${newStatus.toUpperCase()}`);
+  const handleUpdateStage = (orderId, newStatus, estimatedTime) => {
+    setLocalOrders(prev => prev.map(o => o._id === orderId ? {
+      ...o,
+      status: newStatus,
+      ...(estimatedTime ? { estimatedTime } : {})
+    } : o));
+    if (onUpdateStatus) onUpdateStatus(orderId, newStatus, estimatedTime);
+  };
+
+  const handleConfirmPrep = () => {
+    if (!orderToPrep) return;
+    const mins = Number(prepTimeMinutes) || 20;
+    handleUpdateStage(orderToPrep._id, 'preparing', mins);
+    toast.success(`Started prep for Table ${orderToPrep.tableNumber} (Est: ${mins}m)`);
+    setOrderToPrep(null);
+  };
+
+  const handleConfirmEditTime = () => {
+    if (!orderToEdit) return;
+    const mins = Number(editTimeMinutes) || 20;
+    // Update only estimatedTime, keep status as 'preparing'
+    setLocalOrders(prev => prev.map(o =>
+      o._id === orderToEdit._id ? { ...o, estimatedTime: mins } : o
+    ));
+    if (onUpdateStatus) onUpdateStatus(orderToEdit._id, 'preparing', mins);
+    toast.success(`⏱️ Prep time updated to ${mins}m for Table ${orderToEdit.tableNumber}`);
+    setOrderToEdit(null);
+  };
+
+  const confirmDeleteOrder = () => {
+    if (!orderToDelete) return;
+    setLocalOrders(prev => prev.filter(o => o._id !== orderToDelete._id));
+    if (onDeleteOrder) onDeleteOrder(orderToDelete._id);
+    toast.success(`Order #${orderToDelete.orderNumber || ''} removed`);
+    setOrderToDelete(null);
   };
 
   // Filter orders by channel
@@ -196,9 +189,19 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                           <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
                           <div className={styles.stationTag}>{order.channel} • Table QR</div>
                         </div>
-                        <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
-                          <Clock size={12} /> {formatElapsedTime(order.createdAt)}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
+                            <Clock size={12} /> {formatElapsedTime(order.createdAt)}
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={() => setOrderToDelete(order)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                            title="Delete Order"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
 
                       <div className={styles.orderItems}>
@@ -220,15 +223,28 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                         </div>
                       )}
 
-                      <div className={styles.cardFooter}>
-                        <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
-                        <button 
-                          type="button" 
-                          className={styles.acceptPrepBtn}
-                          onClick={() => handleUpdateStage(order._id, 'preparing')}
-                        >
-                          Accept & Prep →
-                        </button>
+                      <div className={styles.cardFooter} style={{ gap: 6 }}>
+                        <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button 
+                            type="button"
+                            onClick={() => handleUpdateStage(order._id, 'cancelled')}
+                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                            title="Cancel Order"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            type="button" 
+                            className={styles.acceptPrepBtn}
+                            onClick={() => {
+                              setOrderToPrep(order);
+                              setPrepTimeMinutes(order.estimatedTime || 20);
+                            }}
+                          >
+                            Accept & Prep →
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -253,19 +269,31 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
 
               <div className={styles.ticketsList}>
                 {inKitchenOrders.map(order => {
+                  const targetMins = order.estimatedTime || 20;
                   const elapsedMins = getElapsedMinutes(order.createdAt);
-                  const isLate = elapsedMins >= 15;
+                  const isLate = elapsedMins >= targetMins;
+                  const progressPct = Math.min(100, Math.round((elapsedMins / targetMins) * 100));
 
                   return (
                     <div key={order._id} className={`${styles.ticketCard} ${styles.cardPreparing}`}>
                       <div className={styles.cardHeader}>
                         <div>
                           <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                          <div className={styles.stationTag}>{order.channel} • Cooking</div>
+                          <div className={styles.stationTag}>{order.channel} • Cooking (Target: {targetMins}m)</div>
                         </div>
-                        <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
-                          <Clock size={12} /> {formatElapsedTime(order.createdAt)}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`} title={`Target prep: ${targetMins} mins`}>
+                            <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={() => handleDelete(order._id)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                            title="Delete Order"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
 
                       <div className={styles.orderItems}>
@@ -287,15 +315,36 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                         </div>
                       )}
 
-                      <div className={styles.cardFooter}>
-                        <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
-                        <button 
-                          type="button" 
-                          className={styles.markReadyBtn}
-                          onClick={() => handleUpdateStage(order._id, 'ready')}
-                        >
-                          Mark Ready ✔
-                        </button>
+                      <div className={styles.cardFooter} style={{ gap: 6 }}>
+                        <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setOrderToEdit(order);
+                              setEditTimeMinutes(order.estimatedTime || 20);
+                            }}
+                            title="Edit estimated prep time for customer"
+                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Clock size={12} /> Edit Time
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleUpdateStage(order._id, 'cancelled')}
+                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                            title="Cancel Order"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            type="button" 
+                            className={styles.markReadyBtn}
+                            onClick={() => handleUpdateStage(order._id, 'ready')}
+                          >
+                            Mark Ready ✔
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -326,9 +375,19 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                         <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
                         <div className={styles.stationTag}>{order.channel} • Ready to Serve</div>
                       </div>
-                      <span className={`${styles.timerBadge} ${styles.timerReady}`}>
-                        <Check size={12} /> Plated
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className={`${styles.timerBadge} ${styles.timerReady}`}>
+                          <Check size={12} /> Plated
+                        </span>
+                        <button 
+                          type="button"
+                          onClick={() => setOrderToDelete(order)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                          title="Delete Order"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
 
                     <div className={styles.orderItems}>
@@ -344,7 +403,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     </div>
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
                       <button 
                         type="button" 
                         className={styles.completeOrderBtn}
@@ -374,14 +433,24 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
               </div>
 
               <div className={styles.ticketsList}>
-                {servedOrders.slice(0, 5).map(order => (
+                {servedOrders.slice(0, 10).map(order => (
                   <div key={order._id} className={`${styles.ticketCard} ${styles.cardServed}`}>
                     <div className={styles.cardHeader}>
                       <div>
                         <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
                         <div className={styles.stationTag}>{order.channel} • Completed</div>
                       </div>
-                      <span className={styles.completedPill}>Delivered</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className={styles.completedPill}>Delivered</span>
+                        <button 
+                          type="button"
+                          onClick={() => setOrderToDelete(order)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2 }}
+                          title="Delete Order"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
 
                     <div className={styles.orderItems}>
@@ -396,7 +465,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
                     </div>
 
                     <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>₹{Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
                     </div>
                   </div>
                 ))}
@@ -412,6 +481,426 @@ export default function KOTMonitor({ orders = [], onUpdateStatus }) {
 
         </div>
       </div>
+
+      {/* CUSTOM CONFIRM DELETE ORDER MODAL */}
+      <AnimatePresence>
+        {orderToDelete && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
+          }} onClick={() => setOrderToDelete(null)}>
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '2rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                textAlign: 'center'
+              }}
+            >
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem auto'
+              }}>
+                <Trash2 size={26} />
+              </div>
+
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+                Delete Order #{orderToDelete.orderNumber}?
+              </h3>
+              
+              <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 1.75rem 0', lineHeight: 1.5 }}>
+                Are you sure you want to remove this ticket from kitchen telemetry? This action cannot be undone.
+              </p>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setOrderToDelete(null)}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteOrder}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                  }}
+                >
+                  Yes, Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ESTIMATE PREPARATION TIME MODAL */}
+      <AnimatePresence>
+        {orderToPrep && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
+          }} onClick={() => setOrderToPrep(null)}>
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '1.75rem',
+                width: '100%',
+                maxWidth: '460px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: '#fef3c7',
+                  color: '#d97706',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Flame size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    Set Kitchen Prep Time
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                    Table {orderToPrep.tableNumber} • Order #{orderToPrep.orderNumber}
+                  </span>
+                </div>
+              </div>
+
+              {/* Dish Items summary */}
+              <div style={{
+                background: '#f8fafc',
+                borderRadius: '12px',
+                padding: '0.75rem 1rem',
+                border: '1px solid #e2e8f0',
+                marginBottom: '1.25rem',
+                maxHeight: '120px',
+                overflowY: 'auto'
+              }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+                  Dishes to Cook ({orderToPrep.items.length})
+                </span>
+                {orderToPrep.items.map((it, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, color: '#1e293b', padding: '2px 0' }}>
+                    <span>{it.name}</span>
+                    <span style={{ color: '#059669', fontWeight: 800 }}>x{it.quantity}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick Time Presets */}
+              <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 8 }}>
+                Estimated Time for Customer (Minutes):
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: '1rem' }}>
+                {[10, 15, 20, 25, 30].map(mins => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setPrepTimeMinutes(mins)}
+                    style={{
+                      padding: '8px 0',
+                      borderRadius: '8px',
+                      border: prepTimeMinutes === mins ? '2px solid #059669' : '1px solid #cbd5e1',
+                      background: prepTimeMinutes === mins ? '#ecfdf5' : '#ffffff',
+                      color: prepTimeMinutes === mins ? '#047857' : '#334155',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {mins}m
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom input */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1.25rem' }}>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Custom:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="180"
+                  value={prepTimeMinutes}
+                  onChange={(e) => setPrepTimeMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={{
+                    width: '80px',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    textAlign: 'center',
+                    color: '#0f172a'
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#64748b' }}>minutes</span>
+              </div>
+
+              <p style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', padding: '8px 12px', borderRadius: '8px', margin: '0 0 1.25rem 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>✓</span> This preparation estimate will be broadcasted in real-time to the customer tracking screen.
+              </p>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setOrderToPrep(null)}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPrep}
+                  style={{
+                    flex: 1.5,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#059669',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
+                  }}
+                >
+                  <Flame size={16} /> Start Cooking ({prepTimeMinutes}m)
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT ESTIMATED TIME MODAL (Admin only — mid-cook adjustment) */}
+      <AnimatePresence>
+        {orderToEdit && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
+          }} onClick={() => setOrderToEdit(null)}>
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '1.75rem',
+                width: '100%',
+                maxWidth: '440px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+                <div style={{
+                  width: '46px', height: '46px', borderRadius: '12px',
+                  background: '#eff6ff', color: '#1d4ed8',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <Clock size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    Update Prep Time
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                    Table {orderToEdit.tableNumber} • Order #{orderToEdit.orderNumber} • Currently: {orderToEdit.estimatedTime}m
+                  </span>
+                </div>
+              </div>
+
+              {/* Admin notice */}
+              <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '10px', padding: '8px 12px', marginBottom: '1.25rem', fontSize: '12px', color: '#92400e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>⚠️</span> Admin only — the updated time will broadcast immediately to the customer tracking screen.
+              </div>
+
+              {/* Quick presets */}
+              <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 8 }}>
+                New Estimated Time (Minutes):
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: '1rem' }}>
+                {[10, 15, 20, 25, 30].map(mins => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setEditTimeMinutes(mins)}
+                    style={{
+                      padding: '8px 0',
+                      borderRadius: '8px',
+                      border: editTimeMinutes === mins ? '2px solid #1d4ed8' : '1px solid #cbd5e1',
+                      background: editTimeMinutes === mins ? '#eff6ff' : '#ffffff',
+                      color: editTimeMinutes === mins ? '#1d4ed8' : '#334155',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {mins}m
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom input */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1.25rem' }}>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Custom:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="180"
+                  value={editTimeMinutes}
+                  onChange={(e) => setEditTimeMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={{
+                    width: '80px',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #bfdbfe',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    textAlign: 'center',
+                    color: '#0f172a'
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#64748b' }}>minutes</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setOrderToEdit(null)}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmEditTime}
+                  style={{
+                    flex: 1.5,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#1d4ed8',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 12px rgba(29, 78, 216, 0.3)'
+                  }}
+                >
+                  <Clock size={15} /> Update & Broadcast
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

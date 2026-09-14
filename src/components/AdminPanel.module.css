@@ -199,6 +199,12 @@
   overflow-y: auto;
   flex-shrink: 0;
   z-index: 40;
+  transition: width 0.25s ease;
+}
+
+.sidebarCollapsed {
+  width: 64px !important;
+  padding: 1rem 0.35rem;
 }
 
 .navSection {

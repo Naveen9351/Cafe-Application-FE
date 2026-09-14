@@ -219,19 +219,10 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
             <Link
               to="/login"
               className="btn-white"
-              style={{ padding: '7px 12px', fontSize: 12 }}
+              style={{ padding: '7px 14px', fontSize: 12 }}
             >
               <LogIn style={{ width: 13, height: 13 }} />
               <span>Login</span>
-            </Link>
-
-            <Link
-              to="/register"
-              className="btn-white"
-              style={{ padding: '7px 12px', fontSize: 12 }}
-            >
-              <Store style={{ width: 13, height: 13, color: 'var(--color-primary)' }} />
-              <span>Sign Up</span>
             </Link>
 
             {triggerDemo ? (
@@ -282,7 +273,6 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
             <Link to="/login" onClick={closeDropdowns} className="btn-white">Login</Link>
-            <Link to="/register" onClick={closeDropdowns} className="btn-white">Sign Up Free</Link>
             <button
               type="button"
               onClick={() => { closeDropdowns(); if (triggerDemo) triggerDemo(); }}

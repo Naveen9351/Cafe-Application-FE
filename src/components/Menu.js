@@ -874,7 +874,7 @@ export default function Menu() {
 
                 {/* Sleek Bottom Price Label */}
                 <div className={styles.cartPillLabel} style={{ backgroundColor: isDarkMode ? '#1e1812' : '#ffffff', color: theme.textMain, borderColor: theme.border }}>
-                  <span>₹{getCartTotal().toFixed(0)}</span>
+                  <span>₹{Math.round(getCartTotal())}</span>
                   <ChevronRight size={14} color={theme.accent} />
                 </div>
               </Link>

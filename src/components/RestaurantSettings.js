@@ -138,31 +138,31 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             <span className={styles.groupLabel}>SECTIONS</span>
             <button 
               className={`${styles.navItem} ${activeSection === 'general' ? styles.activeNav : ''}`}
-              onClick={() => setActiveSection('general')}
+              onClick={() => { setActiveSection('general'); document.getElementById('general')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               <Building2 size={16} /> <span>General Identity</span>
             </button>
             <button 
               className={`${styles.navItem} ${activeSection === 'operations' ? styles.activeNav : ''}`}
-              onClick={() => setActiveSection('operations')}
+              onClick={() => { setActiveSection('operations'); document.getElementById('operations')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               <Clock size={16} /> <span>Operations</span>
             </button>
             <button 
               className={`${styles.navItem} ${activeSection === 'branding' ? styles.activeNav : ''}`}
-              onClick={() => setActiveSection('branding')}
+              onClick={() => { setActiveSection('branding'); document.getElementById('branding')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               <Palette size={16} /> <span>Branding & Theme</span>
             </button>
             <button 
               className={`${styles.navItem} ${activeSection === 'finance' ? styles.activeNav : ''}`}
-              onClick={() => setActiveSection('finance')}
+              onClick={() => { setActiveSection('finance'); document.getElementById('finance')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               <DollarSign size={16} /> <span>Finance & Tax</span>
             </button>
             <button 
               className={`${styles.navItem} ${activeSection === 'subscription' ? styles.activeNav : ''}`}
-              onClick={() => setActiveSection('subscription')}
+              onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               <CreditCard size={16} /> <span>Subscription</span>
             </button>
@@ -209,10 +209,18 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                         accept="image/*" 
                         style={{ display: 'none' }}
                         onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            const url = URL.createObjectURL(e.target.files[0]);
-                            setLogoPreview(url);
-                            toast.success('Logo updated');
+                          const file = e.target.files && e.target.files[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error('Logo file size must be under 5MB');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setLogoPreview(reader.result);
+                              toast.success('New logo selected');
+                            };
+                            reader.readAsDataURL(file);
                           }
                         }}
                       />
@@ -367,7 +375,18 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                         }}
                       />
                     ))}
-                    <button type="button" className={styles.addColorChip}>+</button>
+                    <label className={styles.addColorChip} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }} title="Pick Custom Color">
+                      +
+                      <input 
+                        type="color" 
+                        value={accentColor} 
+                        onChange={(e) => {
+                          setAccentColor(e.target.value);
+                          toast.success(`Custom color chosen: ${e.target.value}`);
+                        }} 
+                        style={{ opacity: 0, width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }} 
+                      />
+                    </label>
                   </div>
 
                   {/* QR Menu Branding */}
@@ -486,6 +505,82 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   </div>
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* 5. Subscription Plan Details & History */}
+          <section className={styles.sectionCard} id="subscription">
+            <div className={styles.cardHeader}>
+              <h3>Subscription Plan & Activation Details</h3>
+              <span className={styles.planPill} style={{ background: tenantInfo?.subscription?.isActive !== false ? '#dcfce7' : '#fee2e2', color: tenantInfo?.subscription?.isActive !== false ? '#15803d' : '#b91c1c', padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: 800 }}>
+                {tenantInfo?.subscription?.isActive !== false ? '● ACTIVE PLAN' : '● DEACTIVATED'}
+              </span>
+            </div>
+            
+            <div className={styles.cardBody}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Current Plan</span>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginTop: 4 }}>
+                    {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter (₹999)'}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Plan Price</span>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a', marginTop: 4 }}>
+                    ₹{tenantInfo?.subscription?.price || 999}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Renewal Date</span>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', marginTop: 4 }}>
+                    {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Oct 24, 2026'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button 
+                  type="button"
+                  onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SuperAdmin%2C%20I%20want%20to%20upgrade/renew%20my%20cafe%20subscription%20plan', '_blank')}
+                  style={{ padding: '10px 18px', borderRadius: '10px', background: '#4f46e5', color: '#ffffff', border: 'none', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Contact SuperAdmin to Upgrade/Renew
+                </button>
+              </div>
+
+              {/* History table */}
+              {(tenantInfo?.subscriptionHistory && tenantInfo.subscriptionHistory.length > 0) && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#334155', marginBottom: 8 }}>Subscription Activity History</h4>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', color: '#475569' }}>
+                        <th style={{ padding: '8px 12px', borderRadius: '6px 0 0 6px' }}>Plan</th>
+                        <th style={{ padding: '8px 12px' }}>Price</th>
+                        <th style={{ padding: '8px 12px' }}>Status</th>
+                        <th style={{ padding: '8px 12px', borderRadius: '0 6px 6px 0' }}>Action Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tenantInfo.subscriptionHistory.map((item, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 700 }}>{item.plan}</td>
+                          <td style={{ padding: '8px 12px' }}>₹{item.price}</td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <span style={{ color: item.status === 'active' ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
+                              {item.status?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px 12px', color: '#64748b' }}>
+                            {item.actionDate ? new Date(item.actionDate).toLocaleDateString('en-IN') : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </section>
 

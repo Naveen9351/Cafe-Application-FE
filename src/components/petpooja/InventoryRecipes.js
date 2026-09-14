@@ -478,7 +478,7 @@ export default function InventoryRecipes({ tenantId, menuItems = [], orders = []
                     <h4 style={{ margin: 0, fontSize: '0.88rem', color: '#f7f2ec' }}>{w.inventoryId?.itemName || 'Ingredient'}</h4>
                     <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#b8a89a' }}>Qty Wasted: {w.quantity} | Reason: {w.reason}</p>
                   </div>
-                  <span style={{ color: '#ef4444', fontWeight: '800', fontSize: '0.85rem' }}>Cost Loss: -₹{w.costLost.toFixed(2)}</span>
+                  <span style={{ color: '#ef4444', fontWeight: '800', fontSize: '0.85rem' }}>Cost Loss: -₹{Math.round(w.costLost)}</span>
                 </div>
               ))}
             </div>

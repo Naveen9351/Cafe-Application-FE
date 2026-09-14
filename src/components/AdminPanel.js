@@ -7,14 +7,13 @@ import {
   UtensilsCrossed, Coffee, Pizza, Sandwich, IceCream, GlassWater, Martini, Cake, Soup, Cookie, Grid,
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
-  ChevronRight, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2
+  ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCodeComponent from './QRCodeComponent';
 import POSTerminal from './petpooja/POSTerminal';
 import KOTMonitor from './petpooja/KOTMonitor';
-import InventoryRecipes from './petpooja/InventoryRecipes';
 import CRMLoyalty from './petpooja/CRMLoyalty';
 import OnlineAggregators from './petpooja/OnlineAggregators';
 import RestaurantSettings from './RestaurantSettings';
@@ -64,6 +63,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
@@ -111,7 +111,7 @@ export default function AdminPanel() {
   // Delete Confirmation Modal State
   const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   // Drawer Form State
   const [drawerForm, setDrawerForm] = useState({
     name: '',
@@ -240,7 +240,7 @@ export default function AdminPanel() {
         itemFrequency[it.name] = (itemFrequency[it.name] || 0) + (it.quantity || 1);
       });
     });
-    const topItemName = Object.keys(itemFrequency).sort((a,b) => itemFrequency[b] - itemFrequency[a])[0] || 'Top Selling Item';
+    const topItemName = Object.keys(itemFrequency).sort((a, b) => itemFrequency[b] - itemFrequency[a])[0] || 'Top Selling Item';
 
     return {
       grossSales,
@@ -475,7 +475,7 @@ export default function AdminPanel() {
       if (token && !id.startsWith('dish_')) {
         try {
           await axios.delete(`${API}/menu/${id}`, { headers: { 'x-auth-token': token } });
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -485,26 +485,45 @@ export default function AdminPanel() {
   };
 
   const handleToggleSelectItem = (itemId) => {
-    setSelectedItemIds(prev => 
+    setSelectedItemIds(prev =>
       prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
     );
   };
 
-  const handleStatusUpdate = async (orderId, status) => {
+  const handleStatusUpdate = async (orderId, status, estimatedTime) => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        await axios.put(`${API}/orders/${orderId}/status`, { status }, { headers: { 'x-auth-token': token } });
+        const payload = { status };
+        if (estimatedTime) payload.estimatedTime = Number(estimatedTime);
+        await axios.put(`${API}/orders/${orderId}/status`, payload, { headers: { 'x-auth-token': token } });
       }
     } catch (err) {
       console.log('Update status on server failed, updating local state:', err.message);
     }
-    setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status } : o));
-    toast.success(`Order status updated to ${status.toUpperCase()}`);
+    setOrders(prev => prev.map(o => o._id === orderId ? {
+      ...o,
+      status,
+      ...(estimatedTime ? { estimatedTime: Number(estimatedTime) } : {})
+    } : o));
+    toast.success(`Order status updated to ${status.toUpperCase()}${estimatedTime ? ` (${estimatedTime} min prep)` : ''}`);
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.delete(`${API}/orders/${orderId}`, { headers: { 'x-auth-token': token } });
+      }
+    } catch (err) {
+      console.log('Delete order on server failed, updating local state:', err.message);
+    }
+    setOrders(prev => prev.filter(o => o._id !== orderId));
+    toast.success('Order deleted');
   };
 
   const handleToggleChecklist = (id) => {
-    setChecklist(prev => prev.map(item => 
+    setChecklist(prev => prev.map(item =>
       item.id === id ? { ...item, done: !item.done, overdue: false } : item
     ));
   };
@@ -528,8 +547,8 @@ export default function AdminPanel() {
   const filteredMenuItems = items.filter(item => {
     const matchesCat = itemMatchesCategory(item, selectedCategory);
     const searchLower = menuSearchQuery.toLowerCase().trim();
-    const matchesSearch = !searchLower || 
-      item.name.toLowerCase().includes(searchLower) || 
+    const matchesSearch = !searchLower ||
+      item.name.toLowerCase().includes(searchLower) ||
       (item.description && item.description.toLowerCase().includes(searchLower));
     return matchesCat && matchesSearch;
   }).sort((a, b) => {
@@ -570,72 +589,6 @@ export default function AdminPanel() {
   const ownerName = tenantInfo?.ownerName || user?.name || "Deepak";
   const ownerAvatar = tenantInfo?.ownerImage || user?.avatar || user?.profileImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100";
 
-  // Dedicated POS Billing Screen (Without Sidebar)
-  if (activeTab === 'pos') {
-    return (
-      <div className={styles.posFullScreenLayout}>
-        <Toaster position="top-right" />
-        
-        {/* POS Header Bar */}
-        <header className={styles.posHeader}>
-          <div className={styles.posHeaderLeft}>
-            <button 
-              type="button" 
-              className={styles.posBackBtn}
-              onClick={() => setActiveTab('dashboard')}
-            >
-              ← Back to Dashboard
-            </button>
-
-            <div className={styles.brandTitleWrap} onClick={() => navigate('/')}>
-              {restaurantLogo ? (
-                <img src={restaurantLogo} alt="Restaurant Logo" className={styles.tenantLogoImg} />
-              ) : (
-                <div className={styles.brandIconSquare}>{restaurantInitials || 'SQ'}</div>
-              )}
-              <div>
-                <span className={styles.brandTitle}>{restaurantDisplayName}</span>
-                <span className={styles.brandSub}>SERVIQ POS BILLING & PAYMENTS</span>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.posHeaderRight}>
-            <div className={styles.posLiveBadge}>
-              <span className={styles.posPulseDot} />
-              <span>LIVE BILLING TERMINAL</span>
-            </div>
-
-            <div className={styles.profileBadge}>
-              <img 
-                src={ownerAvatar} 
-                alt="Owner Avatar" 
-                className={styles.profileAvatar} 
-              />
-              <div className={styles.profileText}>
-                <span className={styles.profileName}>{ownerName}</span>
-                <span className={styles.profileRole}>RESTAURANT OWNER</span>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Dedicated Full Width POS Billing Body */}
-        <main className={styles.posMainBody}>
-          <POSTerminal 
-            tenantId={tenantId}
-            menuItems={items} 
-            orders={orders}
-            onOrderPlaced={(newOrd) => {
-              setOrders(prev => [newOrd, ...prev]);
-              fetchOrders();
-            }}
-          />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.adminLayout}>
       <Toaster position="top-right" />
@@ -659,16 +612,16 @@ export default function AdminPanel() {
         {/* Global Search Input */}
         <div className={styles.topSearchWrapper}>
           <Search size={16} className={styles.searchIcon} />
-          <input 
-            type="text" 
-            placeholder="Search dishes, orders, or tables..." 
+          <input
+            type="text"
+            placeholder="Search dishes, orders, or tables..."
             className={styles.topSearchInput}
             value={menuSearchQuery}
             onChange={(e) => setMenuSearchQuery(e.target.value)}
           />
           {menuSearchQuery && (
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setMenuSearchQuery('')}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
             >
@@ -679,26 +632,26 @@ export default function AdminPanel() {
 
         {/* Right User Actions */}
         <div className={styles.topBarRight}>
-          <button 
-            type="button" 
-            className={styles.iconCircleBtn} 
+          <button
+            type="button"
+            className={styles.iconCircleBtn}
             title="Notifications"
             onClick={() => toast.success(`SERVIQ active • ${metrics.activeOrders.length} live orders in queue`)}
           >
             <Bell size={18} />
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={styles.supportBtn}
             onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SERVIQ%20Support', '_blank')}
           >
             <HelpCircle size={16} /> <span>Support</span>
           </button>
           <div className={styles.profileBadge}>
-            <img 
-              src={ownerAvatar} 
-              alt="Owner Avatar" 
-              className={styles.profileAvatar} 
+            <img
+              src={ownerAvatar}
+              alt="Owner Avatar"
+              className={styles.profileAvatar}
             />
             <div className={styles.profileText}>
               <span className={styles.profileName}>{ownerName}</span>
@@ -709,70 +662,76 @@ export default function AdminPanel() {
       </header>
 
       <div className={styles.mainContainer}>
-        
+
         {/* LEFT SIDEBAR NAVIGATION */}
-        <aside className={styles.sidebar}>
+        <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
           <div className={styles.navSection}>
-            <span className={styles.navLabel}>MAIN MENU</span>
-            <button 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
+              {!sidebarCollapsed && <span className={styles.navLabel}>MAIN MENU</span>}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
+                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              >
+                {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              </button>
+            </div>
+
+            <button
               className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
               onClick={() => setActiveTab('dashboard')}
+              title="Dashboard"
             >
-              <LayoutDashboard size={18} /> <span>Dashboard</span>
+              <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
             </button>
-            <button 
+            <button
               className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
               onClick={() => setActiveTab('kds')}
+              title="Live Orders & KDS"
             >
-              <ChefHat size={18} /> <span>Live Orders & KDS</span>
-              <span className={styles.navPill}>{metrics.activeOrders.length}</span>
+              <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders & KDS</span>}
+              {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
             </button>
-            <button 
+            <button
               className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
               onClick={() => setActiveTab('menu')}
+              title="Menu Management"
             >
-              <UtensilsCrossed size={18} /> <span>Menu Management</span>
+              <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
             </button>
-            <button 
+            <button
               className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
               onClick={() => setActiveTab('pos')}
+              title="POS Terminal"
             >
-              <IndianRupee size={18} /> <span>POS Terminal</span>
+              <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
             </button>
-            <button 
-              className={`${styles.navLink} ${activeTab === 'inventory' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('inventory')}
-            >
-              <Truck size={18} /> <span>Inventory & PO</span>
-            </button>
-            <button 
+            <button
               className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
               onClick={() => setActiveTab('qrcodes')}
+              title="Table QR Codes"
             >
-              <QrCode size={18} /> <span>Table QR Codes</span>
+              <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
             </button>
-            <button 
+            <button
               className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
               onClick={() => setActiveTab('settings')}
+              title="Settings"
             >
-              <Settings size={18} /> <span>Settings</span>
+              <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
             </button>
           </div>
 
           <div className={styles.sidebarFooter}>
-            <button 
-              type="button" 
-              className={styles.quickOrderBtn}
-              onClick={() => setActiveTab('pos')}
-            >
-              + Quick Order
-            </button>
-            <button 
-              type="button" 
-              className={styles.logoutBtn} 
+
+            <button
+              type="button"
+              className={styles.logoutBtn}
               onClick={() => logout()}
+              title="Sign Out"
             >
-              <LogOut size={16} /> <span>Sign Out</span>
+              <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
             </button>
           </div>
         </aside>
@@ -780,15 +739,15 @@ export default function AdminPanel() {
         {/* MAIN BODY AREA */}
         <main className={styles.mainContent}>
           <AnimatePresence mode="wait">
-            
+
             {/* ========================================================= */}
             {/* 1. DASHBOARD VIEW (With Date Filtering & Real Metrics)    */}
             {/* ========================================================= */}
             {activeTab === 'dashboard' && (
-              <motion.div 
-                key="dashboard" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="dashboard"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 className={styles.dashboardView}
@@ -835,19 +794,19 @@ export default function AdminPanel() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', padding: '10px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
                     <Calendar size={16} color="#64748b" />
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>From:</span>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       max={todayStr}
-                      value={customStartDate} 
+                      value={customStartDate}
                       onChange={(e) => handleCustomStartDateChange(e.target.value)}
                       style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
                     />
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>To:</span>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       min={customStartDate || undefined}
                       max={todayStr}
-                      value={customEndDate} 
+                      value={customEndDate}
                       onChange={(e) => handleCustomEndDateChange(e.target.value)}
                       style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
                     />
@@ -861,6 +820,31 @@ export default function AdminPanel() {
                   </div>
                 )}
 
+                {/* 3-DAY EXPIRY & DEACTIVATION ALERT BANNER */}
+                {(() => {
+                  const sub = tenantInfo?.subscription;
+                  if (!sub) return null;
+                  const now = new Date();
+                  const endDate = sub.endDate ? new Date(sub.endDate) : null;
+                  const daysLeft = endDate ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)) : null;
+                  const isExpiring3Days = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3 && sub.isActive;
+                  const isExpired = endDate && endDate < now;
+
+                  if (!sub.isActive || isExpired || isExpiring3Days) {
+                    return (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '12px 18px', borderRadius: '12px', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 10, color: '#92400e', fontSize: '13px', fontWeight: 700 }}>
+                        <AlertTriangle size={20} color="#d97706" />
+                        <span>
+                          {!sub.isActive || isExpired
+                            ? `⚠️ Subscription Alert: Your cafe subscription plan is currently ${!sub.isActive ? 'deactivated' : 'expired'}. Please contact SuperAdmin to renew your plan.`
+                            : `⚠️ Subscription Alert: Your subscription plan will expire in ${daysLeft} day(s) (on ${endDate ? endDate.toLocaleDateString('en-IN') : ''}). Please contact SuperAdmin support to renew.`}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {/* 4 TOP KPI METRIC CARDS */}
                 <div className={styles.kpiGrid}>
                   <motion.div whileHover={{ y: -3 }} className={styles.kpiCard}>
@@ -869,7 +853,7 @@ export default function AdminPanel() {
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ LIVE</span>
                     </div>
                     <div className={styles.kpiValue}>
-                      ₹{metrics.grossSales.toLocaleString('en-IN')}<small>.00</small>
+                      ₹{Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}
                     </div>
                     <div className={styles.sparklineBarRow}>
                       {metrics.sparklines.map((h, i) => (
@@ -884,7 +868,7 @@ export default function AdminPanel() {
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ 42%</span>
                     </div>
                     <div className={styles.kpiValue}>
-                      ₹{metrics.netProfit.toLocaleString('en-IN')}<small>.00</small>
+                      ₹{Math.round(metrics.netProfit || 0).toLocaleString('en-IN')}
                     </div>
                     <div className={styles.sparklineBarRow}>
                       {metrics.sparklines.map((h, i) => (
@@ -899,7 +883,7 @@ export default function AdminPanel() {
                       <span className={`${styles.trendBadge} ${styles.trendUp}`}>↗ AVG</span>
                     </div>
                     <div className={styles.kpiValue}>
-                      ₹{metrics.avgTicket.toLocaleString('en-IN')}<small>.00</small>
+                      ₹{Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}
                     </div>
                     <div className={styles.sparklineBarRow}>
                       {[65, 70, 60, 75, 55, 80, 70].map((h, i) => (
@@ -971,8 +955,8 @@ export default function AdminPanel() {
                         <h3>Live Orders Queue</h3>
                         <span className={styles.activeDotPill}>● {metrics.activeOrders.length} Active</span>
                       </div>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
                         onClick={() => { fetchOrders(); toast.success("Refreshed live queue"); }}
                       >
@@ -997,7 +981,7 @@ export default function AdminPanel() {
                             </div>
                             <div className={styles.ticketMidRow}>
                               <span>{tableText} • {itemsCount} items</span>
-                              <strong>₹{totalAmt.toFixed(2)}</strong>
+                              <strong>₹{Math.round(totalAmt).toLocaleString('en-IN')}</strong>
                             </div>
                           </div>
                         );
@@ -1016,8 +1000,8 @@ export default function AdminPanel() {
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 12px 0' }}>Daily Operational Checklist</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {checklist.map(item => (
-                      <div 
-                        key={item.id} 
+                      <div
+                        key={item.id}
                         onClick={() => handleToggleChecklist(item.id)}
                         style={{
                           display: 'flex',
@@ -1054,15 +1038,15 @@ export default function AdminPanel() {
                   </div>
 
                   <form onSubmit={handleAddChecklistItem} style={{ display: 'flex', gap: 8, marginTop: '12px' }}>
-                    <input 
-                      type="text" 
-                      placeholder="Add new task..." 
+                    <input
+                      type="text"
+                      placeholder="Add new task..."
                       value={newChecklistText}
                       onChange={(e) => setNewChecklistText(e.target.value)}
                       style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px' }}
                     />
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
                     >
                       Add Task
@@ -1076,16 +1060,17 @@ export default function AdminPanel() {
             {/* 2. LIVE ORDERS & KITCHEN DISPLAY SYSTEM (KDS)             */}
             {/* ========================================================= */}
             {activeTab === 'kds' && (
-              <motion.div 
-                key="kds" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="kds"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <KOTMonitor 
-                  orders={orders} 
-                  onUpdateStatus={handleStatusUpdate} 
+                <KOTMonitor
+                  orders={orders}
+                  onUpdateStatus={handleStatusUpdate}
+                  onDeleteOrder={handleDeleteOrder}
                 />
               </motion.div>
             )}
@@ -1094,10 +1079,10 @@ export default function AdminPanel() {
             {/* 3. MENU MANAGEMENT & CATALOG                              */}
             {/* ========================================================= */}
             {activeTab === 'menu' && (
-              <motion.div 
-                key="menu" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="menu"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 className={styles.menuManagementView}
@@ -1110,16 +1095,16 @@ export default function AdminPanel() {
                   </div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     {selectedItemIds.length > 0 && (
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={handleBulkDelete}
                         className={styles.bulkDeleteBtn}
                       >
                         <Trash2 size={16} /> Delete Selected ({selectedItemIds.length})
                       </button>
                     )}
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={handleOpenAddDrawer}
                       className={styles.addNewItemBtn}
                     >
@@ -1133,8 +1118,8 @@ export default function AdminPanel() {
                   {standardCategories.map((cat) => {
                     const IconComp = cat.Component;
                     const isActive = selectedCategory === cat.id;
-                    const count = cat.id === 'all' 
-                      ? items.length 
+                    const count = cat.id === 'all'
+                      ? items.length
                       : items.filter(i => itemMatchesCategory(i, cat.id)).length;
 
                     return (
@@ -1158,7 +1143,7 @@ export default function AdminPanel() {
                     const isSelected = selectedItemIds.includes(item._id);
                     const discount = item.discount || {};
                     const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
-                    
+
                     let discountedPrice = item.price;
                     if (hasDiscount) {
                       if (discount.type === 'percentage') {
@@ -1169,21 +1154,21 @@ export default function AdminPanel() {
                     }
 
                     return (
-                      <motion.div 
-                        key={item._id} 
+                      <motion.div
+                        key={item._id}
                         whileHover={{ y: -4 }}
                         className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
                       >
                         <div className={styles.dishImageWrap}>
-                          <img 
-                            src={getValidFoodImage(item)} 
-                            alt={item.name} 
+                          <img
+                            src={getValidFoodImage(item)}
+                            alt={item.name}
                             className={styles.dishImage}
                             loading="lazy"
                           />
                           <div className={styles.dishImageOverlay}>
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => handleToggleSelectItem(item._id)}
                               className={styles.selectCheckboxBtn}
                             >
@@ -1228,10 +1213,10 @@ export default function AdminPanel() {
                             </div>
                           </div>
                           <p className={styles.dishDescription}>{item.description}</p>
-                          
+
                           {/* Stock Toggle & Quick Actions */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-                            <div 
+                            <div
                               onClick={() => handleToggleItemAvailability(item)}
                               style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
                             >
@@ -1323,19 +1308,35 @@ export default function AdminPanel() {
             {/* 4. POS BILLING TERMINAL                                   */}
             {/* ========================================================= */}
             {activeTab === 'pos' && (
-              <motion.div 
-                key="pos" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="pos"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <POSTerminal 
+                <POSTerminal
                   tenantId={tenantId}
-                  menuItems={items} 
+                  tenantInfo={tenantInfo}
+                  menuItems={items}
                   orders={orders}
                   onOrderPlaced={(newOrd) => {
-                    setOrders(prev => [newOrd, ...prev]);
+                    // For settlement (_refreshAll flag), just re-fetch to clear table
+                    if (newOrd?._refreshAll) {
+                      fetchOrders();
+                      return;
+                    }
+                    setOrders(prev => {
+                      const exists = prev.some(o => o._id === newOrd._id);
+                      if (exists) {
+                        return prev.map(o => o._id === newOrd._id ? newOrd : o);
+                      }
+                      return [newOrd, ...prev];
+                    });
+                    fetchOrders();
+                  }}
+                  onOrderCreated={(newOrd) => {
+                    // Always re-fetch to get latest state (new round or settlement)
                     fetchOrders();
                   }}
                 />
@@ -1343,28 +1344,13 @@ export default function AdminPanel() {
             )}
 
             {/* ========================================================= */}
-            {/* 5. INVENTORY & RECIPES                                    */}
-            {/* ========================================================= */}
-            {activeTab === 'inventory' && (
-              <motion.div 
-                key="inventory" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <InventoryRecipes menuItems={items} />
-              </motion.div>
-            )}
-
-            {/* ========================================================= */}
             {/* 6. CRM & LOYALTY                                          */}
             {/* ========================================================= */}
             {activeTab === 'crm' && (
-              <motion.div 
-                key="crm" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="crm"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
@@ -1376,14 +1362,14 @@ export default function AdminPanel() {
             {/* 7. DYNAMIC TABLE QR CODES MANAGER                         */}
             {/* ========================================================= */}
             {activeTab === 'qrcodes' && (
-              <motion.div 
-                key="qrcodes" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="qrcodes"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <QRCodeComponent />
+                <QRCodeComponent orders={orders} />
               </motion.div>
             )}
 
@@ -1391,14 +1377,14 @@ export default function AdminPanel() {
             {/* 8. RESTAURANT SETTINGS                                    */}
             {/* ========================================================= */}
             {activeTab === 'settings' && (
-              <motion.div 
-                key="settings" 
-                initial={{ opacity: 0, y: 12 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <RestaurantSettings 
+                <RestaurantSettings
                   tenantInfo={tenantInfo}
                   onSave={handleSaveTenantSettings}
                 />
@@ -1412,18 +1398,18 @@ export default function AdminPanel() {
       {/* DRAWER FOR ADDING / EDITING DISH */}
       {isDrawerOpen && (
         <div className={styles.drawerBackdrop} onClick={() => setIsDrawerOpen(false)}>
-          <motion.div 
-            initial={{ x: 450, opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
+          <motion.div
+            initial={{ x: 450, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
             exit={{ x: 450, opacity: 0 }}
-            className={styles.drawerContainer} 
+            className={styles.drawerContainer}
             onClick={(e) => e.stopPropagation()}
             style={{ width: '100%', maxWidth: '480px', overflowY: 'auto' }}
           >
             <div className={styles.drawerHeader}>
               <h3>{editingItem ? 'Edit Dish' : 'Add New Dish'}</h3>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsDrawerOpen(false)}
                 className={styles.closeDrawerBtn}
               >
@@ -1432,12 +1418,12 @@ export default function AdminPanel() {
             </div>
 
             <form onSubmit={handleSaveDrawerItem} className={styles.drawerForm} style={{ padding: '1.25rem' }}>
-              
+
               {/* Dish Name */}
               <div className={styles.formGroup}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Dish Name *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Wagyu Truffle Burger"
                   value={drawerForm.name}
@@ -1449,7 +1435,7 @@ export default function AdminPanel() {
               {/* Description */}
               <div className={styles.formGroup}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Description</label>
-                <textarea 
+                <textarea
                   rows={2}
                   placeholder="Ingredients and flavour profile..."
                   value={drawerForm.description}
@@ -1462,8 +1448,8 @@ export default function AdminPanel() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Price (₹) *</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="0"
                     step="1"
                     required
@@ -1475,7 +1461,7 @@ export default function AdminPanel() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Category</label>
-                  <select 
+                  <select
                     value={drawerForm.category}
                     onChange={(e) => setDrawerForm({ ...drawerForm, category: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
@@ -1543,7 +1529,7 @@ export default function AdminPanel() {
                     </span>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>Apply temporary price reduction</span>
                   </div>
-                  <div 
+                  <div
                     onClick={() => setDrawerForm({ ...drawerForm, hasDiscount: !drawerForm.hasDiscount })}
                     style={{
                       width: 40,
@@ -1610,7 +1596,7 @@ export default function AdminPanel() {
                       <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
                         {drawerForm.discountType === 'percentage' ? 'Discount Percentage (e.g. 15 for 15%)' : 'Discount Amount in ₹ (e.g. 50)'}
                       </label>
-                      <input 
+                      <input
                         type="number"
                         min="1"
                         placeholder={drawerForm.discountType === 'percentage' ? '15' : '50'}
@@ -1626,9 +1612,9 @@ export default function AdminPanel() {
               {/* Direct Device Image Upload */}
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Dish Photograph (Device Upload)</label>
-                
-                <input 
-                  type="file" 
+
+                <input
+                  type="file"
                   ref={fileInputRef}
                   accept="image/*"
                   onChange={handleImageFileSelect}
@@ -1637,9 +1623,9 @@ export default function AdminPanel() {
 
                 {drawerForm.image ? (
                   <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
-                    <img 
-                      src={drawerForm.image} 
-                      alt="Dish Preview" 
+                    <img
+                      src={drawerForm.image}
+                      alt="Dish Preview"
                       style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
                     />
                     <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 6 }}>
@@ -1660,7 +1646,7 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 ) : (
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current?.click()}
                     style={{
                       border: '2px dashed #cbd5e1',
@@ -1681,7 +1667,7 @@ export default function AdminPanel() {
               {/* Availability Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Item Availability</span>
-                <div 
+                <div
                   onClick={() => setDrawerForm({ ...drawerForm, available: !drawerForm.available })}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
                 >
@@ -1712,15 +1698,15 @@ export default function AdminPanel() {
 
               {/* Form Buttons */}
               <div style={{ display: 'flex', gap: 10 }}>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsDrawerOpen(false)}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isSavingDish}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: 700, cursor: 'pointer' }}
                 >

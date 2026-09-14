@@ -1,3 +1,184 @@
+.terminalWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  width: 100%;
+}
+
+.liveOrdersBanner {
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  border-radius: 14px;
+  padding: 0.85rem 1.15rem;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: 0 4px 14px rgba(6, 95, 70, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.liveOrdersHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.liveOrdersTitleWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pulsingLiveDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+  animation: livePulse 1.8s infinite;
+}
+
+@keyframes livePulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+.liveOrdersTitle {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.liveOrdersCountBadge {
+  background: #047857;
+  color: #a7f3d0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 100px;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.liveOrdersSubtitle {
+  font-size: 0.76rem;
+  color: #a7f3d0;
+  opacity: 0.9;
+}
+
+.liveOrdersPillsRow {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.liveOrdersEmpty {
+  font-size: 0.8rem;
+  color: #a7f3d0;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 0.55rem 0.9rem;
+  border-radius: 8px;
+  border: 1px dashed rgba(52, 211, 153, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.liveOrderPill {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 145px;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.liveOrderPill:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px);
+  border-color: #34d399;
+}
+
+.liveOrderPillActive {
+  background: #ffffff !important;
+  color: #064e3b !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.liveOrderPillActive .pillTableTag {
+  color: #064e3b !important;
+}
+
+.liveOrderPillActive .pillPriceTag {
+  color: #047857 !important;
+}
+
+.liveOrderPillActive .pillStatusBadge {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.pillTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.pillTableTag {
+  font-weight: 900;
+  font-size: 0.86rem;
+  color: #ffffff;
+}
+
+.pillStatusBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fef08a;
+  white-space: nowrap;
+}
+
+.pillBottomRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+.pillPriceTag {
+  font-weight: 800;
+  color: #a7f3d0;
+}
+
 .container {
   display: grid;
   grid-template-columns: 1fr;
@@ -369,12 +550,89 @@
 /* Cart Item Cards Formatting */
 .cartList {
   overflow-y: auto;
-  max-height: 280px;
+  max-height: 380px;
   margin-top: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
   padding-right: 0.2rem;
+}
+
+.roundBox {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.roundHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #334155;
+  border-bottom: 1px dashed #cbd5e1;
+  padding-bottom: 4px;
+}
+
+.roundStatusBadge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.roundStatusBadgePending {
+  background: #fef3c7;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+.roundItemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.draftBox {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.draftHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  border-bottom: 1px dashed #93c5fd;
+  padding-bottom: 4px;
+}
+
+.clearDraftBtn {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
 }
 
 .emptyCart {
@@ -533,8 +791,13 @@
 }
 
 .actionBtnGrid {
-  display: grid;
-  grid-template-columns: 100px 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.actionBtnRow {
+  display: flex;
   gap: 0.5rem;
 }
 
@@ -559,7 +822,7 @@
   background: #059669;
   color: #ffffff;
   font-weight: 800;
-  padding: 0.75rem;
+  padding: 0.75rem 0.9rem;
   border-radius: 8px;
   border: none;
   display: flex;
@@ -568,7 +831,8 @@
   gap: 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  flex: 1;
 }
 
 .checkoutBtn:hover {
@@ -576,6 +840,58 @@
 }
 
 .checkoutBtn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.sendKitchenBtn {
+  background: #0284c7;
+  color: #ffffff;
+  font-weight: 800;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.82rem;
+  flex: 1;
+}
+
+.sendKitchenBtn:hover {
+  background: #0369a1;
+}
+
+.sendKitchenBtn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.updateKitchenBtn {
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 800;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.82rem;
+  flex: 1;
+}
+
+.updateKitchenBtn:hover {
+  background: #4338ca;
+}
+
+.updateKitchenBtn:disabled {
   background: #cbd5e1;
   cursor: not-allowed;
 }

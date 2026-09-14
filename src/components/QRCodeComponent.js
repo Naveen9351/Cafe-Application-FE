@@ -10,7 +10,7 @@ const API = window.location.hostname === 'localhost' || window.location.hostname
   ? 'http://localhost:5000/api'
   : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
-const QRCodeComponent = () => {
+const QRCodeComponent = ({ orders = [] }) => {
   const { user, tenantId } = useAuth();
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,13 +24,43 @@ const QRCodeComponent = () => {
   
   // Quick batch generator state
   const [showBatchModal, setShowBatchModal] = useState(false);
-  const [batchCount, setBatchCount] = useState(5);
+  const [batchCount, setBatchCount] = useState(3);
+  const [batchDefaultCap, setBatchDefaultCap] = useState('4');
+  const [batchItems, setBatchItems] = useState([]);
+
+  // Edit Table & Seating Capacity Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTable, setEditingTable] = useState(null);
+  const [editTableNumber, setEditTableNumber] = useState('');
+  const [editCapacity, setEditCapacity] = useState('4');
+
+  // Custom Delete Confirmation Modal State
+  const [tableToDelete, setTableToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const effectiveTenantId = tenantId || user?.tenantId || '6a762ef86c9d5c8be315f10a';
   const originUrl = window.location.origin || 'http://localhost:3000';
 
   const getTableQRUrl = (tableNum) => {
     return `${originUrl}/menu?tenantId=${effectiveTenantId}&table=${encodeURIComponent(tableNum)}`;
+  };
+
+  const activeOrdersMap = React.useMemo(() => {
+    const map = {};
+    (orders || []).forEach(o => {
+      if (o.status !== 'completed' && o.status !== 'cancelled') {
+        const raw = String(o.tableNumber || o.table || '').trim();
+        const numOnly = raw.replace(/[^0-9]/g, '') || raw;
+        if (raw) map[raw] = true;
+        if (numOnly) map[numOnly] = true;
+      }
+    });
+    return map;
+  }, [orders]);
+
+  const isTableOccupied = (t) => {
+    const numOnly = String(t.tableNumber).replace(/[^0-9]/g, '') || String(t.tableNumber);
+    return Boolean(activeOrdersMap[String(t.tableNumber).trim()] || activeOrdersMap[numOnly] || activeOrdersMap[`Table ${numOnly}`]);
   };
 
   const fetchTables = async () => {
@@ -45,10 +75,10 @@ const QRCodeComponent = () => {
       } else {
         // Default initial tables if empty
         const initialDefaults = [
-          { _id: 'tbl_1', tableNumber: '1', seatingCapacity: 2, status: 'available' },
-          { _id: 'tbl_2', tableNumber: '2', seatingCapacity: 4, status: 'occupied' },
-          { _id: 'tbl_3', tableNumber: '3', seatingCapacity: 4, status: 'available' },
-          { _id: 'tbl_4', tableNumber: '4', seatingCapacity: 6, status: 'available' }
+          { _id: 'tbl_1', tableNumber: '1', status: 'available' },
+          { _id: 'tbl_2', tableNumber: '2', status: 'available' },
+          { _id: 'tbl_3', tableNumber: '3', status: 'available' },
+          { _id: 'tbl_4', tableNumber: '4', status: 'available' }
         ];
         setTables(initialDefaults);
       }
@@ -56,9 +86,10 @@ const QRCodeComponent = () => {
       console.log('Error fetching tables from server, using active state:', err.message);
       if (tables.length === 0) {
         setTables([
-          { _id: 'tbl_1', tableNumber: '1', seatingCapacity: 2, status: 'available' },
-          { _id: 'tbl_2', tableNumber: '2', seatingCapacity: 4, status: 'available' },
-          { _id: 'tbl_3', tableNumber: '3', seatingCapacity: 4, status: 'available' }
+          { _id: 'tbl_1', tableNumber: '1', status: 'available' },
+          { _id: 'tbl_2', tableNumber: '2', status: 'available' },
+          { _id: 'tbl_3', tableNumber: '3', status: 'available' },
+          { _id: 'tbl_4', tableNumber: '4', status: 'available' }
         ]);
       }
     } finally {
@@ -117,33 +148,84 @@ const QRCodeComponent = () => {
     }
   };
 
-  const handleBatchGenerate = async () => {
-    const count = parseInt(batchCount, 10);
-    if (isNaN(count) || count <= 0 || count > 50) {
-      toast.error('Please enter a count between 1 and 50');
-      return;
+  const handleUpdateCapacity = async (table, newCap) => {
+    const capNum = Math.max(1, parseInt(newCap, 10) || 1);
+    try {
+      const token = localStorage.getItem('token');
+      if (table._id && !table._id.startsWith('tbl_')) {
+        await axios.put(`${API}/tables/${table._id}`, { seatingCapacity: capNum }, {
+          headers: { 'x-auth-token': token }
+        });
+      }
+      setTables(prev => prev.map(t => (t._id === table._id || t.tableNumber === table.tableNumber) ? { ...t, seatingCapacity: capNum } : t));
+      toast.success(`Table ${table.tableNumber} seating capacity set to ${capNum} customer`);
+    } catch (err) {
+      console.log('Update capacity warning:', err.message);
+      setTables(prev => prev.map(t => (t._id === table._id || t.tableNumber === table.tableNumber) ? { ...t, seatingCapacity: capNum } : t));
+      toast.success(`Table ${table.tableNumber} seating capacity set to ${capNum} customer`);
     }
+  };
 
-    setIsSubmitting(true);
+  // Helper to pre-calculate upcoming batch table list
+  const generateBatchItems = (count, defaultCap) => {
+    const num = Math.min(50, Math.max(1, parseInt(count, 10) || 1));
+    const cap = Math.max(1, parseInt(defaultCap, 10) || 4);
     const existingNums = new Set(tables.map(t => parseInt(t.tableNumber, 10)).filter(n => !isNaN(n)));
     let nextNum = 1;
-    const newBatch = [];
-
-    while (newBatch.length < count) {
+    const items = [];
+    while (items.length < num) {
       if (!existingNums.has(nextNum)) {
-        newBatch.push({
+        items.push({
           tableNumber: String(nextNum),
-          seatingCapacity: 4
+          seatingCapacity: cap
         });
         existingNums.add(nextNum);
       }
       nextNum++;
     }
+    return items;
+  };
 
+  const handleOpenBatchModal = () => {
+    const items = generateBatchItems(batchCount, batchDefaultCap);
+    setBatchItems(items);
+    setShowBatchModal(true);
+  };
+
+  const handleBatchCountChange = (val) => {
+    setBatchCount(val);
+    const items = generateBatchItems(val, batchDefaultCap);
+    setBatchItems(items);
+  };
+
+  const handleBatchItemCapacityChange = (idx, newCap) => {
+    setBatchItems(prev => {
+      const copy = [...prev];
+      copy[idx] = {
+        ...copy[idx],
+        seatingCapacity: Math.max(1, parseInt(newCap, 10) || 1)
+      };
+      return copy;
+    });
+  };
+
+  const handleApplyDefaultToAll = () => {
+    const cap = Math.max(1, parseInt(batchDefaultCap, 10) || 4);
+    setBatchItems(prev => prev.map(item => ({ ...item, seatingCapacity: cap })));
+    toast.success(`Set seating capacity to ${cap} customer for all ${batchItems.length} tables`);
+  };
+
+  const handleBatchGenerate = async () => {
+    if (batchItems.length === 0) {
+      toast.error('No tables to generate');
+      return;
+    }
+
+    setIsSubmitting(true);
     const token = localStorage.getItem('token');
     const addedList = [];
 
-    for (const item of newBatch) {
+    for (const item of batchItems) {
       try {
         const res = await axios.post(`${API}/tables`, item, {
           headers: { 'x-auth-token': token }
@@ -160,30 +242,78 @@ const QRCodeComponent = () => {
     }
 
     setTables(prev => [...prev, ...addedList]);
-    toast.success(`Generated ${addedList.length} new tables with QR codes!`);
+    toast.success(`Generated ${addedList.length} new tables with individual seating capacities!`);
     setShowBatchModal(false);
     setIsSubmitting(false);
   };
 
-  const handleDeleteTable = async (table) => {
-    if (!window.confirm(`Delete Table ${table.tableNumber}? Guests will no longer be able to scan this QR.`)) {
+  const handleOpenEditModal = (table) => {
+    setEditingTable(table);
+    setEditTableNumber(table.tableNumber);
+    setEditCapacity(String(table.seatingCapacity || 4));
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditTable = async (e) => {
+    e.preventDefault();
+    if (!editingTable) return;
+    const cleanNum = String(editTableNumber).trim();
+    const capNum = Math.max(1, parseInt(editCapacity, 10) || 1);
+
+    if (!cleanNum) {
+      toast.error('Table number is required');
       return;
     }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (editingTable._id && !editingTable._id.startsWith('tbl_')) {
+        await axios.put(`${API}/tables/${editingTable._id}`, {
+          tableNumber: cleanNum,
+          seatingCapacity: capNum
+        }, {
+          headers: { 'x-auth-token': token }
+        });
+      }
+
+      setTables(prev => prev.map(t => (t._id === editingTable._id) ? {
+        ...t,
+        tableNumber: cleanNum,
+        seatingCapacity: capNum
+      } : t));
+
+      toast.success(`Table ${cleanNum} seating capacity set to ${capNum} customer!`);
+      setShowEditModal(false);
+      setEditingTable(null);
+    } catch (err) {
+      toast.error('Failed to update table capacity');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmDeleteTable = async () => {
+    if (!tableToDelete) return;
+    setIsDeleting(true);
 
     try {
       const token = localStorage.getItem('token');
       try {
-        await axios.delete(`${API}/tables/${table._id}`, {
+        await axios.delete(`${API}/tables/${tableToDelete._id}`, {
           headers: { 'x-auth-token': token }
         });
       } catch (err) {
         console.log('Local fallback deletion:', err.message);
       }
 
-      setTables(prev => prev.filter(t => t._id !== table._id));
-      toast.success(`Table ${table.tableNumber} deleted`);
+      setTables(prev => prev.filter(t => t._id !== tableToDelete._id));
+      toast.success(`Table ${tableToDelete.tableNumber} deleted`);
+      setTableToDelete(null);
     } catch (err) {
       toast.error('Failed to delete table');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -250,7 +380,7 @@ const QRCodeComponent = () => {
           </button>
           <button
             type="button"
-            onClick={() => setShowBatchModal(true)}
+            onClick={handleOpenBatchModal}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -306,27 +436,28 @@ const QRCodeComponent = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
           <span>Total Tables: <strong style={{ color: '#0f172a' }}>{tables.length}</strong></span>
-          <span>Available: <strong style={{ color: '#10b981' }}>{tables.filter(t => t.status === 'available').length}</strong></span>
-          <span>Occupied: <strong style={{ color: '#f59e0b' }}>{tables.filter(t => t.status === 'occupied').length}</strong></span>
+          <span>Available: <strong style={{ color: '#10b981' }}>{tables.filter(t => !isTableOccupied(t)).length}</strong></span>
+          <span>Occupied: <strong style={{ color: '#f59e0b' }}>{tables.filter(t => isTableOccupied(t)).length}</strong></span>
         </div>
       </div>
 
       {/* Grid of Dynamic Table Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
         {filteredTables.map((table) => {
           const qrUrl = getTableQRUrl(table.tableNumber);
-          const isOccupied = table.status === 'occupied';
+          const isOccupied = isTableOccupied(table);
 
           return (
             <motion.div
               key={table._id || table.tableNumber}
-              whileHover={{ y: -3 }}
+              whileHover={{ y: -4, boxShadow: '0 14px 30px -4px rgba(15, 23, 42, 0.09)' }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
               style={{
                 background: '#ffffff',
-                borderRadius: '16px',
+                borderRadius: '20px',
                 border: '1px solid #e2e8f0',
-                padding: '1.25rem',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
+                padding: '1.35rem',
+                boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -334,49 +465,181 @@ const QRCodeComponent = () => {
                 position: 'relative'
               }}
             >
-              {/* Header with Table Badge */}
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
-                    Table {table.tableNumber}
-                  </span>
+              {/* Header with Table Badge & Live Status */}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%)',
+                    color: '#4f46e5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '13px'
+                  }}>
+                    {table.tableNumber}
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
+                      Table {table.tableNumber}
+                    </h4>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                      Dine-in QR
+                    </span>
+                  </div>
                 </div>
+
                 <span style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  padding: '3px 8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '4px 10px',
                   borderRadius: '100px',
                   background: isOccupied ? '#fef3c7' : '#ecfdf5',
                   color: isOccupied ? '#b45309' : '#059669',
                   border: isOccupied ? '1px solid #fde68a' : '1px solid #a7f3d0'
                 }}>
-                  {table.status || 'available'}
+                  <span style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: isOccupied ? '#f59e0b' : '#10b981'
+                  }}></span>
+                  {isOccupied ? 'Occupied' : 'Available'}
                 </span>
               </div>
 
-              {/* QR Code Canvas */}
+              {/* QR Code Canvas Frame */}
               <div style={{
-                background: '#f8fafc',
-                padding: '14px',
-                borderRadius: '14px',
+                width: '100%',
+                background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+                padding: '16px 12px 12px',
+                borderRadius: '16px',
                 border: '1px solid #e2e8f0',
-                marginBottom: '12px',
-                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                marginBottom: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
               }}>
-                <QRCodeCanvas
-                  id={`qr-canvas-${table.tableNumber}`}
-                  value={qrUrl}
-                  size={150}
-                  fgColor="#0f172a"
-                  bgColor="#f8fafc"
-                  level="H"
-                  includeMargin={false}
-                />
+                <div style={{
+                  background: '#ffffff',
+                  padding: '10px',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                  display: 'inline-flex'
+                }}>
+                  <QRCodeCanvas
+                    id={`qr-canvas-${table.tableNumber}`}
+                    value={qrUrl}
+                    size={142}
+                    fgColor="#0f172a"
+                    bgColor="#ffffff"
+                    level="H"
+                    includeMargin={false}
+                  />
+                </div>
+                <span style={{
+                  marginTop: '10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#64748b',
+                  letterSpacing: '0.02em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <QrCode size={12} color="#6366f1" /> Scan to view menu & order
+                </span>
               </div>
 
-              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Users size={12} /> Seating: <strong>{table.seatingCapacity || 4} Guests</strong>
+              {/* Seating Capacity Row */}
+              <div style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: '#f8fafc',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                marginBottom: '14px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                  <Users size={14} color="#4f46e5" />
+                  <span>Capacity: <strong style={{ color: '#0f172a' }}>{table.seatingCapacity || 4} Customer</strong></span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) - 1)}
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      color: '#475569',
+                      cursor: 'pointer'
+                    }}
+                    title="Decrease seats"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) + 1)}
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      color: '#475569',
+                      cursor: 'pointer'
+                    }}
+                    title="Increase seats"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditModal(table)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #c7d2fe',
+                      background: '#eef2ff',
+                      color: '#4f46e5',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      marginLeft: '2px'
+                    }}
+                    title="Edit Seating Capacity"
+                  >
+                    <Edit3 size={11} /> Edit
+                  </button>
+                </div>
               </div>
 
               {/* Actions Footer */}
@@ -390,35 +653,37 @@ const QRCodeComponent = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 6,
-                    padding: '8px',
-                    borderRadius: '8px',
-                    border: '1px solid #4f46e5',
-                    background: '#eef2ff',
-                    color: '#4f46e5',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
+                    color: '#ffffff',
                     fontSize: '12px',
                     fontWeight: 700,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)'
                   }}
                 >
-                  <Download size={13} /> table-{table.tableNumber}
+                  <Download size={14} /> Download table-{table.tableNumber}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDeleteTable(table)}
+                  onClick={() => setTableToDelete(table)}
                   title="Delete Table"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '8px 10px',
-                    borderRadius: '8px',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
                     border: '1px solid #fee2e2',
                     background: '#fef2f2',
                     color: '#ef4444',
                     cursor: 'pointer'
                   }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             </motion.div>
@@ -485,9 +750,13 @@ const QRCodeComponent = () => {
                   />
                 </div>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Seating Capacity (Guests)</label>
-                  <select
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Seating Capacity (Customer)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    placeholder="4"
                     value={newCapacity}
                     onChange={(e) => setNewCapacity(e.target.value)}
                     style={{
@@ -496,15 +765,9 @@ const QRCodeComponent = () => {
                       borderRadius: '10px',
                       border: '1px solid #cbd5e1',
                       fontSize: '14px',
-                      background: '#ffffff'
+                      outline: 'none'
                     }}
-                  >
-                    <option value="2">2 Guests (Couples)</option>
-                    <option value="4">4 Guests (Standard)</option>
-                    <option value="6">6 Guests (Family)</option>
-                    <option value="8">8 Guests (Large Group)</option>
-                    <option value="12">12+ Guests (Party)</option>
-                  </select>
+                  />
                 </div>
 
                 <div style={{ display: 'flex', gap: 10 }}>
@@ -547,7 +810,148 @@ const QRCodeComponent = () => {
         )}
       </AnimatePresence>
 
-      {/* QUICK BATCH MODAL */}
+      {/* EDIT SEATING CAPACITY & TABLE MODAL */}
+      <AnimatePresence>
+        {showEditModal && editingTable && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }} onClick={() => setShowEditModal(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '18px',
+                padding: '1.75rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)'
+              }}
+            >
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
+                Edit Table & Seating Capacity
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>
+                Modify table identifier or customer seating capacity.
+              </p>
+
+              <form onSubmit={handleSaveEditTable}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Table Identifier / Number *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editTableNumber}
+                    onChange={(e) => setEditTableNumber(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Seating Capacity (Customer) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    required
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+
+                  {/* Quick Preset Buttons */}
+                  <div style={{ display: 'flex', gap: 6, marginTop: '8px', flexWrap: 'wrap' }}>
+                    {[2, 4, 6, 8, 10].map(cap => (
+                      <button
+                        key={cap}
+                        type="button"
+                        onClick={() => setEditCapacity(String(cap))}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: editCapacity === String(cap) ? '1px solid #4f46e5' : '1px solid #e2e8f0',
+                          background: editCapacity === String(cap) ? '#eef2ff' : '#f8fafc',
+                          color: editCapacity === String(cap) ? '#4f46e5' : '#475569',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {cap} Customer
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: '#4f46e5',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* QUICK BATCH MODAL WITH INDIVIDUAL SEATING CAPACITY */}
       <AnimatePresence>
         {showBatchModal && (
           <div style={{
@@ -571,21 +975,25 @@ const QRCodeComponent = () => {
                 borderRadius: '18px',
                 padding: '1.75rem',
                 width: '100%',
-                maxWidth: '400px',
+                maxWidth: '460px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.2)'
               }}
             >
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>Quick Batch Table Generation</h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>Quickly generate sequentially numbered tables (e.g. 1 to 10).</p>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>
+                Generate tables in batch and customize individual seating capacities below.
+              </p>
 
-              <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Number of Tables to Add</label>
                 <input
                   type="number"
                   min="1"
                   max="50"
                   value={batchCount}
-                  onChange={(e) => setBatchCount(e.target.value)}
+                  onChange={(e) => handleBatchCountChange(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '10px 14px',
@@ -595,6 +1003,92 @@ const QRCodeComponent = () => {
                     outline: 'none'
                   }}
                 />
+              </div>
+
+              {/* Quick Bulk Setting */}
+              <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                  Quick Fill Default Capacity:
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={batchDefaultCap}
+                    onChange={(e) => setBatchDefaultCap(e.target.value)}
+                    style={{
+                      width: '70px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyDefaultToAll}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #c7d2fe',
+                      background: '#eef2ff',
+                      color: '#4f46e5',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Apply to All Tables
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual Table Seating Capacities List */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                  Individual Seating Capacity per Table:
+                </label>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: '4px' }}>
+                  {batchItems.map((item, idx) => (
+                    <div
+                      key={item.tableNumber}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                        Table {item.tableNumber}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={item.seatingCapacity}
+                          onChange={(e) => handleBatchItemCapacityChange(idx, e.target.value)}
+                          style={{
+                            width: '60px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            textAlign: 'center',
+                            outline: 'none'
+                          }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>customer</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 10 }}>
@@ -629,7 +1123,105 @@ const QRCodeComponent = () => {
                     cursor: 'pointer'
                   }}
                 >
-                  {isSubmitting ? 'Generating...' : `Generate ${batchCount} Tables`}
+                  {isSubmitting ? 'Generating...' : `Generate ${batchItems.length} Tables`}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CUSTOM CONFIRM DELETE MODAL */}
+      <AnimatePresence>
+        {tableToDelete && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
+          }} onClick={() => !isDeleting && setTableToDelete(null)}>
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '2rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                textAlign: 'center'
+              }}
+            >
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem auto'
+              }}>
+                <Trash2 size={26} />
+              </div>
+
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+                Delete Table {tableToDelete.tableNumber}?
+              </h3>
+              
+              <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 1.75rem 0', lineHeight: 1.5 }}>
+                Guests will no longer be able to scan this QR code or place digital dine-in orders. This action cannot be undone.
+              </p>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setTableToDelete(null)}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={confirmDeleteTable}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {isDeleting ? 'Deleting...' : 'Yes, Delete'}
                 </button>
               </div>
             </motion.div>

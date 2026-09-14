@@ -233,15 +233,15 @@ export default function Cart() {
               <div className={styles.summary} style={{ backgroundColor: theme.bgPage, borderColor: theme.border }}>
                 <div className={styles.row} style={{ color: theme.textMuted }}>
                   <span>Subtotal</span>
-                  <span>₹{total.toFixed(2)}</span>
+                  <span>₹{Math.round(total)}</span>
                 </div>
                 <div className={styles.row} style={{ color: theme.textMuted }}>
                   <span>Service Fee</span>
-                  <span>₹0.00</span>
+                  <span>₹0</span>
                 </div>
                 <div className={styles.totalRow} style={{ color: theme.textMain, borderColor: theme.border }}>
                   <span>Total</span>
-                  <span>₹{total.toFixed(2)}</span>
+                  <span>₹{Math.round(total)}</span>
                 </div>
                 <button
                   onClick={() => setStep(2)}
@@ -298,7 +298,7 @@ export default function Cart() {
                   onClick={handlePlaceOrder}
                   className={styles.checkoutBtn}
                 >
-                  {isPlacing ? "Placing Order..." : `Place Order (₹${total.toFixed(2)})`}
+                  {isPlacing ? "Placing Order..." : `Place Order (₹${Math.round(total)})`}
                 </button>
 
                 <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#64748b", marginTop: "1.5rem" }}>
@@ -327,7 +327,7 @@ export default function Cart() {
             >
               <div className={styles.paymentHeader}>
                 <p>Payment to {tenantInfo.name}</p>
-                <div className={styles.paymentAmount}>₹{total.toFixed(2)}</div>
+                <div className={styles.paymentAmount}>₹{Math.round(total)}</div>
               </div>
               <div className={styles.paymentBody}>
                 <div className={styles.loadingSpinner}></div>

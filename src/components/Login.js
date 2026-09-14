@@ -205,9 +205,9 @@ const Login = () => {
 
                     <div className={styles.footer}>
                         <span>Don't have a cafe account?</span>
-                        <Link to="/register" className={styles.link}>
-                            Start 14-Day Free Trial
-                        </Link>
+                        <span style={{ color: '#6366f1', fontWeight: 700, marginLeft: 4 }}>
+                            Contact SuperAdmin to onboard your cafe
+                        </span>
                     </div>
                 </div>
             </motion.div>
