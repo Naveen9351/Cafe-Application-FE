@@ -4,35 +4,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 /**
  * Animated PageLoader with official GIF for initial load or page transitions
  */
-export default function PageLoader({ onLoaded, duration = 1200 }) {
-  const [visible, setVisible] = useState(true);
-
+export default function PageLoader({ onLoaded, duration }) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      if (onLoaded) onLoaded();
-    }, duration);
-    return () => clearTimeout(timer);
+    if (duration && onLoaded) {
+      const timer = setTimeout(() => {
+        onLoaded();
+      }, duration);
+      return () => clearTimeout(timer);
+    }
   }, [duration, onLoaded]);
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.02 }}
-          transition={{ duration: 0.5, ease: 'easeInOut' }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            backgroundColor: '#ffffff',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: '#0f172a',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
           {/* Subtle Ambient Background Glow */}
           <div style={{
             position: 'absolute',
@@ -117,9 +111,7 @@ export default function PageLoader({ onLoaded, duration = 1200 }) {
                 }}
               />
             </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
+    </div>
   );
 }

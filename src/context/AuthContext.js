@@ -3,11 +3,9 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
+import { API_URL as API, SOCKET_URL } from '../config/api';
+
 const AuthContext = createContext();
-const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
-const SOCKET_URL = API.replace('/api', '');
 
 // Safe helper to parse JWT payload without external heavy dependencies
 const parseJwt = (token) => {

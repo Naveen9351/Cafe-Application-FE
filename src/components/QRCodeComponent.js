@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCircle, Sparkles, Search, Layers } from 'lucide-react';
+import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCircle, Sparkles, Search, Layers, Wifi, Smartphone, Globe, Copy, ExternalLink } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:5000/api'
-  : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
+import { API_URL as API } from '../config/api';
 
 const QRCodeComponent = ({ orders = [] }) => {
   const { user, tenantId } = useAuth();
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Base QR Target Host Configuration for Mobile Wi-Fi Scanning
+  const localDefaultHost = window.location.hostname === 'localhost' ? 'http://192.168.1.10:3000' : (window.location.origin || 'http://localhost:3000');
+  const [qrBaseUrl, setQrBaseUrl] = useState(() => localStorage.getItem('serivq_qr_base_url') || localDefaultHost);
+  const [isEditingHost, setIsEditingHost] = useState(false);
+  const [tempHost, setTempHost] = useState(qrBaseUrl);
   
   // Modal / Form state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,10 +42,19 @@ const QRCodeComponent = ({ orders = [] }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const effectiveTenantId = tenantId || user?.tenantId || '6a762ef86c9d5c8be315f10a';
-  const originUrl = window.location.origin || 'http://localhost:3000';
 
   const getTableQRUrl = (tableNum) => {
-    return `${originUrl}/menu?tenantId=${effectiveTenantId}&table=${encodeURIComponent(tableNum)}`;
+    const cleanBase = (qrBaseUrl || window.location.origin || 'http://localhost:3000').replace(/\/$/, '');
+    return `${cleanBase}/menu?tenantId=${effectiveTenantId}&table=${encodeURIComponent(tableNum)}`;
+  };
+
+  const handleSaveHost = (newHost) => {
+    const clean = newHost.trim().replace(/\/$/, '');
+    if (!clean) return;
+    setQrBaseUrl(clean);
+    localStorage.setItem('serivq_qr_base_url', clean);
+    setIsEditingHost(false);
+    toast.success(`QR Codes updated to point to ${clean}`);
   };
 
   const activeOrdersMap = React.useMemo(() => {
@@ -421,6 +433,166 @@ const QRCodeComponent = ({ orders = [] }) => {
         </div>
       </div>
 
+      {/* Network Host & Live Mobile Scan Config Banner (LIGHT THEME) */}
+      <div style={{
+        background: '#ffffff',
+        borderRadius: '16px',
+        padding: '1.1rem 1.4rem',
+        marginBottom: '1.5rem',
+        color: '#0f172a',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.85rem',
+        boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.04)',
+        border: '1.5px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: '10px',
+              background: '#e0e7ff',
+              border: '1px solid #c7d2fe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#4f46e5'
+            }}>
+              <Smartphone size={18} color="#4f46e5" />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', letterSpacing: '0.5px' }}>📱 REAL MOBILE SCAN TARGET HOST</span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '2px 7px',
+                  borderRadius: '100px',
+                  background: '#ecfdf5',
+                  color: '#059669',
+                  border: '1px solid #a7f3d0'
+                }}>
+                  ACTIVE
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' }}>
+                Currently encoding QR codes with: <strong style={{ color: '#4f46e5', fontFamily: 'monospace', fontSize: '12px' }}>{qrBaseUrl}</strong>
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleSaveHost('http://192.168.1.10:3000')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: qrBaseUrl.includes('192.168.1.10') ? '1.5px solid #4f46e5' : '1px solid #cbd5e1',
+                background: qrBaseUrl.includes('192.168.1.10') ? '#eef2ff' : '#ffffff',
+                color: qrBaseUrl.includes('192.168.1.10') ? '#4f46e5' : '#475569',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <Wifi size={13} /> Wi-Fi IP (192.168.1.10:3000)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSaveHost('http://localhost:3000')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: qrBaseUrl.includes('localhost') ? '1.5px solid #4f46e5' : '1px solid #cbd5e1',
+                background: qrBaseUrl.includes('localhost') ? '#eef2ff' : '#ffffff',
+                color: qrBaseUrl.includes('localhost') ? '#4f46e5' : '#475569',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              💻 Localhost (Mac only)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTempHost(qrBaseUrl);
+                setIsEditingHost(!isEditingHost);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: isEditingHost ? '#4f46e5' : '#f8fafc',
+                color: isEditingHost ? '#ffffff' : '#334155',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <Edit3 size={12} /> Custom Host
+            </button>
+          </div>
+        </div>
+
+        {isEditingHost && (
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            paddingTop: '8px',
+            borderTop: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <input
+              type="text"
+              placeholder="e.g. http://192.168.1.10:3000 or https://yourdomain.com"
+              value={tempHost}
+              onChange={(e) => setTempHost(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(0, 0, 0, 0.3)',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none',
+                fontFamily: 'monospace'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => handleSaveHost(tempHost)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#10b981',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Filter and Stats Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '6px 12px', minWidth: '240px' }}>
@@ -544,18 +716,83 @@ const QRCodeComponent = ({ orders = [] }) => {
                     includeMargin={false}
                   />
                 </div>
-                <span style={{
+                <div style={{
                   marginTop: '10px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#64748b',
-                  letterSpacing: '0.02em',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 4
+                  gap: 6,
+                  width: '100%'
                 }}>
-                  <QrCode size={12} color="#6366f1" /> Scan to view menu & order
-                </span>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}>
+                    <QrCode size={12} color="#6366f1" /> Scan to view menu & order
+                  </span>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '3px 8px',
+                    maxWidth: '100%',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                  }}>
+                    <span style={{
+                      fontSize: '10px',
+                      color: '#475569',
+                      fontFamily: 'monospace',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '150px'
+                    }}>
+                      {qrUrl}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(qrUrl);
+                        toast.success(`Copied Table ${table.tableNumber} URL`);
+                      }}
+                      title="Copy QR Link"
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#4f46e5',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '2px'
+                      }}
+                    >
+                      <Copy size={11} />
+                    </button>
+                    <a
+                      href={qrUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open Menu URL"
+                      style={{
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '2px'
+                      }}
+                    >
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+                </div>
               </div>
 
               {/* Seating Capacity Row */}

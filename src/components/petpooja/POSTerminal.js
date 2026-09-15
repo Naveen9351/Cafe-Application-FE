@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getValidFoodImage } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
+import { API_URL as API } from '../../config/api';
 
 export default function POSTerminal({ tenantId, tenantInfo, menuItems = [], orders = [], onOrderCreated, onOrderPlaced }) {
   const [cart, setCart] = useState([]); // Draft dishes currently being added
@@ -30,10 +31,6 @@ export default function POSTerminal({ tenantId, tenantInfo, menuItems = [], orde
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
   const [splits, setSplits] = useState([]);
-
-  const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
   // Fetch dynamic tables from backend DB
   useEffect(() => {

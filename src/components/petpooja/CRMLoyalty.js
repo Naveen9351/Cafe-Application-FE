@@ -4,6 +4,7 @@ import { Users, Award, Search, Plus, Gift, PhoneCall, Mail, Star, HeartHandshake
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import styles from './CRMLoyalty.module.css';
+import { API_URL as API } from '../../config/api';
 
 const defaultGuestProfiles = [
   { _id: 'c1', name: 'Rohan Sharma', phone: '+91 98201 44521', email: 'rohan.s@gmail.com', totalVisits: 14, loyaltyPoints: 480, favoriteDish: 'Wagyu Truffle Burger' },
@@ -16,10 +17,6 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [customers, setCustomers] = useState(defaultGuestProfiles);
   const [search, setSearch] = useState('');
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
-
-  const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
   useEffect(() => {
     fetchCustomers();
