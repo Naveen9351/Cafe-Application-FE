@@ -279,10 +279,16 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder 
                       <div className={styles.cardHeader}>
                         <div>
                           <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                          <div className={styles.stationTag}>{order.channel} • Cooking (Target: {targetMins}m)</div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`} title={`Target prep: ${targetMins} mins`}>
+                          <span 
+                            className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`} 
+                            title="Click to edit cooking target time"
+                            onClick={() => {
+                              setOrderToEdit(order);
+                              setEditTimeMinutes(order.estimatedTime || 20);
+                            }}
+                          >
                             <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
                           </span>
                           <button 
@@ -320,19 +326,8 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder 
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button 
                             type="button"
-                            onClick={() => {
-                              setOrderToEdit(order);
-                              setEditTimeMinutes(order.estimatedTime || 20);
-                            }}
-                            title="Edit estimated prep time for customer"
-                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <Clock size={12} /> Edit Time
-                          </button>
-                          <button 
-                            type="button"
                             onClick={() => handleUpdateStage(order._id, 'cancelled')}
-                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                             title="Cancel Order"
                           >
                             Cancel

@@ -8,7 +8,7 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,6 +72,7 @@ export default function AdminPanel() {
   const [dateRange, setDateRange] = useState('today'); // 'today', 'this_week', 'this_month', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -154,6 +155,7 @@ export default function AdminPanel() {
   const fetchOrders = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
+    setIsFilterLoading(true);
 
     try {
       let url = `${API}/orders?range=${dateRange}`;
@@ -167,6 +169,10 @@ export default function AdminPanel() {
       }
     } catch (err) {
       console.log('Orders fetch error:', err.message);
+    } finally {
+      setTimeout(() => {
+        setIsFilterLoading(false);
+      }, 350);
     }
   };
 
@@ -326,7 +332,7 @@ export default function AdminPanel() {
     return () => clearInterval(timer);
   }, []);
 
-  // Dynamic Metric Calculations based on filtered orders
+  // Dynamic Metric Calculations based on real filtered orders & real time buckets
   const metrics = useMemo(() => {
     const grossSales = orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
     const totalOrdersCount = orders.length;
@@ -334,25 +340,85 @@ export default function AdminPanel() {
     const netProfit = Math.round(grossSales * 0.42);
     const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
     const completedOrders = orders.filter(o => o.status === 'completed');
+    const cancelledOrders = orders.filter(o => o.status === 'cancelled');
 
-    // Dynamic Sparkline heights (7 bars)
-    const sparklines = [
-      Math.max(25, Math.min(95, Math.round((grossSales * 0.15) % 80 + 20))),
-      Math.max(30, Math.min(95, Math.round((grossSales * 0.28) % 75 + 25))),
-      Math.max(35, Math.min(95, Math.round((grossSales * 0.42) % 70 + 30))),
-      Math.max(45, Math.min(95, Math.round((grossSales * 0.65) % 65 + 35))),
-      Math.max(55, Math.min(95, Math.round((grossSales * 0.85) % 60 + 40))),
-      Math.max(75, Math.min(98, Math.round((grossSales * 0.95) % 40 + 60))),
-      100
+    // 6 Dynamic Time Buckets for Velocity Telemetry
+    const timeBuckets = [
+      { label: '08:00 AM', startH: 0, endH: 9, revenue: 0, orders: 0 },
+      { label: '11:00 AM', startH: 10, endH: 12, revenue: 0, orders: 0 },
+      { label: '02:00 PM', startH: 13, endH: 15, revenue: 0, orders: 0 },
+      { label: '05:00 PM', startH: 16, endH: 18, revenue: 0, orders: 0 },
+      { label: '08:00 PM', startH: 19, endH: 21, revenue: 0, orders: 0 },
+      { label: '11:00 PM', startH: 22, endH: 23, revenue: 0, orders: 0 }
     ];
 
-    // Top Selling Items breakdown
+    orders.forEach(o => {
+      const d = o.createdAt ? new Date(o.createdAt) : new Date();
+      const hour = d.getHours();
+      const amt = Number(o.total || o.totalAmount) || 0;
+      const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
+      b.revenue += amt;
+      b.orders += 1;
+    });
+
+    const maxBucketRev = Math.max(1, ...timeBuckets.map(b => b.revenue));
+    const maxBucketOrd = Math.max(1, ...timeBuckets.map(b => b.orders));
+
+    // Dynamic telemetry SVG points for 700x185 canvas
+    const xCoords = [30, 150, 270, 390, 510, 670];
+    const revPoints = timeBuckets.map((b, idx) => {
+      const y = grossSales > 0 ? Math.round(155 - (b.revenue / maxBucketRev) * 115) : 155;
+      return { x: xCoords[idx], y, val: b.revenue };
+    });
+
+    const ordPoints = timeBuckets.map((b, idx) => {
+      const y = totalOrdersCount > 0 ? Math.round(155 - (b.orders / maxBucketOrd) * 115) : 155;
+      return { x: xCoords[idx], y, val: b.orders };
+    });
+
+    // Helper to generate SVG smooth path from points
+    const makeSvgPath = (pts) => {
+      if (pts.length === 0) return '';
+      let path = `M ${pts[0].x},${pts[0].y}`;
+      for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const curr = pts[i];
+        const midX = (prev.x + curr.x) / 2;
+        path += ` C ${midX},${prev.y} ${midX},${curr.y} ${curr.x},${curr.y}`;
+      }
+      return path;
+    };
+
+    const revPath = makeSvgPath(revPoints);
+    const revAreaPath = `${revPath} L 670,170 L 30,170 Z`;
+
+    const ordPath = makeSvgPath(ordPoints);
+    const ordAreaPath = `${ordPath} L 670,170 L 30,170 Z`;
+
+    // Dynamic Mini Sparklines for KPI Cards (viewBox 0 0 80 26)
+    const makeMiniSparkline = (vals, color) => {
+      const maxVal = Math.max(1, ...vals);
+      const pts = [
+        { x: 0, y: Math.round(22 - ((vals[0] || 0) / maxVal) * 18) },
+        { x: 26, y: Math.round(22 - ((vals[1] || 0) / maxVal) * 18) },
+        { x: 54, y: Math.round(22 - ((vals[3] || 0) / maxVal) * 18) },
+        { x: 80, y: Math.round(22 - ((vals[5] || 0) / maxVal) * 18) }
+      ];
+      return `M 0,${pts[0].y} Q 26,${pts[1].y} 54,${pts[2].y} T 80,${pts[3].y}`;
+    };
+
+    const revSparkline = makeMiniSparkline(timeBuckets.map(b => b.revenue), '#10b981');
+    const profitSparkline = makeMiniSparkline(timeBuckets.map(b => b.revenue * 0.42), '#6366f1');
+    const ticketSparkline = makeMiniSparkline(timeBuckets.map(b => (b.orders > 0 ? b.revenue / b.orders : 0)), '#d97706');
+    const orderSparkline = makeMiniSparkline(timeBuckets.map(b => b.orders), '#0284c7');
+
+    // Top Selling Items breakdown dynamically from orders
     const itemMap = {};
     orders.forEach(o => {
       (o.items || []).forEach(it => {
-        const name = it.name || 'Special Dish';
+        const name = it.name || it.item?.name || 'Special Dish';
         const qty = it.quantity || 1;
-        const price = Number(it.price) || (Number(it.item?.price) || 120);
+        const price = Number(it.price) || (Number(it.item?.price) || 0);
         if (!itemMap[name]) {
           itemMap[name] = { name, count: 0, revenue: 0 };
         }
@@ -366,22 +432,41 @@ export default function AdminPanel() {
       .slice(0, 4);
 
     if (topSellingItems.length === 0 && items.length > 0) {
-      topSellingItems = items.slice(0, 4).map((it, idx) => ({
+      topSellingItems = items.slice(0, 4).map((it) => ({
         name: it.name,
-        count: (idx + 1) * 6,
-        revenue: (idx + 1) * 6 * (Number(it.price) || 150)
+        count: 0,
+        revenue: 0
       }));
     }
 
-    const topItemName = topSellingItems[0]?.name || (items[0]?.name || 'Signature Cafe Latte');
+    const topItemName = topSellingItems[0]?.name || (items[0]?.name || 'Live Menu');
 
-    // Category Distribution
-    const catList = [
-      { name: 'Main Courses', percent: 45, color: '#6366f1' },
-      { name: 'Beverages & Coffee', percent: 28, color: '#059669' },
-      { name: 'Desserts & Bakes', percent: 15, color: '#d97706' },
-      { name: 'Appetizers & Starters', percent: 12, color: '#0284c7' }
-    ];
+    // Dynamic Category Distribution from orders & menu
+    const catMap = {};
+    orders.forEach(o => {
+      (o.items || []).forEach(it => {
+        const cat = it.category || it.item?.category || 'Main Courses';
+        const amt = (it.quantity || 1) * (Number(it.price) || Number(it.item?.price) || 0);
+        catMap[cat] = (catMap[cat] || 0) + amt;
+      });
+    });
+
+    const totalCatRev = Object.values(catMap).reduce((s, v) => s + v, 0);
+    const catColors = ['#6366f1', '#059669', '#d97706', '#0284c7', '#ec4899'];
+    let catList = Object.entries(catMap).map(([name, rev], idx) => ({
+      name,
+      percent: totalCatRev > 0 ? Math.round((rev / totalCatRev) * 100) : 0,
+      color: catColors[idx % catColors.length]
+    }));
+
+    if (catList.length === 0) {
+      catList = [
+        { name: 'Main Courses', percent: 0, color: '#6366f1' },
+        { name: 'Beverages', percent: 0, color: '#059669' },
+        { name: 'Desserts', percent: 0, color: '#d97706' },
+        { name: 'Starters', percent: 0, color: '#0284c7' }
+      ];
+    }
 
     return {
       grossSales,
@@ -390,7 +475,18 @@ export default function AdminPanel() {
       netProfit,
       activeOrders,
       completedOrders,
-      sparklines,
+      cancelledOrders,
+      timeBuckets,
+      revPoints,
+      ordPoints,
+      revPath,
+      revAreaPath,
+      ordPath,
+      ordAreaPath,
+      revSparkline,
+      profitSparkline,
+      ticketSparkline,
+      orderSparkline,
       topItemName,
       topSellingItems,
       catList
@@ -906,8 +1002,25 @@ export default function AdminPanel() {
                 {/* 1. CONTROL BAR: DATE FILTER PILLS */}
                 <div className={styles.dashControlBar}>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 2px 0' }}>Performance Overview</h3>
-                    <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>Showing metrics for {dateRange.replace('_', ' ')}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Performance Overview</h3>
+                      {isFilterLoading && (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: '#eef2ff',
+                          color: '#4f46e5',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: 700
+                        }}>
+                          <RefreshCw size={11} className={styles.spinIcon} /> Updating...
+                        </div>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>Showing metrics for {dateRange.replace('_', ' ')}</p>
                   </div>
 
                   <div className={styles.datePillsWrap}>
@@ -915,14 +1028,22 @@ export default function AdminPanel() {
                       { id: 'today', label: 'Today' },
                       { id: 'this_week', label: 'This Week' },
                       { id: 'this_month', label: 'This Month' },
-                      { id: 'custom', label: 'Custom Range' }
+                      { id: 'all', label: 'All Time' },
+                      { id: 'custom', label: 'Custom' }
                     ].map(r => (
                       <button
                         key={r.id}
                         type="button"
-                        onClick={() => setDateRange(r.id)}
+                        onClick={() => {
+                          if (dateRange !== r.id) {
+                            setDateRange(r.id);
+                          }
+                        }}
                         className={`${styles.datePillBtn} ${dateRange === r.id ? styles.datePillBtnActive : ''}`}
                       >
+                        {dateRange === r.id && isFilterLoading && (
+                          <RefreshCw size={11} className={styles.spinIcon} />
+                        )}
                         {r.label}
                       </button>
                     ))}
@@ -989,7 +1110,7 @@ export default function AdminPanel() {
                   return null;
                 })()}
 
-                {/* 5. 4 LUXURY KPI METRIC CARDS */}
+                {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
                 <div className={styles.kpiGridModern}>
                   {/* Card 1: Gross Revenue */}
                   <div className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}>
@@ -997,21 +1118,88 @@ export default function AdminPanel() {
                       <div className={`${styles.kpiIconBox} ${styles.kpiIconEmerald}`}>
                         <IndianRupee size={22} />
                       </div>
-                      <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
-                        <ArrowUpRight size={13} /> +18.4%
+                      <span className={`${styles.kpiPillBadge} ${metrics.grossSales > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
+                        {metrics.grossSales > 0 ? (
+                          <>
+                            <ArrowUpRight size={13} /> Active
+                          </>
+                        ) : (
+                          '● Live Sales'
+                        )}
                       </span>
                     </div>
                     <div className={styles.kpiTitleGroup}>
                       <span className={styles.kpiCardTag}>Gross Revenue</span>
                       <div className={styles.kpiBigNum}>
-                        ₹{Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}
+                        {isFilterLoading ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                            <Loader size={20} className={styles.spinIcon} color="#059669" />
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                          </div>
+                        ) : (
+                          `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
+                        )}
                       </div>
                     </div>
                     <div className={styles.kpiFooterMeta}>
-                      <span>vs previous period</span>
-                      <svg className={styles.sparklineSvgMini} viewBox="0 0 80 26">
-                        <path d="M 0,22 Q 22,12 42,18 T 80,4" fill="none" stroke="#10b981" strokeWidth="2.8" strokeLinecap="round" />
-                      </svg>
+                      <span>{isFilterLoading ? 'Refreshing orders...' : `${metrics.completedOrders.length} settled orders`}</span>
+                      {isFilterLoading ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <Loader size={12} className={styles.spinIcon} />
+                        </div>
+                      ) : metrics.grossSales > 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#ecfdf5',
+                          color: '#059669',
+                          border: '1px solid #a7f3d0'
+                        }} title="Positive Trend">
+                          <TrendingUp size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : metrics.grossSales < 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1px solid #fecaca'
+                        }} title="Negative Trend">
+                          <TrendingDown size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }} title="Neutral / Live Telemetry">
+                          <Activity size={13} strokeWidth={2.2} />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1028,14 +1216,75 @@ export default function AdminPanel() {
                     <div className={styles.kpiTitleGroup}>
                       <span className={styles.kpiCardTag}>Estimated Profit (42%)</span>
                       <div className={styles.kpiBigNum}>
-                        ₹{Math.round(metrics.netProfit || 0).toLocaleString('en-IN')}
+                        {isFilterLoading ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                            <Loader size={20} className={styles.spinIcon} color="#4f46e5" />
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                          </div>
+                        ) : (
+                          `₹${Math.round(metrics.netProfit || 0).toLocaleString('en-IN')}`
+                        )}
                       </div>
                     </div>
                     <div className={styles.kpiFooterMeta}>
-                      <span>Optimal operating margin</span>
-                      <svg className={styles.sparklineSvgMini} viewBox="0 0 80 26">
-                        <path d="M 0,24 Q 28,20 45,10 T 80,6" fill="none" stroke="#6366f1" strokeWidth="2.8" strokeLinecap="round" />
-                      </svg>
+                      <span>{isFilterLoading ? 'Recalculating margin...' : 'Estimated cafe margin'}</span>
+                      {isFilterLoading ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <Loader size={12} className={styles.spinIcon} />
+                        </div>
+                      ) : metrics.netProfit > 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#eef2ff',
+                          color: '#4f46e5',
+                          border: '1px solid #c7d2fe'
+                        }} title="Positive Margin">
+                          <TrendingUp size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : metrics.netProfit < 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1px solid #fecaca'
+                        }} title="Negative Margin">
+                          <TrendingDown size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }} title="Neutral / Live Telemetry">
+                          <Activity size={13} strokeWidth={2.2} />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1046,20 +1295,81 @@ export default function AdminPanel() {
                         <Receipt size={22} />
                       </div>
                       <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
-                        Avg Spend
+                        {metrics.totalOrdersCount} Tabs
                       </span>
                     </div>
                     <div className={styles.kpiTitleGroup}>
                       <span className={styles.kpiCardTag}>Avg Ticket Value</span>
                       <div className={styles.kpiBigNum}>
-                        ₹{Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}
+                        {isFilterLoading ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                            <Loader size={20} className={styles.spinIcon} color="#d97706" />
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                          </div>
+                        ) : (
+                          `₹${Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}`
+                        )}
                       </div>
                     </div>
                     <div className={styles.kpiFooterMeta}>
-                      <span>Target: ₹350/ticket</span>
-                      <svg className={styles.sparklineSvgMini} viewBox="0 0 80 26">
-                        <path d="M 0,18 Q 24,22 45,12 T 80,8" fill="none" stroke="#d97706" strokeWidth="2.8" strokeLinecap="round" />
-                      </svg>
+                      <span>{isFilterLoading ? 'Updating average...' : 'Per order average'}</span>
+                      {isFilterLoading ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <Loader size={12} className={styles.spinIcon} />
+                        </div>
+                      ) : metrics.avgTicket > 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#fffbeb',
+                          color: '#d97706',
+                          border: '1px solid #fde68a'
+                        }} title="Positive Average">
+                          <TrendingUp size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : metrics.avgTicket < 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1px solid #fecaca'
+                        }} title="Negative Average">
+                          <TrendingDown size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }} title="Neutral / Live Telemetry">
+                          <Activity size={13} strokeWidth={2.2} />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1069,28 +1379,89 @@ export default function AdminPanel() {
                       <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
                         <ShoppingBag size={22} />
                       </div>
-                      <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
+                      <span className={`${styles.kpiPillBadge} ${metrics.activeOrders.length > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
                         {metrics.activeOrders.length} In Queue
                       </span>
                     </div>
                     <div className={styles.kpiTitleGroup}>
                       <span className={styles.kpiCardTag}>Total Orders</span>
                       <div className={styles.kpiBigNum}>
-                        {metrics.totalOrdersCount}
+                        {isFilterLoading ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                            <Loader size={20} className={styles.spinIcon} color="#0284c7" />
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                          </div>
+                        ) : (
+                          metrics.totalOrdersCount
+                        )}
                       </div>
                     </div>
                     <div className={styles.kpiFooterMeta}>
-                      <span>{metrics.completedOrders?.length || 0} completed orders</span>
-                      <svg className={styles.sparklineSvgMini} viewBox="0 0 80 26">
-                        <path d="M 0,20 Q 22,14 44,17 T 80,3" fill="none" stroke="#0284c7" strokeWidth="2.8" strokeLinecap="round" />
-                      </svg>
+                      <span>{isFilterLoading ? 'Updating count...' : `${metrics.completedOrders?.length || 0} completed orders`}</span>
+                      {isFilterLoading ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <Loader size={12} className={styles.spinIcon} />
+                        </div>
+                      ) : metrics.totalOrdersCount > 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f0f9ff',
+                          color: '#0284c7',
+                          border: '1px solid #bae6fd'
+                        }} title="Active Volume">
+                          <TrendingUp size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : metrics.totalOrdersCount < 0 ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1px solid #fecaca'
+                        }} title="Negative Volume">
+                          <TrendingDown size={13} strokeWidth={2.5} />
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }} title="Neutral / Live Telemetry">
+                          <Activity size={13} strokeWidth={2.2} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* 6. MIDDLE SPLIT: HIGH-TECH REVENUE CHART + LIVE ORDERS FEED */}
                 <div className={styles.dashSplitGridModern}>
-                  {/* Left: High-Tech Chart Panel */}
+                  {/* Left: High-Tech Dynamic Chart Panel */}
                   <div className={styles.chartPanelCardModern}>
                     <div className={styles.chartTopBar}>
                       <div className={styles.chartTitleWrap}>
@@ -1116,7 +1487,27 @@ export default function AdminPanel() {
                       </div>
                     </div>
 
-                    <div className={styles.chartCanvasBox}>
+                    <div className={styles.chartCanvasBox} style={{ position: 'relative' }}>
+                      {isFilterLoading && (
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(255, 255, 255, 0.88)',
+                          backdropFilter: 'blur(3px)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 10,
+                          borderRadius: '12px',
+                          gap: 10
+                        }}>
+                          <Loader size={26} className={styles.spinIcon} color="#4f46e5" />
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
+                            Loading {dateRange.replace('_', ' ')} Telemetry...
+                          </span>
+                        </div>
+                      )}
                       <svg className={styles.svgHighTech} viewBox="0 0 700 185" preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="glowRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1138,41 +1529,47 @@ export default function AdminPanel() {
 
                         {chartMetricTab === 'revenue' ? (
                           <>
-                            {/* Revenue Gradient Fill Area */}
+                            {/* Dynamic Revenue Gradient Fill Area */}
                             <path
-                              d="M 30,150 Q 120,140 200,150 T 330,105 T 450,115 T 570,80 T 670,45 L 670,170 L 30,170 Z"
+                              d={metrics.revAreaPath}
                               fill="url(#glowRevGrad)"
                             />
-                            {/* Revenue Main Curve */}
+                            {/* Dynamic Revenue Main Curve */}
                             <path
-                              d="M 30,150 Q 120,140 200,150 T 330,105 T 450,115 T 570,80 T 670,45"
+                              d={metrics.revPath}
                               fill="none"
                               stroke="#4f46e5"
                               strokeWidth="3.5"
                               strokeLinecap="round"
                             />
-                            {/* Peak Glowing Node */}
-                            <circle cx="670" cy="45" r="16" fill="#6366f1" fillOpacity="0.25" />
-                            <circle cx="670" cy="45" r="6" fill="#4f46e5" stroke="#ffffff" strokeWidth="2.5" />
+                            {/* Peak Glowing Nodes */}
+                            {metrics.revPoints?.map((pt, i) => (
+                              <g key={i}>
+                                <circle cx={pt.x} cy={pt.y} r={pt.val > 0 ? 5 : 3} fill="#4f46e5" stroke="#ffffff" strokeWidth="2" />
+                              </g>
+                            ))}
                           </>
                         ) : (
                           <>
-                            {/* Orders Gradient Fill Area */}
+                            {/* Dynamic Orders Gradient Fill Area */}
                             <path
-                              d="M 30,155 Q 120,145 200,140 T 330,95 T 450,105 T 570,70 T 670,52 L 670,170 L 30,170 Z"
+                              d={metrics.ordAreaPath}
                               fill="url(#glowOrderGrad)"
                             />
-                            {/* Orders Main Curve */}
+                            {/* Dynamic Orders Main Curve */}
                             <path
-                              d="M 30,155 Q 120,145 200,140 T 330,95 T 450,105 T 570,70 T 670,52"
+                              d={metrics.ordPath}
                               fill="none"
                               stroke="#10b981"
                               strokeWidth="3.5"
                               strokeLinecap="round"
                             />
-                            {/* Peak Glowing Node */}
-                            <circle cx="670" cy="52" r="16" fill="#10b981" fillOpacity="0.25" />
-                            <circle cx="670" cy="52" r="6" fill="#059669" stroke="#ffffff" strokeWidth="2.5" />
+                            {/* Peak Glowing Nodes */}
+                            {metrics.ordPoints?.map((pt, i) => (
+                              <g key={i}>
+                                <circle cx={pt.x} cy={pt.y} r={pt.val > 0 ? 5 : 3} fill="#059669" stroke="#ffffff" strokeWidth="2" />
+                              </g>
+                            ))}
                           </>
                         )}
                       </svg>
@@ -1184,26 +1581,38 @@ export default function AdminPanel() {
                         <span>05:00 PM</span>
                         <span>08:00 PM</span>
                         <span>11:00 PM</span>
-                        <strong>Now • Live</strong>
+                        <strong>Live</strong>
                       </div>
                     </div>
 
                     <div className={styles.chartSummaryFooter}>
                       <div className={styles.summaryStatItem}>
                         <span className={styles.summaryStatLabel}>Gross Sales</span>
-                        <span className={styles.summaryStatVal}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</span>
+                        <span className={styles.summaryStatVal}>
+                          {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : `₹${Math.round(metrics.grossSales).toLocaleString('en-IN')}`}
+                        </span>
                       </div>
                       <div className={styles.summaryStatItem}>
                         <span className={styles.summaryStatLabel}>Avg Ticket</span>
-                        <span className={styles.summaryStatVal}>₹{Math.round(metrics.avgTicket).toLocaleString('en-IN')}</span>
+                        <span className={styles.summaryStatVal}>
+                          {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#d97706" /> : `₹${Math.round(metrics.avgTicket).toLocaleString('en-IN')}`}
+                        </span>
                       </div>
                       <div className={styles.summaryStatItem}>
                         <span className={styles.summaryStatLabel}>Total Volume</span>
-                        <span className={styles.summaryStatVal}>{metrics.totalOrdersCount} Orders</span>
+                        <span className={styles.summaryStatVal}>
+                          {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#0284c7" /> : `${metrics.totalOrdersCount} Orders`}
+                        </span>
                       </div>
                       <div className={styles.summaryStatItem}>
                         <span className={styles.summaryStatLabel}>Operating Efficiency</span>
-                        <span className={styles.summaryStatVal} style={{ color: '#059669' }}>98.4% Optimal</span>
+                        <span className={styles.summaryStatVal} style={{ color: '#059669' }}>
+                          {isFilterLoading ? (
+                            <Loader size={14} className={styles.spinIcon} color="#059669" />
+                          ) : (
+                            `${metrics.totalOrdersCount > 0 ? Math.round(((metrics.totalOrdersCount - (metrics.cancelledOrders?.length || 0)) / metrics.totalOrdersCount) * 100) : 100}% Optimal`
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
