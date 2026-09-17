@@ -407,6 +407,7 @@ export default function TableOperationsHub({
         {filteredTables.map((tbl) => {
           const activeOrder = getActiveOrderForTable(tbl);
           const isOccupied = !!activeOrder;
+          const isServed = isOccupied && (activeOrder.status === 'ready' || activeOrder.status === 'served');
           const elapsedMins = activeOrder?.createdAt
             ? Math.max(1, Math.round((new Date() - new Date(activeOrder.createdAt)) / 60000))
             : 5;
@@ -419,12 +420,12 @@ export default function TableOperationsHub({
               style={{
                 background: '#ffffff',
                 borderRadius: '12px',
-                border: isOccupied ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+                border: !isOccupied ? '1px solid #e2e8f0' : isServed ? '1.5px solid #10b981' : '1.5px solid #f59e0b',
                 padding: '0.75rem 0.85rem',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                boxShadow: isOccupied ? '0 3px 12px rgba(245, 158, 11, 0.12)' : '0 1px 4px rgba(0,0,0,0.02)',
+                boxShadow: isOccupied ? (isServed ? '0 3px 12px rgba(16, 185, 129, 0.12)' : '0 3px 12px rgba(245, 158, 11, 0.12)') : '0 1px 4px rgba(0,0,0,0.02)',
                 position: 'relative',
                 overflow: 'hidden'
               }}
@@ -437,7 +438,7 @@ export default function TableOperationsHub({
                   left: 0,
                   right: 0,
                   height: '3px',
-                  background: 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                  background: isServed ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #f59e0b, #ef4444)'
                 }} />
               )}
 
@@ -473,17 +474,17 @@ export default function TableOperationsHub({
                     fontWeight: 800,
                     padding: '2px 6px',
                     borderRadius: '100px',
-                    background: isOccupied ? '#fef3c7' : '#ecfdf5',
-                    color: isOccupied ? '#b45309' : '#047857',
-                    border: isOccupied ? '1px solid #fde68a' : '1px solid #a7f3d0'
+                    background: !isOccupied ? '#ecfdf5' : isServed ? '#f0fdf4' : '#fef3c7',
+                    color: !isOccupied ? '#047857' : isServed ? '#15803d' : '#b45309',
+                    border: !isOccupied ? '1px solid #a7f3d0' : isServed ? '1px solid #bbf7d0' : '1px solid #fde68a'
                   }}>
                     <span style={{
                       width: 5,
                       height: 5,
                       borderRadius: '50%',
-                      background: isOccupied ? '#f59e0b' : '#10b981'
+                      background: !isOccupied ? '#10b981' : isServed ? '#22c55e' : '#f59e0b'
                     }} />
-                    {isOccupied ? `⚡ Due (${elapsedMins}m)` : 'Free'}
+                    {!isOccupied ? 'Free' : isServed ? 'Served' : 'Occupied'}
                   </span>
                 </div>
 
@@ -548,8 +549,8 @@ export default function TableOperationsHub({
                             padding: '1px 5px',
                             borderRadius: '3px',
                             border: 'none',
-                            background: activeOrder.status === 'ready' ? '#10b981' : '#ecfdf5',
-                            color: activeOrder.status === 'ready' ? '#ffffff' : '#047857',
+                            background: (activeOrder.status === 'ready' || activeOrder.status === 'served') ? '#10b981' : '#ecfdf5',
+                            color: (activeOrder.status === 'ready' || activeOrder.status === 'served') ? '#ffffff' : '#047857',
                             cursor: 'pointer'
                           }}
                         >
@@ -576,50 +577,97 @@ export default function TableOperationsHub({
               {/* Action Buttons Footer */}
               <div style={{ display: 'flex', gap: 4, paddingTop: '5px', borderTop: '1px solid #f1f5f9' }}>
                 {isOccupied ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTableForPayment({ table: tbl, activeOrder })}
-                      style={{
-                        flex: 1.6,
-                        padding: '5px 8px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        color: '#ffffff',
-                        fontSize: '10.5px',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 3.5,
-                        boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
-                      }}
-                    >
-                      <CreditCard size={11} /> Settle (₹{orderTotal})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenPOS && onOpenPOS(tbl.tableNumber)}
-                      style={{
-                        padding: '5px 7px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        color: '#334155',
-                        fontSize: '10.5px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2
-                      }}
-                      title="Add Items in POS"
-                    >
-                      <Plus size={10} /> POS
-                    </button>
-                  </>
+                  isServed ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTableForPayment({ table: tbl, activeOrder })}
+                        style={{
+                          flex: 1.6,
+                          padding: '5px 8px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          color: '#ffffff',
+                          fontSize: '10.5px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 3.5,
+                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
+                        }}
+                      >
+                        <CreditCard size={11} /> Settle (₹{orderTotal})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenPOS && onOpenPOS(tbl.tableNumber)}
+                        style={{
+                          padding: '5px 7px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#334155',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2
+                        }}
+                        title="Add Items in POS"
+                      >
+                        <Plus size={10} /> POS
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onOpenPOS && onOpenPOS(tbl.tableNumber)}
+                        style={{
+                          flex: 1,
+                          padding: '5px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#334155',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 3
+                        }}
+                        title="Manage Order in POS"
+                      >
+                        <Plus size={11} /> POS / Add Items
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateOrderStatus && onUpdateOrderStatus(activeOrder._id, 'ready')}
+                        style={{
+                          padding: '5px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #a7f3d0',
+                          background: '#ecfdf5',
+                          color: '#059669',
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2
+                        }}
+                        title="Mark Order as Served"
+                      >
+                        <Check size={11} /> Mark Served
+                      </button>
+                    </>
+                  )
                 ) : (
                   <>
                     <button

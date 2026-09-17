@@ -1,17 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCircle, Sparkles, Search, Layers, Wifi, Smartphone, Globe, Copy, ExternalLink } from 'lucide-react';
+import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCircle, Sparkles, Search, Layers, Wifi, Smartphone, Globe, Copy, ExternalLink, Coffee, Eye, Printer, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_URL as API } from '../config/api';
 
-const QRCodeComponent = ({ orders = [] }) => {
+const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   const { user, tenantId } = useAuth();
-  const [tables, setTables] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const effectiveTenantId = tenantId || user?.tenantId || '6a762ef86c9d5c8be315f10a';
+
+  // Instant SWR Cache: initialize immediately from props or session storage for 0ms lag
+  const [tables, setTables] = useState(() => {
+    if (Array.isArray(initialTables) && initialTables.length > 0) return initialTables;
+    try {
+      const cached = sessionStorage.getItem(`serivq_tables_${effectiveTenantId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [loading, setLoading] = useState(() => tables.length === 0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'available' | 'occupied'
   
   // Base QR Target Host Configuration for Mobile Wi-Fi Scanning
   const localDefaultHost = window.location.hostname === 'localhost' ? 'http://192.168.1.10:3000' : (window.location.origin || 'http://localhost:3000');
@@ -41,7 +56,16 @@ const QRCodeComponent = ({ orders = [] }) => {
   const [tableToDelete, setTableToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const effectiveTenantId = tenantId || user?.tenantId || '6a762ef86c9d5c8be315f10a';
+  // Click-to-Enlarge Full Screen QR Modal State
+  const [previewTable, setPreviewTable] = useState(null);
+
+  // Sync with initialTables prop when parent updates
+  useEffect(() => {
+    if (Array.isArray(initialTables) && initialTables.length > 0) {
+      setTables(initialTables);
+      setLoading(false);
+    }
+  }, [initialTables]);
 
   const getTableQRUrl = (tableNum) => {
     const cleanBase = (qrBaseUrl || window.location.origin || 'http://localhost:3000').replace(/\/$/, '');
@@ -57,35 +81,60 @@ const QRCodeComponent = ({ orders = [] }) => {
     toast.success(`QR Codes updated to point to ${clean}`);
   };
 
-  const activeOrdersMap = React.useMemo(() => {
-    const map = {};
+  // Active Orders Lookup for live peek (items count, total amount)
+  const { activeOrdersLookup } = useMemo(() => {
+    const lookup = {};
     (orders || []).forEach(o => {
-      if (o.status !== 'completed' && o.status !== 'cancelled') {
+      const isSettled = o.status === 'completed' || o.status === 'cancelled' || o.settlement?.status === 'settled';
+      if (!isSettled) {
         const raw = String(o.tableNumber || o.table || '').trim();
         const numOnly = raw.replace(/[^0-9]/g, '') || raw;
-        if (raw) map[raw] = true;
-        if (numOnly) map[numOnly] = true;
+        const total = o.totalAmount || o.finalTotal || o.billAmount || (o.items || []).reduce((acc, it) => acc + ((it.price || 0) * (it.quantity || 1)), 0);
+        const itemsCount = (o.items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
+        
+        const summary = {
+          orderId: o.orderId || o._id,
+          totalAmount: total,
+          itemCount: itemsCount || (o.items ? o.items.length : 1),
+          status: o.status || 'preparing',
+          placedAt: o.createdAt
+        };
+        
+        if (raw) lookup[raw] = summary;
+        if (numOnly) lookup[numOnly] = summary;
+        lookup[`Table ${numOnly}`] = summary;
       }
     });
-    return map;
+    return { activeOrdersLookup: lookup };
   }, [orders]);
 
-  const isTableOccupied = (t) => {
-    const numOnly = String(t.tableNumber).replace(/[^0-9]/g, '') || String(t.tableNumber);
-    return Boolean(activeOrdersMap[String(t.tableNumber).trim()] || activeOrdersMap[numOnly] || activeOrdersMap[`Table ${numOnly}`]);
+  const getTableActiveOrder = (t) => {
+    const raw = String(t.tableNumber || '').trim();
+    const numOnly = raw.replace(/[^0-9]/g, '') || raw;
+    return activeOrdersLookup[raw] || activeOrdersLookup[numOnly] || activeOrdersLookup[`Table ${numOnly}`] || null;
   };
 
-  const fetchTables = async () => {
+  const isTableOccupied = (t) => {
+    return Boolean(getTableActiveOrder(t));
+  };
+
+  const fetchTables = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent && tables.length === 0) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API}/tables`, {
         headers: { 'x-auth-token': token }
       });
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         setTables(res.data);
-      } else {
-        // Default initial tables if empty
+        try {
+          sessionStorage.setItem(`serivq_tables_${effectiveTenantId}`, JSON.stringify(res.data));
+        } catch (e) {}
+      } else if (tables.length === 0) {
         const initialDefaults = [
           { _id: 'tbl_1', tableNumber: '1', status: 'available' },
           { _id: 'tbl_2', tableNumber: '2', status: 'available' },
@@ -106,12 +155,13 @@ const QRCodeComponent = ({ orders = [] }) => {
       }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchTables();
-  }, [tenantId]);
+    fetchTables(tables.length > 0);
+  }, [effectiveTenantId]);
 
   const handleAddSingleTable = async (e) => {
     e.preventDefault();
@@ -352,24 +402,123 @@ const QRCodeComponent = ({ orders = [] }) => {
     toast.success(`Exporting ${tables.length} table QR codes...`);
   };
 
-  const filteredTables = tables.filter(t => 
-    String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const printTableStands = (targetTables = tables) => {
+    if (!targetTables || targetTables.length === 0) {
+      toast.error('No tables found to print');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to print table standees');
+      return;
+    }
+
+    const cardsHtml = targetTables.map(t => {
+      const canvas = document.getElementById(`qr-canvas-${t.tableNumber}`);
+      const qrDataUrl = canvas ? canvas.toDataURL('image/png') : '';
+      return `
+        <div class="stand-card">
+          <div class="brand-title">SERIVQ SMART DINING</div>
+          <div class="table-pill">TABLE ${t.tableNumber}</div>
+          <div class="capacity-tag">${t.seatingCapacity || 4} GUESTS CAPACITY</div>
+          <div class="qr-wrapper">
+            ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Table ${t.tableNumber} QR" />` : ''}
+          </div>
+          <div class="instructions">
+            <span class="step-title">SCAN TO DINE-IN & ORDER</span>
+            <p>1. Open Phone Camera & Scan QR<br/>2. Browse Menu & Choose Dishes<br/>3. Hot Food Served to Your Table</p>
+          </div>
+          <div class="stand-footer">✨ Fast & Contactless Dining Experience</div>
+        </div>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Table Standees - SerivQ Dining</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #0f172a; background: #fff; }
+            .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15mm; }
+            .stand-card { border: 2px dashed #94a3b8; border-radius: 18px; padding: 22px 18px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: space-between; page-break-inside: avoid; height: 128mm; }
+            .brand-title { font-size: 11px; font-weight: 800; letter-spacing: 2.5px; color: #64748b; margin-bottom: 6px; }
+            .table-pill { font-size: 26px; font-weight: 900; background: #0f172a; color: #ffffff; padding: 6px 24px; border-radius: 100px; display: inline-block; margin-bottom: 4px; }
+            .capacity-tag { font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 10px; }
+            .qr-wrapper img { width: 145px; height: 145px; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+            .instructions { margin-top: 8px; }
+            .step-title { display: block; font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; }
+            .instructions p { font-size: 10px; color: #475569; line-height: 1.45; margin: 4px 0 0 0; }
+            .stand-footer { font-size: 9px; font-weight: 700; color: #94a3b8; border-top: 1px solid #f1f5f9; width: 100%; padding-top: 8px; margin-top: 6px; }
+          </style>
+        </head>
+        <body>
+          <div class="grid-container">${cardsHtml}</div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 250);
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const filteredTables = useMemo(() => {
+    return tables
+      .filter(t => {
+        const matchesSearch = String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase());
+        if (!matchesSearch) return false;
+        const occupied = isTableOccupied(t);
+        if (statusFilter === 'available') return !occupied;
+        if (statusFilter === 'occupied') return occupied;
+        return true;
+      })
+      .sort((a, b) => {
+        return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+      });
+  }, [tables, searchQuery, statusFilter, activeOrdersLookup]);
 
   return (
     <div style={{ width: '100%' }}>
       {/* Top Header Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <QrCode size={22} color="#4f46e5" /> Dynamic Table & QR Manager
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '-0.02em' }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)' }}>
+              <QrCode size={18} />
+            </div>
+            Dynamic Table & QR Manager
           </h2>
           <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '4px 0 0 0' }}>
-            Generate, customize, and print digital dine-in QR codes for every table in your restaurant.
+            Generate, customize, and print digital dine-in QR codes for every table.
           </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        </div>        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => printTableStands(filteredTables)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0',
+              background: '#ffffff',
+              color: '#334155',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Printer size={14} /> Print Stands
+          </button>
           <button
             type="button"
             onClick={downloadAllQRs}
@@ -382,13 +531,14 @@ const QRCodeComponent = ({ orders = [] }) => {
               border: '1px solid #e2e8f0',
               background: '#ffffff',
               color: '#334155',
-              fontSize: '13px',
-              fontWeight: 700,
+              fontSize: '12.5px',
+              fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease'
             }}
           >
-            <Download size={15} /> Download All
+            <Download size={14} /> Download All
           </button>
           <button
             type="button"
@@ -401,14 +551,15 @@ const QRCodeComponent = ({ orders = [] }) => {
               borderRadius: '10px',
               border: '1px solid #e2e8f0',
               background: '#ffffff',
-              color: '#4f46e5',
-              fontSize: '13px',
-              fontWeight: 700,
+              color: '#334155',
+              fontSize: '12.5px',
+              fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease'
             }}
           >
-            <Layers size={15} /> Quick Batch Add
+            <Layers size={14} /> Quick Batch Add
           </button>
           <button
             type="button"
@@ -419,143 +570,121 @@ const QRCodeComponent = ({ orders = [] }) => {
               gap: 6,
               padding: '8px 16px',
               borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
-              color: '#ffffff',
-              fontSize: '13px',
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#0f172a',
+              fontSize: '12.5px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease'
             }}
           >
-            <Plus size={16} /> Add Table
+            <Plus size={15} /> Add Table
           </button>
         </div>
       </div>
 
-      {/* Network Host & Live Mobile Scan Config Banner (LIGHT THEME) */}
+      {/* Network Host & Live Mobile Scan Config */}
       <div style={{
         background: '#ffffff',
-        borderRadius: '16px',
-        padding: '1.1rem 1.4rem',
-        marginBottom: '1.5rem',
+        borderRadius: '14px',
+        padding: '10px 16px',
+        marginBottom: '1.25rem',
         color: '#0f172a',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '0.85rem',
-        boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.04)',
-        border: '1.5px solid #e2e8f0'
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+        border: '1px solid #e2e8f0'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: '10px',
-              background: '#e0e7ff',
-              border: '1px solid #c7d2fe',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#4f46e5'
-            }}>
-              <Smartphone size={18} color="#4f46e5" />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', letterSpacing: '0.5px' }}>📱 REAL MOBILE SCAN TARGET HOST</span>
-                <span style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: '100px',
-                  background: '#ecfdf5',
-                  color: '#059669',
-                  border: '1px solid #a7f3d0'
-                }}>
-                  ACTIVE
-                </span>
-              </div>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' }}>
-                Currently encoding QR codes with: <strong style={{ color: '#4f46e5', fontFamily: 'monospace', fontSize: '12px' }}>{qrBaseUrl}</strong>
-              </p>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: 30,
+            height: 30,
+            borderRadius: '8px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#475569'
+          }}>
+            <Smartphone size={15} />
           </div>
-
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => handleSaveHost('http://192.168.1.10:3000')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: qrBaseUrl.includes('192.168.1.10') ? '1.5px solid #4f46e5' : '1px solid #cbd5e1',
-                background: qrBaseUrl.includes('192.168.1.10') ? '#eef2ff' : '#ffffff',
-                color: qrBaseUrl.includes('192.168.1.10') ? '#4f46e5' : '#475569',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              <Wifi size={13} /> Wi-Fi IP (192.168.1.10:3000)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSaveHost('http://localhost:3000')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: qrBaseUrl.includes('localhost') ? '1.5px solid #4f46e5' : '1px solid #cbd5e1',
-                background: qrBaseUrl.includes('localhost') ? '#eef2ff' : '#ffffff',
-                color: qrBaseUrl.includes('localhost') ? '#4f46e5' : '#475569',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              💻 Localhost (Mac only)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setTempHost(qrBaseUrl);
-                setIsEditingHost(!isEditingHost);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: isEditingHost ? '#4f46e5' : '#f8fafc',
-                color: isEditingHost ? '#ffffff' : '#334155',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              <Edit3 size={12} /> Custom Host
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>QR Target Host:</span>
+            <code style={{ fontSize: '11.5px', color: '#0f172a', background: '#f8fafc', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, border: '1px solid #e2e8f0' }}>{qrBaseUrl}</code>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '100px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
+              ● LIVE
+            </span>
           </div>
         </div>
 
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => handleSaveHost('http://192.168.1.10:3000')}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: qrBaseUrl.includes('192.168.1.10') ? '1px solid #0f172a' : '1px solid #e2e8f0',
+              background: qrBaseUrl.includes('192.168.1.10') ? '#0f172a' : '#ffffff',
+              color: qrBaseUrl.includes('192.168.1.10') ? '#ffffff' : '#64748b',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Wi-Fi IP
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSaveHost('http://localhost:3000')}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: qrBaseUrl.includes('localhost') ? '1px solid #0f172a' : '1px solid #e2e8f0',
+              background: qrBaseUrl.includes('localhost') ? '#0f172a' : '#ffffff',
+              color: qrBaseUrl.includes('localhost') ? '#ffffff' : '#64748b',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Localhost
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTempHost(qrBaseUrl);
+              setIsEditingHost(!isEditingHost);
+            }}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: isEditingHost ? '#0f172a' : '#ffffff',
+              color: isEditingHost ? '#ffffff' : '#64748b',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Edit3 size={11} /> Custom
+          </button>
+        </div>
+
         {isEditingHost && (
-          <div style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            paddingTop: '8px',
-            borderTop: '1px solid rgba(255,255,255,0.1)'
-          }}>
+          <div style={{ width: '100%', display: 'flex', gap: 8, alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
             <input
               type="text"
               placeholder="e.g. http://192.168.1.10:3000 or https://yourdomain.com"
@@ -563,12 +692,10 @@ const QRCodeComponent = ({ orders = [] }) => {
               onChange={(e) => setTempHost(e.target.value)}
               style={{
                 flex: 1,
-                padding: '8px 12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'rgba(0, 0, 0, 0.3)',
-                color: '#ffffff',
-                fontSize: '13px',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '12px',
                 outline: 'none',
                 fontFamily: 'monospace'
               }}
@@ -577,10 +704,10 @@ const QRCodeComponent = ({ orders = [] }) => {
               type="button"
               onClick={() => handleSaveHost(tempHost)}
               style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
+                padding: '6px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                background: '#10b981',
+                background: '#0f172a',
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '12px',
@@ -593,138 +720,268 @@ const QRCodeComponent = ({ orders = [] }) => {
         )}
       </div>
 
-      {/* Filter and Stats Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '6px 12px', minWidth: '240px' }}>
-          <Search size={15} color="#94a3b8" />
+      {/* Filter and Interactive Stats Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.85rem', background: '#ffffff', padding: '10px 16px', borderRadius: '14px', marginBottom: '1.25rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '240px' }}>
+          <Search size={14} color="#94a3b8" />
           <input 
             type="text"
             placeholder="Search table number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ border: 'none', outline: 'none', fontSize: '13px', width: '100%', color: '#1e293b' }}
+            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '12.5px', width: '100%', color: '#1e293b' }}
           />
+          {searchQuery && (
+            <button type="button" onClick={() => setSearchQuery('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+              <Check size={13} />
+            </button>
+          )}
+          {isRefreshing && (
+            <span style={{ fontSize: '11px', color: '#0f172a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />
+            </span>
+          )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-          <span>Total Tables: <strong style={{ color: '#0f172a' }}>{tables.length}</strong></span>
-          <span>Available: <strong style={{ color: '#10b981' }}>{tables.filter(t => !isTableOccupied(t)).length}</strong></span>
-          <span>Occupied: <strong style={{ color: '#f59e0b' }}>{tables.filter(t => isTableOccupied(t)).length}</strong></span>
+        {/* Quick Filter Pill Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            style={{
+              background: statusFilter === 'all' ? '#e2e8f0' : '#f8fafc',
+              color: '#0f172a',
+              padding: '5px 11px',
+              borderRadius: '8px',
+              border: statusFilter === 'all' ? '1px solid #cbd5e1' : '1px solid #e2e8f0',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            All: <strong style={{ color: '#0f172a' }}>{tables.length}</strong>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('available')}
+            style={{
+              background: statusFilter === 'available' ? '#15803d' : '#f0fdf4',
+              color: statusFilter === 'available' ? '#ffffff' : '#166534',
+              padding: '5px 11px',
+              borderRadius: '8px',
+              border: statusFilter === 'available' ? '1px solid #15803d' : '1px solid #bbf7d0',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Available: <strong style={{ color: statusFilter === 'available' ? '#ffffff' : '#15803d' }}>{tables.filter(t => !isTableOccupied(t)).length}</strong>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('occupied')}
+            style={{
+              background: statusFilter === 'occupied' ? '#b45309' : '#fffbeb',
+              color: statusFilter === 'occupied' ? '#ffffff' : '#92400e',
+              padding: '5px 11px',
+              borderRadius: '8px',
+              border: statusFilter === 'occupied' ? '1px solid #b45309' : '1px solid #fde68a',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Occupied: <strong style={{ color: statusFilter === 'occupied' ? '#ffffff' : '#b45309' }}>{tables.filter(t => isTableOccupied(t)).length}</strong>
+          </button>
         </div>
       </div>
 
-      {/* Grid of Dynamic Table Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-        {filteredTables.map((table) => {
-          const qrUrl = getTableQRUrl(table.tableNumber);
-          const isOccupied = isTableOccupied(table);
-
-          return (
-            <motion.div
-              key={table._id || table.tableNumber}
-              whileHover={{ y: -4, boxShadow: '0 14px 30px -4px rgba(15, 23, 42, 0.09)' }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+      {/* Grid of Dynamic Table Cards / Skeleton Loader */}
+      {loading && tables.length === 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
+          {[1, 2, 3, 4, 5, 6].map((sk) => (
+            <div
+              key={sk}
               style={{
                 background: '#ffffff',
-                borderRadius: '20px',
+                borderRadius: '18px',
                 border: '1px solid #e2e8f0',
-                padding: '1.35rem',
-                boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
+                padding: '1.25rem',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                textAlign: 'center',
-                position: 'relative'
+                opacity: 0.85
               }}
             >
-              {/* Header with Table Badge & Live Status */}
               <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%)',
-                    color: '#4f46e5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: '13px'
-                  }}>
-                    {table.tableNumber}
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
-                      Table {table.tableNumber}
-                    </h4>
-                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                      Dine-in QR
-                    </span>
-                  </div>
-                </div>
-
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  padding: '4px 10px',
-                  borderRadius: '100px',
-                  background: isOccupied ? '#fef3c7' : '#ecfdf5',
-                  color: isOccupied ? '#b45309' : '#059669',
-                  border: isOccupied ? '1px solid #fde68a' : '1px solid #a7f3d0'
-                }}>
-                  <span style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: isOccupied ? '#f59e0b' : '#10b981'
-                  }}></span>
-                  {isOccupied ? 'Occupied' : 'Available'}
-                </span>
+                <div style={{ width: 80, height: 24, borderRadius: 8, background: '#f1f5f9' }} />
+                <div style={{ width: 64, height: 20, borderRadius: 100, background: '#f1f5f9' }} />
               </div>
+              <div style={{ width: 160, height: 160, borderRadius: 14, background: '#f8fafc', border: '1.5px dashed #cbd5e1', marginBottom: '12px' }} />
+              <div style={{ width: '100%', height: 32, borderRadius: 10, background: '#f1f5f9', marginBottom: '10px' }} />
+              <div style={{ width: '100%', height: 38, borderRadius: 10, background: '#e2e8f0' }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
+          {filteredTables.map((table) => {
+            const qrUrl = getTableQRUrl(table.tableNumber);
+            const isOccupied = isTableOccupied(table);
+            const activeOrder = getTableActiveOrder(table);
 
-              {/* QR Code Canvas Frame */}
-              <div style={{
-                width: '100%',
-                background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-                padding: '16px 12px 12px',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                marginBottom: '14px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
-              }}>
-                <div style={{
+            return (
+              <motion.div
+                key={table._id || table.tableNumber}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
                   background: '#ffffff',
-                  padding: '10px',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
-                  display: 'inline-flex'
-                }}>
-                  <QRCodeCanvas
-                    id={`qr-canvas-${table.tableNumber}`}
-                    value={qrUrl}
-                    size={142}
-                    fgColor="#0f172a"
-                    bgColor="#ffffff"
-                    level="H"
-                    includeMargin={false}
-                  />
-                </div>
-                <div style={{
-                  marginTop: '10px',
+                  borderRadius: '18px',
+                  border: isOccupied ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                  padding: '1.25rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 6px 16px -2px rgba(15, 23, 42, 0.03)',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 6,
-                  width: '100%'
-                }}>
+                  textAlign: 'center',
+                  position: 'relative'
+                }}
+              >
+                {/* 1. Header with Table Badge, Live Status & Delete Button */}
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      background: '#f8fafc',
+                      color: '#0f172a',
+                      border: '1px solid #e2e8f0',
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                    }}>
+                      Table {table.tableNumber}
+                    </div>
+
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4.5,
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '100px',
+                      background: isOccupied ? '#fffbeb' : '#f0fdf4',
+                      color: isOccupied ? '#92400e' : '#166534',
+                      border: isOccupied ? '1px solid #fde68a' : '1px solid #bbf7d0'
+                    }}>
+                      <span style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: isOccupied ? '#f59e0b' : '#22c55e'
+                      }}></span>
+                      {isOccupied ? 'Occupied' : 'Available'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setTableToDelete(table)}
+                    title="Delete Table"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '7px',
+                      border: '1px solid #fee2e2',
+                      background: '#fff1f2',
+                      color: '#e11d48',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+
+                {/* Live Order Peek Badge (if table is active) */}
+                {activeOrder && (
+                  <div style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 10px',
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    borderRadius: '8px',
+                    marginBottom: '10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#92400e'
+                  }}>
+                    <span>🍳 {activeOrder.itemCount} items active</span>
+                    <span>₹{activeOrder.totalAmount}</span>
+                  </div>
+                )}
+
+                {/* 2. QR Code Canvas Frame (Clickable for High-Res Full Screen Preview) */}
+                <div
+                  onClick={() => setPreviewTable(table)}
+                  title="Click to preview full-screen QR & print options"
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
+                    padding: '14px 10px 10px',
+                    borderRadius: '14px',
+                    border: '1px solid #f1f5f9',
+                    marginBottom: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#f1f5f9';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={{
+                    background: '#ffffff',
+                    padding: '10px',
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    display: 'inline-flex',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <QRCodeCanvas
+                      id={`qr-canvas-${table.tableNumber}`}
+                      value={qrUrl}
+                      size={140}
+                      fgColor="#0f172a"
+                      bgColor="#ffffff"
+                      level="H"
+                      includeMargin={false}
+                    />
+                  </div>
+                  
                   <span style={{
+                    marginTop: '8px',
                     fontSize: '11px',
                     fontWeight: 600,
                     color: '#64748b',
@@ -732,201 +989,130 @@ const QRCodeComponent = ({ orders = [] }) => {
                     alignItems: 'center',
                     gap: 4
                   }}>
-                    <QrCode size={12} color="#6366f1" /> Scan to view menu & order
+                    <Coffee size={12} color="#64748b" /> Dine-in Menu & Order
                   </span>
+                </div>
 
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '3px 8px',
-                    maxWidth: '100%',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                  }}>
-                    <span style={{
-                      fontSize: '10px',
-                      color: '#475569',
-                      fontFamily: 'monospace',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '150px'
-                    }}>
-                      {qrUrl}
-                    </span>
+                {/* 3. Seating Capacity Stepper Row */}
+                <div style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 10px',
+                  background: '#f8fafc',
+                  borderRadius: '10px',
+                  border: '1px solid #e2e8f0',
+                  marginBottom: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '11.5px', fontWeight: 600, color: '#334155' }}>
+                    <Users size={13} color="#64748b" />
+                    <span>{table.seatingCapacity || 4} Guests</span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(qrUrl);
-                        toast.success(`Copied Table ${table.tableNumber} URL`);
-                      }}
-                      title="Copy QR Link"
+                      onClick={() => handleUpdateCapacity(table, Math.max(1, (table.seatingCapacity || 4) - 1))}
                       style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#4f46e5',
-                        cursor: 'pointer',
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '5px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '2px'
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        color: '#475569',
+                        cursor: 'pointer'
                       }}
+                      title="Decrease seats"
                     >
-                      <Copy size={11} />
+                      -
                     </button>
-                    <a
-                      href={qrUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Open Menu URL"
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) + 1)}
                       style={{
-                        color: '#64748b',
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '5px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '2px'
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        color: '#475569',
+                        cursor: 'pointer'
                       }}
+                      title="Increase seats"
                     >
-                      <ExternalLink size={11} />
-                    </a>
+                      +
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              {/* Seating Capacity Row */}
-              <div style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: '#f8fafc',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                marginBottom: '14px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                  <Users size={14} color="#4f46e5" />
-                  <span>Capacity: <strong style={{ color: '#0f172a' }}>{table.seatingCapacity || 4} Customer</strong></span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) - 1)}
+                {/* 4. Actions Footer */}
+                <div style={{ width: '100%', display: 'flex', gap: 8, marginTop: 'auto' }}>
+                  <a
+                    href={qrUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: '#ffffff',
+                      flex: 1,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '13px',
-                      fontWeight: 800,
-                      color: '#475569',
-                      cursor: 'pointer'
-                    }}
-                    title="Decrease seats"
-                  >
-                    -
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) + 1)}
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
+                      gap: 5,
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
                       background: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '13px',
-                      fontWeight: 800,
-                      color: '#475569',
-                      cursor: 'pointer'
-                    }}
-                    title="Increase seats"
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEditModal(table)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid #c7d2fe',
-                      background: '#eef2ff',
-                      color: '#4f46e5',
-                      fontSize: '11px',
-                      fontWeight: 700,
+                      color: '#1e293b',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      textDecoration: 'none',
                       cursor: 'pointer',
-                      marginLeft: '2px'
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+                      transition: 'all 0.15s ease'
                     }}
-                    title="Edit Seating Capacity"
                   >
-                    <Edit3 size={11} /> Edit
+                    <Eye size={13} color="#475569" /> View
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => downloadTableQR(table.tableNumber)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      background: '#ffffff',
+                      color: '#1e293b',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Download size={13} color="#475569" /> Download
                   </button>
                 </div>
-              </div>
-
-              {/* Actions Footer */}
-              <div style={{ width: '100%', display: 'flex', gap: 8, marginTop: 'auto' }}>
-                <button
-                  type="button"
-                  onClick={() => downloadTableQR(table.tableNumber)}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)'
-                  }}
-                >
-                  <Download size={14} /> Download table-{table.tableNumber}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTableToDelete(table)}
-                  title="Delete Table"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    border: '1px solid #fee2e2',
-                    background: '#fef2f2',
-                    color: '#ef4444',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}  )}
 
       {filteredTables.length === 0 && (
         <div style={{ textAlign: 'center', padding: '3rem', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1rem' }}>
@@ -1032,7 +1218,7 @@ const QRCodeComponent = ({ orders = [] }) => {
                       padding: '10px',
                       borderRadius: '10px',
                       border: 'none',
-                      background: '#4f46e5',
+                      background: '#0f172a',
                       color: '#ffffff',
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -1134,9 +1320,9 @@ const QRCodeComponent = ({ orders = [] }) => {
                         style={{
                           padding: '4px 10px',
                           borderRadius: '6px',
-                          border: editCapacity === String(cap) ? '1px solid #4f46e5' : '1px solid #e2e8f0',
-                          background: editCapacity === String(cap) ? '#eef2ff' : '#f8fafc',
-                          color: editCapacity === String(cap) ? '#4f46e5' : '#475569',
+                          border: editCapacity === String(cap) ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                          background: editCapacity === String(cap) ? '#0f172a' : '#f8fafc',
+                          color: editCapacity === String(cap) ? '#ffffff' : '#475569',
                           fontSize: '11px',
                           fontWeight: 700,
                           cursor: 'pointer'
@@ -1173,7 +1359,7 @@ const QRCodeComponent = ({ orders = [] }) => {
                       padding: '10px',
                       borderRadius: '10px',
                       border: 'none',
-                      background: '#4f46e5',
+                      background: '#0f172a',
                       color: '#ffffff',
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -1269,9 +1455,9 @@ const QRCodeComponent = ({ orders = [] }) => {
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #c7d2fe',
-                      background: '#eef2ff',
-                      color: '#4f46e5',
+                      border: '1px solid #e2e8f0',
+                      background: '#0f172a',
+                      color: '#ffffff',
                       fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -1354,7 +1540,7 @@ const QRCodeComponent = ({ orders = [] }) => {
                     padding: '10px',
                     borderRadius: '10px',
                     border: 'none',
-                    background: '#4f46e5',
+                    background: '#0f172a',
                     color: '#ffffff',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -1460,6 +1646,208 @@ const QRCodeComponent = ({ orders = [] }) => {
                 >
                   {isDeleting ? 'Deleting...' : 'Yes, Delete'}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CLICK-TO-ENLARGE HIGH-RES QR MODAL */}
+      <AnimatePresence>
+        {previewTable && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }} onClick={() => setPreviewTable(null)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '1.75rem',
+                width: '100%',
+                maxWidth: '440px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                textAlign: 'center',
+                position: 'relative'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setPreviewTable(null)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  border: 'none',
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+              </button>
+
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '6px 14px', borderRadius: '100px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>Table {previewTable.tableNumber}</span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>• {previewTable.seatingCapacity || 4} Guests</span>
+              </div>
+
+              {/* Large QR Display */}
+              <div style={{
+                background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
+                padding: '20px',
+                borderRadius: '16px',
+                border: '1px solid #f1f5f9',
+                display: 'inline-flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                marginBottom: '1.25rem'
+              }}>
+                <div style={{
+                  background: '#ffffff',
+                  padding: '12px',
+                  borderRadius: '14px',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <QRCodeCanvas
+                    value={getTableQRUrl(previewTable.tableNumber)}
+                    size={220}
+                    fgColor="#0f172a"
+                    bgColor="#ffffff"
+                    level="H"
+                    includeMargin={false}
+                  />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginTop: '10px' }}>
+                  Scan to preview menu on your smartphone
+                </span>
+              </div>
+
+              {/* Target URL with Copy Button */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: '1.25rem' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={getTableQRUrl(previewTable.tableNumber)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    fontSize: '11.5px',
+                    color: '#475569',
+                    fontFamily: 'monospace'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(getTableQRUrl(previewTable.tableNumber));
+                    toast.success(`Copied Table ${previewTable.tableNumber} URL`);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <Copy size={13} /> Copy
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => printTableStands([previewTable])}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    padding: '9px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#1e293b',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Printer size={13} /> Standee
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => downloadTableQR(previewTable.tableNumber)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    padding: '9px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#1e293b',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Download size={13} /> Download
+                </button>
+
+                <a
+                  href={getTableQRUrl(previewTable.tableNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    padding: '9px 12px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Eye size={13} /> Open View
+                </a>
               </div>
             </motion.div>
           </div>

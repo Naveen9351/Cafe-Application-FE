@@ -325,6 +325,8 @@ export default function AdminPanel() {
   ]);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [chartMetricTab, setChartMetricTab] = useState('revenue'); // 'revenue' or 'orders'
+  const [chartDisplayType, setChartDisplayType] = useState('area'); // 'area' | 'bar'
+  const [hoveredDataPoint, setHoveredDataPoint] = useState(null);
 
   // Clock ticker for live relative time
   useEffect(() => {
@@ -332,7 +334,7 @@ export default function AdminPanel() {
     return () => clearInterval(timer);
   }, []);
 
-  // Dynamic Metric Calculations based on real filtered orders & real time buckets
+  // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
     const grossSales = orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
     const totalOrdersCount = orders.length;
@@ -342,38 +344,180 @@ export default function AdminPanel() {
     const completedOrders = orders.filter(o => o.status === 'completed');
     const cancelledOrders = orders.filter(o => o.status === 'cancelled');
 
-    // 6 Dynamic Time Buckets for Velocity Telemetry
-    const timeBuckets = [
-      { label: '08:00 AM', startH: 0, endH: 9, revenue: 0, orders: 0 },
-      { label: '11:00 AM', startH: 10, endH: 12, revenue: 0, orders: 0 },
-      { label: '02:00 PM', startH: 13, endH: 15, revenue: 0, orders: 0 },
-      { label: '05:00 PM', startH: 16, endH: 18, revenue: 0, orders: 0 },
-      { label: '08:00 PM', startH: 19, endH: 21, revenue: 0, orders: 0 },
-      { label: '11:00 PM', startH: 22, endH: 23, revenue: 0, orders: 0 }
-    ];
+    // Dynamic Time Buckets driven directly by global dashboard dateRange filter
+    let timeBuckets = [];
 
-    orders.forEach(o => {
-      const d = o.createdAt ? new Date(o.createdAt) : new Date();
-      const hour = d.getHours();
-      const amt = Number(o.total || o.totalAmount) || 0;
-      const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
-      b.revenue += amt;
-      b.orders += 1;
-    });
+    if (dateRange === 'this_week') {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      // Create buckets for each of the last 7 days ending today
+      const now = new Date();
+      timeBuckets = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(now.getDate() - (6 - i));
+        const dayName = days[d.getDay()];
+        const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+        return {
+          label: `${dayName} (${dateStr})`,
+          shortLabel: dayName,
+          dateKey: d.toDateString(),
+          revenue: 0,
+          orders: 0
+        };
+      });
+
+      orders.forEach(o => {
+        const d = o.createdAt ? new Date(o.createdAt) : new Date();
+        const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
+        if (b) {
+          b.revenue += Number(o.total || o.totalAmount) || 0;
+          b.orders += 1;
+        }
+      });
+    } else if (dateRange === 'this_month') {
+      timeBuckets = [
+        { label: 'Week 1 (1-7)', shortLabel: 'W1', startD: 1, endD: 7, revenue: 0, orders: 0 },
+        { label: 'Week 2 (8-14)', shortLabel: 'W2', startD: 8, endD: 14, revenue: 0, orders: 0 },
+        { label: 'Week 3 (15-21)', shortLabel: 'W3', startD: 15, endD: 21, revenue: 0, orders: 0 },
+        { label: 'Week 4 (22-31)', shortLabel: 'W4', startD: 22, endD: 31, revenue: 0, orders: 0 }
+      ];
+
+      orders.forEach(o => {
+        const d = o.createdAt ? new Date(o.createdAt) : new Date();
+        const dateNum = d.getDate();
+        const b = timeBuckets.find(bucket => dateNum >= bucket.startD && dateNum <= bucket.endD) || timeBuckets[timeBuckets.length - 1];
+        b.revenue += Number(o.total || o.totalAmount) || 0;
+        b.orders += 1;
+      });
+    } else if (dateRange === 'all') {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const now = new Date();
+      timeBuckets = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        return {
+          label: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
+          shortLabel: monthNames[d.getMonth()],
+          year: d.getFullYear(),
+          month: d.getMonth(),
+          revenue: 0,
+          orders: 0
+        };
+      });
+
+      orders.forEach(o => {
+        const d = o.createdAt ? new Date(o.createdAt) : new Date();
+        const b = timeBuckets.find(bucket => bucket.year === d.getFullYear() && bucket.month === d.getMonth());
+        if (b) {
+          b.revenue += Number(o.total || o.totalAmount) || 0;
+          b.orders += 1;
+        }
+      });
+    } else if (dateRange === 'custom') {
+      if (customStartDate && customEndDate && customStartDate === customEndDate) {
+        timeBuckets = [
+          { label: '12:00 AM - 04:00 AM', shortLabel: '12:00 AM', startH: 0, endH: 3, revenue: 0, orders: 0 },
+          { label: '04:00 AM - 08:00 AM', shortLabel: '04:00 AM', startH: 4, endH: 7, revenue: 0, orders: 0 },
+          { label: '08:00 AM - 12:00 PM', shortLabel: '08:00 AM', startH: 8, endH: 11, revenue: 0, orders: 0 },
+          { label: '12:00 PM - 04:00 PM', shortLabel: '12:00 PM', startH: 12, endH: 15, revenue: 0, orders: 0 },
+          { label: '04:00 PM - 08:00 PM', shortLabel: '04:00 PM', startH: 16, endH: 19, revenue: 0, orders: 0 },
+          { label: '08:00 PM - 11:59 PM', shortLabel: '08:00 PM', startH: 20, endH: 23, revenue: 0, orders: 0 }
+        ];
+
+        orders.forEach(o => {
+          const d = o.createdAt ? new Date(o.createdAt) : new Date();
+          const hour = d.getHours();
+          const amt = Number(o.total || o.totalAmount) || 0;
+          const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
+          b.revenue += amt;
+          b.orders += 1;
+        });
+      } else {
+        const s = customStartDate ? new Date(customStartDate) : new Date();
+        const e = customEndDate ? new Date(customEndDate) : new Date();
+        const diffDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+        if (diffDays <= 7) {
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          timeBuckets = Array.from({ length: diffDays }, (_, i) => {
+            const d = new Date(s);
+            d.setDate(s.getDate() + i);
+            const dayName = days[d.getDay()];
+            const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+            return {
+              label: `${dayName} (${dateStr})`,
+              shortLabel: `${d.getDate()}/${d.getMonth() + 1}`,
+              dateKey: d.toDateString(),
+              revenue: 0,
+              orders: 0
+            };
+          });
+
+          orders.forEach(o => {
+            const d = o.createdAt ? new Date(o.createdAt) : new Date();
+            const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
+            if (b) {
+              b.revenue += Number(o.total || o.totalAmount) || 0;
+              b.orders += 1;
+            }
+          });
+        } else {
+          timeBuckets = [
+            { label: 'Period 1', shortLabel: 'P1', fraction: 0.25, revenue: 0, orders: 0 },
+            { label: 'Period 2', shortLabel: 'P2', fraction: 0.5, revenue: 0, orders: 0 },
+            { label: 'Period 3', shortLabel: 'P3', fraction: 0.75, revenue: 0, orders: 0 },
+            { label: 'Period 4', shortLabel: 'P4', fraction: 1.0, revenue: 0, orders: 0 }
+          ];
+          const totalSpan = Math.max(1, e.getTime() - s.getTime());
+          orders.forEach(o => {
+            const d = o.createdAt ? new Date(o.createdAt) : new Date();
+            const progress = (d.getTime() - s.getTime()) / totalSpan;
+            const bIndex = Math.min(3, Math.max(0, Math.floor(progress * 4)));
+            timeBuckets[bIndex].revenue += Number(o.total || o.totalAmount) || 0;
+            timeBuckets[bIndex].orders += 1;
+          });
+        }
+      }
+    } else {
+      // Default: 'today' - 24-Hour Breakdown starting from 12:00 AM (Midnight)
+      timeBuckets = [
+        { label: '12:00 AM - 04:00 AM', shortLabel: '12:00 AM', startH: 0, endH: 3, revenue: 0, orders: 0 },
+        { label: '04:00 AM - 08:00 AM', shortLabel: '04:00 AM', startH: 4, endH: 7, revenue: 0, orders: 0 },
+        { label: '08:00 AM - 12:00 PM', shortLabel: '08:00 AM', startH: 8, endH: 11, revenue: 0, orders: 0 },
+        { label: '12:00 PM - 04:00 PM', shortLabel: '12:00 PM', startH: 12, endH: 15, revenue: 0, orders: 0 },
+        { label: '04:00 PM - 08:00 PM', shortLabel: '04:00 PM', startH: 16, endH: 19, revenue: 0, orders: 0 },
+        { label: '08:00 PM - 11:59 PM', shortLabel: '08:00 PM', startH: 20, endH: 23, revenue: 0, orders: 0 }
+      ];
+
+      orders.forEach(o => {
+        const d = o.createdAt ? new Date(o.createdAt) : new Date();
+        const hour = d.getHours();
+        const amt = Number(o.total || o.totalAmount) || 0;
+        const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
+        b.revenue += amt;
+        b.orders += 1;
+      });
+    }
 
     const maxBucketRev = Math.max(1, ...timeBuckets.map(b => b.revenue));
     const maxBucketOrd = Math.max(1, ...timeBuckets.map(b => b.orders));
 
+    // Peak rush computation
+    const peakBucket = [...timeBuckets].sort((a, b) => b.revenue - a.revenue)[0];
+    const peakInsight = peakBucket && peakBucket.revenue > 0
+      ? `🔥 Peak Rush: ${peakBucket.shortLabel} (₹${peakBucket.revenue.toLocaleString('en-IN')} • ${peakBucket.orders} orders)`
+      : null;
+
     // Dynamic telemetry SVG points for 700x185 canvas
-    const xCoords = [30, 150, 270, 390, 510, 670];
+    const bucketCount = timeBuckets.length;
+    const xCoords = timeBuckets.map((_, idx) => Math.round(30 + idx * ((700 - 60) / Math.max(1, bucketCount - 1))));
+    
     const revPoints = timeBuckets.map((b, idx) => {
       const y = grossSales > 0 ? Math.round(155 - (b.revenue / maxBucketRev) * 115) : 155;
-      return { x: xCoords[idx], y, val: b.revenue };
+      return { x: xCoords[idx], y, val: b.revenue, orders: b.orders, label: b.label, shortLabel: b.shortLabel };
     });
 
     const ordPoints = timeBuckets.map((b, idx) => {
       const y = totalOrdersCount > 0 ? Math.round(155 - (b.orders / maxBucketOrd) * 115) : 155;
-      return { x: xCoords[idx], y, val: b.orders };
+      return { x: xCoords[idx], y, val: b.orders, revenue: b.revenue, label: b.label, shortLabel: b.shortLabel };
     });
 
     // Helper to generate SVG smooth path from points
@@ -390,10 +534,10 @@ export default function AdminPanel() {
     };
 
     const revPath = makeSvgPath(revPoints);
-    const revAreaPath = `${revPath} L 670,170 L 30,170 Z`;
+    const revAreaPath = `${revPath} L ${xCoords[xCoords.length - 1]},170 L ${xCoords[0]},170 Z`;
 
     const ordPath = makeSvgPath(ordPoints);
-    const ordAreaPath = `${ordPath} L 670,170 L 30,170 Z`;
+    const ordAreaPath = `${ordPath} L ${xCoords[xCoords.length - 1]},170 L ${xCoords[0]},170 Z`;
 
     // Dynamic Mini Sparklines for KPI Cards (viewBox 0 0 80 26)
     const makeMiniSparkline = (vals, color) => {
@@ -484,14 +628,12 @@ export default function AdminPanel() {
       ordPath,
       ordAreaPath,
       revSparkline,
-      profitSparkline,
-      ticketSparkline,
-      orderSparkline,
       topItemName,
       topSellingItems,
-      catList
+      catList,
+      peakInsight
     };
-  }, [orders, items]);
+  }, [orders, items, dateRange, customStartDate, customEndDate]);
 
   // Drawer Handlers
   const handleOpenAddDrawer = () => {
@@ -1462,31 +1604,102 @@ export default function AdminPanel() {
                 {/* 6. MIDDLE SPLIT: HIGH-TECH REVENUE CHART + LIVE ORDERS FEED */}
                 <div className={styles.dashSplitGridModern}>
                   {/* Left: High-Tech Dynamic Chart Panel */}
-                  <div className={styles.chartPanelCardModern}>
+                  <div className={styles.chartPanelCardModern} style={{ position: 'relative' }}>
+                    {/* Top Bar with Title, Insight Chip & Controls */}
                     <div className={styles.chartTopBar}>
                       <div className={styles.chartTitleWrap}>
-                        <h3>Revenue Velocity & Volume Telemetry</h3>
-                        <p>Real-time hourly breakdown across {dateRange.replace('_', ' ')}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <h3 style={{ margin: 0 }}>Revenue Velocity & Telemetry</h3>
+                          {metrics.peakInsight && (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '2px 9px',
+                              borderRadius: '100px',
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              border: '1px solid #d1fae5',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4
+                            }}>
+                              {metrics.peakInsight}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ margin: '3px 0 0 0' }}>
+                          {dateRange === 'today' ? 'Real-time hourly telemetry for today' :
+                           dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
+                           dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
+                           dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
+                           `Custom range telemetry (${customStartDate || ''} to ${customEndDate || ''})`}
+                        </p>
                       </div>
 
-                      <div className={styles.chartModeSwitch}>
-                        <button
-                          type="button"
-                          className={`${styles.chartModeBtn} ${chartMetricTab === 'revenue' ? styles.chartModeBtnActive : ''}`}
-                          onClick={() => setChartMetricTab('revenue')}
-                        >
-                          Revenue (₹)
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.chartModeBtn} ${chartMetricTab === 'orders' ? styles.chartModeBtnActive : ''}`}
-                          onClick={() => setChartMetricTab('orders')}
-                        >
-                          Orders (#)
-                        </button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Chart Style Toggle (Line vs Bars) */}
+                        <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: 2, border: '1px solid #e2e8f0' }}>
+                          <button
+                            type="button"
+                            onClick={() => setChartDisplayType('area')}
+                            title="Spline Line Chart"
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: chartDisplayType === 'area' ? '#ffffff' : 'transparent',
+                              color: chartDisplayType === 'area' ? '#4f46e5' : '#64748b',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: chartDisplayType === 'area' ? '0 1px 3px rgba(79, 70, 229, 0.08)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Line
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setChartDisplayType('bar')}
+                            title="Column Bar Chart"
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: chartDisplayType === 'bar' ? '#ffffff' : 'transparent',
+                              color: chartDisplayType === 'bar' ? '#4f46e5' : '#64748b',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: chartDisplayType === 'bar' ? '0 1px 3px rgba(79, 70, 229, 0.08)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Bars
+                          </button>
+                        </div>
+
+                        {/* Metric Mode Switcher (Revenue vs Orders) */}
+                        <div className={styles.chartModeSwitch} style={{ border: '1px solid #e2e8f0' }}>
+                          <button
+                            type="button"
+                            className={`${styles.chartModeBtn} ${chartMetricTab === 'revenue' ? styles.chartModeBtnActive : ''}`}
+                            onClick={() => setChartMetricTab('revenue')}
+                          >
+                            Revenue (₹)
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.chartModeBtn} ${chartMetricTab === 'orders' ? styles.chartModeBtnActive : ''}`}
+                            onClick={() => setChartMetricTab('orders')}
+                          >
+                            Orders (#)
+                          </button>
+                        </div>
                       </div>
                     </div>
 
+                    {/* Chart Box with Floating Tooltip and SVG Engine */}
                     <div className={styles.chartCanvasBox} style={{ position: 'relative' }}>
                       {isFilterLoading && (
                         <div style={{
@@ -1504,20 +1717,86 @@ export default function AdminPanel() {
                         }}>
                           <Loader size={26} className={styles.spinIcon} color="#4f46e5" />
                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
-                            Loading {dateRange.replace('_', ' ')} Telemetry...
+                            Loading Telemetry...
                           </span>
                         </div>
                       )}
-                      <svg className={styles.svgHighTech} viewBox="0 0 700 185" preserveAspectRatio="none">
+
+                      {/* Floating Interactive Tooltip on Hover */}
+                      {hoveredDataPoint && (
+                        <div style={{
+                          position: 'absolute',
+                          left: `${Math.min(80, Math.max(10, (hoveredDataPoint.x / 700) * 100))}%`,
+                          top: `${Math.max(10, (hoveredDataPoint.y / 185) * 100 - 35)}%`,
+                          transform: 'translate(-50%, -100%)',
+                          background: '#0f172a',
+                          color: '#ffffff',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          pointerEvents: 'none',
+                          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                          zIndex: 20,
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <div style={{ color: '#94a3b8', fontSize: '10px', marginBottom: 2 }}>{hoveredDataPoint.label}</div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <span style={{ color: '#38bdf8', fontWeight: 800 }}>₹{hoveredDataPoint.revenue ? hoveredDataPoint.revenue.toLocaleString('en-IN') : (hoveredDataPoint.val || 0).toLocaleString('en-IN')}</span>
+                            <span>•</span>
+                            <span style={{ color: '#4ade80' }}>{hoveredDataPoint.orders !== undefined ? hoveredDataPoint.orders : hoveredDataPoint.val} Orders</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Empty Zero Sales State Banner */}
+                      {metrics.grossSales === 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '38%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          background: 'rgba(255, 255, 255, 0.95)',
+                          border: '1px solid #e2e8f0',
+                          padding: '6px 16px',
+                          borderRadius: '100px',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          color: '#64748b',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          pointerEvents: 'none'
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                          Live Telemetry Ready • Graph streams with first order
+                        </div>
+                      )}
+
+                      <svg
+                        className={styles.svgHighTech}
+                        viewBox="0 0 700 185"
+                        preserveAspectRatio="none"
+                        onMouseLeave={() => setHoveredDataPoint(null)}
+                      >
                         <defs>
                           <linearGradient id="glowRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.32" />
-                            <stop offset="60%" stopColor="#6366f1" stopOpacity="0.08" />
+                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                            <stop offset="60%" stopColor="#6366f1" stopOpacity="0.06" />
                             <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
                           </linearGradient>
                           <linearGradient id="glowOrderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.28" />
+                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
                             <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                          </linearGradient>
+                          <linearGradient id="barRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#3b82f6" />
+                            <stop offset="100%" stopColor="#6366f1" />
+                          </linearGradient>
+                          <linearGradient id="barOrderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#34d399" />
+                            <stop offset="100%" stopColor="#059669" />
                           </linearGradient>
                         </defs>
                         
@@ -1525,66 +1804,148 @@ export default function AdminPanel() {
                         <line x1="0" y1="35" x2="700" y2="35" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
                         <line x1="0" y1="75" x2="700" y2="75" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
                         <line x1="0" y1="115" x2="700" y2="115" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="0" y1="155" x2="700" y2="155" stroke="#f1f5f9" strokeWidth="1" />
+                        <line x1="0" y1="155" x2="700" y2="155" stroke="#e2e8f0" strokeWidth="1.2" strokeDasharray={metrics.grossSales === 0 ? "4 4" : "none"} />
 
-                        {chartMetricTab === 'revenue' ? (
-                          <>
-                            {/* Dynamic Revenue Gradient Fill Area */}
-                            <path
-                              d={metrics.revAreaPath}
-                              fill="url(#glowRevGrad)"
-                            />
-                            {/* Dynamic Revenue Main Curve */}
-                            <path
-                              d={metrics.revPath}
-                              fill="none"
-                              stroke="#4f46e5"
-                              strokeWidth="3.5"
-                              strokeLinecap="round"
-                            />
-                            {/* Peak Glowing Nodes */}
-                            {metrics.revPoints?.map((pt, i) => (
-                              <g key={i}>
-                                <circle cx={pt.x} cy={pt.y} r={pt.val > 0 ? 5 : 3} fill="#4f46e5" stroke="#ffffff" strokeWidth="2" />
+                        {/* BAR COLUMNS MODE */}
+                        {chartDisplayType === 'bar' ? (
+                          (chartMetricTab === 'revenue' ? metrics.revPoints : metrics.ordPoints)?.map((pt, i) => {
+                            const barWidth = Math.min(38, 700 / (metrics.timeBuckets.length * 2.2));
+                            const barHeight = Math.max(4, 155 - pt.y);
+                            const isHovered = hoveredDataPoint && hoveredDataPoint.label === pt.label;
+                            
+                            return (
+                              <g
+                                key={i}
+                                style={{ cursor: 'pointer' }}
+                                onMouseEnter={() => setHoveredDataPoint({
+                                  ...pt,
+                                  revenue: chartMetricTab === 'revenue' ? pt.val : pt.revenue,
+                                  orders: chartMetricTab === 'orders' ? pt.val : pt.orders
+                                })}
+                              >
+                                <rect
+                                  x={pt.x - barWidth / 2}
+                                  y={pt.y}
+                                  width={barWidth}
+                                  height={barHeight}
+                                  rx="5"
+                                  fill={pt.val > 0 ? (chartMetricTab === 'revenue' ? 'url(#barRevGrad)' : 'url(#barOrderGrad)') : '#f1f5f9'}
+                                  opacity={isHovered ? 1 : 0.88}
+                                  style={{ transition: 'all 0.2s ease' }}
+                                />
+                                {pt.val > 0 && (
+                                  <text
+                                    x={pt.x}
+                                    y={pt.y - 6}
+                                    textAnchor="middle"
+                                    fontSize="10"
+                                    fontWeight="700"
+                                    fill="#475569"
+                                  >
+                                    {chartMetricTab === 'revenue' ? `₹${pt.val}` : pt.val}
+                                  </text>
+                                )}
                               </g>
-                            ))}
-                          </>
+                            );
+                          })
                         ) : (
-                          <>
-                            {/* Dynamic Orders Gradient Fill Area */}
-                            <path
-                              d={metrics.ordAreaPath}
-                              fill="url(#glowOrderGrad)"
-                            />
-                            {/* Dynamic Orders Main Curve */}
-                            <path
-                              d={metrics.ordPath}
-                              fill="none"
-                              stroke="#10b981"
-                              strokeWidth="3.5"
-                              strokeLinecap="round"
-                            />
-                            {/* Peak Glowing Nodes */}
-                            {metrics.ordPoints?.map((pt, i) => (
-                              <g key={i}>
-                                <circle cx={pt.x} cy={pt.y} r={pt.val > 0 ? 5 : 3} fill="#059669" stroke="#ffffff" strokeWidth="2" />
-                              </g>
-                            ))}
-                          </>
+                          /* AREA SPLINE MODE */
+                          chartMetricTab === 'revenue' ? (
+                            <>
+                              <path
+                                d={metrics.revAreaPath}
+                                fill="url(#glowRevGrad)"
+                              />
+                              <path
+                                d={metrics.revPath}
+                                fill="none"
+                                stroke="#3b82f6"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                              />
+                              {metrics.revPoints?.map((pt, i) => (
+                                <g
+                                  key={i}
+                                  style={{ cursor: 'pointer' }}
+                                  onMouseEnter={() => setHoveredDataPoint({
+                                    ...pt,
+                                    revenue: pt.val,
+                                    orders: pt.orders
+                                  })}
+                                >
+                                  <circle
+                                    cx={pt.x}
+                                    cy={pt.y}
+                                    r={hoveredDataPoint?.label === pt.label ? 7 : (pt.val > 0 ? 5 : 3.5)}
+                                    fill="#3b82f6"
+                                    stroke="#ffffff"
+                                    strokeWidth="2.5"
+                                    style={{ transition: 'all 0.15s ease' }}
+                                  />
+                                </g>
+                              ))}
+                            </>
+                          ) : (
+                            <>
+                              <path
+                                d={metrics.ordAreaPath}
+                                fill="url(#glowOrderGrad)"
+                              />
+                              <path
+                                d={metrics.ordPath}
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                              />
+                              {metrics.ordPoints?.map((pt, i) => (
+                                <g
+                                  key={i}
+                                  style={{ cursor: 'pointer' }}
+                                  onMouseEnter={() => setHoveredDataPoint({
+                                    ...pt,
+                                    revenue: pt.revenue,
+                                    orders: pt.val
+                                  })}
+                                >
+                                  <circle
+                                    cx={pt.x}
+                                    cy={pt.y}
+                                    r={hoveredDataPoint?.label === pt.label ? 7 : (pt.val > 0 ? 5 : 3.5)}
+                                    fill="#10b981"
+                                    stroke="#ffffff"
+                                    strokeWidth="2.5"
+                                    style={{ transition: 'all 0.15s ease' }}
+                                  />
+                                </g>
+                              ))}
+                            </>
+                          )
                         )}
                       </svg>
 
+                      {/* Dynamic Bottom Time/Date Axis */}
                       <div className={styles.chartBottomAxis}>
-                        <span>08:00 AM</span>
-                        <span>11:00 AM</span>
-                        <span>02:00 PM</span>
-                        <span>05:00 PM</span>
-                        <span>08:00 PM</span>
-                        <span>11:00 PM</span>
-                        <strong>Live</strong>
+                        {metrics.timeBuckets?.map((b, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              fontWeight: hoveredDataPoint?.label === b.label ? 800 : 600,
+                              color: hoveredDataPoint?.label === b.label ? '#0f172a' : '#64748b',
+                              cursor: 'pointer'
+                            }}
+                            onMouseEnter={() => {
+                              const pt = (chartMetricTab === 'revenue' ? metrics.revPoints : metrics.ordPoints)[idx];
+                              if (pt) setHoveredDataPoint({ ...pt, revenue: pt.val || pt.revenue, orders: pt.orders || pt.val });
+                            }}
+                          >
+                            {b.shortLabel}
+                          </span>
+                        ))}
                       </div>
                     </div>
 
+                    {/* Bottom Summary Metric Bar */}
                     <div className={styles.chartSummaryFooter}>
                       <div className={styles.summaryStatItem}>
                         <span className={styles.summaryStatLabel}>Gross Sales</span>
@@ -1605,12 +1966,14 @@ export default function AdminPanel() {
                         </span>
                       </div>
                       <div className={styles.summaryStatItem}>
-                        <span className={styles.summaryStatLabel}>Operating Efficiency</span>
-                        <span className={styles.summaryStatVal} style={{ color: '#059669' }}>
+                        <span className={styles.summaryStatLabel}>Rush Intensity</span>
+                        <span className={styles.summaryStatVal} style={{ color: metrics.activeOrders.length > 0 ? '#b45309' : '#059669' }}>
                           {isFilterLoading ? (
                             <Loader size={14} className={styles.spinIcon} color="#059669" />
+                          ) : metrics.activeOrders.length > 0 ? (
+                            `${metrics.activeOrders.length} Active Table(s)`
                           ) : (
-                            `${metrics.totalOrdersCount > 0 ? Math.round(((metrics.totalOrdersCount - (metrics.cancelledOrders?.length || 0)) / metrics.totalOrdersCount) * 100) : 100}% Optimal`
+                            'Optimal'
                           )}
                         </span>
                       </div>
@@ -1813,6 +2176,7 @@ export default function AdminPanel() {
                         {previewTables.map((tbl) => {
                           const activeOrder = getActiveOrderForTable(tbl);
                           const isOccupied = !!activeOrder;
+                          const isServed = isOccupied && (activeOrder.status === 'ready' || activeOrder.status === 'served');
                           const elapsedMins = activeOrder?.createdAt
                             ? Math.max(1, Math.round((new Date() - new Date(activeOrder.createdAt)) / 60000))
                             : 5;
@@ -1831,9 +2195,9 @@ export default function AdminPanel() {
                                 minHeight: '100px',
                                 padding: '10px 12px',
                                 borderRadius: '12px',
-                                border: isOccupied ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+                                border: !isOccupied ? '1px solid #e2e8f0' : isServed ? '1.5px solid #10b981' : '1.5px solid #f59e0b',
                                 background: '#ffffff',
-                                boxShadow: isOccupied ? '0 3px 12px rgba(245, 158, 11, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)',
+                                boxShadow: isOccupied ? (isServed ? '0 3px 12px rgba(16, 185, 129, 0.12)' : '0 3px 12px rgba(245, 158, 11, 0.12)') : '0 1px 3px rgba(0,0,0,0.02)',
                                 overflow: 'hidden'
                               }}
                             >
@@ -1844,7 +2208,7 @@ export default function AdminPanel() {
                                   left: 0,
                                   right: 0,
                                   height: '3px',
-                                  background: 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                                  background: isServed ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #f59e0b, #ef4444)'
                                 }} />
                               )}
 
@@ -1862,9 +2226,9 @@ export default function AdminPanel() {
                                   <span
                                     className={styles.tableTileStatus}
                                     style={{
-                                      color: isOccupied ? '#b45309' : '#047857',
-                                      background: isOccupied ? '#fef3c7' : '#ecfdf5',
-                                      border: isOccupied ? '1px solid #fde68a' : '1px solid #a7f3d0',
+                                      color: !isOccupied ? '#047857' : isServed ? '#15803d' : '#b45309',
+                                      background: !isOccupied ? '#ecfdf5' : isServed ? '#f0fdf4' : '#fef3c7',
+                                      border: !isOccupied ? '1px solid #a7f3d0' : isServed ? '1px solid #bbf7d0' : '1px solid #fde68a',
                                       padding: '2px 6px',
                                       borderRadius: '100px',
                                       fontSize: '9.5px',
@@ -1874,8 +2238,8 @@ export default function AdminPanel() {
                                       gap: 3
                                     }}
                                   >
-                                    <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: isOccupied ? '#f59e0b' : '#10b981' }} />
-                                    {isOccupied ? `⚡ Due (${elapsedMins}m)` : 'Free'}
+                                    <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: !isOccupied ? '#10b981' : isServed ? '#22c55e' : '#f59e0b' }} />
+                                    {!isOccupied ? 'Free' : isServed ? 'Served' : 'Occupied'}
                                   </span>
                                 </div>
 
@@ -1886,8 +2250,8 @@ export default function AdminPanel() {
                                         <strong style={{ color: '#0f172a', fontSize: '13px', fontWeight: 900 }}>
                                           ₹{orderTotal}
                                         </strong>
-                                        <span style={{ fontSize: '9.5px', color: '#d97706', fontWeight: 800, textTransform: 'capitalize', background: '#fef3c7', padding: '1px 4px', borderRadius: '3px' }}>
-                                          {activeOrder.status}
+                                        <span style={{ fontSize: '9.5px', color: isServed ? '#047857' : '#d97706', fontWeight: 800, textTransform: 'capitalize', background: isServed ? '#ecfdf5' : '#fef3c7', padding: '1px 4px', borderRadius: '3px' }}>
+                                          {activeOrder.status === 'ready' ? 'Served' : activeOrder.status}
                                         </span>
                                       </div>
                                       <div style={{ fontSize: '10.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1908,54 +2272,105 @@ export default function AdminPanel() {
                               {/* Card Action Bar */}
                               <div style={{ display: 'flex', gap: 4, marginTop: '6px', paddingTop: '5px', borderTop: '1px solid #f1f5f9' }}>
                                 {isOccupied ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedTableModal({ table: tbl, activeOrder });
-                                      }}
-                                      style={{
-                                        padding: '4px 6px',
-                                        borderRadius: '6px',
-                                        border: '1px solid #cbd5e1',
-                                        background: '#ffffff',
-                                        color: '#334155',
-                                        fontSize: '10px',
-                                        fontWeight: 700,
-                                        cursor: 'pointer'
-                                      }}
-                                      title="View Bill Details"
-                                    >
-                                      👁️
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSettleTable(tbl.tableNumber);
-                                      }}
-                                      style={{
-                                        flex: 1,
-                                        padding: '4px 8px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                                        color: '#ffffff',
-                                        fontSize: '10.5px',
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 3,
-                                        boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
-                                      }}
-                                      title="Settle & Free Table"
-                                    >
-                                      <CreditCard size={10} /> Settle (₹{orderTotal})
-                                    </button>
-                                  </>
+                                  isServed ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedTableModal({ table: tbl, activeOrder });
+                                        }}
+                                        style={{
+                                          padding: '4px 6px',
+                                          borderRadius: '6px',
+                                          border: '1px solid #cbd5e1',
+                                          background: '#ffffff',
+                                          color: '#334155',
+                                          fontSize: '10px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer'
+                                        }}
+                                        title="View Bill Details"
+                                      >
+                                        👁️
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSettleTable(tbl.tableNumber);
+                                        }}
+                                        style={{
+                                          flex: 1,
+                                          padding: '4px 8px',
+                                          borderRadius: '6px',
+                                          border: 'none',
+                                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                                          color: '#ffffff',
+                                          fontSize: '10.5px',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: 3,
+                                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
+                                        }}
+                                        title="Settle & Free Table"
+                                      >
+                                        <CreditCard size={10} /> Settle (₹{orderTotal})
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedTableModal({ table: tbl, activeOrder });
+                                        }}
+                                        style={{
+                                          padding: '4px 6px',
+                                          borderRadius: '6px',
+                                          border: '1px solid #cbd5e1',
+                                          background: '#ffffff',
+                                          color: '#334155',
+                                          fontSize: '10px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer'
+                                        }}
+                                        title="View Details"
+                                      >
+                                        👁️
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveTab('pos');
+                                          toast.success(`Opened POS for Table ${tbl.tableNumber}`);
+                                        }}
+                                        style={{
+                                          flex: 1,
+                                          padding: '4px 8px',
+                                          borderRadius: '6px',
+                                          border: '1px solid #cbd5e1',
+                                          background: '#ffffff',
+                                          color: '#334155',
+                                          fontSize: '10.5px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: 3
+                                        }}
+                                        title="Manage in POS"
+                                      >
+                                        <Plus size={10} /> POS / Add
+                                      </button>
+                                    </>
+                                  )
                                 ) : (
                                   <button
                                     type="button"
@@ -2216,25 +2631,48 @@ export default function AdminPanel() {
                           >
                             🖨️ Print Bill
                           </button>
-                          <button
-                            type="button"
-                            disabled={isSettlingTable}
-                            onClick={() => handleSettleTable(selectedTableModal.table?.tableNumber)}
-                            style={{
-                              flex: 1.4,
-                              padding: '11px',
-                              borderRadius: '10px',
-                              border: 'none',
-                              background: '#10b981',
-                              color: '#ffffff',
-                              fontWeight: 800,
-                              fontSize: '13px',
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                            }}
-                          >
-                            {isSettlingTable ? 'Settling...' : '✓ Settle & Free Table'}
-                          </button>
+                          {(selectedTableModal.activeOrder?.status === 'ready' || selectedTableModal.activeOrder?.status === 'served') ? (
+                            <button
+                              type="button"
+                              disabled={isSettlingTable}
+                              onClick={() => handleSettleTable(selectedTableModal.table?.tableNumber)}
+                              style={{
+                                flex: 1.4,
+                                padding: '11px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#10b981',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                              }}
+                            >
+                              {isSettlingTable ? 'Settling...' : '✓ Settle & Free Table'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'ready');
+                              }}
+                              style={{
+                                flex: 1.4,
+                                padding: '11px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#3b82f6',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                              }}
+                            >
+                              🍽️ Mark as Served
+                            </button>
+                          )}
                         </div>
                       </motion.div>
                     </div>
@@ -2689,7 +3127,7 @@ export default function AdminPanel() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <QRCodeComponent orders={orders} />
+                <QRCodeComponent orders={orders} initialTables={tables} />
               </motion.div>
             )}
 
