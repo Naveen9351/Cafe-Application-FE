@@ -15,7 +15,6 @@ import ProductsPage from './components/ProductsPage';
 import SolutionsPage from './components/SolutionsPage';
 import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilotPage } from './components/FeaturePages';
 import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
-
 import PageLoader from './components/PageLoader';
 
 // Protected Route Wrapper
@@ -23,7 +22,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <PageLoader duration={800} />;
+    return <PageLoader duration={400} />;
   }
 
   if (!user) {
@@ -31,7 +30,43 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />; // Or forbidden page
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+// Home Route: Auto-redirect logged-in users directly to their Dashboard
+const HomeRoute = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <PageLoader duration={400} />;
+  }
+
+  if (user) {
+    if (user.role === 'super_admin') {
+      return <Navigate to="/super-admin" replace />;
+    }
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return <LandingPage />;
+};
+
+// Public Only Route: Prevents logged-in users from seeing the login screen on back / re-open
+const PublicOnlyRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <PageLoader duration={400} />;
+  }
+
+  if (user) {
+    if (user.role === 'super_admin') {
+      return <Navigate to="/super-admin" replace />;
+    }
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return children;
@@ -40,17 +75,40 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public / Customer Routes */}
-      <Route path="/" element={<LandingPage />} />
+      {/* Root Route: If logged in, opens Dashboard directly; else shows Landing Page */}
+      <Route path="/" element={<HomeRoute />} />
+
+      {/* Customer Ordering Routes */}
       <Route path="/menu" element={<Menu />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/order/status/:id" element={<OrderStatus />} />
 
-      {/* Auth Routes */}
-      <Route path="/login" element={<Login />} />
+      {/* Auth Routes (Blocked for already logged-in users) */}
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <Login />
+          </PublicOnlyRoute>
+        }
+      />
       <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-      <Route path="/register" element={<TenantRegister />} />
-      <Route path="/register-business" element={<TenantRegister />} />
+      <Route
+        path="/register"
+        element={
+          <PublicOnlyRoute>
+            <TenantRegister />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/register-business"
+        element={
+          <PublicOnlyRoute>
+            <TenantRegister />
+          </PublicOnlyRoute>
+        }
+      />
 
       {/* Marketing / Landing Subpages */}
       <Route path="/pricing" element={<PricingPage />} />
@@ -59,7 +117,7 @@ function AppRoutes() {
       <Route path="/demo" element={<BookDemoPage />} />
       <Route path="/book-demo" element={<BookDemoPage />} />
 
-      {/* Feature / Marketing Pages */}
+      {/* Feature Pages */}
       <Route path="/features/pos-billing" element={<POSBillingPage />} />
       <Route path="/features/kitchen-ops" element={<KitchenOpsPage />} />
       <Route path="/features/inventory" element={<InventoryPage />} />
@@ -72,15 +130,7 @@ function AppRoutes() {
       <Route path="/press-kit" element={<PressKitPage />} />
       <Route path="/contact" element={<ContactPage />} />
 
-      {/* Protected Routes */}
-      <Route
-        path="/admin/dashboard"
-        element={
-          <ProtectedRoute allowedRoles={['admin', 'staff', 'super_admin']}>
-            <AdminPanel />
-          </ProtectedRoute>
-        }
-      />
+      {/* Protected Admin Routes with Real Dynamic URLs (/admin/dashboard, /admin/pos, /admin/kds, /admin/menu, etc.) */}
       <Route
         path="/admin"
         element={
@@ -90,6 +140,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/:tab"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'staff', 'super_admin']}>
+            <AdminPanel />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Super Admin Protected Route */}
+      <Route
         path="/super-admin"
         element={
           <ProtectedRoute allowedRoles={['super_admin']}>
@@ -97,6 +157,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Catch-all route */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Plus, Search, Trash2, Edit3, LayoutDashboard, ShoppingBag, QrCode, BarChart3, X, LogOut, Loader, TrendingUp, IndianRupee,
   UtensilsCrossed, Coffee, Pizza, Sandwich, IceCream, GlassWater, Martini, Cake, Soup, Cookie, Grid,
@@ -75,8 +75,18 @@ export default function AdminPanel() {
     deferredPrompt
   } = usePWAInstall();
 
-  const [showPwaBanner, setShowPwaBanner] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { tab } = useParams();
+  const activeTab = useMemo(() => {
+    if (!tab) return 'dashboard';
+    const validTabs = ['dashboard', 'pos', 'kds', 'menu', 'qrcodes', 'settings'];
+    const t = tab.toLowerCase();
+    if (t === 'live-orders') return 'kds';
+    return validTabs.includes(t) ? t : 'dashboard';
+  }, [tab]);
+
+  const handleTabChange = (newTab) => {
+    navigate(`/admin/${newTab}`);
+  };
   const [posSelectedTable, setPosSelectedTable] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [items, setItems] = useState([]);
@@ -314,9 +324,12 @@ export default function AdminPanel() {
       axios.get(`${API}/tenants/public/${tid}`)
         .then((res) => {
           if (res.data) {
-            setTenantInfo(res.data);
-            const l = res.data.logo || res.data.settings?.logo;
-            if (l) localStorage.setItem('restaurant_logo', l);
+            const fetchedLogo = res.data.logo || res.data.settings?.logo || localStorage.getItem('restaurant_logo');
+            setTenantInfo({
+              ...res.data,
+              logo: fetchedLogo || null
+            });
+            if (fetchedLogo) localStorage.setItem('restaurant_logo', fetchedLogo);
           }
         })
         .catch((err) => console.log('Tenant info fetch error:', err));
@@ -970,21 +983,25 @@ export default function AdminPanel() {
 
   const handleSaveTenantSettings = async (updatedSettings) => {
     const token = localStorage.getItem('token');
+    const tid = tenantId || user?.tenantId || tenantInfo?._id;
     try {
-      if (token && (tenantId || tenantInfo?._id)) {
-        const idToUpdate = tenantId || tenantInfo?._id;
-        await axios.put(`${API}/tenants/${idToUpdate}`, updatedSettings, {
+      if (token && tid) {
+        await axios.put(`${API}/tenants/${tid}`, updatedSettings, {
           headers: { 'x-auth-token': token }
         });
       }
     } catch (err) {
       console.log('API update tenant settings error:', err.message);
     }
+    const logoToSave = updatedSettings.logo || updatedSettings.settings?.logo;
+    if (logoToSave) {
+      localStorage.setItem('restaurant_logo', logoToSave);
+    }
     setTenantInfo(prev => ({
       ...prev,
       ...updatedSettings,
       name: updatedSettings.name || updatedSettings.restaurantName || prev?.name,
-      logo: updatedSettings.logo || prev?.logo,
+      logo: logoToSave || prev?.logo,
       address: updatedSettings.address || updatedSettings.storeAddress || prev?.address,
       phone: updatedSettings.phone || updatedSettings.primaryPhone || prev?.phone,
       email: updatedSettings.email || updatedSettings.publicEmail || prev?.email,
@@ -993,8 +1010,8 @@ export default function AdminPanel() {
     toast.success('Restaurant configuration saved successfully!');
   };
 
-  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || "Deepak";
-  const restaurantLogo = tenantInfo?.logo || tenantInfo?.settings?.logo || user?.restaurantLogo || tenantInfo?.logoUrl || localStorage.getItem('restaurant_logo') || null;
+  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || user?.tenantName || user?.name || "Deepak";
+  const restaurantLogo = tenantInfo?.logo || tenantInfo?.settings?.logo || user?.restaurantLogo || user?.logo || tenantInfo?.logoUrl || localStorage.getItem('restaurant_logo') || null;
   const restaurantInitials = restaurantDisplayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   const ownerName = tenantInfo?.ownerName || user?.name || "Deepak";
@@ -1007,12 +1024,25 @@ export default function AdminPanel() {
       {/* TOP GLOBAL BAR */}
       <header className={styles.topGlobalBar}>
         <div className={styles.topBarLeft}>
-          <div className={styles.brandTitleWrap} onClick={() => navigate('/')}>
+          <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
             {restaurantLogo ? (
-              <img src={restaurantLogo} alt="Restaurant Logo" className={styles.tenantLogoImg} />
-            ) : (
-              <div className={styles.brandIconSquare}>{restaurantInitials || 'SQ'}</div>
-            )}
+              <img
+                src={restaurantLogo}
+                alt="Restaurant Logo"
+                className={styles.tenantLogoImg}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  const fb = e.target.parentElement?.querySelector(`.${styles.brandIconSquare}`);
+                  if (fb) fb.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div
+              className={styles.brandIconSquare}
+              style={restaurantLogo ? { display: 'none' } : {}}
+            >
+              {restaurantInitials || 'SQ'}
+            </div>
             <div>
               <span className={styles.brandTitle}>{restaurantDisplayName}</span>
               <span className={styles.brandSub}>SERVIQ OS</span>
@@ -1098,7 +1128,7 @@ export default function AdminPanel() {
 
             <button
               className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleTabChange('dashboard')}
               title="Dashboard"
             >
               <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
@@ -1107,7 +1137,7 @@ export default function AdminPanel() {
               className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
               onClick={() => {
                 setPosSelectedTable(null);
-                setActiveTab('pos');
+                handleTabChange('pos');
               }}
               title="POS Terminal & Tables"
             >
@@ -1115,7 +1145,7 @@ export default function AdminPanel() {
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('kds')}
+              onClick={() => handleTabChange('kds')}
               title="Live Orders & KDS"
             >
               <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
@@ -1123,21 +1153,21 @@ export default function AdminPanel() {
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('menu')}
+              onClick={() => handleTabChange('menu')}
               title="Menu Management"
             >
               <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('qrcodes')}
+              onClick={() => handleTabChange('qrcodes')}
               title="Table QR Codes"
             >
               <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('settings')}
+              onClick={() => handleTabChange('settings')}
               title="Settings"
             >
               <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
