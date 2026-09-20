@@ -300,137 +300,253 @@
 }
 
 .actionBtn {
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 0.6rem 1.25rem;
-    border-radius: 12px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .actionBtn:hover {
-    background: rgba(198, 124, 78, 0.15);
-    border-color: var(--primary);
-    color: var(--primary);
-    transform: scale(1.05);
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 .deleteBtn {
-    background: var(--bg-main);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: #fef2f2;
+    border: 1px solid #fecaca;
     color: #ef4444;
-    padding: 0.6rem 1.25rem;
-    border-radius: 12px;
+    padding: 0.45rem 0.65rem;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .deleteBtn:hover {
     background: #ef4444;
-    color: white;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    color: #ffffff;
+    border-color: #ef4444;
+    transform: translateY(-1px);
+}
+
+.historyBtn {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 0.45rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.historyBtn:hover {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+    transform: translateY(-1px);
 }
 
 /* Modal UI */
 .modalOverlay {
     position: fixed;
     inset: 0;
-    background: rgba(10, 8, 6, 0.75);
-    backdrop-filter: blur(12px);
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
+    padding: 1rem;
 }
 
 .modalContent {
     background: #ffffff;
     padding: 1.5rem 1.75rem;
-    border-radius: 16px;
+    border-radius: 20px;
     width: 100%;
-    max-width: 520px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    max-width: 540px;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
     border: 1px solid #e2e8f0;
     color: #0f172a;
+    max-height: 92vh;
+    overflow-y: auto;
 }
 
 .modalContent h2 {
     font-size: 1.25rem;
     font-weight: 800;
     color: #0f172a;
-    margin-bottom: 0.4rem;
+    margin: 0;
     letter-spacing: -0.01em;
 }
 
 .modalContent p {
     color: #64748b;
-    margin-bottom: 1rem;
-    font-size: 0.85rem;
+    margin: 3px 0 0;
+    font-size: 0.8rem;
     font-weight: 500;
 }
 
 .select {
     width: 100%;
-    padding: 1.1rem 1.5rem;
-    margin-bottom: 2.5rem;
-    border-radius: 18px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-main);
-    font-size: 1rem;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 0.85rem;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #0f172a;
     outline: none;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
 }
 
 .select:focus {
-    border-color: var(--primary);
-    background: var(--bg-card);
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .modalActions {
     display: flex;
-    gap: 1.25rem;
+    gap: 10px;
     justify-content: flex-end;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
 }
 
 .cancelBtn {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 1rem 1.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
+    background: #f8fafc;
+    padding: 9px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 800;
-    color: var(--text-secondary);
-    transition: all 0.2s;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #475569;
+    transition: all 0.15s;
 }
 
 .cancelBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
 .saveBtn {
     background: linear-gradient(135deg, #c67c4e, #a05a2c);
     color: white;
-    padding: 1rem 1.75rem;
+    padding: 9px 20px;
     border: none;
-    border-radius: 16px;
+    border-radius: 10px;
     cursor: pointer;
     font-weight: 800;
-    transition: all 0.3s;
-    box-shadow: 0 10px 20px -5px rgba(198, 124, 78, 0.4);
+    font-size: 0.85rem;
+    transition: all 0.15s;
+    box-shadow: 0 8px 16px -4px rgba(198, 124, 78, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .saveBtn:hover {
     background: linear-gradient(135deg, #e58d53, #c67c4e);
-    transform: translateY(-2px);
-    box-shadow: 0 15px 30px -5px rgba(198, 124, 78, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 20px -4px rgba(198, 124, 78, 0.5);
+}
+
+/* Modern Logo Upload Dropzone */
+.logoDropzone {
+    border: 2px dashed #cbd5e1;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.logoDropzone:hover {
+    border-color: #6366f1;
+    background: #f5f3ff;
+}
+
+.logoThumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid #cbd5e1;
+    flex-shrink: 0;
+}
+
+.logoPlaceholder {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.logoUploadInfo {
+    flex: 1;
+}
+
+.logoUploadTitle {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.logoUploadSubtitle {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.logoRemoveBtn {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.logoRemoveBtn:hover {
+    background: #dc2626;
+    color: #ffffff;
 }
 
 /* Sidebar Layout & Collapsible CSS */

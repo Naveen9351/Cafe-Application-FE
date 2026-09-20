@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import styles from './SuperAdminDashboard.module.css';
-import { 
-  BarChart3, Users, CreditCard, Building, Plus, LogOut, Trash2, Zap, 
-  ChevronLeft, ChevronRight, ShieldAlert, Clock, AlertTriangle, CheckCircle2, History, X, Lock, Image, User, Mail, Phone, MapPin
+import {
+    BarChart3, Users, CreditCard, Building, Plus, LogOut, Trash2, Zap,
+    ChevronLeft, ChevronRight, ShieldAlert, Clock, AlertTriangle, CheckCircle2, History, X, Lock, Image, User, Mail, Phone, MapPin, Upload
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -38,8 +38,7 @@ const SuperAdminDashboard = () => {
         password: '',
         phone: '',
         address: '',
-        logo: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=400',
-        profileImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+        logo: '',
         plan: '1_month',
         customPrice: 999
     });
@@ -119,6 +118,23 @@ const SuperAdminDashboard = () => {
         fetchTenantsAndLeads();
     }, [user]);
 
+    // Handle Logo Image Upload via File Reader
+    const handleLogoUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('Logo image must be under 5MB');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setOnboardForm(prev => ({ ...prev, logo: reader.result }));
+                toast.success('Logo selected!');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     // Handle Onboard Submission
     const handleOnboardSubmit = async (e) => {
         e.preventDefault();
@@ -139,8 +155,7 @@ const SuperAdminDashboard = () => {
                 password: '',
                 phone: '',
                 address: '',
-                logo: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=400',
-                profileImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+                logo: '',
                 plan: '1_month',
                 customPrice: 999
             });
@@ -265,9 +280,9 @@ const SuperAdminDashboard = () => {
                             </div>
                             {!sidebarCollapsed && <span>SERVIQ <span style={{ color: '#6366f1' }}>SuperAdmin</span></span>}
                         </div>
-                        <button 
-                            type="button" 
-                            className={styles.collapseToggleBtn} 
+                        <button
+                            type="button"
+                            className={styles.collapseToggleBtn}
                             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                             title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                         >
@@ -276,7 +291,7 @@ const SuperAdminDashboard = () => {
                     </div>
 
                     <nav className={styles.sidebarNav}>
-                        <button 
+                        <button
                             type="button"
                             className={`${styles.navItem} ${activeTab === 'businesses' ? styles.activeNavItem : ''}`}
                             onClick={() => setActiveTab('businesses')}
@@ -286,7 +301,7 @@ const SuperAdminDashboard = () => {
                             {!sidebarCollapsed && <span>Registered Cafes ({tenants.length})</span>}
                         </button>
 
-                        <button 
+                        <button
                             type="button"
                             className={`${styles.navItem} ${activeTab === 'inquiries' ? styles.activeNavItem : ''}`}
                             onClick={() => setActiveTab('inquiries')}
@@ -299,9 +314,9 @@ const SuperAdminDashboard = () => {
                 </div>
 
                 <div style={{ padding: '1rem' }}>
-                    <button 
-                        type="button" 
-                        onClick={handleLogout} 
+                    <button
+                        type="button"
+                        onClick={handleLogout}
                         className={styles.logoutBtn}
                         style={{ width: '100%', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}
                         title="Sign Out"
@@ -314,7 +329,7 @@ const SuperAdminDashboard = () => {
 
             {/* MAIN CONTENT AREA */}
             <main className={styles.mainArea}>
-                
+
                 {/* TOP HEADER BAR */}
                 <header className={styles.navbar}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -324,9 +339,9 @@ const SuperAdminDashboard = () => {
                     </div>
 
                     <div className={styles.navActions}>
-                        <button 
-                            type="button" 
-                            onClick={() => setShowOnboardModal(true)} 
+                        <button
+                            type="button"
+                            onClick={() => setShowOnboardModal(true)}
                             className={styles.addBtn}
                         >
                             <Plus size={18} /> Onboard New Cafe
@@ -335,7 +350,7 @@ const SuperAdminDashboard = () => {
                 </header>
 
                 <div className={styles.content}>
-                    
+
                     {/* STATS CARDS */}
                     <div className={styles.statsGrid}>
                         <div className={styles.statCard}>
@@ -420,7 +435,7 @@ const SuperAdminDashboard = () => {
                                         {tenants.map(tenant => {
                                             const sub = tenant.subscription || {};
                                             const logo = tenant.settings?.logo || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=400';
-                                            
+
                                             const now = new Date();
                                             const endDate = sub.endDate ? new Date(sub.endDate) : null;
                                             const daysLeft = endDate ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)) : null;
@@ -431,10 +446,10 @@ const SuperAdminDashboard = () => {
                                             return (
                                                 <tr key={tenant._id}>
                                                     <td className={styles.nameCell}>
-                                                        <img 
-                                                            src={logo} 
-                                                            alt="Cafe Logo" 
-                                                            style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', border: '1px solid #e2e8f0' }} 
+                                                        <img
+                                                            src={logo}
+                                                            alt="Cafe Logo"
+                                                            style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', border: '1px solid #e2e8f0' }}
                                                         />
                                                         <div>
                                                             <div className={styles.tenantName}>{tenant.name}</div>
@@ -446,9 +461,14 @@ const SuperAdminDashboard = () => {
                                                         <div style={{ fontSize: '11px', color: '#64748b' }}>{tenant.phone || 'No phone'}</div>
                                                     </td>
                                                     <td>
-                                                        <span className={`${styles.badge} ${styles.planBadge}`}>
-                                                            {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'} (₹{sub.price || 0})
-                                                        </span>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                            <span className={`${styles.badge} ${styles.planBadge}`} style={{ alignSelf: 'flex-start' }}>
+                                                                {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
+                                                            </span>
+                                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', paddingLeft: 4 }}>
+                                                                ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         {!sub.isActive ? (
@@ -457,7 +477,7 @@ const SuperAdminDashboard = () => {
                                                             </span>
                                                         ) : isExpiring3Days ? (
                                                             <span className={styles.badge} style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fcd34d' }}>
-                                                                ⚠️ Expiring in {daysLeft} Days
+                                                                ⚠️ Expiring ({daysLeft}d)
                                                             </span>
                                                         ) : isExpired ? (
                                                             <span className={styles.badge} style={{ background: '#fee2e2', color: '#dc2626' }}>
@@ -473,10 +493,10 @@ const SuperAdminDashboard = () => {
                                                         {endDate ? endDate.toLocaleDateString('en-IN') : 'N/A'}
                                                     </td>
                                                     <td>
-                                                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                                            <button 
+                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                            <button
                                                                 type="button"
-                                                                className={styles.actionBtn} 
+                                                                className={styles.actionBtn}
                                                                 onClick={() => {
                                                                     setEditingTenant(tenant);
                                                                     setSelectedPlan(sub.plan || '1_month');
@@ -488,7 +508,7 @@ const SuperAdminDashboard = () => {
                                                             </button>
 
                                                             {sub.isActive ? (
-                                                                <button 
+                                                                <button
                                                                     type="button"
                                                                     className={styles.deleteBtn}
                                                                     style={{ color: '#d97706', borderColor: '#fcd34d', background: '#fffbeb' }}
@@ -497,7 +517,7 @@ const SuperAdminDashboard = () => {
                                                                     Deactivate
                                                                 </button>
                                                             ) : (
-                                                                <button 
+                                                                <button
                                                                     type="button"
                                                                     className={styles.actionBtn}
                                                                     style={{ color: '#166534', borderColor: '#86efac', background: '#f0fdf4' }}
@@ -511,9 +531,9 @@ const SuperAdminDashboard = () => {
                                                                 </button>
                                                             )}
 
-                                                            <button 
+                                                            <button
                                                                 type="button"
-                                                                className={styles.actionBtn}
+                                                                className={styles.historyBtn}
                                                                 onClick={() => handleViewHistory(tenant)}
                                                                 title="View Plan History"
                                                             >
@@ -524,6 +544,7 @@ const SuperAdminDashboard = () => {
                                                                 type="button"
                                                                 className={styles.deleteBtn}
                                                                 onClick={() => handleDeleteTenant(tenant._id, tenant.name)}
+                                                                title="Delete Tenant"
                                                             >
                                                                 <Trash2 size={14} />
                                                             </button>
@@ -580,7 +601,7 @@ const SuperAdminDashboard = () => {
                                                         {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'Recent'}
                                                     </td>
                                                     <td>
-                                                        <button 
+                                                        <button
                                                             type="button"
                                                             className={styles.deleteBtn}
                                                             onClick={() => handleDeleteLead(lead._id)}
@@ -603,132 +624,144 @@ const SuperAdminDashboard = () => {
             {/* MODAL 1: ONBOARD NEW CAFE */}
             {showOnboardModal && (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent} style={{ maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900 }}>Onboard New Cafe Outlet</h2>
-                            <button type="button" onClick={() => setShowOnboardModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                    <div className={styles.modalContent} style={{ maxWidth: 540 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 900 }}>Onboard New Cafe Outlet</h2>
+                                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>Setup cafe credentials, custom logo, and instant subscription</p>
+                            </div>
+                            <button type="button" onClick={() => setShowOnboardModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                                 <X size={20} />
                             </button>
                         </div>
-                        <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b' }}>
-                            Setup cafe details, admin owner credentials, logo images, and activate subscription.
-                        </p>
 
-                        <form onSubmit={handleOnboardSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            
+                        <form onSubmit={handleOnboardSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
                             {/* Cafe Name & Owner Name */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                         Cafe / Business Name *
                                     </label>
-                                    <input 
-                                        type="text" 
-                                        required 
+                                    <input
+                                        type="text"
+                                        required
                                         placeholder="e.g. Royal Bistro"
                                         value={onboardForm.businessName}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, businessName: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                         Admin Owner Name *
                                     </label>
-                                    <input 
-                                        type="text" 
-                                        required 
+                                    <input
+                                        type="text"
+                                        required
                                         placeholder="e.g. Vikram Sharma"
                                         value={onboardForm.adminName}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, adminName: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>
                             </div>
 
                             {/* Email & Password */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                         Admin Login Email *
                                     </label>
-                                    <input 
-                                        type="email" 
-                                        required 
+                                    <input
+                                        type="email"
+                                        required
                                         placeholder="admin@royalbistro.com"
                                         value={onboardForm.email}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, email: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                         Account Password *
                                     </label>
-                                    <input 
-                                        type="password" 
-                                        required 
+                                    <input
+                                        type="password"
+                                        required
                                         placeholder="Min 6 chars"
                                         value={onboardForm.password}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, password: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>
                             </div>
 
                             {/* Phone & Address */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                         Mobile Number
                                     </label>
-                                    <input 
-                                        type="tel" 
+                                    <input
+                                        type="tel"
                                         placeholder="e.g. +91 98765 43210"
                                         value={onboardForm.phone}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, phone: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                         Address / Location
                                     </label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="e.g. Connaught Place, New Delhi"
                                         value={onboardForm.address}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, address: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>
                             </div>
 
-                            {/* Cafe Logo URL & Admin Profile Image URL */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
-                                        Cafe Logo Image URL
-                                    </label>
-                                    <input 
-                                        type="url" 
-                                        placeholder="https://..."
-                                        value={onboardForm.logo}
-                                        onChange={(e) => setOnboardForm({ ...onboardForm, logo: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            {/* Cafe Logo Upload Dropzone (Replaces URL fields) */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    Cafe Logo
+                                </label>
+                                <div className={styles.logoDropzone}>
+                                    {onboardForm.logo ? (
+                                        <img src={onboardForm.logo} alt="Preview" className={styles.logoThumb} />
+                                    ) : (
+                                        <div className={styles.logoPlaceholder}>
+                                            <Building size={22} />
+                                        </div>
+                                    )}
+                                    <div className={styles.logoUploadInfo}>
+                                        <div className={styles.logoUploadTitle}>
+                                            <Upload size={14} /> <span>{onboardForm.logo ? 'Change Cafe Logo' : 'Upload Cafe Logo'}</span>
+                                        </div>
+                                        <div className={styles.logoUploadSubtitle}>PNG, JPG, SVG or WebP (Max 5MB)</div>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoUpload}
+                                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
                                     />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
-                                        Admin Profile Picture URL
-                                    </label>
-                                    <input 
-                                        type="url" 
-                                        placeholder="https://..."
-                                        value={onboardForm.profileImage}
-                                        onChange={(e) => setOnboardForm({ ...onboardForm, profileImage: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                                    />
+                                    {onboardForm.logo && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOnboardForm(prev => ({ ...prev, logo: '' }));
+                                            }}
+                                            className={styles.logoRemoveBtn}
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -737,9 +770,9 @@ const SuperAdminDashboard = () => {
                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                     Initial Subscription Plan
                                 </label>
-                                <select 
+                                <select
                                     className={styles.select}
-                                    style={{ margin: 0, padding: '10px 12px', fontSize: '13px' }}
+                                    style={{ margin: 0, padding: '9px 12px', fontSize: '13px' }}
                                     value={onboardForm.plan}
                                     onChange={(e) => {
                                         const p = e.target.value;
@@ -757,7 +790,7 @@ const SuperAdminDashboard = () => {
                                 </select>
                             </div>
 
-                            <div className={styles.modalActions} style={{ marginTop: 12 }}>
+                            <div className={styles.modalActions} style={{ marginTop: 8 }}>
                                 <button type="button" onClick={() => setShowOnboardModal(false)} className={styles.cancelBtn}>Cancel</button>
                                 <button type="submit" disabled={isOnboarding} className={styles.saveBtn}>
                                     {isOnboarding ? 'Onboarding...' : 'Confirm & Create Cafe'}
@@ -811,7 +844,7 @@ const SuperAdminDashboard = () => {
                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
                                     Price (₹)
                                 </label>
-                                <input 
+                                <input
                                     type="number"
                                     value={customPriceVal}
                                     onChange={(e) => setCustomPriceVal(Number(e.target.value))}
@@ -870,9 +903,9 @@ const SuperAdminDashboard = () => {
                                                 <td>{log.startDate ? new Date(log.startDate).toLocaleDateString('en-IN') : 'N/A'}</td>
                                                 <td>{log.endDate ? new Date(log.endDate).toLocaleDateString('en-IN') : 'N/A'}</td>
                                                 <td>
-                                                    <span className={styles.badge} style={{ 
-                                                        background: log.status === 'active' ? '#dcfce7' : '#fee2e2', 
-                                                        color: log.status === 'active' ? '#166534' : '#dc2626' 
+                                                    <span className={styles.badge} style={{
+                                                        background: log.status === 'active' ? '#dcfce7' : '#fee2e2',
+                                                        color: log.status === 'active' ? '#166534' : '#dc2626'
                                                     }}>
                                                         {(log.status || 'active').toUpperCase()}
                                                     </span>
