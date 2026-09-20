@@ -90,6 +90,7 @@ export default function AdminPanel() {
   };
   const [posSelectedTable, setPosSelectedTable] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
