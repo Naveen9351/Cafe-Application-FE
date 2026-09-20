@@ -118,32 +118,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder 
 
   return (
     <div className={styles.kdsWrapper}>
-      {/* Top Banner Bar */}
-      <div className={styles.topControlBanner}>
-        <div className={styles.bannerLeft}>
-          <span className={styles.livePulseDot}></span>
-          <span className={styles.bannerTag}>Kitchen Display System (KDS)</span>
-          <span className={styles.liveBadge}>LIVE TELEMETRY</span>
-          <span className={styles.bannerSubtext}>
-            Paperless zero-latency ticket dispatch with real-time cooking countdowns.
-          </span>
-        </div>
-        <div className={styles.bannerActions}>
-          <button 
-            type="button" 
-            className={styles.refreshIconBtn} 
-            title="Refresh Board"
-            onClick={() => toast.success('Kitchen queue synced with live tickets')}
-          >
-            <RefreshCw size={16} />
-          </button>
-        </div>
-      </div>
-
       <div className={styles.mainKdsLayout}>
         <div className={styles.kdsBoardColumn}>
           
-          {/* Channel Filter Bar */}
+          {/* Streamlined Channel Filter & Actions Bar */}
           <div className={styles.channelBar}>
             <div className={styles.channelTabs}>
               {['All', 'Dine-in', 'Takeaway', 'Delivery'].map(ch => (
@@ -158,9 +136,19 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder 
               ))}
             </div>
 
-            <div className={styles.perfMetric}>
-              <span>Active In Prep:</span>
-              <span className={styles.avgTimePill}>{inKitchenOrders.length} Tickets</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className={styles.perfMetric}>
+                <span>Active In Prep:</span>
+                <span className={styles.avgTimePill}>{inKitchenOrders.length} Tickets</span>
+              </div>
+              <button 
+                type="button" 
+                className={styles.refreshIconBtn} 
+                title="Refresh Board"
+                onClick={() => toast.success('Kitchen queue synced with live tickets')}
+              >
+                <RefreshCw size={15} />
+              </button>
             </div>
           </div>
 
