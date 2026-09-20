@@ -104,10 +104,17 @@ export default function StaffManager() {
       setLoading(true);
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/staff`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'x-auth-token': token
+        }
       });
-      if (res.data && res.data.success) {
-        setStaffList(res.data.staff || []);
+      if (res.data) {
+        if (Array.isArray(res.data)) {
+          setStaffList(res.data);
+        } else if (res.data.staff) {
+          setStaffList(res.data.staff);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch staff list:', err);
@@ -129,8 +136,8 @@ export default function StaffManager() {
 
   const handleOpenEditModal = (staff) => {
     setEditingStaffId(staff._id);
-    setFullName(staff.fullName || '');
-    setUsername(staff.username || '');
+    setFullName(staff.fullName || staff.name || '');
+    setUsername(staff.username || staff.email || '');
     setPassword(''); // leave blank if no change
     setPhone(staff.phone || '');
     setSelectedRole(staff.role || 'custom');
@@ -157,9 +164,11 @@ export default function StaffManager() {
       const token = localStorage.getItem('token');
 
       const payload = {
-        fullName,
-        username,
-        phone,
+        fullName: fullName.trim(),
+        username: username.trim(),
+        email: username.trim(),
+        name: fullName.trim(),
+        phone: phone.trim(),
         role: selectedRole,
         permissions
       };
@@ -167,7 +176,10 @@ export default function StaffManager() {
 
       if (editingStaffId) {
         await axios.put(`${API_URL}/staff/${editingStaffId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-auth-token': token
+          }
         });
       } else {
         if (!password) {
@@ -176,14 +188,17 @@ export default function StaffManager() {
           return;
         }
         await axios.post(`${API_URL}/staff`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'x-auth-token': token
+          }
         });
       }
 
       setShowModal(false);
       fetchStaff();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error saving staff member.');
+      alert(err.response?.data?.error || err.response?.data?.message || 'Error saving staff member.');
     } finally {
       setSubmitting(false);
     }
@@ -194,25 +209,33 @@ export default function StaffManager() {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/staff/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'x-auth-token': token
+        }
       });
       fetchStaff();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove staff member.');
+      alert(err.response?.data?.error || err.response?.data?.message || 'Failed to remove staff member.');
     }
   };
 
   const handleToggleStatus = async (staff) => {
     try {
       const token = localStorage.getItem('token');
+      const newStatus = staff.status === 'active' || staff.isActive ? 'inactive' : 'active';
       await axios.put(`${API_URL}/staff/${staff._id}`, {
-        isActive: !staff.isActive
+        status: newStatus,
+        isActive: newStatus === 'active'
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'x-auth-token': token
+        }
       });
       fetchStaff();
     } catch (err) {
-      alert('Failed to update status.');
+      alert(err.response?.data?.error || 'Failed to update status.');
     }
   };
 

@@ -56,7 +56,7 @@ const itemMatchesCategory = (item, catId) => {
 export const getValidFoodImage = (item) => {
   const img = item?.image;
   if (img && !img.toLowerCase().includes('policy') && !img.toLowerCase().includes('document') && !img.toLowerCase().includes('reminder') &&
-      (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/uploads') || img.startsWith('data:image'))) {
+    (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/uploads') || img.startsWith('data:image'))) {
     return img;
   }
   if (item?.name) {
@@ -1005,13 +1005,13 @@ export default function AdminPanel() {
 
       const matchesDiet =
         dietaryFilter === 'all' ? true :
-        dietaryFilter === 'veg' ? Boolean(item.isVeg) :
-        !item.isVeg;
+          dietaryFilter === 'veg' ? Boolean(item.isVeg) :
+            !item.isVeg;
 
       const matchesStock =
         stockFilter === 'all' ? true :
-        stockFilter === 'in-stock' ? Boolean(item.available) :
-        !item.available;
+          stockFilter === 'in-stock' ? Boolean(item.available) :
+            !item.available;
 
       return matchesCat && matchesSearch && matchesDiet && matchesStock;
     }).sort((a, b) => {
@@ -1273,7 +1273,7 @@ export default function AdminPanel() {
                 className={styles.dashboardView}
               >
                 {/* PWA Quick Install Banner - only shown when not standalone and not installed */}
-                {!isStandalone && !isInstalled && showPwaBanner && (
+                {/* {!isStandalone && !isInstalled && showPwaBanner && (
                   <div className={styles.pwaBannerCard}>
                     <div className={styles.pwaBannerLeft}>
                       <div className={styles.pwaBannerIcon}>
@@ -1302,7 +1302,7 @@ export default function AdminPanel() {
                       </button>
                     </div>
                   </div>
-                )}
+                )} */}
 
                 {/* 1. CONTROL BAR: DATE FILTER PILLS */}
                 <div className={styles.dashControlBar}>
@@ -2174,10 +2174,10 @@ export default function AdminPanel() {
                             <div className={styles.ticketHead}>
                               <span className={styles.ticketIdBadge}>{orderCode}</span>
                               <span className={`${styles.ticketStatusPill} ${order.status === 'completed'
-                                  ? styles.readyChip
-                                  : order.status === 'preparing'
-                                    ? styles.prepChip
-                                    : styles.deliveryChip
+                                ? styles.readyChip
+                                : order.status === 'preparing'
+                                  ? styles.prepChip
+                                  : styles.deliveryChip
                                 }`}>
                                 {order.status}
                               </span>
@@ -2356,37 +2356,73 @@ export default function AdminPanel() {
                               return (
                                 <div
                                   key={tbl._id || tbl.tableNumber}
-                                onClick={() => {
-                                  setPosSelectedTable(tbl.tableNumber);
-                                  setActiveTab('pos');
-                                }}
-                                style={{
-                                  position: 'relative',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  justifyContent: 'space-between',
-                                  minHeight: '100px',
-                                  padding: '10px 12px',
-                                  borderRadius: '12px',
-                                  border: '1.5px dashed #cbd5e1',
-                                  background: '#ffffff',
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
-                              >
-                                <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{tbl.seatingCapacity || 4} Seats</span>
-                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', margin: '4px 0' }}>
-                                  Table {tbl.tableNumber}
-                                </span>
-                                <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                              </div>
-                            );
-                          }
+                                  onClick={() => {
+                                    setPosSelectedTable(tbl.tableNumber);
+                                    setActiveTab('pos');
+                                  }}
+                                  style={{
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    minHeight: '100px',
+                                    padding: '10px 12px',
+                                    borderRadius: '12px',
+                                    border: '1.5px dashed #cbd5e1',
+                                    background: '#ffffff',
+                                    cursor: 'pointer',
+                                    textAlign: 'center',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                                >
+                                  <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{tbl.seatingCapacity || 4} Seats</span>
+                                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', margin: '4px 0' }}>
+                                    Table {tbl.tableNumber}
+                                  </span>
+                                  <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                                </div>
+                              );
+                            }
 
-                          // 2. PAID / SERVED CARD (Soft Green)
-                          if (isServed) {
+                            // 2. PAID / SERVED CARD (Soft Green)
+                            if (isServed) {
+                              return (
+                                <div
+                                  key={tbl._id || tbl.tableNumber}
+                                  onClick={() => {
+                                    setPosSelectedTable(tbl.tableNumber);
+                                    setActiveTab('pos');
+                                  }}
+                                  style={{
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    minHeight: '100px',
+                                    padding: '10px 12px',
+                                    borderRadius: '12px',
+                                    border: '1.5px solid #10b981',
+                                    background: '#ecfdf5',
+                                    color: '#065f46',
+                                    cursor: 'pointer',
+                                    textAlign: 'center',
+                                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
+                                  }}
+                                  title={`Table ${tbl.tableNumber} - Served/Billed. Click to open POS.`}
+                                >
+                                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
+                                    ✓ {elapsedMins} Min
+                                  </div>
+                                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#065f46', margin: '2px 0' }}>
+                                    Table {tbl.tableNumber}
+                                  </span>
+                                  <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal}</strong>
+                                </div>
+                              );
+                            }
+
+                            // 3. OCCUPIED / RUNNING CARD (Orange / Warm Amber)
                             return (
                               <div
                                 key={tbl._id || tbl.tableNumber}
@@ -2402,94 +2438,58 @@ export default function AdminPanel() {
                                   minHeight: '100px',
                                   padding: '10px 12px',
                                   borderRadius: '12px',
-                                  border: '1.5px solid #10b981',
-                                  background: '#ecfdf5',
-                                  color: '#065f46',
+                                  border: '1.5px solid #f59e0b',
+                                  background: '#fef3c7',
+                                  color: '#78350f',
                                   cursor: 'pointer',
                                   textAlign: 'center',
-                                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
+                                  boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
                                 }}
-                                title={`Table ${tbl.tableNumber} - Served/Billed. Click to open POS.`}
+                                title={`Table ${tbl.tableNumber} - Active Order ₹${orderTotal}. Click to open POS.`}
                               >
-                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
-                                  ✓ {elapsedMins} Min
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
+                                  ⏱️ {elapsedMins} Min
                                 </div>
-                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#065f46', margin: '2px 0' }}>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#78350f', margin: '2px 0' }}>
                                   Table {tbl.tableNumber}
                                 </span>
-                                <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal}</strong>
+                                <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal}</strong>
                               </div>
                             );
-                          }
+                          })}
 
-                          // 3. OCCUPIED / RUNNING CARD (Orange / Warm Amber)
-                          return (
+                          {/* 8th Position "View More" Interactive Card */}
+                          {hasMoreTables && (
                             <div
-                              key={tbl._id || tbl.tableNumber}
                               onClick={() => {
-                                setPosSelectedTable(tbl.tableNumber);
+                                setPosSelectedTable(null);
                                 setActiveTab('pos');
                               }}
                               style={{
-                                position: 'relative',
+                                background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
+                                borderRadius: '12px',
+                                border: '1.5px dashed #3b82f6',
+                                padding: '10px 12px',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                minHeight: '100px',
-                                padding: '10px 12px',
-                                borderRadius: '12px',
-                                border: '1.5px solid #f59e0b',
-                                background: '#fef3c7',
-                                color: '#78350f',
-                                cursor: 'pointer',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 textAlign: 'center',
-                                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
+                                cursor: 'pointer',
+                                minHeight: '100px',
+                                transition: 'all 0.2s ease'
                               }}
-                              title={`Table ${tbl.tableNumber} - Active Order ₹${orderTotal}. Click to open POS.`}
+                              title="Click to view all tables in POS Terminal"
                             >
-                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
-                                ⏱️ {elapsedMins} Min
-                              </div>
-                              <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#78350f', margin: '2px 0' }}>
-                                Table {tbl.tableNumber}
+                              <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>
+                                +{remainingCount} More
                               </span>
-                              <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal}</strong>
+                              <span style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: 800, marginTop: 3 }}>
+                                Open POS Floor →
+                              </span>
                             </div>
-                          );
-                        })}
-
-                        {/* 8th Position "View More" Interactive Card */}
-                        {hasMoreTables && (
-                          <div
-                            onClick={() => {
-                              setPosSelectedTable(null);
-                              setActiveTab('pos');
-                            }}
-                            style={{
-                              background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
-                              borderRadius: '12px',
-                              border: '1.5px dashed #3b82f6',
-                              padding: '10px 12px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              textAlign: 'center',
-                              cursor: 'pointer',
-                              minHeight: '100px',
-                              transition: 'all 0.2s ease'
-                            }}
-                            title="Click to view all tables in POS Terminal"
-                          >
-                            <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>
-                              +{remainingCount} More
-                            </span>
-                            <span style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: 800, marginTop: 3 }}>
-                              Open POS Floor →
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
                       )}
 
                       {displayTables.length === 0 && tables.length > 0 && (
