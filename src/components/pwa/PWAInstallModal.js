@@ -62,7 +62,7 @@ export default function PWAInstallModal({
               <h3>Download SERVIQ Admin</h3>
               <div className={styles.badgeRow}>
                 <span className={styles.badgePWA}>Desktop PWA</span>
-                <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>v2.4 Pro</span>
+                <span className={styles.versionTag}>v2.4 Pro</span>
               </div>
             </div>
           </div>
