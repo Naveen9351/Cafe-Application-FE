@@ -8,7 +8,7 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +19,11 @@ import KOTMonitor from './petpooja/KOTMonitor';
 import CRMLoyalty from './petpooja/CRMLoyalty';
 import OnlineAggregators from './petpooja/OnlineAggregators';
 import RestaurantSettings from './RestaurantSettings';
+import StaffManager from './StaffManager';
+import ReportsSuite from './ReportsSuite';
+import KhataLedger from './KhataLedger';
+import SupportModal from './SupportModal';
+import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton } from './common/SkeletonLoader';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
 import usePWAInstall from '../hooks/usePWAInstall';
@@ -80,7 +85,7 @@ export default function AdminPanel() {
   const { tab } = useParams();
   const activeTab = useMemo(() => {
     if (!tab) return 'dashboard';
-    const validTabs = ['dashboard', 'pos', 'kds', 'menu', 'qrcodes', 'settings'];
+    const validTabs = ['dashboard', 'pos', 'kds', 'menu', 'qrcodes', 'staff', 'reports', 'khata', 'settings'];
     const t = tab.toLowerCase();
     if (t === 'live-orders') return 'kds';
     return validTabs.includes(t) ? t : 'dashboard';
@@ -92,6 +97,7 @@ export default function AdminPanel() {
   const [posSelectedTable, setPosSelectedTable] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
@@ -1147,6 +1153,29 @@ export default function AdminPanel() {
             <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
           </button>
           <button
+            className={`${styles.navLink} ${activeTab === 'staff' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('staff')}
+            title="Staff & Role Management"
+          >
+            <Users size={18} /> {!sidebarCollapsed && <span>Staff Management</span>}
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'reports' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('reports')}
+            title="Reports & Analytics"
+          >
+            <BarChart3 size={18} /> {!sidebarCollapsed && <span>Reports Suite</span>}
+          </button>
+          {tenantInfo?.settings?.enableKhata && (
+            <button
+              className={`${styles.navLink} ${activeTab === 'khata' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('khata')}
+              title="Customer Khata / Borrow Ledger"
+            >
+              <BookOpen size={18} /> {!sidebarCollapsed && <span>Khata Ledger</span>}
+            </button>
+          )}
+          <button
             className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
             onClick={() => handleTabChange('settings')}
             title="Settings"
@@ -1219,7 +1248,8 @@ export default function AdminPanel() {
             <button
               type="button"
               className={styles.supportBtn}
-              onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SERVIQ%20Support', '_blank')}
+              onClick={() => setShowSupportModal(true)}
+              title="Help & Support Ticket Desk"
             >
               <HelpCircle size={16} /> <span>Support</span>
             </button>
@@ -2307,22 +2337,25 @@ export default function AdminPanel() {
                       </div>
 
                       {/* Dynamic Grid of Real Tables (Petpooja Style: 3 Clean Colors) */}
-                      <div className={styles.tableGridContainer}>
-                        {previewTables.map((tbl) => {
-                          const activeOrder = getActiveOrderForTable(tbl);
-                          const isOccupied = !!activeOrder;
-                          const isServed = isOccupied && (activeOrder.status === 'ready' || activeOrder.status === 'served');
-                          const elapsedMins = activeOrder?.createdAt
-                            ? Math.max(1, Math.round((new Date() - new Date(activeOrder.createdAt)) / 60000))
-                            : 5;
+                      {tables.length === 0 ? (
+                        <TableMatrixSkeleton count={8} />
+                      ) : (
+                        <div className={styles.tableGridContainer}>
+                          {previewTables.map((tbl) => {
+                            const activeOrder = getActiveOrderForTable(tbl);
+                            const isOccupied = !!activeOrder;
+                            const isServed = isOccupied && (activeOrder.status === 'ready' || activeOrder.status === 'served');
+                            const elapsedMins = activeOrder?.createdAt
+                              ? Math.max(1, Math.round((new Date() - new Date(activeOrder.createdAt)) / 60000))
+                              : 5;
 
-                          const orderTotal = Math.round(activeOrder?.total || activeOrder?.totalAmount || 0);
+                            const orderTotal = Math.round(activeOrder?.total || activeOrder?.totalAmount || 0);
 
-                          // 1. FREE / EMPTY CARD
-                          if (!isOccupied) {
-                            return (
-                              <div
-                                key={tbl._id || tbl.tableNumber}
+                            // 1. FREE / EMPTY CARD
+                            if (!isOccupied) {
+                              return (
+                                <div
+                                  key={tbl._id || tbl.tableNumber}
                                 onClick={() => {
                                   setPosSelectedTable(tbl.tableNumber);
                                   setActiveTab('pos');
@@ -2457,8 +2490,9 @@ export default function AdminPanel() {
                           </div>
                         )}
                       </div>
+                      )}
 
-                      {displayTables.length === 0 && (
+                      {displayTables.length === 0 && tables.length > 0 && (
                         <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '13px' }}>
                           No tables found matching the filter "{tableFilterTab}".
                         </div>
@@ -3162,6 +3196,51 @@ export default function AdminPanel() {
               </motion.div>
             )}
 
+            {/* ========================================================= */}
+            {/* 9. STAFF & ROLE-BASED ACCESS CONTROL (RBAC)               */}
+            {/* ========================================================= */}
+            {activeTab === 'staff' && (
+              <motion.div
+                key="staff"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <StaffManager />
+              </motion.div>
+            )}
+
+            {/* ========================================================= */}
+            {/* 10. REVENUE & FINANCIAL REPORTS SUITE                     */}
+            {/* ========================================================= */}
+            {activeTab === 'reports' && (
+              <motion.div
+                key="reports"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <ReportsSuite />
+              </motion.div>
+            )}
+
+            {/* ========================================================= */}
+            {/* 11. CUSTOMER KHATA & BORROW (UDHARI) LEDGER               */}
+            {/* ========================================================= */}
+            {activeTab === 'khata' && (
+              <motion.div
+                key="khata"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <KhataLedger />
+              </motion.div>
+            )}
+
           </AnimatePresence>
         </main>
       </div>
@@ -3554,6 +3633,13 @@ export default function AdminPanel() {
         isInstalled={isInstalled}
         isIOS={isIOS}
         isAndroid={isAndroid}
+      />
+
+      {/* Support Ticket Modal with optional screenshot upload */}
+      <SupportModal
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+        tenantInfo={tenantInfo}
       />
 
     </div>

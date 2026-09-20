@@ -40,6 +40,13 @@ export default function POSTerminal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbTables, setDbTables] = useState([]);
 
+  // Khata / Borrow Modal states
+  const [showKhataModal, setShowKhataModal] = useState(false);
+  const [khataPaidAmount, setKhataPaidAmount] = useState('');
+  const [khataBorrowAmount, setKhataBorrowAmount] = useState(0);
+  const [khataNotes, setKhataNotes] = useState('');
+  const [isSubmittingKhata, setIsSubmittingKhata] = useState(false);
+
   // Add Table Modal state
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [newTableNum, setNewTableNum] = useState('');
@@ -342,7 +349,48 @@ export default function POSTerminal({
     setCart(newCart);
   };
 
-  // Send KOT / Submit New Order
+  // Update existing active order item (inline quantity adjustment / delete)
+  const handleUpdateExistingOrderItem = async (orderId, itemIndex, delta) => {
+    const order = currentTableOrders.find(o => o._id === orderId);
+    if (!order) return;
+    const newItems = [...(order.items || [])];
+    if (!newItems[itemIndex]) return;
+
+    newItems[itemIndex] = {
+      ...newItems[itemIndex],
+      quantity: (newItems[itemIndex].quantity || 1) + delta
+    };
+
+    if (newItems[itemIndex].quantity <= 0) {
+      newItems.splice(itemIndex, 1);
+    }
+
+    const newTotal = newItems.reduce((sum, it) => sum + ((Number(it.price) || 0) * (it.quantity || 1)), 0);
+    const token = localStorage.getItem('token');
+
+    try {
+      if (newItems.length === 0) {
+        await axios.delete(`${API}/orders/${orderId}`, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+        toast.success('Order removed');
+      } else {
+        await axios.put(`${API}/orders/${orderId}`, {
+          items: newItems,
+          totalAmount: newTotal
+        }, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+        toast.success('Updated item quantity');
+      }
+      if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
+    } catch (err) {
+      console.error('Update item error:', err);
+      toast.error('Failed to update order item');
+    }
+  };
+
+  // Send to Kitchen / Submit New Order (Directly sets status to 'preparing' - In Kitchen)
   const handleSendKOT = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty. Add dishes first!');
@@ -364,6 +412,7 @@ export default function POSTerminal({
         phone: customerPhone.trim()
       },
       paymentMethod,
+      status: 'preparing', // Directly marks as "In Kitchen" when sent from POS terminal
       paymentStatus: 'pending',
       items: cart.map(it => ({
         id: it.id,
@@ -382,7 +431,7 @@ export default function POSTerminal({
         headers: token ? { 'x-auth-token': token } : {}
       });
 
-      toast.success(`✓ Order / KOT sent for Table ${tableNumber}!`);
+      toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
       setCart([]);
       if (onOrderPlaced) onOrderPlaced(res.data);
       if (onOrderCreated) onOrderCreated(res.data);
@@ -462,6 +511,92 @@ export default function POSTerminal({
       toast.error('Settlement error: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  // Confirm Khata / Borrow (Udhari) Record & Settlement
+  const handleConfirmKhataSettlement = async (e) => {
+    if (e) e.preventDefault();
+    if (!customerName.trim() || !customerPhone.trim()) {
+      toast.error('Customer Name and Phone number are required to record Khata / Borrow');
+      return;
+    }
+
+    const paidNum = Number(khataPaidAmount) || 0;
+    const borrowNum = Math.max(0, grandTotal - paidNum);
+
+    setIsSubmittingKhata(true);
+    const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+    try {
+      // 1. If draft cart has items, create the final round first
+      if (cart.length > 0) {
+        const orderPayload = {
+          tenantId: effectiveTenantId,
+          tableNumber: tableNumber === 'Walk-in' ? 'Walk-in' : String(tableNumber),
+          orderType: tableNumber === 'Walk-in' ? 'takeaway' : 'dine_in',
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          customerDetails: {
+            name: customerName.trim(),
+            phone: customerPhone.trim()
+          },
+          paymentMethod: 'Khata / Borrow',
+          paymentStatus: borrowNum === 0 ? 'paid' : (paidNum > 0 ? 'partial' : 'pending'),
+          items: cart.map(it => ({
+            id: it.id,
+            itemId: it.id,
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity,
+            variant: it.variant ? it.variant : null,
+            addons: (it.addons || [])
+          })),
+          totalAmount: draftCartTotal
+        };
+        await axios.post(`${API}/orders`, orderPayload, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+      }
+
+      // 2. Record in Khata / Customer Credit Ledger
+      await axios.post(`${API}/khata`, {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        totalBill: grandTotal,
+        paidAmount: paidNum,
+        borrowAmount: borrowNum,
+        notes: khataNotes || `Table ${tableNumber} order`
+      }, {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
+
+      // 3. Settle all existing orders on this table
+      if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
+        await axios.put(
+          `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
+          { paymentMethod: 'Khata / Borrow', paymentStatus: borrowNum === 0 ? 'paid' : 'partial', tenantId: effectiveTenantId },
+          { headers: token ? { 'x-auth-token': token } : {} }
+        );
+      }
+
+      toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNum}, Borrow: ₹${borrowNum}). Table cleared!`);
+      setCart([]);
+      setCustomerName('');
+      setCustomerPhone('');
+      setShowKhataModal(false);
+
+      if (onOrderPlaced) onOrderPlaced({ tableNumber, status: 'completed', _refreshAll: true });
+      if (onOrderCreated) onOrderCreated({ tableNumber, status: 'completed', _refreshAll: true });
+      if (onSettleTable) onSettleTable(tableNumber);
+
+      setViewMode('tables');
+    } catch (err) {
+      console.error('Khata settlement error:', err);
+      toast.error('Failed to record Khata: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmittingKhata(false);
     }
   };
 
@@ -859,34 +994,79 @@ export default function POSTerminal({
 
               {/* Middle Block: Running Orders + Draft Items (Flex-1, Scrollable) */}
               <div className={styles.drawerMiddleBlock}>
-                {/* Running Orders Section (If Table Has Active Rounds) */}
+                {/* Active Kitchen Orders (Order 1, Order 2, etc.) */}
                 {currentTableOrders.length > 0 && (
-                  <div className={styles.runningOrdersSection}>
+                  <div style={{ marginBottom: '10px' }}>
                     <div className={styles.roundHeader}>
-                      <span>Active Rounds ({currentTableOrders.length})</span>
+                      <span>ACTIVE KITCHEN ORDERS ({currentTableOrders.length})</span>
                       <span>₹{runningOrdersTotal}</span>
                     </div>
-                    {currentTableOrders.map((ord, idx) => (
-                      <div key={ord._id} style={{ fontSize: '0.72rem', color: '#334155', marginBottom: 3 }}>
-                        <strong>Round #{idx + 1} ({ord.status}):</strong>
-                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
-                          {(ord.items || []).map(it => `${it.quantity || 1}x ${it.name}`).join(', ')}
+
+                    {currentTableOrders.map((ord, idx) => {
+                      const statusColor = ord.status === 'preparing' ? '#f59e0b' : (ord.status === 'ready' ? '#3b82f6' : (ord.status === 'pending' ? '#64748b' : '#10b981'));
+                      const statusBg = ord.status === 'preparing' ? '#fef3c7' : (ord.status === 'ready' ? '#eff6ff' : (ord.status === 'pending' ? '#f1f5f9' : '#ecfdf5'));
+                      const statusLabel = ord.status === 'preparing' ? '🟡 In Kitchen' : (ord.status === 'ready' ? '🔵 Ready' : (ord.status === 'pending' ? '⚪ Placed' : '🟢 Served'));
+
+                      return (
+                        <div key={ord._id} style={{
+                          background: '#f8fafc',
+                          border: `1px solid ${ord.status === 'preparing' ? '#fde68a' : '#e2e8f0'}`,
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          marginBottom: '8px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
+                            <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0f172a' }}>Order {idx + 1}</span>
+                            <span style={{
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              padding: '2px 7px',
+                              borderRadius: '6px',
+                              background: statusBg,
+                              color: statusColor,
+                              border: `1px solid ${statusColor}40`
+                            }}>
+                              {statusLabel}
+                            </span>
+                          </div>
+
+                          <div className={styles.cartList}>
+                            {(ord.items || []).map((it, itemIdx) => (
+                              <div key={itemIdx} className={styles.cartItem} style={{ padding: '4px 0', borderBottom: itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                                <div>
+                                  <p className={styles.cartItemTitle}>{it.name || it.item?.name || 'Item'}</p>
+                                  <p className={styles.cartItemPrice}>₹{it.price || 0} each</p>
+                                </div>
+                                <div className={styles.qtyControls}>
+                                  <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, -1)}>
+                                    <Minus size={10} />
+                                  </button>
+                                  <span className={styles.qtyVal}>{it.quantity || 1}</span>
+                                  <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, 1)}>
+                                    <Plus size={10} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
                 {/* Draft Section Header */}
                 <div className={styles.draftSectionHeader}>
-                  <span>NEW DRAFT ITEMS ({cart.length})</span>
+                  <span>NEW ORDER (DRAFT) ({cart.length})</span>
+                  {cart.length > 0 && <span>₹{draftCartTotal}</span>}
                 </div>
 
                 {/* Cart items list or empty placeholder */}
                 {cart.length > 0 ? (
-                  <div className={styles.cartList}>
+                  <div className={styles.cartList} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px' }}>
                     {cart.map((it, idx) => (
-                      <div key={idx} className={styles.cartItem}>
+                      <div key={idx} className={styles.cartItem} style={{ padding: '5px 0', borderBottom: idx < cart.length - 1 ? '1px dashed #f1f5f9' : 'none' }}>
                         <div>
                           <p className={styles.cartItemTitle}>{it.name}</p>
                           <p className={styles.cartItemPrice}>₹{it.price} each</p>
@@ -919,11 +1099,11 @@ export default function POSTerminal({
                     Payment Method
                   </span>
                   <div className={styles.paymentModeRow}>
-                    {['Cash', 'UPI / GPay', 'Card'].map(m => (
+                    {['Cash', 'UPI / GPay', 'Card', ...(tenantInfo?.settings?.enableKhata ? ['Khata / Borrow'] : [])].map(m => (
                       <button
                         key={m}
                         type="button"
-                        className={`${styles.payModeBtn} ${paymentMethod === m ? styles.payModeBtnActive : ''}`}
+                        className={`${styles.payModeBtn} ${paymentMethod === m ? styles.payModeBtnActive : ''} ${m === 'Khata / Borrow' ? styles.khataPayBtn : ''}`}
                         onClick={() => setPaymentMethod(m)}
                       >
                         {m}
@@ -948,20 +1128,29 @@ export default function POSTerminal({
                       className={styles.sendKotBtn}
                       onClick={handleSendKOT}
                       disabled={isSubmitting}
+                      title="Send draft items to Kitchen (KDS / In Kitchen)"
                     >
                       <ChefHat size={14} />
-                      <span>{isSubmitting ? 'Sending...' : 'Send KOT'}</span>
+                      <span>{isSubmitting ? 'Sending...' : 'Send to Kitchen'}</span>
                     </button>
                   )}
 
                   <button
                     type="button"
                     className={styles.settlePayBtn}
-                    onClick={handleSettleBill}
+                    onClick={() => {
+                      if (paymentMethod === 'Khata / Borrow') {
+                        setKhataPaidAmount('');
+                        setKhataBorrowAmount(grandTotal);
+                        setShowKhataModal(true);
+                      } else {
+                        handleSettleBill();
+                      }
+                    }}
                     disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
                   >
                     <CheckCircle2 size={15} />
-                    <span>{isSettling ? 'Settling...' : `Settle & Clear (₹${grandTotal})`}</span>
+                    <span>{isSettling ? 'Settling...' : (paymentMethod === 'Khata / Borrow' ? `Record Khata (₹${grandTotal})` : `Settle & Clear (₹${grandTotal})`)}</span>
                   </button>
                 </div>
               </div>
@@ -1128,6 +1317,141 @@ export default function POSTerminal({
             >
               Add to Order
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 5. KHATA / BORROW (UDHARI) SETTLEMENT MODAL               */}
+      {/* ========================================================= */}
+      {showKhataModal && (
+        <div className={styles.splitModalOverlay} onClick={() => setShowKhataModal(false)}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.8rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ background: '#fef3c7', padding: '4px 8px', borderRadius: '8px', fontSize: '1.1rem' }}>📒</span>
+                  Customer Khata / Borrow
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                  Record partial payment and maintain remaining as customer credit / udhari.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowKhataModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                <span>Total Bill Amount:</span>
+                <span style={{ fontSize: '1.05rem', color: '#0f172a', fontWeight: 900 }}>₹{grandTotal}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rahul Sharma"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className={styles.inputField}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                  Customer Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  placeholder="e.g. 9876543210"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className={styles.inputField}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>
+                    Paid Now (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={grandTotal}
+                    placeholder="0"
+                    value={khataPaidAmount}
+                    onChange={(e) => {
+                      const val = Number(e.target.value) || 0;
+                      setKhataPaidAmount(e.target.value);
+                      setKhataBorrowAmount(Math.max(0, grandTotal - val));
+                    }}
+                    className={styles.inputField}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>
+                    Borrow / Udhari (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={grandTotal}
+                    value={khataBorrowAmount}
+                    onChange={(e) => {
+                      const val = Number(e.target.value) || 0;
+                      setKhataBorrowAmount(e.target.value);
+                      setKhataPaidAmount(Math.max(0, grandTotal - val));
+                    }}
+                    className={styles.inputField}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                  Notes / Reference (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Regular regular customer, will pay tomorrow"
+                  value={khataNotes}
+                  onChange={(e) => setKhataNotes(e.target.value)}
+                  className={styles.inputField}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowKhataModal(false)}
+                  style={{ flex: 1, padding: 11, borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmKhataSettlement}
+                  disabled={isSettling}
+                  style={{ flex: 2, padding: 11, borderRadius: 8, border: 'none', background: '#d97706', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  {isSettling ? 'Recording...' : `Record Khata & Clear`}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

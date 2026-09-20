@@ -1,23 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Building2, Clock, CreditCard, 
-  Upload, Trash2, CheckCircle, Info
+  Upload, Trash2, CheckCircle, Info, X, ShieldCheck, Check, Sparkles, BookOpen
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import { API_URL } from '../config/api';
 import styles from './RestaurantSettings.module.css';
+
+const AVAILABLE_PLANS = [
+  { id: '1_month', name: '1 Month Starter', price: 999, period: 'Monthly', features: ['Full POS & Dine-in Orders', 'KDS & Live Orders', 'Dynamic QR Generator', 'Email & Ticket Support'] },
+  { id: '6_months', name: '6 Months Saver', price: 4999, period: 'Half-Yearly', popular: true, features: ['Everything in Starter', 'Staff Role Management (RBAC)', 'Customer Khata / Udhari Ledger', 'Full Financial Analytics Suite', 'Priority 24/7 Support'] },
+  { id: '1_year', name: '1 Year Ultimate Pro', price: 8999, period: 'Yearly', features: ['Everything in 6 Months', 'Dedicated Account Manager', 'Custom Domain & White-labeling', 'Zero Transaction Fees', 'Early Beta Features'] }
+];
 
 export default function RestaurantSettings({ tenantInfo, onSave }) {
   const [activeSection, setActiveSection] = useState('general');
-  const [logoPreview, setLogoPreview] = useState(tenantInfo?.logo || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=200');
+  const [logoPreview, setLogoPreview] = useState(tenantInfo?.logo || '');
   
+  // In-App Upgrade Modal
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedPlanToUpgrade, setSelectedPlanToUpgrade] = useState(AVAILABLE_PLANS[1]);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [paymentStep, setPaymentStep] = useState('select'); // 'select', 'checkout', 'success'
+
   const [form, setForm] = useState({
-    restaurantName: tenantInfo?.name || tenantInfo?.businessName || 'Deepak\'s Cafe & Bistro',
-    gstNumber: tenantInfo?.gstNumber || 'GSTIN29ABCDE1234F',
-    storeAddress: tenantInfo?.address || '1224 Culinary Heights, Bangalore, India',
-    primaryPhone: tenantInfo?.phone || '+91 96801 32562',
-    publicEmail: tenantInfo?.email || 'contact@serviq.ai',
+    restaurantName: tenantInfo?.name || tenantInfo?.businessName || '',
+    gstNumber: tenantInfo?.gstNumber || '',
+    storeAddress: tenantInfo?.address || '',
+    primaryPhone: tenantInfo?.phone || '',
+    publicEmail: tenantInfo?.email || '',
     enableEstimatedPrepTime: tenantInfo?.settings?.enableEstimatedPrepTime || false,
-    operatingHours: [
+    enableKhata: tenantInfo?.settings?.enableKhata || false,
+    operatingHours: tenantInfo?.settings?.operatingHours || [
       { day: 'Monday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
       { day: 'Tuesday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
       { day: 'Wednesday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
@@ -38,6 +53,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         primaryPhone: tenantInfo.phone || prev.primaryPhone,
         publicEmail: tenantInfo.email || prev.publicEmail,
         enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime !== undefined ? tenantInfo.settings.enableEstimatedPrepTime : false,
+        enableKhata: tenantInfo.settings?.enableKhata !== undefined ? tenantInfo.settings.enableKhata : false,
         operatingHours: tenantInfo.settings?.operatingHours || prev.operatingHours,
       }));
       if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
@@ -85,6 +101,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         phone: form.primaryPhone,
         email: form.publicEmail,
         enableEstimatedPrepTime: form.enableEstimatedPrepTime,
+        enableKhata: form.enableKhata,
         operatingHours: form.operatingHours
       });
     } else {
@@ -95,16 +112,45 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   const handleDiscard = () => {
     if (tenantInfo) {
       setForm({
-        restaurantName: tenantInfo.name || tenantInfo.businessName || 'Deepak\'s Cafe & Bistro',
-        gstNumber: tenantInfo.gstNumber || 'GSTIN29ABCDE1234F',
-        storeAddress: tenantInfo.address || '1224 Culinary Heights, Bangalore',
-        primaryPhone: tenantInfo.phone || '+91 96801 32562',
-        publicEmail: tenantInfo.email || 'contact@serviq.ai',
+        restaurantName: tenantInfo.name || tenantInfo.businessName || '',
+        gstNumber: tenantInfo.gstNumber || '',
+        storeAddress: tenantInfo.address || '',
+        primaryPhone: tenantInfo.phone || '',
+        publicEmail: tenantInfo.email || '',
+        enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime || false,
+        enableKhata: tenantInfo.settings?.enableKhata || false,
         operatingHours: tenantInfo.settings?.operatingHours || form.operatingHours
       });
       if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
     }
     toast('Changes reset to saved identity', { icon: '↩️' });
+  };
+
+  const handleExecuteUpgrade = async () => {
+    try {
+      setIsUpgrading(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_URL}/tenants/upgrade-plan`, {
+        plan: selectedPlanToUpgrade.id,
+        price: selectedPlanToUpgrade.price
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data && res.data.success) {
+        setPaymentStep('success');
+        toast.success(`Plan upgraded to ${selectedPlanToUpgrade.name}!`);
+        setTimeout(() => {
+          setShowUpgradeModal(false);
+          setPaymentStep('select');
+          window.location.reload();
+        }, 1500);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to process subscription upgrade.');
+    } finally {
+      setIsUpgrading(false);
+    }
   };
 
   return (
@@ -113,7 +159,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       <div className={styles.topHeader}>
         <div>
           <h1 className={styles.pageTitle}>Restaurant Settings</h1>
-          <p className={styles.pageSubtitle}>Configure your restaurant identity, operations, and subscription.</p>
+          <p className={styles.pageSubtitle}>Configure your restaurant identity, operations, customer credit, and subscription.</p>
         </div>
         <div className={styles.topActions}>
           <button type="button" className={styles.discardBtn} onClick={handleDiscard}>Discard Changes</button>
@@ -136,13 +182,13 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               className={`${styles.navItem} ${activeSection === 'operations' ? styles.activeNav : ''}`}
               onClick={() => { setActiveSection('operations'); document.getElementById('operations')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
-              <Clock size={16} /> <span>Operations</span>
+              <Clock size={16} /> <span>Operations & Features</span>
             </button>
             <button 
               className={`${styles.navItem} ${activeSection === 'subscription' ? styles.activeNav : ''}`}
               onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
-              <CreditCard size={16} /> <span>Subscription</span>
+              <CreditCard size={16} /> <span>Subscription & Billing</span>
             </button>
           </div>
 
@@ -152,11 +198,19 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               <span className={styles.planPill}>ACTIVE</span>
               <span className={styles.checkIcon}>✓</span>
             </div>
-            <h4 className={styles.planTitle}>Pro Enterprise</h4>
-            <p className={styles.planSub}>Next billing: Oct 24, 2026</p>
+            <h4 className={styles.planTitle}>
+              {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
+            </h4>
+            <p className={styles.planSub}>
+              Expires: {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
+            </p>
             <div className={styles.planButtons}>
-              <button className={styles.manageBtn}>Manage Billing</button>
-              <button className={styles.upgradeBtn}>Upgrade Plan</button>
+              <button className={styles.manageBtn} onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                Manage Billing
+              </button>
+              <button className={styles.upgradeBtn} onClick={() => { setPaymentStep('select'); setShowUpgradeModal(true); }}>
+                Upgrade Plan
+              </button>
             </div>
           </div>
         </aside>
@@ -177,10 +231,17 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 <div className={styles.logoDropzone}>
                   <label className={styles.fieldLabel}>Restaurant Logo</label>
                   <div className={styles.logoBox}>
-                    <img src={logoPreview} alt="Logo" className={styles.logoImage} />
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className={styles.logoImage} />
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
+                        <Building2 size={32} />
+                        <span style={{ fontSize: '11px', marginTop: 4 }}>No Logo Uploaded</span>
+                      </div>
+                    )}
                     <label className={styles.replaceOverlay}>
                       <Upload size={14} />
-                      <span>Replace Logo</span>
+                      <span>{logoPreview ? 'Replace Logo' : 'Upload Logo'}</span>
                       <small>PNG, JPG up to 5MB</small>
                       <input 
                         type="file" 
@@ -213,6 +274,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       <label>Restaurant Name</label>
                       <input 
                         type="text" 
+                        placeholder="e.g. Cafe Delight"
                         value={form.restaurantName}
                         onChange={(e) => setForm({ ...form, restaurantName: e.target.value })}
                       />
@@ -221,6 +283,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       <label>GST / Tax Number</label>
                       <input 
                         type="text" 
+                        placeholder="e.g. GSTIN29ABCDE1234F"
                         value={form.gstNumber}
                         onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
                       />
@@ -231,6 +294,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     <label>Store Address</label>
                     <input 
                       type="text" 
+                      placeholder="e.g. 1224 Main Road, Sector 5, City"
                       value={form.storeAddress}
                       onChange={(e) => setForm({ ...form, storeAddress: e.target.value })}
                     />
@@ -241,6 +305,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       <label>Primary Phone</label>
                       <input 
                         type="text" 
+                        placeholder="e.g. +91 9876543210"
                         value={form.primaryPhone}
                         onChange={(e) => setForm({ ...form, primaryPhone: e.target.value })}
                       />
@@ -249,6 +314,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       <label>Public Email</label>
                       <input 
                         type="email" 
+                        placeholder="e.g. contact@mycafe.com"
                         value={form.publicEmail}
                         onChange={(e) => setForm({ ...form, publicEmail: e.target.value })}
                       />
@@ -259,12 +325,12 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             </div>
           </section>
 
-          {/* 2. Operating Hours */}
+          {/* 2. Operations & Feature Toggles */}
           <section className={styles.sectionCard} id="operations">
             <div className={styles.cardHeader}>
-              <h3>Operating Hours</h3>
+              <h3>Operations & Feature Controls</h3>
               <button type="button" className={styles.copyBtn} onClick={handleCopyMondayToAll}>
-                📋 Copy to All
+                📋 Copy Hours to All
               </button>
             </div>
             
@@ -336,7 +402,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     <strong style={{ fontSize: '13px', color: '#0f172a' }}>Kitchen Prep Time Estimation</strong>
                   </div>
                   <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Prompt staff for estimated preparation time (e.g. 15 mins) when sending orders to the kitchen, and show a live countdown to customers. (Default: OFF)
+                    Prompt staff for estimated preparation time when sending orders to the kitchen, and show live countdown to customers. (Default: OFF)
                   </p>
                 </div>
                 <label className={styles.switch}>
@@ -348,13 +414,34 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   <span className={styles.slider}></span>
                 </label>
               </div>
+
+              {/* Customer Khata / Borrow (Udhari) Feature Toggle */}
+              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <BookOpen size={16} color="#d97706" />
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Enable Customer Credit / Borrow (Udhari / Khata)</strong>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
+                    Enable this toggle if your cafe allows daily/regular customers to borrow or make partial payments (e.g. paying ₹600 on a ₹610 bill). This adds a Khata button in POS and ledger tracking.
+                  </p>
+                </div>
+                <label className={styles.switch}>
+                  <input 
+                    type="checkbox" 
+                    checked={form.enableKhata} 
+                    onChange={(e) => setForm({ ...form, enableKhata: e.target.checked })} 
+                  />
+                  <span className={styles.slider}></span>
+                </label>
+              </div>
             </div>
           </section>
 
-          {/* 3. Subscription Plan Details & History */}
+          {/* 3. Subscription Plan Details & In-App Upgrade */}
           <section className={styles.sectionCard} id="subscription">
             <div className={styles.cardHeader}>
-              <h3>Subscription Plan & Activation Details</h3>
+              <h3>Subscription Plan & In-App Upgrades</h3>
               <span className={styles.planPill} style={{ background: tenantInfo?.subscription?.isActive !== false ? '#dcfce7' : '#fee2e2', color: tenantInfo?.subscription?.isActive !== false ? '#15803d' : '#b91c1c', padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: 800 }}>
                 {tenantInfo?.subscription?.isActive !== false ? '● ACTIVE PLAN' : '● DEACTIVATED'}
               </span>
@@ -363,21 +450,21 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             <div className={styles.cardBody}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Current Plan</span>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Current Active Plan</span>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginTop: 4 }}>
                     {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter (₹999)'}
                   </div>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Plan Price</span>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Plan Pricing</span>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a', marginTop: 4 }}>
                     ₹{tenantInfo?.subscription?.price || 999}
                   </div>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Renewal Date</span>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Plan Validity / Renewal</span>
                   <div style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', marginTop: 4 }}>
-                    {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Oct 24, 2026'}
+                    {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
                   </div>
                 </div>
               </div>
@@ -385,10 +472,10 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button 
                   type="button"
-                  onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SuperAdmin%2C%20I%20want%20to%20upgrade/renew%20my%20cafe%20subscription%20plan', '_blank')}
-                  style={{ padding: '10px 18px', borderRadius: '10px', background: '#4f46e5', color: '#ffffff', border: 'none', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                  onClick={() => { setPaymentStep('select'); setShowUpgradeModal(true); }}
+                  style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: '#ffffff', border: 'none', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                 >
-                  Contact SuperAdmin to Upgrade/Renew
+                  <Sparkles size={16} /> Upgrade / Renew Plan
                 </button>
               </div>
 
@@ -429,7 +516,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
           {/* Footer Info */}
           <footer className={styles.settingsFooter}>
-            <span>© 2026 Gourmet Ops - Provisions Enterprise Suite. v4.2.0-stable</span>
+            <span>© 2026 SERVIQ OS - Enterprise POS & Cafe Management Suite.</span>
             <div className={styles.footerLinks}>
               <a href="#privacy">Privacy Policy</a>
               <a href="#audit">Audit Logs</a>
@@ -438,6 +525,185 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </footer>
         </div>
       </div>
+
+      {/* ========================================================= */}
+      {/* IN-APP PLAN UPGRADE MODAL                                  */}
+      {/* ========================================================= */}
+      {showUpgradeModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(5px)',
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }} onClick={() => setShowUpgradeModal(false)}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '680px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            padding: '28px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={20} color="#2563eb" />
+                  Upgrade SERVIQ Subscription
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Choose your plan and activate premium features instantly.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {paymentStep === 'select' && (
+              <div>
+                {/* Plan Options Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                  {AVAILABLE_PLANS.map(plan => {
+                    const isSelected = selectedPlanToUpgrade.id === plan.id;
+                    return (
+                      <div
+                        key={plan.id}
+                        onClick={() => setSelectedPlanToUpgrade(plan)}
+                        style={{
+                          border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                          background: isSelected ? '#eff6ff' : '#ffffff',
+                          borderRadius: '14px',
+                          padding: '16px',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {plan.popular && (
+                          <span style={{
+                            position: 'absolute',
+                            top: -10,
+                            right: 12,
+                            background: '#2563eb',
+                            color: '#ffffff',
+                            fontSize: '9.5px',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: '100px'
+                          }}>
+                            BEST VALUE
+                          </span>
+                        )}
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>{plan.name}</h4>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#2563eb', marginBottom: '10px' }}>
+                          ₹{plan.price.toLocaleString()}
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}> / {plan.period}</span>
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.75rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {plan.features.map((f, i) => (
+                            <li key={i}>{f}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeModal(false)}
+                    style={{ padding: '10px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStep('checkout')}
+                    style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    Proceed to Activate (₹{selectedPlanToUpgrade.price})
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {paymentStep === 'checkout' && (
+              <div>
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>
+                    <span>Selected Plan:</span>
+                    <span style={{ color: '#0f172a', fontWeight: 800 }}>{selectedPlanToUpgrade.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 900, color: '#16a34a' }}>
+                    <span>Payable Amount:</span>
+                    <span>₹{selectedPlanToUpgrade.price}</span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 8 }}>
+                    Select Payment Gateway / Method:
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px', borderRadius: 10, border: '2px solid #2563eb', background: '#eff6ff', cursor: 'pointer' }}>
+                      <input type="radio" name="payMethod" defaultChecked />
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>Instant UPI / QR / Net Banking (Razorpay Instant)</div>
+                    </label>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStep('select')}
+                    style={{ padding: '10px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteUpgrade}
+                    disabled={isUpgrading}
+                    style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', background: '#16a34a', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                    {isUpgrading ? 'Processing Activation...' : `Pay & Activate Plan (₹${selectedPlanToUpgrade.price})`}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {paymentStep === 'success' && (
+              <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Check size={32} />
+                </div>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Subscription Activated!</h3>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+                  Your cafe is now running on <strong>{selectedPlanToUpgrade.name}</strong>. Reloading workspace...
+                </p>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+

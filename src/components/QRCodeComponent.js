@@ -484,315 +484,194 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   }, [tables, searchQuery, statusFilter, activeOrdersLookup]);
 
   return (
-    <div style={{ width: '100%' }}>
-      {/* Top Header Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '-0.02em' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)' }}>
-              <QrCode size={18} />
-            </div>
-            Dynamic Table & QR Manager
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '4px 0 0 0' }}>
-            Generate, customize, and print digital dine-in QR codes for every table.
-          </p>
-        </div>        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => printTableStands(filteredTables)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Printer size={14} /> Print Stands
-          </button>
-          <button
-            type="button"
-            onClick={downloadAllQRs}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Download size={14} /> Download All
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenBatchModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Layers size={14} /> Quick Batch Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 16px',
-              borderRadius: '10px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#0f172a',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Plus size={15} /> Add Table
-          </button>
-        </div>
-      </div>
-
-      {/* Network Host & Live Mobile Scan Config */}
+    <div style={{ width: '100%' }}>      {/* Consolidated Top Header & Action Bar */}
       <div style={{
         background: '#ffffff',
-        borderRadius: '14px',
-        padding: '10px 16px',
-        marginBottom: '1.25rem',
-        color: '#0f172a',
+        borderRadius: '16px',
+        padding: '16px 20px',
+        marginBottom: '1.5rem',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '0.75rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-        border: '1px solid #e2e8f0'
+        flexDirection: 'column',
+        gap: '14px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: 30,
-            height: 30,
-            borderRadius: '8px',
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#475569'
-          }}>
-            <Smartphone size={15} />
+        {/* Row 1: Title and Main Action Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '-0.02em' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)' }}>
+                <QrCode size={18} />
+              </div>
+              Dynamic Table & QR Manager
+            </h2>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>
+              Generate, customize, and print digital dine-in QR codes for every table.
+            </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>QR Target Host:</span>
-            <code style={{ fontSize: '11.5px', color: '#0f172a', background: '#f8fafc', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, border: '1px solid #e2e8f0' }}>{qrBaseUrl}</code>
-            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '100px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
-              ● LIVE
-            </span>
-          </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => handleSaveHost('http://192.168.1.10:3000')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              border: qrBaseUrl.includes('192.168.1.10') ? '1px solid #0f172a' : '1px solid #e2e8f0',
-              background: qrBaseUrl.includes('192.168.1.10') ? '#0f172a' : '#ffffff',
-              color: qrBaseUrl.includes('192.168.1.10') ? '#ffffff' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Wi-Fi IP
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSaveHost('http://localhost:3000')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              border: qrBaseUrl.includes('localhost') ? '1px solid #0f172a' : '1px solid #e2e8f0',
-              background: qrBaseUrl.includes('localhost') ? '#0f172a' : '#ffffff',
-              color: qrBaseUrl.includes('localhost') ? '#ffffff' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Localhost
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTempHost(qrBaseUrl);
-              setIsEditingHost(!isEditingHost);
-            }}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              background: isEditingHost ? '#0f172a' : '#ffffff',
-              color: isEditingHost ? '#ffffff' : '#64748b',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Edit3 size={11} /> Custom
-          </button>
-        </div>
-
-        {isEditingHost && (
-          <div style={{ width: '100%', display: 'flex', gap: 8, alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-            <input
-              type="text"
-              placeholder="e.g. http://192.168.1.10:3000 or https://yourdomain.com"
-              value={tempHost}
-              onChange={(e) => setTempHost(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                outline: 'none',
-                fontFamily: 'monospace'
-              }}
-            />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               type="button"
-              onClick={() => handleSaveHost(tempHost)}
+              onClick={() => printTableStands(filteredTables)}
               style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#0f172a',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '12px',
-                cursor: 'pointer'
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                color: '#334155',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                transition: 'all 0.15s ease'
               }}
             >
-              Apply
+              <Printer size={14} /> Print Stands
+            </button>
+            <button
+              type="button"
+              onClick={downloadAllQRs}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                color: '#334155',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Download size={14} /> Download All
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenBatchModal}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                color: '#334155',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Layers size={14} /> Quick Batch Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 16px',
+                borderRadius: '10px',
+                border: 'none',
+                background: '#2563eb',
+                color: '#ffffff',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Plus size={15} /> Add Table
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Filter and Interactive Stats Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.85rem', background: '#ffffff', padding: '10px 16px', borderRadius: '14px', marginBottom: '1.25rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '240px' }}>
-          <Search size={14} color="#94a3b8" />
-          <input 
-            type="text"
-            placeholder="Search table number..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '12.5px', width: '100%', color: '#1e293b' }}
-          />
-          {searchQuery && (
-            <button type="button" onClick={() => setSearchQuery('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
-              <Check size={13} />
-            </button>
-          )}
-          {isRefreshing && (
-            <span style={{ fontSize: '11px', color: '#0f172a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />
-            </span>
-          )}
         </div>
 
-        {/* Quick Filter Pill Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
-            style={{
-              background: statusFilter === 'all' ? '#e2e8f0' : '#f8fafc',
-              color: '#0f172a',
-              padding: '5px 11px',
-              borderRadius: '8px',
-              border: statusFilter === 'all' ? '1px solid #cbd5e1' : '1px solid #e2e8f0',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            All: <strong style={{ color: '#0f172a' }}>{tables.length}</strong>
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('available')}
-            style={{
-              background: statusFilter === 'available' ? '#15803d' : '#f0fdf4',
-              color: statusFilter === 'available' ? '#ffffff' : '#166534',
-              padding: '5px 11px',
-              borderRadius: '8px',
-              border: statusFilter === 'available' ? '1px solid #15803d' : '1px solid #bbf7d0',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Available: <strong style={{ color: statusFilter === 'available' ? '#ffffff' : '#15803d' }}>{tables.filter(t => !isTableOccupied(t)).length}</strong>
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('occupied')}
-            style={{
-              background: statusFilter === 'occupied' ? '#b45309' : '#fffbeb',
-              color: statusFilter === 'occupied' ? '#ffffff' : '#92400e',
-              padding: '5px 11px',
-              borderRadius: '8px',
-              border: statusFilter === 'occupied' ? '1px solid #b45309' : '1px solid #fde68a',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            Occupied: <strong style={{ color: statusFilter === 'occupied' ? '#ffffff' : '#b45309' }}>{tables.filter(t => isTableOccupied(t)).length}</strong>
-          </button>
+        {/* Row 2: Search & Status Filter Pills */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '260px' }}>
+            <Search size={14} color="#94a3b8" />
+            <input 
+              type="text"
+              placeholder="Search table number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '12.5px', width: '100%', color: '#1e293b' }}
+            />
+            {searchQuery && (
+              <button type="button" onClick={() => setSearchQuery('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+                <Check size={13} />
+              </button>
+            )}
+            {isRefreshing && (
+              <span style={{ fontSize: '11px', color: '#0f172a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />
+              </span>
+            )}
+          </div>
+
+          {/* Quick Filter Pill Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              style={{
+                background: statusFilter === 'all' ? '#0f172a' : '#f8fafc',
+                color: statusFilter === 'all' ? '#ffffff' : '#475569',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: statusFilter === 'all' ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              All ({tables.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('available')}
+              style={{
+                background: statusFilter === 'available' ? '#16a34a' : '#f0fdf4',
+                color: statusFilter === 'available' ? '#ffffff' : '#16a34a',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: statusFilter === 'available' ? '1px solid #16a34a' : '1px solid #bbf7d0',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Available ({tables.filter(t => !activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('occupied')}
+              style={{
+                background: statusFilter === 'occupied' ? '#d97706' : '#fffbeb',
+                color: statusFilter === 'occupied' ? '#ffffff' : '#d97706',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: statusFilter === 'occupied' ? '1px solid #d97706' : '1px solid #fde68a',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Occupied ({tables.filter(t => !!activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
+            </button>
+          </div>
         </div>
       </div>
 
