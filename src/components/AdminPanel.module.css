@@ -349,6 +349,15 @@
   box-sizing: border-box;
 }
 
+.mainContentPos {
+  padding: 0.65rem 1rem !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100vh - 54px) !important;
+  max-height: calc(100vh - 54px) !important;
+}
+
 /* DEDICATED POS SCREEN STYLES (NO SIDEBAR) */
 .posFullScreenLayout {
   display: flex;

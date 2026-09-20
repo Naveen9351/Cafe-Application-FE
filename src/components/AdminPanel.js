@@ -1257,7 +1257,7 @@ export default function AdminPanel() {
         </header>
 
         {/* MAIN BODY AREA */}
-        <main className={styles.mainContent}>
+        <main className={`${styles.mainContent} ${activeTab === 'pos' ? styles.mainContentPos : ''}`}>
           <AnimatePresence mode="wait">
 
             {/* ========================================================= */}
@@ -3118,6 +3118,7 @@ export default function AdminPanel() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
+                style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
               >
                 <POSTerminal
                   tenantId={tenantId}

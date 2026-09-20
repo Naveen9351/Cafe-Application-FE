@@ -269,17 +269,28 @@ export default function POSTerminal({
     return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
   }, [tableNumber, activeOrdersByTable]);
 
+  // Format money helper to eliminate floating point precision junk (e.g. 1739.8500000000001 -> 1,739.85)
+  const formatAmount = (val) => {
+    const num = Number(val) || 0;
+    const rounded = Math.round(num * 100) / 100;
+    return rounded.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+
   // Running orders total
   const runningOrdersTotal = useMemo(() => {
-    return currentTableOrders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
+    const sum = currentTableOrders.reduce((acc, o) => acc + (Number(o.total || o.totalAmount) || 0), 0);
+    return Math.round(sum * 100) / 100;
   }, [currentTableOrders]);
 
   // Current draft cart total
   const draftCartTotal = useMemo(() => {
-    return cart.reduce((sum, it) => sum + (Number(it.price) * (Number(it.quantity) || 1)), 0);
+    const sum = cart.reduce((acc, it) => acc + (Number(it.price) * (Number(it.quantity) || 1)), 0);
+    return Math.round(sum * 100) / 100;
   }, [cart]);
 
-  const grandTotal = runningOrdersTotal + draftCartTotal;
+  const grandTotal = useMemo(() => {
+    return Math.round((runningOrdersTotal + draftCartTotal) * 100) / 100;
+  }, [runningOrdersTotal, draftCartTotal]);
 
   // Categories list for POS Menu
   const categories = useMemo(() => {
@@ -764,7 +775,7 @@ export default function POSTerminal({
                       <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
                     </div>
                     <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                    <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                    <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                   </div>
                 );
               }
@@ -775,13 +786,13 @@ export default function POSTerminal({
                   key={tbl._id || tbl.tableNumber}
                   className={`${styles.tableTile} ${styles.tileOccupied}`}
                   onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                  title={`Table ${tbl.tableNumber} - Running Order ₹${totalAmt}. Click to open POS.`}
+                  title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
                 >
                   <div className={styles.tileTopMeta}>
                     <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
                   </div>
                   <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                  <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                  <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                 </div>
               );
             })}
@@ -853,7 +864,7 @@ export default function POSTerminal({
       {/* 2. POS BILLING & ORDER VIEW (High-Speed Terminal)         */}
       {/* ========================================================= */}
       {viewMode === 'terminal' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className={styles.terminalContainerWrap}>
           
           {/* POS Two-Column Grid */}
           <div className={styles.posGrid}>
@@ -930,7 +941,7 @@ export default function POSTerminal({
                       </div>
 
                       <div className={styles.dishPriceRow}>
-                        <span className={styles.dishPrice}>₹{price}</span>
+                        <span className={styles.dishPrice}>₹{formatAmount(price)}</span>
                         <button
                           type="button"
                           className={styles.dishAddBtn}
@@ -958,7 +969,7 @@ export default function POSTerminal({
                     </h4>
                     {runningOrdersTotal > 0 && (
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                        ● Active (₹{runningOrdersTotal})
+                        ● Active (₹{formatAmount(runningOrdersTotal)})
                       </span>
                     )}
                   </div>
@@ -999,7 +1010,7 @@ export default function POSTerminal({
                   <div style={{ marginBottom: '10px' }}>
                     <div className={styles.roundHeader}>
                       <span>ACTIVE KITCHEN ORDERS ({currentTableOrders.length})</span>
-                      <span>₹{runningOrdersTotal}</span>
+                      <span>₹{formatAmount(runningOrdersTotal)}</span>
                     </div>
 
                     {currentTableOrders.map((ord, idx) => {
@@ -1036,7 +1047,7 @@ export default function POSTerminal({
                               <div key={itemIdx} className={styles.cartItem} style={{ padding: '4px 0', borderBottom: itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
                                 <div>
                                   <p className={styles.cartItemTitle}>{it.name || it.item?.name || 'Item'}</p>
-                                  <p className={styles.cartItemPrice}>₹{it.price || 0} each</p>
+                                  <p className={styles.cartItemPrice}>₹{formatAmount(it.price || 0)} each</p>
                                 </div>
                                 <div className={styles.qtyControls}>
                                   <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, -1)}>
@@ -1059,7 +1070,7 @@ export default function POSTerminal({
                 {/* Draft Section Header */}
                 <div className={styles.draftSectionHeader}>
                   <span>NEW ORDER (DRAFT) ({cart.length})</span>
-                  {cart.length > 0 && <span>₹{draftCartTotal}</span>}
+                  {cart.length > 0 && <span>₹{formatAmount(draftCartTotal)}</span>}
                 </div>
 
                 {/* Cart items list or empty placeholder */}
@@ -1069,7 +1080,7 @@ export default function POSTerminal({
                       <div key={idx} className={styles.cartItem} style={{ padding: '5px 0', borderBottom: idx < cart.length - 1 ? '1px dashed #f1f5f9' : 'none' }}>
                         <div>
                           <p className={styles.cartItemTitle}>{it.name}</p>
-                          <p className={styles.cartItemPrice}>₹{it.price} each</p>
+                          <p className={styles.cartItemPrice}>₹{formatAmount(it.price)} each</p>
                         </div>
                         <div className={styles.qtyControls}>
                           <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, -1)}>
@@ -1116,7 +1127,7 @@ export default function POSTerminal({
                 <div className={styles.billSummary}>
                   <div className={styles.billRowTotal}>
                     <span>Total Amount:</span>
-                    <span>₹{grandTotal}</span>
+                    <span>₹{formatAmount(grandTotal)}</span>
                   </div>
                 </div>
 
@@ -1150,7 +1161,7 @@ export default function POSTerminal({
                     disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
                   >
                     <CheckCircle2 size={15} />
-                    <span>{isSettling ? 'Settling...' : (paymentMethod === 'Khata / Borrow' ? `Record Khata (₹${grandTotal})` : `Settle & Clear (₹${grandTotal})`)}</span>
+                    <span>{isSettling ? 'Settling...' : (paymentMethod === 'Khata / Borrow' ? `Record Khata (₹${formatAmount(grandTotal)})` : `Settle & Clear (₹${formatAmount(grandTotal)})`)}</span>
                   </button>
                 </div>
               </div>
@@ -1349,7 +1360,7 @@ export default function POSTerminal({
             <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
                 <span>Total Bill Amount:</span>
-                <span style={{ fontSize: '1.05rem', color: '#0f172a', fontWeight: 900 }}>₹{grandTotal}</span>
+                <span style={{ fontSize: '1.05rem', color: '#0f172a', fontWeight: 900 }}>₹{formatAmount(grandTotal)}</span>
               </div>
             </div>
 
