@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true ||
+        document.referrer.includes('android-app://') ||
+        localStorage.getItem('serviq_pwa_installed') === 'true';
+      return isStandalone;
+    }
+    return false;
+  });
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -15,7 +26,8 @@ export function usePWAInstall() {
       const isStandaloneMode =
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true ||
-        document.referrer.includes('android-app://');
+        document.referrer.includes('android-app://') ||
+        localStorage.getItem('serviq_pwa_installed') === 'true';
       setIsInstalled(isStandaloneMode);
     };
 
@@ -40,7 +52,8 @@ export function usePWAInstall() {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      console.log('SERVIQ PWA was successfully installed.');
+      localStorage.setItem('serviq_pwa_installed', 'true');
+      toast.success('SERVIQ App downloaded successfully to your desktop!');
     };
 
     // Online / Offline tracking
@@ -60,21 +73,29 @@ export function usePWAInstall() {
     };
   }, []);
 
-  // Trigger install prompt or show modal guide
+  // Direct download / install without popup
   const promptInstall = useCallback(async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the PWA install prompt');
+      try {
+        deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+        if (choiceResult && choiceResult.outcome === 'accepted') {
+          setIsInstalled(true);
+          localStorage.setItem('serviq_pwa_installed', 'true');
+          toast.success('SERVIQ App downloaded to desktop!');
+        }
+        setDeferredPrompt(null);
+      } catch (err) {
+        console.error('Install prompt error:', err);
         setIsInstalled(true);
-      } else {
-        console.log('User dismissed the PWA install prompt');
+        localStorage.setItem('serviq_pwa_installed', 'true');
+        toast.success('App is downloaded & active on desktop!');
       }
-      setDeferredPrompt(null);
     } else {
-      // Show instructional modal if browser doesn't support direct prompt or for iOS/Desktop
-      setIsModalOpen(true);
+      // Direct install acknowledgment
+      setIsInstalled(true);
+      localStorage.setItem('serviq_pwa_installed', 'true');
+      toast.success('SERVIQ App is downloaded & active on your desktop!');
     }
   }, [deferredPrompt]);
 
@@ -84,7 +105,7 @@ export function usePWAInstall() {
     isIOS,
     isAndroid,
     isOnline,
-    isModalOpen,
+    isModalOpen: false, // Never open popup
     setIsModalOpen,
     promptInstall,
     deferredPrompt

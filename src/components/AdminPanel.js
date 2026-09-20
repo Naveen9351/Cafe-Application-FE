@@ -1054,10 +1054,11 @@ export default function AdminPanel() {
             type="button"
             className={styles.pwaInstallHeaderBtn}
             onClick={promptInstall}
-            title={isInstalled ? "SERVIQ App is Installed" : "Download & Install Cafe Admin App"}
+            title={isInstalled ? "SERVIQ App is Downloaded" : "Download & Install Cafe Admin App"}
+            style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d', fontWeight: 700 } : {}}
           >
             {isInstalled ? <CheckCircle2 size={15} style={{ color: '#16a34a' }} /> : <Download size={15} />}
-            <span>{isInstalled ? 'App Active' : 'Download App'}</span>
+            <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>
           </button>
 
           <button
@@ -1148,10 +1149,11 @@ export default function AdminPanel() {
               type="button"
               className={styles.sidebarPwaBtn}
               onClick={promptInstall}
-              title={isInstalled ? "SERVIQ App Installed & Active" : "Download & Install Admin App"}
+              title={isInstalled ? "SERVIQ App is Downloaded" : "Download & Install Admin App"}
+              style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d', fontWeight: 700 } : {}}
             >
-              <Smartphone size={16} />
-              {!sidebarCollapsed && <span>{isInstalled ? 'App Active' : 'Install App'}</span>}
+              {isInstalled ? <CheckCircle2 size={16} style={{ color: '#16a34a' }} /> : <Smartphone size={16} />}
+              {!sidebarCollapsed && <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>}
             </button>
 
             <button
@@ -3484,16 +3486,6 @@ export default function AdminPanel() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* PWA Install Guide Modal */}
-      <PWAInstallModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        deferredPrompt={deferredPrompt}
-        isInstalled={isInstalled}
-        isIOS={isIOS}
-        isAndroid={isAndroid}
-      />
 
     </div>
   );
