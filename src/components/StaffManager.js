@@ -104,7 +104,7 @@ export default function StaffManager() {
       setLoading(true);
       const token = localStorage.getItem('token');
       const res = await axios.get(`${API_URL}/staff`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'x-auth-token': token
         }
@@ -176,7 +176,7 @@ export default function StaffManager() {
 
       if (editingStaffId) {
         await axios.put(`${API_URL}/staff/${editingStaffId}`, payload, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'x-auth-token': token
           }
@@ -188,7 +188,7 @@ export default function StaffManager() {
           return;
         }
         await axios.post(`${API_URL}/staff`, payload, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'x-auth-token': token
           }
@@ -209,7 +209,7 @@ export default function StaffManager() {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/staff/${id}`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'x-auth-token': token
         }
@@ -228,7 +228,7 @@ export default function StaffManager() {
         status: newStatus,
         isActive: newStatus === 'active'
       }, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'x-auth-token': token
         }
@@ -255,9 +255,8 @@ export default function StaffManager() {
         <div className={styles.titleGroup}>
           <h2>
             <Users size={26} color="#2563eb" />
-            Staff & Role-Based Access Control (RBAC)
+            Staff Management
           </h2>
-          <p>Manage cafe staff members, assign roles, and configure granular permissions across POS and admin modules.</p>
         </div>
         <button className={styles.primaryBtn} onClick={handleOpenCreateModal}>
           <Plus size={16} />
@@ -265,36 +264,7 @@ export default function StaffManager() {
         </button>
       </div>
 
-      {/* Stats Summary */}
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
-            <Users size={22} />
-          </div>
-          <div className={styles.statInfo}>
-            <h4>{staffList.length}</h4>
-            <span>Total Staff Members</span>
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#ecfdf5', color: '#16a34a' }}>
-            <UserCheck size={22} />
-          </div>
-          <div className={styles.statInfo}>
-            <h4>{staffList.filter(s => s.isActive).length}</h4>
-            <span>Active Members</span>
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
-            <Shield size={22} />
-          </div>
-          <div className={styles.statInfo}>
-            <h4>{Object.keys(ROLE_PRESETS).length}</h4>
-            <span>Configured Roles</span>
-          </div>
-        </div>
-      </div>
+
 
       {/* Staff Table */}
       <div className={styles.tableCard}>

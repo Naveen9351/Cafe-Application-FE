@@ -19,7 +19,7 @@ const Login = () => {
     const validateForm = () => {
         const errors = {};
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
+
         if (!email.trim()) {
             errors.email = "Email address is required";
         } else if (!emailRegex.test(email.trim())) {
@@ -74,7 +74,7 @@ const Login = () => {
         } else {
             const errorMsg = result?.error || "Invalid email or password. Please try again.";
             setGeneralError(errorMsg);
-            
+
             // Map server validation errors to fields if any
             if (result?.errors && Array.isArray(result.errors)) {
                 const newFieldErrors = {};
@@ -103,13 +103,13 @@ const Login = () => {
             >
                 {/* Left Side: Gourmet Visual Banner */}
                 <div className={styles.visualSide}>
-                    <img 
-                        src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80" 
-                        alt="Artisan Cafe Counter" 
+                    <img
+                        src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80"
+                        alt="Artisan Cafe Counter"
                         className={styles.bgImage}
                     />
                     <div className={styles.visualOverlay} />
-                    
+
                     <div className={styles.visualContent}>
                         <div style={{ marginBottom: '1rem' }}>
                             <BrandLogo theme="dark" size="sm" showSubtitle={true} onClick={() => navigate('/')} />
@@ -202,13 +202,6 @@ const Login = () => {
                             )}
                         </button>
                     </form>
-
-                    <div className={styles.footer}>
-                        <span>Don't have a cafe account?</span>
-                        <span style={{ color: '#6366f1', fontWeight: 700, marginLeft: 4 }}>
-                            Contact SuperAdmin to onboard your cafe
-                        </span>
-                    </div>
                 </div>
             </motion.div>
         </div>

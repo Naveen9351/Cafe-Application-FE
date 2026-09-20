@@ -39,6 +39,7 @@ export default function POSTerminal({
   const [isSettling, setIsSettling] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbTables, setDbTables] = useState([]);
+  const [isLoadingTables, setIsLoadingTables] = useState(true);
 
   // Khata / Borrow Modal states
   const [showKhataModal, setShowKhataModal] = useState(false);
@@ -64,6 +65,7 @@ export default function POSTerminal({
 
   // Fetch dynamic tables from backend DB
   const fetchDbTables = useCallback(() => {
+    setIsLoadingTables(true);
     const token = localStorage.getItem('token');
     const url = `${API}/tables${tenantId ? `?tenantId=${tenantId}` : ''}`;
     axios.get(url, { headers: token ? { 'x-auth-token': token } : {} })
@@ -85,18 +87,19 @@ export default function POSTerminal({
       })
       .catch(err => {
         console.log('Dynamic tables fetch error:', err.message);
-        if (dbTables.length === 0) {
-          setDbTables([
-            { _id: 't1', tableNumber: '1', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't2', tableNumber: '2', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't3', tableNumber: '3', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't5', tableNumber: '5', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't6', tableNumber: '6', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't7', tableNumber: '7', seatingCapacity: 2, zone: 'Garden' },
-            { _id: 't8', tableNumber: '8', seatingCapacity: 4, zone: 'Roof Top' }
-          ]);
-        }
+        setDbTables([
+          { _id: 't1', tableNumber: '1', seatingCapacity: 4, zone: 'Main Floor' },
+          { _id: 't2', tableNumber: '2', seatingCapacity: 4, zone: 'Main Floor' },
+          { _id: 't3', tableNumber: '3', seatingCapacity: 4, zone: 'Main Floor' },
+          { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' },
+          { _id: 't5', tableNumber: '5', seatingCapacity: 4, zone: 'Main Floor' },
+          { _id: 't6', tableNumber: '6', seatingCapacity: 4, zone: 'Main Floor' },
+          { _id: 't7', tableNumber: '7', seatingCapacity: 2, zone: 'Garden' },
+          { _id: 't8', tableNumber: '8', seatingCapacity: 4, zone: 'Roof Top' }
+        ]);
+      })
+      .finally(() => {
+        setIsLoadingTables(false);
       });
   }, [tenantId]);
 
@@ -148,6 +151,7 @@ export default function POSTerminal({
 
   // Unified tables list (combines DB tables and active orders)
   const allTablesList = useMemo(() => {
+    if (isLoadingTables) return [];
     const fromDb = [...dbTables];
     // Check if any active orders have tables not in DB
     Object.keys(activeOrdersByTable).forEach(rawTbl => {
@@ -165,7 +169,7 @@ export default function POSTerminal({
     return fromDb.sort((a, b) => {
       return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [dbTables, activeOrdersByTable]);
+  }, [dbTables, activeOrdersByTable, isLoadingTables]);
 
   // Available zones / floor sections
   const zonesList = useMemo(() => {
@@ -328,6 +332,19 @@ export default function POSTerminal({
         }]);
       }
       toast.success(`Added ${item.name}`);
+    }
+  };
+
+  const handleDecrementItem = (item, e) => {
+    if (e) e.stopPropagation();
+    const existingIndex = cart.map(c => (c.id === item._id || c._id === item._id || c.name === item.name)).lastIndexOf(true);
+    if (existingIndex > -1) {
+      const newCart = [...cart];
+      newCart[existingIndex].quantity -= 1;
+      if (newCart[existingIndex].quantity <= 0) {
+        newCart.splice(existingIndex, 1);
+      }
+      setCart(newCart);
     }
   };
 
@@ -675,34 +692,35 @@ export default function POSTerminal({
           {/* Streamlined Top Control Toolbar */}
           <div className={styles.floorTopBarClean}>
             {/* Quick Status Filter Tabs (Segmented Control) */}
+            {/* Left Tabs / Quick Filter */}
             <div className={styles.floorTabsSegment}>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'all' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('all')}
               >
-                All Tables ({tableStats.total})
+                All Tables ({isLoadingTables ? '...' : tableStats.total})
               </button>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'free' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('free')}
               >
-                <span className={styles.dotFree}>●</span> Free ({tableStats.free})
+                <span className={styles.dotFree}>●</span> Free ({isLoadingTables ? '...' : tableStats.free})
               </button>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'occupied' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('occupied')}
               >
-                <span className={styles.dotOccupied}>●</span> Booked / Running ({tableStats.occupied})
+                <span className={styles.dotOccupied}>●</span> Booked / Running ({isLoadingTables ? '...' : tableStats.occupied})
               </button>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'paid' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('paid')}
               >
-                <span className={styles.dotPaid}>●</span> Paid / Served ({tableStats.paid})
+                <span className={styles.dotPaid}>●</span> Paid / Served ({isLoadingTables ? '...' : tableStats.paid})
               </button>
             </div>
 
@@ -716,6 +734,7 @@ export default function POSTerminal({
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
                   className={styles.searchInput}
+                  disabled={isLoadingTables}
                 />
                 {tableSearch && (
                   <button
@@ -730,75 +749,87 @@ export default function POSTerminal({
             </div>
           </div>
 
-          {/* Tables Grid Layout */}
-          <div className={styles.tablesGrid}>
-            {filteredFloorTables.map(tbl => {
-              const tableOrders = getOrdersForTableObj(tbl);
-              const isOccupied = tableOrders.length > 0;
-              const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
-              const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+          {/* Tables Grid Layout or Loading Skeleton */}
+          {isLoadingTables ? (
+            <div className={styles.tablesGrid}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className={styles.tableTileSkeleton}>
+                  <div className={styles.skeletonShimmer} style={{ width: '46px', height: '12px', margin: '0 auto 10px', borderRadius: '4px' }} />
+                  <div className={styles.skeletonShimmer} style={{ width: '74px', height: '22px', margin: '6px auto 10px', borderRadius: '6px' }} />
+                  <div className={styles.skeletonShimmer} style={{ width: '56px', height: '14px', margin: '0 auto', borderRadius: '4px' }} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.tablesGrid}>
+              {filteredFloorTables.map(tbl => {
+                const tableOrders = getOrdersForTableObj(tbl);
+                const isOccupied = tableOrders.length > 0;
+                const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+                const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
 
-              // Calculate running elapsed minutes
-              let elapsedMin = null;
-              if (isOccupied && tableOrders[0]?.createdAt) {
-                const start = new Date(tableOrders[0].createdAt);
-                const diffMs = Date.now() - start.getTime();
-                elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-              }
+                // Calculate running elapsed minutes
+                let elapsedMin = null;
+                if (isOccupied && tableOrders[0]?.createdAt) {
+                  const start = new Date(tableOrders[0].createdAt);
+                  const diffMs = Date.now() - start.getTime();
+                  elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+                }
 
-              // 1. FREE / EMPTY CARD
-              if (!isOccupied) {
+                // 1. FREE / EMPTY CARD
+                if (!isOccupied) {
+                  return (
+                    <div
+                      key={tbl._id || tbl.tableNumber}
+                      className={`${styles.tableTile} ${styles.tileFree}`}
+                      onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                      title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                    >
+                      <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                      <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                      <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                    </div>
+                  );
+                }
+
+                // 2. PAID / BILLED / SERVED CARD (Soft Green)
+                if (isAllPaid) {
+                  return (
+                    <div
+                      key={tbl._id || tbl.tableNumber}
+                      className={`${styles.tableTile} ${styles.tilePaid}`}
+                      onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                      title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
+                    >
+                      <div className={styles.tileTopMeta}>
+                        <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
+                      </div>
+                      <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                      <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                    </div>
+                  );
+                }
+
+                // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
                 return (
                   <div
                     key={tbl._id || tbl.tableNumber}
-                    className={`${styles.tableTile} ${styles.tileFree}`}
+                    className={`${styles.tableTile} ${styles.tileOccupied}`}
                     onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                    title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
-                  >
-                    <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                    <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                    <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                  </div>
-                );
-              }
-
-              // 2. PAID / BILLED / SERVED CARD (Soft Green)
-              if (isAllPaid) {
-                return (
-                  <div
-                    key={tbl._id || tbl.tableNumber}
-                    className={`${styles.tableTile} ${styles.tilePaid}`}
-                    onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                    title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
+                    title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
                   >
                     <div className={styles.tileTopMeta}>
-                      <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
+                      <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
                     </div>
                     <span className={styles.tileName}>Table {tbl.tableNumber}</span>
                     <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                   </div>
                 );
-              }
+              })}
+            </div>
+          )}
 
-              // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
-              return (
-                <div
-                  key={tbl._id || tbl.tableNumber}
-                  className={`${styles.tableTile} ${styles.tileOccupied}`}
-                  onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                  title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
-                >
-                  <div className={styles.tileTopMeta}>
-                    <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
-                  </div>
-                  <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                  <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {filteredFloorTables.length === 0 && (
+          {!isLoadingTables && filteredFloorTables.length === 0 && (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -914,11 +945,14 @@ export default function POSTerminal({
                 {filteredMenuItems.map(item => {
                   const imgUrl = getValidFoodImage(item);
                   const price = Number(item.salePrice || item.price) || 0;
+                  const cartQty = cart
+                    .filter(c => c.id === item._id || c._id === item._id || c.name === item.name)
+                    .reduce((sum, c) => sum + (c.quantity || 1), 0);
 
                   return (
                     <div
                       key={item._id}
-                      className={styles.dishCard}
+                      className={`${styles.dishCard} ${cartQty > 0 ? styles.dishCardInCart : ''}`}
                       onClick={() => handleQuickAdd(item)}
                     >
                       <div className={styles.dishImgWrap}>
@@ -942,14 +976,36 @@ export default function POSTerminal({
 
                       <div className={styles.dishPriceRow}>
                         <span className={styles.dishPrice}>₹{formatAmount(price)}</span>
-                        <button
-                          type="button"
-                          className={styles.dishAddBtn}
-                          onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
-                          title="Add to order"
-                        >
-                          <Plus size={13} />
-                        </button>
+                        {cartQty > 0 ? (
+                          <div className={styles.dishQtyStepper} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className={styles.dishStepperBtn}
+                              onClick={(e) => handleDecrementItem(item, e)}
+                              title="Decrease quantity"
+                            >
+                              <Minus size={11} />
+                            </button>
+                            <span className={styles.dishStepperQty}>{cartQty}</span>
+                            <button
+                              type="button"
+                              className={styles.dishStepperBtn}
+                              onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
+                              title="Increase quantity"
+                            >
+                              <Plus size={11} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.dishAddBtn}
+                            onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
+                            title="Add to order"
+                          >
+                            <Plus size={13} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

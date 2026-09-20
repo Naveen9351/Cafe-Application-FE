@@ -3045,9 +3045,9 @@ export default function AdminPanel() {
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                                 }} />
                               </div>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: item.available ? '#059669' : '#64748b' }}>
+                              {/* <span style={{ fontSize: '11px', fontWeight: 700, color: item.available ? '#059669' : '#64748b' }}>
                                 {item.available ? 'Available' : 'Out of Stock'}
-                              </span>
+                              </span> */}
                             </div>
 
                             <div style={{ display: 'flex', gap: 6 }}>
