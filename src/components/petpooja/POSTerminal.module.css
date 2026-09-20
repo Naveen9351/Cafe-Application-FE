@@ -70,73 +70,57 @@
   margin: 2px 0 0 0;
 }
 
-/* Stats Badges */
-.floorStatsGroup {
+/* Segmented Status Tabs */
+.floorTabsSegment {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 3px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
 }
 
-.statPill {
+.floorTabBtn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 0.78rem;
   font-weight: 700;
-  border: 1px solid transparent;
+  border: none;
+  background: transparent;
+  color: #64748b;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 
-.statPillAll {
-  background: #f1f5f9;
-  color: #475569;
-  border-color: #e2e8f0;
+.floorTabBtn:hover {
+  color: #0f172a;
 }
 
-.statPillAll:hover, .statPillAllActive {
-  background: #0f172a;
-  color: #ffffff;
-  border-color: #0f172a;
+.floorTabBtnActive {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.statPillFree {
-  background: #f8fafc;
-  color: #475569;
-  border-color: #cbd5e1;
+.dotFree {
+  color: #94a3b8;
+  font-size: 11px;
 }
 
-.statPillFreeActive {
-  background: #334155;
-  color: #ffffff;
-  border-color: #334155;
+.dotOccupied {
+  color: #f59e0b;
+  font-size: 11px;
 }
 
-.statPillOccupied {
-  background: #fffbeb;
-  color: #b45309;
-  border-color: #fde68a;
-}
-
-.statPillOccupiedActive {
-  background: #d97706;
-  color: #ffffff;
-  border-color: #d97706;
-}
-
-.statPillPaid {
-  background: #ecfdf5;
-  color: #047857;
-  border-color: #a7f3d0;
-}
-
-.statPillPaidActive {
-  background: #059669;
-  color: #ffffff;
-  border-color: #059669;
+.dotPaid {
+  color: #10b981;
+  font-size: 11px;
 }
 
 /* Section Filter Bar */

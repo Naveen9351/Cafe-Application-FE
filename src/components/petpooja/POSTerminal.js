@@ -528,39 +528,39 @@ export default function POSTerminal({
           
           {/* Streamlined Top Control Toolbar */}
           <div className={styles.floorTopBarClean}>
-            {/* Quick Status Filter Pills (All / Free / Booked / Paid) */}
-            <div className={styles.floorStatsGroup}>
+            {/* Quick Status Filter Tabs (Segmented Control) */}
+            <div className={styles.floorTabsSegment}>
               <button
                 type="button"
-                className={`${styles.statPill} ${tableStatusFilter === 'all' ? styles.statPillAllActive : styles.statPillAll}`}
+                className={`${styles.floorTabBtn} ${tableStatusFilter === 'all' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('all')}
               >
                 All Tables ({tableStats.total})
               </button>
               <button
                 type="button"
-                className={`${styles.statPill} ${tableStatusFilter === 'free' ? styles.statPillFreeActive : styles.statPillFree}`}
+                className={`${styles.floorTabBtn} ${tableStatusFilter === 'free' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('free')}
               >
-                ● Free ({tableStats.free})
+                <span className={styles.dotFree}>●</span> Free ({tableStats.free})
               </button>
               <button
                 type="button"
-                className={`${styles.statPill} ${tableStatusFilter === 'occupied' ? styles.statPillOccupiedActive : styles.statPillOccupied}`}
+                className={`${styles.floorTabBtn} ${tableStatusFilter === 'occupied' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('occupied')}
               >
-                ● Booked / Running ({tableStats.occupied})
+                <span className={styles.dotOccupied}>●</span> Booked / Running ({tableStats.occupied})
               </button>
               <button
                 type="button"
-                className={`${styles.statPill} ${tableStatusFilter === 'paid' ? styles.statPillPaidActive : styles.statPillPaid}`}
+                className={`${styles.floorTabBtn} ${tableStatusFilter === 'paid' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('paid')}
               >
-                ● Paid / Served ({tableStats.paid})
+                <span className={styles.dotPaid}>●</span> Paid / Served ({tableStats.paid})
               </button>
             </div>
 
-            {/* Right: Search & Direct Walk-in Button */}
+            {/* Right: Search Box */}
             <div className={styles.floorRightControls}>
               <div className={styles.searchBox}>
                 <Search size={14} color="#94a3b8" />
@@ -592,101 +592,65 @@ export default function POSTerminal({
               const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
               const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
 
-                      // Calculate running elapsed minutes
-                      let elapsedMin = null;
-                      if (isOccupied && tableOrders[0]?.createdAt) {
-                        const start = new Date(tableOrders[0].createdAt);
-                        const diffMs = Date.now() - start.getTime();
-                        elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-                      }
+              // Calculate running elapsed minutes
+              let elapsedMin = null;
+              if (isOccupied && tableOrders[0]?.createdAt) {
+                const start = new Date(tableOrders[0].createdAt);
+                const diffMs = Date.now() - start.getTime();
+                elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+              }
 
-                      // 1. FREE / EMPTY CARD
-                      if (!isOccupied) {
-                        return (
-                          <div
-                            key={tbl._id || tbl.tableNumber}
-                            className={`${styles.tableTile} ${styles.tileFree}`}
-                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
-                          >
-                            <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                            <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                          </div>
-                        );
-                      }
-
-                      // 2. PAID / BILLED / SERVED CARD (Soft Green)
-                      if (isAllPaid) {
-                        return (
-                          <div
-                            key={tbl._id || tbl.tableNumber}
-                            className={`${styles.tableTile} ${styles.tilePaid}`}
-                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`Table ${tbl.tableNumber} - Billed/Paid. Click to clear or view.`}
-                          >
-                            <div className={styles.tileTopMeta}>
-                              <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
-                            </div>
-                            <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                            <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
-                            <div className={styles.tileFooterActions}>
-                              <button
-                                type="button"
-                                className={styles.tileMiniBtn}
-                                title="Print Receipt"
-                                onClick={(e) => handlePrintReceipt(e, tbl.tableNumber, totalAmt)}
-                              >
-                                <Printer size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.tileMiniBtn}
-                                title="View POS"
-                                onClick={(e) => { e.stopPropagation(); handleOpenTableInPOS(tbl.tableNumber); }}
-                              >
-                                <Eye size={12} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
-                      return (
-                        <div
-                          key={tbl._id || tbl.tableNumber}
-                          className={`${styles.tableTile} ${styles.tileOccupied}`}
-                          onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                          title={`Table ${tbl.tableNumber} - Running Order ₹${totalAmt}. Click to open POS.`}
-                        >
-                          <div className={styles.tileTopMeta}>
-                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
-                          </div>
-                          <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                          <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
-                          <div className={styles.tileFooterActions}>
-                            <button
-                              type="button"
-                              className={styles.tileMiniBtn}
-                              title="Print Bill"
-                              onClick={(e) => handlePrintReceipt(e, tbl.tableNumber, totalAmt)}
-                            >
-                              <Printer size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.tileMiniBtn}
-                              title="Open POS Terminal"
-                              onClick={(e) => { e.stopPropagation(); handleOpenTableInPOS(tbl.tableNumber); }}
-                            >
-                              <Eye size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+              // 1. FREE / EMPTY CARD
+              if (!isOccupied) {
+                return (
+                  <div
+                    key={tbl._id || tbl.tableNumber}
+                    className={`${styles.tableTile} ${styles.tileFree}`}
+                    onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                    title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                  >
+                    <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                    <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                    <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
                   </div>
+                );
+              }
+
+              // 2. PAID / BILLED / SERVED CARD (Soft Green)
+              if (isAllPaid) {
+                return (
+                  <div
+                    key={tbl._id || tbl.tableNumber}
+                    className={`${styles.tableTile} ${styles.tilePaid}`}
+                    onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                    title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
+                  >
+                    <div className={styles.tileTopMeta}>
+                      <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
+                    </div>
+                    <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                    <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                  </div>
+                );
+              }
+
+              // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
+              return (
+                <div
+                  key={tbl._id || tbl.tableNumber}
+                  className={`${styles.tableTile} ${styles.tileOccupied}`}
+                  onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                  title={`Table ${tbl.tableNumber} - Running Order ₹${totalAmt}. Click to open POS.`}
+                >
+                  <div className={styles.tileTopMeta}>
+                    <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
+                  </div>
+                  <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                  <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                </div>
+              );
+            })}
+          </div>
 
                   {filteredFloorTables.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '2.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
