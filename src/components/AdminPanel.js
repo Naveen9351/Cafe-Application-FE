@@ -19,6 +19,8 @@ import OnlineAggregators from './petpooja/OnlineAggregators';
 import RestaurantSettings from './RestaurantSettings';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
+import usePWAInstall from '../hooks/usePWAInstall';
+import PWAInstallModal from './pwa/PWAInstallModal';
 
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
@@ -62,6 +64,19 @@ export default function AdminPanel() {
   const { user, tenantId, socket, logout } = useAuth();
   const navigate = useNavigate();
 
+  const {
+    isInstallable,
+    isInstalled,
+    isIOS,
+    isAndroid,
+    isOnline,
+    isModalOpen,
+    setIsModalOpen,
+    promptInstall,
+    deferredPrompt
+  } = usePWAInstall();
+
+  const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [items, setItems] = useState([]);
@@ -632,6 +647,23 @@ export default function AdminPanel() {
 
         {/* Right User Actions */}
         <div className={styles.topBarRight}>
+          {/* Network Status Indicator */}
+          <div className={styles.networkStatusChip} title={isOnline ? 'Cloud sync active (Online)' : 'Local offline cache active (Offline)'}>
+            <span className={isOnline ? styles.onlineDot : styles.offlineDot} />
+            <span>{isOnline ? 'Live' : 'Offline'}</span>
+          </div>
+
+          {/* PWA Download / Install App Button */}
+          <button
+            type="button"
+            className={styles.pwaInstallHeaderBtn}
+            onClick={promptInstall}
+            title={isInstalled ? "SERVIQ App is Installed" : "Download & Install Cafe Admin App"}
+          >
+            {isInstalled ? <CheckCircle2 size={15} style={{ color: '#16a34a' }} /> : <Download size={15} />}
+            <span>{isInstalled ? 'App Active' : 'Download App'}</span>
+          </button>
+
           <button
             type="button"
             className={styles.iconCircleBtn}
@@ -724,6 +756,15 @@ export default function AdminPanel() {
           </div>
 
           <div className={styles.sidebarFooter}>
+            <button
+              type="button"
+              className={styles.sidebarPwaBtn}
+              onClick={promptInstall}
+              title={isInstalled ? "SERVIQ App Installed & Active" : "Download & Install Admin App"}
+            >
+              <Smartphone size={16} />
+              {!sidebarCollapsed && <span>{isInstalled ? 'App Active' : 'Install App'}</span>}
+            </button>
 
             <button
               type="button"
@@ -752,6 +793,38 @@ export default function AdminPanel() {
                 transition={{ duration: 0.25 }}
                 className={styles.dashboardView}
               >
+                {/* PWA Quick Install Banner */}
+                {!isInstalled && showPwaBanner && (
+                  <div className={styles.pwaBannerCard}>
+                    <div className={styles.pwaBannerLeft}>
+                      <div className={styles.pwaBannerIcon}>
+                        <Smartphone size={22} />
+                      </div>
+                      <div className={styles.pwaBannerText}>
+                        <h4>Install SERVIQ Admin for Desktop & Mobile</h4>
+                        <p>Run full-screen with offline POS billing, fast thermal receipt printing & zero-latency launch.</p>
+                      </div>
+                    </div>
+                    <div className={styles.pwaBannerActions}>
+                      <button
+                        type="button"
+                        className={styles.pwaBannerInstallBtn}
+                        onClick={promptInstall}
+                      >
+                        <Download size={14} /> <span>Install App</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.pwaBannerDismissBtn}
+                        onClick={() => setShowPwaBanner(false)}
+                        title="Dismiss banner"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Header & Date Filter Selector */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
                   <div>
@@ -1774,6 +1847,16 @@ export default function AdminPanel() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* PWA Install Guide Modal */}
+      <PWAInstallModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        deferredPrompt={deferredPrompt}
+        isInstalled={isInstalled}
+        isIOS={isIOS}
+        isAndroid={isAndroid}
+      />
 
     </div>
   );
