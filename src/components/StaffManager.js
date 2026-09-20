@@ -129,7 +129,7 @@ export default function StaffManager() {
     setUsername('');
     setPassword('');
     setPhone('');
-    setSelectedRole('cashier');
+    setSelectedRole('Cashier');
     setPermissions(ROLE_PRESETS.cashier.permissions);
     setShowModal(true);
   };
@@ -140,14 +140,17 @@ export default function StaffManager() {
     setUsername(staff.username || staff.email || '');
     setPassword(''); // leave blank if no change
     setPhone(staff.phone || '');
-    setSelectedRole(staff.role || 'custom');
+    setSelectedRole(staff.role || 'Staff');
     setPermissions(staff.permissions || ROLE_PRESETS.custom.permissions);
     setShowModal(true);
   };
 
   const handleRoleSelect = (roleKey) => {
-    setSelectedRole(roleKey);
-    setPermissions({ ...ROLE_PRESETS[roleKey].permissions });
+    const preset = ROLE_PRESETS[roleKey];
+    if (preset) {
+      setSelectedRole(preset.name);
+      setPermissions({ ...preset.permissions });
+    }
   };
 
   const handlePermissionToggle = (permKey) => {
@@ -401,11 +404,11 @@ export default function StaffManager() {
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
-                  <label>Password {editingStaffId && '(Leave blank to keep unchanged)'} *</label>
+                  <label>Password {!editingStaffId && '*'}</label>
                   <div style={{ position: 'relative' }}>
                     <input
                       type={showPass ? 'text' : 'password'}
-                      placeholder={editingStaffId ? '••••••••' : 'Enter login password'}
+                      placeholder={editingStaffId ? 'Leave blank to keep unchanged' : 'Enter login password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className={styles.inputField}
@@ -432,21 +435,46 @@ export default function StaffManager() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  Role Preset
+              {/* Custom Role Input Box */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
+                  Staff Role / Designation *
                 </label>
-                <div className={styles.rolePresets}>
-                  {Object.entries(ROLE_PRESETS).map(([k, v]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      className={`${styles.rolePresetBtn} ${selectedRole === k ? styles.rolePresetActive : ''}`}
-                      onClick={() => handleRoleSelect(k)}
-                    >
-                      {v.name}
-                    </button>
-                  ))}
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Cashier, Floor Captain, Head Chef, Manager..."
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className={styles.inputField}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+                {/* Quick Role Suggestions */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Quick suggestions:</span>
+                  {Object.entries(ROLE_PRESETS).filter(([k]) => k !== 'custom').map(([k, v]) => {
+                    const isSelected = selectedRole.toLowerCase() === v.name.toLowerCase() || selectedRole.toLowerCase() === k.toLowerCase();
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => handleRoleSelect(k)}
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          border: isSelected ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                          background: isSelected ? '#eff6ff' : '#f8fafc',
+                          color: isSelected ? '#2563eb' : '#475569',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {v.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

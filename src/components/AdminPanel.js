@@ -702,7 +702,8 @@ export default function AdminPanel() {
       discountType: 'percentage',
       discountValue: '',
       image: '',
-      imageFile: null
+      imageFile: null,
+      variants: []
     });
     setIsDrawerOpen(true);
   };
@@ -710,6 +711,9 @@ export default function AdminPanel() {
   const handleOpenEditDrawer = (item) => {
     setEditingItem(item);
     const discount = item.discount || {};
+    const itemVariants = Array.isArray(item.variants)
+      ? item.variants.map(v => ({ name: v.name || '', price: v.price !== undefined ? String(v.price) : '' }))
+      : [];
     setDrawerForm({
       name: item.name,
       description: item.description || '',
@@ -721,9 +725,34 @@ export default function AdminPanel() {
       discountType: discount.type || 'percentage',
       discountValue: discount.value ? String(discount.value) : '',
       image: item.image || '',
-      imageFile: null
+      imageFile: null,
+      variants: itemVariants
     });
     setIsDrawerOpen(true);
+  };
+
+  const handleAddVariant = () => {
+    setDrawerForm(prev => ({
+      ...prev,
+      variants: [...(prev.variants || []), { name: '', price: '' }]
+    }));
+  };
+
+  const handleUpdateVariant = (index, field, val) => {
+    setDrawerForm(prev => {
+      const updated = [...(prev.variants || [])];
+      if (updated[index]) {
+        updated[index] = { ...updated[index], [field]: val };
+      }
+      return { ...prev, variants: updated };
+    });
+  };
+
+  const handleRemoveVariant = (index) => {
+    setDrawerForm(prev => ({
+      ...prev,
+      variants: (prev.variants || []).filter((_, i) => i !== index)
+    }));
   };
 
   const handleImageFileSelect = (e) => {
@@ -793,6 +822,29 @@ export default function AdminPanel() {
       };
     }
 
+    // Variants validation & packaging
+    let validVariants = [];
+    if (drawerForm.variants && drawerForm.variants.length > 0) {
+      for (let i = 0; i < drawerForm.variants.length; i++) {
+        const v = drawerForm.variants[i];
+        const vName = String(v.name || '').trim();
+        const vPrice = Number(v.price);
+        if (!vName && (v.price === '' || v.price === undefined)) {
+          // Ignore completely blank row
+          continue;
+        }
+        if (!vName) {
+          toast.error(`Please provide a label name for variation #${i + 1}`);
+          return;
+        }
+        if (isNaN(vPrice) || vPrice < 0) {
+          toast.error(`Please enter a valid price for variation "${vName}"`);
+          return;
+        }
+        validVariants.push({ name: vName, price: vPrice });
+      }
+    }
+
     setIsSavingDish(true);
     const token = localStorage.getItem('token');
 
@@ -805,6 +857,7 @@ export default function AdminPanel() {
       formData.append('isVeg', drawerForm.isVeg);
       formData.append('isAvailable', drawerForm.available);
       formData.append('discount', JSON.stringify(discountPayload));
+      formData.append('variants', JSON.stringify(validVariants));
 
       if (drawerForm.imageFile) {
         formData.append('image', drawerForm.imageFile);
@@ -846,6 +899,7 @@ export default function AdminPanel() {
         isVeg: drawerForm.isVeg,
         available: drawerForm.available,
         discount: discountPayload,
+        variants: validVariants,
         image: drawerForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600'
       };
       if (editingItem) {
@@ -3013,10 +3067,19 @@ export default function AdminPanel() {
                                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '6px' }}>₹{item.price}</span>
                                 </div>
                               ) : (
-                                <div className={styles.dishPrice}>₹{item.price}</div>
+                                <div className={styles.dishPrice}>
+                                  {item.variants && item.variants.length > 0 ? `From ₹${Math.min(...item.variants.map(v => Number(v.price) || item.price))}` : `₹${item.price}`}
+                                </div>
                               )}
                             </div>
                           </div>
+                          {item.variants && item.variants.length > 0 && (
+                            <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
+                                {item.variants.length} Sizes/Options
+                              </span>
+                            </div>
+                          )}
                           <p className={styles.dishDescription}>{item.description}</p>
 
                           {/* Stock Toggle & Quick Actions */}
@@ -3098,7 +3161,7 @@ export default function AdminPanel() {
                 </div>
 
                 {filteredMenuItems.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem' }}>
+                  <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
                     <UtensilsCrossed size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
                     <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', margin: 0 }}>No dishes found</h4>
                     <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
@@ -3370,6 +3433,119 @@ export default function AdminPanel() {
                     ▲ Non-Vegetarian
                   </button>
                 </div>
+              </div>
+
+              {/* Portion Sizes & Pricing Labels (Variants) */}
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (drawerForm.variants && drawerForm.variants.length > 0) ? '10px' : '4px' }}>
+                  <div>
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Layers size={14} color="#4f46e5" /> Portion Sizes & Custom Labels
+                    </span>
+
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddVariant}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #c7d2fe',
+                      background: '#eef2ff',
+                      color: '#4f46e5',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <Plus size={13} /> Add Label
+                  </button>
+                </div>
+
+                {drawerForm.variants && drawerForm.variants.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {drawerForm.variants.map((variant, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          background: '#ffffff',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0'
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <input
+                            type="text"
+                            placeholder="e.g. Regular / Large / Cheese"
+                            value={variant.name}
+                            onChange={(e) => handleUpdateVariant(idx, 'name', e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '7px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '12px',
+                              fontWeight: 600
+                            }}
+                          />
+                        </div>
+                        <div style={{ width: '95px' }}>
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Price"
+                              value={variant.price}
+                              onChange={(e) => handleUpdateVariant(idx, 'price', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '7px 8px 7px 20px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '12px',
+                                fontWeight: 700
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveVariant(idx)}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            border: '1px solid #fee2e2',
+                            background: '#fef2f2',
+                            color: '#ef4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            flexShrink: 0
+                          }}
+                          title="Remove label"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+
+                  </div>
+                ) : (
+                  <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                    No variation labels added. Base price (₹{drawerForm.price || '0'}) will apply for all orders.
+                  </p>
+                )}
               </div>
 
               {/* Discount Section (OFF / ON Toggle) */}

@@ -351,21 +351,37 @@ export default function POSTerminal({
   const handleAddCustomized = () => {
     if (!customizingItem) return;
     let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
-    if (selectedVariant) finalPrice = Number(selectedVariant.price) || finalPrice;
+    let variantName = '';
+    if (selectedVariant) {
+      finalPrice = Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : finalPrice;
+      variantName = selectedVariant.name || '';
+    }
     const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
     const totalPrice = finalPrice + addonPrice;
 
-    setCart([...cart, {
-      id: customizingItem._id,
-      name: customizingItem.name,
-      price: totalPrice,
-      quantity: 1,
-      variant: selectedVariant,
-      addons: selectedAddons
-    }]);
+    const existingIndex = cart.findIndex(c =>
+      c.id === customizingItem._id &&
+      ((!c.variant && !selectedVariant) || (c.variant?.name === selectedVariant?.name)) &&
+      JSON.stringify(c.addons || []) === JSON.stringify(selectedAddons || [])
+    );
+
+    if (existingIndex > -1) {
+      const newCart = [...cart];
+      newCart[existingIndex].quantity += 1;
+      setCart(newCart);
+    } else {
+      setCart([...cart, {
+        id: customizingItem._id,
+        name: variantName ? `${customizingItem.name} (${variantName})` : customizingItem.name,
+        price: totalPrice,
+        quantity: 1,
+        variant: selectedVariant,
+        addons: selectedAddons
+      }]);
+    }
 
     setCustomizingItem(null);
-    toast.success(`Added ${customizingItem.name}`);
+    toast.success(`Added ${customizingItem.name}${variantName ? ` (${variantName})` : ''}`);
   };
 
   const updateCartQty = (idx, delta) => {
