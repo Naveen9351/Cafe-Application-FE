@@ -131,7 +131,7 @@ const OrderStatus = () => {
             </div>
           ))}
           <div className={styles.totalRow}>
-            <span>Total Paid</span>
+            <span>Total</span>
             <span>₹{Math.round(order.total || 0)}</span>
           </div>
         </div>
