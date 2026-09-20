@@ -53,7 +53,7 @@ export function usePWAInstall() {
       setIsInstallable(false);
       setDeferredPrompt(null);
       localStorage.setItem('serviq_pwa_installed', 'true');
-      toast.success('SERVIQ App downloaded successfully to your desktop!');
+      toast.success('SERVIQ App installed to your desktop!');
     };
 
     // Online / Offline tracking
@@ -73,8 +73,30 @@ export function usePWAInstall() {
     };
   }, []);
 
-  // Direct download / install without popup
+  // Download Windows Desktop Shortcut file
+  const downloadDesktopShortcut = () => {
+    try {
+      const origin = window.location.origin || 'http://localhost:3000';
+      const shortcutContent = `[InternetShortcut]\r\nURL=${origin}/admin/dashboard\r\nIconIndex=0\r\nIconFile=${origin}/favicon.ico\r\n`;
+      const blob = new Blob([shortcutContent], { type: 'application/octet-stream' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'SERVIQ Admin.url';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.log('Shortcut creation error:', err);
+    }
+  };
+
+  // Direct download / install
   const promptInstall = useCallback(async () => {
+    // Automatically trigger desktop shortcut file download
+    downloadDesktopShortcut();
+
     if (deferredPrompt) {
       try {
         deferredPrompt.prompt();
@@ -82,20 +104,19 @@ export function usePWAInstall() {
         if (choiceResult && choiceResult.outcome === 'accepted') {
           setIsInstalled(true);
           localStorage.setItem('serviq_pwa_installed', 'true');
-          toast.success('SERVIQ App downloaded to desktop!');
+          toast.success('SERVIQ App installed to desktop!');
         }
         setDeferredPrompt(null);
       } catch (err) {
         console.error('Install prompt error:', err);
         setIsInstalled(true);
         localStorage.setItem('serviq_pwa_installed', 'true');
-        toast.success('App is downloaded & active on desktop!');
+        toast.success('SERVIQ desktop shortcut downloaded!');
       }
     } else {
-      // Direct install acknowledgment
       setIsInstalled(true);
       localStorage.setItem('serviq_pwa_installed', 'true');
-      toast.success('SERVIQ App is downloaded & active on your desktop!');
+      toast.success('SERVIQ desktop shortcut downloaded to your computer!');
     }
   }, [deferredPrompt]);
 
@@ -105,7 +126,7 @@ export function usePWAInstall() {
     isIOS,
     isAndroid,
     isOnline,
-    isModalOpen: false, // Never open popup
+    isModalOpen: false,
     setIsModalOpen,
     promptInstall,
     deferredPrompt
