@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -9,8 +8,7 @@ export function usePWAInstall() {
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true ||
-        document.referrer.includes('android-app://') ||
-        localStorage.getItem('serviq_pwa_installed') === 'true';
+        document.referrer.includes('android-app://');
       return isStandalone;
     }
     return false;
@@ -26,8 +24,7 @@ export function usePWAInstall() {
       const isStandaloneMode =
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true ||
-        document.referrer.includes('android-app://') ||
-        localStorage.getItem('serviq_pwa_installed') === 'true';
+        document.referrer.includes('android-app://');
       setIsInstalled(isStandaloneMode);
     };
 
@@ -52,8 +49,7 @@ export function usePWAInstall() {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      localStorage.setItem('serviq_pwa_installed', 'true');
-      toast.success('SERVIQ App installed to your desktop!');
+      setIsModalOpen(false);
     };
 
     // Online / Offline tracking
@@ -73,50 +69,23 @@ export function usePWAInstall() {
     };
   }, []);
 
-  // Download Windows Desktop Shortcut file
-  const downloadDesktopShortcut = () => {
-    try {
-      const origin = window.location.origin || 'http://localhost:3000';
-      const shortcutContent = `[InternetShortcut]\r\nURL=${origin}/admin/dashboard\r\nIconIndex=0\r\nIconFile=${origin}/favicon.ico\r\n`;
-      const blob = new Blob([shortcutContent], { type: 'application/octet-stream' });
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = 'SERVIQ Admin.url';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-    } catch (err) {
-      console.log('Shortcut creation error:', err);
-    }
-  };
-
-  // Direct download / install
+  // Show instruction popup modal on click
   const promptInstall = useCallback(async () => {
-    // Automatically trigger desktop shortcut file download
-    downloadDesktopShortcut();
-
     if (deferredPrompt) {
       try {
         deferredPrompt.prompt();
         const choiceResult = await deferredPrompt.userChoice;
         if (choiceResult && choiceResult.outcome === 'accepted') {
           setIsInstalled(true);
-          localStorage.setItem('serviq_pwa_installed', 'true');
-          toast.success('SERVIQ App installed to desktop!');
         }
         setDeferredPrompt(null);
       } catch (err) {
         console.error('Install prompt error:', err);
-        setIsInstalled(true);
-        localStorage.setItem('serviq_pwa_installed', 'true');
-        toast.success('SERVIQ desktop shortcut downloaded!');
+        setIsModalOpen(true);
       }
     } else {
-      setIsInstalled(true);
-      localStorage.setItem('serviq_pwa_installed', 'true');
-      toast.success('SERVIQ desktop shortcut downloaded to your computer!');
+      // Open the clean instruction popup
+      setIsModalOpen(true);
     }
   }, [deferredPrompt]);
 
@@ -126,7 +95,7 @@ export function usePWAInstall() {
     isIOS,
     isAndroid,
     isOnline,
-    isModalOpen: false,
+    isModalOpen,
     setIsModalOpen,
     promptInstall,
     deferredPrompt

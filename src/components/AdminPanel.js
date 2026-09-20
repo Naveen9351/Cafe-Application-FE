@@ -308,7 +308,7 @@ export default function AdminPanel() {
       try {
         const u = localStorage.getItem('user');
         if (u) tid = JSON.parse(u)?.tenantId;
-      } catch (e) {}
+      } catch (e) { }
     }
     if (tid) {
       axios.get(`${API}/tenants/public/${tid}`)
@@ -538,7 +538,7 @@ export default function AdminPanel() {
     // Dynamic telemetry SVG points for 700x185 canvas
     const bucketCount = timeBuckets.length;
     const xCoords = timeBuckets.map((_, idx) => Math.round(30 + idx * ((700 - 60) / Math.max(1, bucketCount - 1))));
-    
+
     const revPoints = timeBuckets.map((b, idx) => {
       const y = grossSales > 0 ? Math.round(155 - (b.revenue / maxBucketRev) * 115) : 155;
       return { x: xCoords[idx], y, val: b.revenue, orders: b.orders, label: b.label, shortLabel: b.shortLabel };
@@ -1118,7 +1118,7 @@ export default function AdminPanel() {
               onClick={() => setActiveTab('kds')}
               title="Live Orders & KDS"
             >
-              <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders & KDS</span>}
+              <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
               {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
             </button>
             <button
@@ -1703,10 +1703,10 @@ export default function AdminPanel() {
                         </div>
                         <p style={{ margin: '3px 0 0 0' }}>
                           {dateRange === 'today' ? 'Real-time hourly telemetry for today' :
-                           dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
-                           dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
-                           dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
-                           `Custom range telemetry (${customStartDate || ''} to ${customEndDate || ''})`}
+                            dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
+                              dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
+                                dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
+                                  `Custom range telemetry (${customStartDate || ''} to ${customEndDate || ''})`}
                         </p>
                       </div>
 
@@ -1873,7 +1873,7 @@ export default function AdminPanel() {
                             <stop offset="100%" stopColor="#059669" />
                           </linearGradient>
                         </defs>
-                        
+
                         {/* Background Grid Lines */}
                         <line x1="0" y1="35" x2="700" y2="35" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
                         <line x1="0" y1="75" x2="700" y2="75" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
@@ -1886,7 +1886,7 @@ export default function AdminPanel() {
                             const barWidth = Math.min(38, 700 / (metrics.timeBuckets.length * 2.2));
                             const barHeight = Math.max(4, 155 - pt.y);
                             const isHovered = hoveredDataPoint && hoveredDataPoint.label === pt.label;
-                            
+
                             return (
                               <g
                                 key={i}
@@ -2084,13 +2084,12 @@ export default function AdminPanel() {
                           <div key={order._id} className={styles.liveTicketCard}>
                             <div className={styles.ticketHead}>
                               <span className={styles.ticketIdBadge}>{orderCode}</span>
-                              <span className={`${styles.ticketStatusPill} ${
-                                order.status === 'completed'
+                              <span className={`${styles.ticketStatusPill} ${order.status === 'completed'
                                   ? styles.readyChip
                                   : order.status === 'preparing'
-                                  ? styles.prepChip
-                                  : styles.deliveryChip
-                              }`}>
+                                    ? styles.prepChip
+                                    : styles.deliveryChip
+                                }`}>
                                 {order.status}
                               </span>
                             </div>
@@ -2152,7 +2151,7 @@ export default function AdminPanel() {
                               Live Dining Floor & Table Matrix
                             </h3>
                           </div>
-                          
+
                           <span style={{
                             fontSize: '11px',
                             fontWeight: 700,
@@ -3486,6 +3485,16 @@ export default function AdminPanel() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* PWA Install Guide Modal */}
+      <PWAInstallModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        deferredPrompt={deferredPrompt}
+        isInstalled={isInstalled}
+        isIOS={isIOS}
+        isAndroid={isAndroid}
+      />
 
     </div>
   );

@@ -7,13 +7,9 @@ import {
   Apple,
   CheckCircle2,
   Share,
-  PlusSquare,
-  Zap,
-  WifiOff,
-  Printer,
-  ShieldCheck,
-  ExternalLink
+  FileDown
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import styles from './PWAInstallModal.module.css';
 
 export default function PWAInstallModal({
@@ -31,13 +27,32 @@ export default function PWAInstallModal({
 
   if (!isOpen) return null;
 
+  const downloadShortcutFile = () => {
+    try {
+      const origin = window.location.origin || 'http://localhost:3000';
+      const shortcutContent = `[InternetShortcut]\r\nURL=${origin}/admin/dashboard\r\nIconIndex=0\r\nIconFile=${origin}/favicon.ico\r\n`;
+      const blob = new Blob([shortcutContent], { type: 'application/octet-stream' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'SERVIQ Admin.url';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+      toast.success('Shortcut file downloaded! Drag it onto your desktop.');
+    } catch (err) {
+      console.log('Download error:', err);
+    }
+  };
+
   const handleNativeInstall = async () => {
     if (deferredPrompt) {
       try {
         setIsInstalling(true);
         deferredPrompt.prompt();
         const choiceResult = await deferredPrompt.userChoice;
-        if (choiceResult.outcome === 'accepted') {
+        if (choiceResult && choiceResult.outcome === 'accepted') {
           onClose();
         }
       } catch (err) {
@@ -45,6 +60,9 @@ export default function PWAInstallModal({
       } finally {
         setIsInstalling(false);
       }
+    } else {
+      downloadShortcutFile();
+      onClose();
     }
   };
 
@@ -112,21 +130,47 @@ export default function PWAInstallModal({
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>1</span>
                   <p className={styles.stepDesc}>
-                    Click the <strong>"Open in app"</strong> icon in your browser URL bar (top right).
+                    Click the <strong>Desktop App icon</strong> in your browser address bar (top right).
                   </p>
                 </div>
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>2</span>
                   <p className={styles.stepDesc}>
-                    In the app window, click <strong>⋮ (3 dots) → "App info"</strong> or <strong>"Create shortcut..."</strong>.
+                    In the app window, click <strong>⋮ (3 dots) → "Create shortcut..."</strong> or pin to taskbar.
                   </p>
                 </div>
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>3</span>
                   <p className={styles.stepDesc}>
-                    Check <strong>"Desktop"</strong> to place the SERVIQ Admin icon directly on your Windows desktop.
+                    Or click below to download the shortcut file directly to your desktop.
                   </p>
                 </div>
+
+                <div style={{ marginTop: '0.65rem' }}>
+                  <button
+                    type="button"
+                    onClick={downloadShortcutFile}
+                    style={{
+                      width: '100%',
+                      background: '#eff6ff',
+                      color: '#2563eb',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: 8,
+                      padding: '6px 10px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6
+                    }}
+                  >
+                    <FileDown size={14} />
+                    <span>Download Desktop Shortcut File (.url)</span>
+                  </button>
+                </div>
+
                 <div className={styles.chromeTip}>
                   💡 <em>Quick tip:</em> You can also visit <code>chrome://apps</code>, right-click <strong>SERVIQ</strong>, and select <strong>"Create shortcuts..."</strong>.
                 </div>
@@ -191,4 +235,3 @@ export default function PWAInstallModal({
     </div>
   );
 }
-
