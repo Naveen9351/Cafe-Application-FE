@@ -652,15 +652,64 @@ export default function POSTerminal({
             })}
           </div>
 
-                  {filteredFloorTables.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '2.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                      <Grid size={32} color="#94a3b8" style={{ marginBottom: 6 }} />
-                      <h4 style={{ margin: 0, color: '#334155', fontSize: '0.95rem' }}>No tables found</h4>
-                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.78rem' }}>
-                        {tableSearch ? `No tables matching "${tableSearch}"` : 'No tables available.'}
-                      </p>
-                    </div>
-                  )}
+          {filteredFloorTables.length === 0 && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '3.5rem 1.5rem',
+              background: '#f8fafc',
+              borderRadius: '14px',
+              border: '1.5px dashed #cbd5e1',
+              width: '100%',
+              minHeight: '220px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: '#f1f5f9',
+                color: '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '12px'
+              }}>
+                <Grid size={24} />
+              </div>
+              <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1rem', fontWeight: 800 }}>
+                {tableStatusFilter !== 'all' ? `No ${tableStatusFilter} tables` : 'No tables found'}
+              </h4>
+              <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '0.82rem', maxWidth: '380px' }}>
+                {tableSearch
+                  ? `No tables match "${tableSearch}"`
+                  : tableStatusFilter !== 'all'
+                  ? `There are currently no tables with status "${tableStatusFilter}". Switch filter to see other tables.`
+                  : 'No tables available on this floor.'}
+              </p>
+              {tableStatusFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setTableStatusFilter('all')}
+                  style={{
+                    marginTop: '12px',
+                    padding: '6px 14px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: '#2563eb',
+                    cursor: 'pointer'
+                  }}
+                >
+                  View All Tables ({tableStats.total})
+                </button>
+              )}
+            </div>
+          )}
 
         </div>
       )}
