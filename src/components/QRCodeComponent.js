@@ -484,134 +484,64 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   }, [tables, searchQuery, statusFilter, activeOrdersLookup]);
 
   return (
-    <div style={{ width: '100%' }}>      {/* Consolidated Top Header & Action Bar */}
+    <div style={{ width: '100%' }}>
+      {/* UNIFIED SINGLE COMPACT HEADER BAR */}
       <div style={{
         background: '#ffffff',
-        borderRadius: '16px',
-        padding: '16px 20px',
-        marginBottom: '1.5rem',
+        borderRadius: '14px',
+        padding: '0.65rem 1rem',
+        marginBottom: '1rem',
         border: '1px solid #e2e8f0',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '14px'
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '0.75rem'
       }}>
-        {/* Row 1: Title and Main Action Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '-0.02em' }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)' }}>
-                <QrCode size={18} />
-              </div>
-              Dynamic Table & QR Manager
+        {/* Left: Compact Title & Search Box */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: '#eff6ff',
+              border: '1px solid #dbeafe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#2563eb'
+            }}>
+              <QrCode size={17} />
+            </div>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+              Table QR Codes
             </h2>
-            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>
-              Generate, customize, and print digital dine-in QR codes for every table.
-            </p>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => printTableStands(filteredTables)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                color: '#334155',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Printer size={14} /> Print Stands
-            </button>
-            <button
-              type="button"
-              onClick={downloadAllQRs}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                color: '#334155',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Download size={14} /> Download All
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenBatchModal}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                color: '#334155',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Layers size={14} /> Quick Batch Add
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                background: '#2563eb',
-                color: '#ffffff',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Plus size={15} /> Add Table
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Search & Status Filter Pills */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '260px' }}>
-            <Search size={14} color="#94a3b8" />
+          {/* Search Box */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '5px 10px',
+            width: '190px'
+          }}>
+            <Search size={13} color="#94a3b8" />
             <input 
               type="text"
-              placeholder="Search table number..."
+              placeholder="Search table..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '12.5px', width: '100%', color: '#1e293b' }}
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '12px', width: '100%', color: '#1e293b' }}
             />
             {searchQuery && (
               <button type="button" onClick={() => setSearchQuery('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
-                <Check size={13} />
+                <X size={12} />
               </button>
             )}
             {isRefreshing && (
@@ -620,20 +550,25 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
               </span>
             )}
           </div>
+        </div>
 
-          {/* Quick Filter Pill Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', flexWrap: 'wrap' }}>
+        {/* Right: Status Filter Pills + Action Buttons in ONE LINE */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Segmented Filter Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
               style={{
-                background: statusFilter === 'all' ? '#0f172a' : '#f8fafc',
-                color: statusFilter === 'all' ? '#ffffff' : '#475569',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: statusFilter === 'all' ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                background: statusFilter === 'all' ? '#ffffff' : 'transparent',
+                color: statusFilter === 'all' ? '#0f172a' : '#64748b',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: 'none',
                 fontWeight: 700,
+                fontSize: '11.5px',
                 cursor: 'pointer',
+                boxShadow: statusFilter === 'all' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -643,35 +578,125 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
               type="button"
               onClick={() => setStatusFilter('available')}
               style={{
-                background: statusFilter === 'available' ? '#16a34a' : '#f0fdf4',
-                color: statusFilter === 'available' ? '#ffffff' : '#16a34a',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: statusFilter === 'available' ? '1px solid #16a34a' : '1px solid #bbf7d0',
+                background: statusFilter === 'available' ? '#ffffff' : 'transparent',
+                color: statusFilter === 'available' ? '#16a34a' : '#64748b',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: 'none',
                 fontWeight: 700,
+                fontSize: '11.5px',
                 cursor: 'pointer',
+                boxShadow: statusFilter === 'available' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              Available ({tables.filter(t => !activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
+              ● Available ({tables.filter(t => !activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('occupied')}
               style={{
-                background: statusFilter === 'occupied' ? '#d97706' : '#fffbeb',
-                color: statusFilter === 'occupied' ? '#ffffff' : '#d97706',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: statusFilter === 'occupied' ? '1px solid #d97706' : '1px solid #fde68a',
+                background: statusFilter === 'occupied' ? '#ffffff' : 'transparent',
+                color: statusFilter === 'occupied' ? '#d97706' : '#64748b',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: 'none',
                 fontWeight: 700,
+                fontSize: '11.5px',
                 cursor: 'pointer',
+                boxShadow: statusFilter === 'occupied' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              Occupied ({tables.filter(t => !!activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
+              ● Occupied ({tables.filter(t => !!activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
             </button>
           </div>
+
+          {/* Action Buttons */}
+          <button
+            type="button"
+            onClick={() => printTableStands(filteredTables)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 11px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#334155',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Print Table QR Stands"
+          >
+            <Printer size={13} /> Print Stands
+          </button>
+          <button
+            type="button"
+            onClick={downloadAllQRs}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 11px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#334155',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Download All QR Codes"
+          >
+            <Download size={13} /> Download All
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenBatchModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 11px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#334155',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Batch Add Tables"
+          >
+            <Layers size={13} /> Quick Batch
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 13px',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#2563eb',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Plus size={14} /> Add Table
+          </button>
         </div>
       </div>
 
