@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
-  ShoppingCart, User, Plus, Minus, CreditCard, IndianRupee, Trash2,
-  Layers, Sparkles, Check, RefreshCw, AlertCircle, ChefHat, Flame,
-  Receipt, Clock, Utensils
+  Grid, Plus, Minus, Search, Check, X, RefreshCw, CreditCard,
+  Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
+  ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
+  Utensils, ChefHat, Eye, CheckCircle2, AlertCircle, Sparkles, Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,16 +12,39 @@ import { getValidFoodImage } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
 
-export default function POSTerminal({ tenantId, tenantInfo, menuItems = [], orders = [], onOrderCreated, onOrderPlaced }) {
-  const [cart, setCart] = useState([]); // Draft dishes currently being added
+export default function POSTerminal({
+  tenantId,
+  tenantInfo,
+  menuItems = [],
+  orders = [],
+  initialTable = null,
+  onOrderCreated,
+  onOrderPlaced,
+  onSettleTable
+}) {
+  // View mode: 'tables' (Petpooja table matrix) or 'terminal' (POS billing)
+  const [viewMode, setViewMode] = useState(initialTable ? 'terminal' : 'tables');
+  const [tableNumber, setTableNumber] = useState(initialTable || '1');
+  const [selectedZone, setSelectedZone] = useState('all');
+  const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all', 'free', 'occupied', 'paid'
+  const [tableSearch, setTableSearch] = useState('');
+
+  // Cart & Settlement state for POS Terminal
+  const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [tableNumber, setTableNumber] = useState('1');
+  const [dishSearch, setDishSearch] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('UPI / GPay');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSettling, setIsSettling] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbTables, setDbTables] = useState([]);
+
+  // Add Table Modal state
+  const [showAddTableModal, setShowAddTableModal] = useState(false);
+  const [newTableNum, setNewTableNum] = useState('');
+  const [newTableCap, setNewTableCap] = useState('4');
+  const [newTableZone, setNewTableZone] = useState('Main Floor');
 
   // Customization dialog state
   const [customizingItem, setCustomizingItem] = useState(null);
@@ -30,61 +54,207 @@ export default function POSTerminal({ tenantId, tenantInfo, menuItems = [], orde
   // Split bill states
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
-  const [splits, setSplits] = useState([]);
 
   // Fetch dynamic tables from backend DB
-  useEffect(() => {
+  const fetchDbTables = useCallback(() => {
     const token = localStorage.getItem('token');
     const url = `${API}/tables${tenantId ? `?tenantId=${tenantId}` : ''}`;
     axios.get(url, { headers: token ? { 'x-auth-token': token } : {} })
       .then(res => {
-        if (res.data && Array.isArray(res.data)) {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
           setDbTables(res.data);
+        } else {
+          setDbTables([
+            { _id: 't1', tableNumber: '1', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't2', tableNumber: '2', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't3', tableNumber: '3', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't5', tableNumber: '5', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't6', tableNumber: '6', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't7', tableNumber: '7', seatingCapacity: 2, zone: 'Garden' },
+            { _id: 't8', tableNumber: '8', seatingCapacity: 4, zone: 'Roof Top' }
+          ]);
         }
       })
-      .catch(err => console.log('Dynamic tables fetch error:', err.message));
+      .catch(err => {
+        console.log('Dynamic tables fetch error:', err.message);
+        if (dbTables.length === 0) {
+          setDbTables([
+            { _id: 't1', tableNumber: '1', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't2', tableNumber: '2', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't3', tableNumber: '3', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't5', tableNumber: '5', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't6', tableNumber: '6', seatingCapacity: 4, zone: 'Main Floor' },
+            { _id: 't7', tableNumber: '7', seatingCapacity: 2, zone: 'Garden' },
+            { _id: 't8', tableNumber: '8', seatingCapacity: 4, zone: 'Roof Top' }
+          ]);
+        }
+      });
   }, [tenantId]);
 
-  // Categories list
-  const categories = ['all', ...new Set(menuItems.map(item => item.category || 'main-courses'))];
+  useEffect(() => {
+    fetchDbTables();
+  }, [fetchDbTables]);
 
-  const filteredItems = selectedCategory === 'all'
-    ? menuItems
-    : menuItems.filter(item => item.category === selectedCategory);
+  useEffect(() => {
+    if (initialTable) {
+      setTableNumber(initialTable);
+      setViewMode('terminal');
+    }
+  }, [initialTable]);
 
   // Real-time active uncompleted orders
   const activeOrdersList = useMemo(() => {
     return (orders || []).filter(o => o.status !== 'completed' && o.status !== 'cancelled');
   }, [orders]);
 
-  // Map ALL active orders grouped by table number into arrays (Table Batching)
+  // Active orders grouped by table
   const activeOrdersByTable = useMemo(() => {
     const map = {};
     (orders || []).forEach(o => {
+      if (o.status === 'completed' || o.status === 'cancelled') return;
       const rawTable = String(o.tableNumber || o.table || '').trim();
       const numOnly = rawTable.replace(/[^0-9]/g, '') || rawTable;
-      if (rawTable && o.status !== 'completed' && o.status !== 'cancelled') {
+      if (rawTable) {
         if (!map[rawTable]) map[rawTable] = [];
-        if (!map[rawTable].some(existing => existing._id === o._id)) {
-          map[rawTable].push(o);
-        }
+        if (!map[rawTable].some(e => e._id === o._id)) map[rawTable].push(o);
+
         if (numOnly && numOnly !== rawTable) {
           if (!map[numOnly]) map[numOnly] = [];
-          if (!map[numOnly].some(existing => existing._id === o._id)) {
-            map[numOnly].push(o);
-          }
+          if (!map[numOnly].some(e => e._id === o._id)) map[numOnly].push(o);
         }
         const tblKey = `Table ${numOnly}`;
         if (!map[tblKey]) map[tblKey] = [];
-        if (!map[tblKey].some(existing => existing._id === o._id)) {
-          map[tblKey].push(o);
-        }
+        if (!map[tblKey].some(e => e._id === o._id)) map[tblKey].push(o);
       }
     });
     return map;
   }, [orders]);
 
-  // Active orders currently belonging to the selected table batch
+  // Helper: Get active orders for a specific table object
+  const getOrdersForTableObj = useCallback((tbl) => {
+    const tStr = String(tbl.tableNumber || tbl.table || '').trim();
+    const numOnly = tStr.replace(/[^0-9]/g, '') || tStr;
+    return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
+  }, [activeOrdersByTable]);
+
+  // Unified tables list (combines DB tables and active orders)
+  const allTablesList = useMemo(() => {
+    const fromDb = [...dbTables];
+    // Check if any active orders have tables not in DB
+    Object.keys(activeOrdersByTable).forEach(rawTbl => {
+      const numOnly = rawTbl.replace(/[^0-9]/g, '') || rawTbl;
+      if (!fromDb.some(t => String(t.tableNumber) === numOnly || String(t.tableNumber) === rawTbl)) {
+        fromDb.push({
+          _id: `auto_${rawTbl}`,
+          tableNumber: numOnly || rawTbl,
+          seatingCapacity: 4,
+          zone: 'Main Floor'
+        });
+      }
+    });
+
+    return fromDb.sort((a, b) => {
+      return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [dbTables, activeOrdersByTable]);
+
+  // Available zones / floor sections
+  const zonesList = useMemo(() => {
+    const zones = ['all'];
+    allTablesList.forEach(t => {
+      const z = t.zone || 'Main Floor';
+      if (!zones.includes(z)) zones.push(z);
+    });
+    return zones;
+  }, [allTablesList]);
+
+  // Filtered tables for floor view
+  const filteredFloorTables = useMemo(() => {
+    return allTablesList.filter(t => {
+      const tableOrders = getOrdersForTableObj(t);
+      const isOccupied = tableOrders.length > 0;
+      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+
+      // Zone filter
+      if (selectedZone !== 'all' && (t.zone || 'Main Floor') !== selectedZone) {
+        return false;
+      }
+
+      // Status filter
+      if (tableStatusFilter === 'free' && isOccupied) return false;
+      if (tableStatusFilter === 'occupied' && (!isOccupied || isAllPaid)) return false;
+      if (tableStatusFilter === 'paid' && !isAllPaid) return false;
+
+      // Search filter
+      if (tableSearch.trim()) {
+        const query = tableSearch.toLowerCase().trim();
+        const tNum = String(t.tableNumber).toLowerCase();
+        const hasMatch = tNum.includes(query) ||
+          tableOrders.some(o => (o.customerName || o.customerDetails?.name || '').toLowerCase().includes(query));
+        if (!hasMatch) return false;
+      }
+
+      return true;
+    });
+  }, [allTablesList, getOrdersForTableObj, selectedZone, tableStatusFilter, tableSearch]);
+
+  // Active table stats
+  const tableStats = useMemo(() => {
+    let freeCount = 0;
+    let occupiedCount = 0;
+    let paidCount = 0;
+
+    allTablesList.forEach(t => {
+      const ords = getOrdersForTableObj(t);
+      if (ords.length === 0) {
+        freeCount++;
+      } else if (ords.every(o => o.paymentStatus === 'paid' || o.status === 'served')) {
+        paidCount++;
+      } else {
+        occupiedCount++;
+      }
+    });
+
+    return {
+      total: allTablesList.length,
+      free: freeCount,
+      occupied: occupiedCount,
+      paid: paidCount
+    };
+  }, [allTablesList, getOrdersForTableObj]);
+
+  // Handle clicking a table card -> opens POS Terminal
+  const handleOpenTableInPOS = (tblNum) => {
+    const tStr = String(tblNum).trim();
+    setTableNumber(tStr);
+    setViewMode('terminal');
+
+    const ordersForTable = activeOrdersByTable[tStr] || activeOrdersByTable[tStr.replace(/[^0-9]/g, '')] || [];
+    if (ordersForTable.length > 0) {
+      const firstOrd = ordersForTable[0];
+      setCustomerName(firstOrd.customerDetails?.name || firstOrd.customerName || 'Dine-in Guest');
+      setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || '');
+      if (firstOrd.paymentMethod) setPaymentMethod(firstOrd.paymentMethod);
+      toast.success(`Opened Table ${tStr} (${ordersForTable.length} running ${ordersForTable.length === 1 ? 'round' : 'rounds'})`);
+    } else {
+      setCustomerName('');
+      setCustomerPhone('');
+      toast.success(`Selected Table ${tStr}`);
+    }
+  };
+
+  // Quick Walkin / Counter POS
+  const handleQuickWalkin = () => {
+    setTableNumber('Walk-in');
+    setCustomerName('Walk-in Guest');
+    setCustomerPhone('');
+    setViewMode('terminal');
+    toast.success('Opened Counter Walk-in POS');
+  };
+
+  // Active orders currently belonging to the selected table in POS
   const currentTableOrders = useMemo(() => {
     if (!tableNumber) return [];
     const tStr = String(tableNumber).trim();
@@ -92,119 +262,37 @@ export default function POSTerminal({ tenantId, tenantInfo, menuItems = [], orde
     return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
   }, [tableNumber, activeOrdersByTable]);
 
-  // Summarize tables for top live bar: 1 pill per table showing cumulative rounds & total
-  const activeTableSummaries = useMemo(() => {
-    const tablesMap = {};
-    (activeOrdersList || []).forEach(o => {
-      const rawTbl = String(o.tableNumber || o.table || '').trim();
-      const numOnly = rawTbl.replace(/[^0-9]/g, '') || rawTbl;
-      const key = numOnly || rawTbl;
-      if (!tablesMap[key]) {
-        tablesMap[key] = {
-          table: key,
-          orders: [],
-          totalAmount: 0,
-          totalItems: 0,
-          customerName: o.customerDetails?.name || o.customerName || 'Guest',
-          allPaid: true,
-          hasCooking: false
-        };
-      }
-      tablesMap[key].orders.push(o);
-      tablesMap[key].totalAmount += Number(o.total || o.totalAmount) || 0;
-      tablesMap[key].totalItems += (o.items || []).reduce((s, it) => s + (Number(it.quantity) || 1), 0);
-      if (o.paymentStatus !== 'paid') tablesMap[key].allPaid = false;
-      if (o.status === 'pending' || o.status === 'preparing') tablesMap[key].hasCooking = true;
+  // Running orders total
+  const runningOrdersTotal = useMemo(() => {
+    return currentTableOrders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
+  }, [currentTableOrders]);
+
+  // Current draft cart total
+  const draftCartTotal = useMemo(() => {
+    return cart.reduce((sum, it) => sum + (Number(it.price) * (Number(it.quantity) || 1)), 0);
+  }, [cart]);
+
+  const grandTotal = runningOrdersTotal + draftCartTotal;
+
+  // Categories list for POS Menu
+  const categories = useMemo(() => {
+    return ['all', ...new Set(menuItems.map(item => item.category || 'main-courses'))];
+  }, [menuItems]);
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
+      const matchesSearch = !dishSearch || item.name.toLowerCase().includes(dishSearch.toLowerCase());
+      return matchesCat && matchesSearch;
     });
-    return Object.values(tablesMap).sort((a, b) => (parseInt(a.table) || 0) - (parseInt(b.table) || 0));
-  }, [activeOrdersList]);
+  }, [menuItems, selectedCategory, dishSearch]);
 
-  // Derive dynamic table list from DB + active live orders
-  const availableTables = useMemo(() => {
-    const tablesFromDb = (dbTables || []).map(t => String(t.tableNumber || t.table || '').trim()).filter(Boolean);
-    const activeTablesFromOrders = Object.keys(activeOrdersByTable).map(t => t.replace(/[^0-9]/g, '') || t).filter(Boolean);
-
-    const combined = Array.from(new Set([...tablesFromDb, ...activeTablesFromOrders]));
-    if (combined.length === 0) {
-      return ['1', '2', '3', '4'];
-    }
-    return combined.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
-  }, [dbTables, activeOrdersByTable]);
-
-  // Select Table handler
-  const handleSelectTable = (targetTable) => {
-    const tStr = String(targetTable || '').trim();
-    const numOnly = tStr.replace(/[^0-9]/g, '') || tStr;
-    setTableNumber(tStr || '1');
-
-    const ordersForTable = activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
-    if (ordersForTable.length > 0) {
-      const firstOrd = ordersForTable[0];
-      setCustomerName(firstOrd.customerDetails?.name || firstOrd.customerName || 'Dine-in Guest');
-      setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || '');
-      if (firstOrd.paymentMethod) setPaymentMethod(firstOrd.paymentMethod);
-      toast.success(`Loaded Table ${tStr} (${ordersForTable.length} active ${ordersForTable.length === 1 ? 'round' : 'rounds'})`);
-    } else {
-      setCustomerName('');
-      setCustomerPhone('');
-    }
-  };
-
-  // Sync customer details when orders update for current table
-  useEffect(() => {
-    if (tableNumber && currentTableOrders.length > 0 && !customerName) {
-      const firstOrd = currentTableOrders[0];
-      setCustomerName(firstOrd.customerDetails?.name || firstOrd.customerName || 'Dine-in Guest');
-      setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || '');
-    }
-  }, [currentTableOrders, tableNumber]);
-
-  // Cart item management for new draft dishes
-  const handleOpenCustomize = (item) => {
-    setCustomizingItem(item);
-    setSelectedVariant(item.variants && item.variants.length > 0 ? item.variants[0] : null);
-    setSelectedAddons([]);
-  };
-
-  const handleAddToCart = () => {
-    if (!customizingItem) return;
-
-    let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
-    if (selectedVariant) {
-      finalPrice = Number(selectedVariant.price) || finalPrice;
-    }
-
-    const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
-    const totalPrice = finalPrice + addonPrice;
-
-    const existingIndex = cart.findIndex(c =>
-      c.id === customizingItem._id &&
-      JSON.stringify(c.variant) === JSON.stringify(selectedVariant) &&
-      JSON.stringify(c.addons) === JSON.stringify(selectedAddons)
-    );
-
-    if (existingIndex > -1) {
-      const newCart = [...cart];
-      newCart[existingIndex].quantity += 1;
-      setCart(newCart);
-    } else {
-      setCart([...cart, {
-        id: customizingItem._id,
-        name: customizingItem.name,
-        price: totalPrice,
-        quantity: 1,
-        variant: selectedVariant,
-        addons: selectedAddons
-      }]);
-    }
-
-    setCustomizingItem(null);
-    toast.success(`Added ${customizingItem.name}`);
-  };
-
+  // Cart operations
   const handleQuickAdd = (item) => {
     if ((item.variants && item.variants.length > 0) || (item.addons && item.addons.length > 0)) {
-      handleOpenCustomize(item);
+      setCustomizingItem(item);
+      setSelectedVariant(item.variants && item.variants.length > 0 ? item.variants[0] : null);
+      setSelectedAddons([]);
     } else {
       const existingIndex = cart.findIndex(c => c.id === item._id && !c.variant && (!c.addons || c.addons.length === 0));
       if (existingIndex > -1) {
@@ -225,609 +313,868 @@ export default function POSTerminal({ tenantId, tenantInfo, menuItems = [], orde
     }
   };
 
-  const updateQuantity = (index, delta) => {
+  const handleAddCustomized = () => {
+    if (!customizingItem) return;
+    let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
+    if (selectedVariant) finalPrice = Number(selectedVariant.price) || finalPrice;
+    const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
+    const totalPrice = finalPrice + addonPrice;
+
+    setCart([...cart, {
+      id: customizingItem._id,
+      name: customizingItem.name,
+      price: totalPrice,
+      quantity: 1,
+      variant: selectedVariant,
+      addons: selectedAddons
+    }]);
+
+    setCustomizingItem(null);
+    toast.success(`Added ${customizingItem.name}`);
+  };
+
+  const updateCartQty = (idx, delta) => {
     const newCart = [...cart];
-    const newQty = newCart[index].quantity + delta;
-    if (newQty <= 0) {
-      removeFromCart(index);
-    } else {
-      newCart[index].quantity = newQty;
-      setCart(newCart);
+    newCart[idx].quantity += delta;
+    if (newCart[idx].quantity <= 0) {
+      newCart.splice(idx, 1);
     }
+    setCart(newCart);
   };
 
-  const removeFromCart = (index) => {
-    setCart(cart.filter((_, i) => i !== index));
-  };
-
-  const handleClearCart = () => {
-    setCart([]);
-    toast.success(`Draft dishes cleared for Table ${tableNumber}`);
-  };
-
-  // Calculations
-  const enableGst = tenantInfo?.settings?.enableGst !== undefined ? tenantInfo.settings.enableGst : true;
-
-  // Total of existing active orders for this table
-  const existingOrdersTotal = useMemo(() => {
-    return currentTableOrders.reduce((sum, ord) => sum + (Number(ord.total || ord.totalAmount) || 0), 0);
-  }, [currentTableOrders]);
-
-  const existingOrdersSubtotal = useMemo(() => {
-    return currentTableOrders.reduce((sum, ord) => sum + (Number(ord.subTotal || ord.total || ord.totalAmount) || 0), 0);
-  }, [currentTableOrders]);
-
-  // Draft cart calculations
-  const getDraftSubtotal = () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const getDraftTax = () => enableGst ? getDraftSubtotal() * 0.05 : 0;
-  const getDraftTotal = () => getDraftSubtotal() + getDraftTax();
-
-  // Combined Grand Total across all active rounds + any new draft dishes
-  const getTotalSubtotal = () => existingOrdersSubtotal + getDraftSubtotal();
-  const getTotalTax = () => enableGst ? getTotalSubtotal() * 0.05 : 0;
-  const getGrandTotal = () => Math.round(existingOrdersTotal + getDraftTotal());
-
-  // Split bill logic
-  const triggerSplitBill = () => {
-    const total = getGrandTotal();
-    const splitAmount = Math.round(total / splitCount);
-    const initialSplits = Array.from({ length: splitCount }, (_, i) => ({
-      customerName: `Guest ${i + 1}`,
-      amount: splitAmount,
-      paymentStatus: 'pending',
-      paymentMethod: 'UPI'
-    }));
-    setSplits(initialSplits);
-    setShowSplitModal(true);
-  };
-
-  const handleSplitPayment = (index) => {
-    const newSplits = [...splits];
-    newSplits[index].paymentStatus = 'paid';
-    setSplits(newSplits);
-    toast.success(`${newSplits[index].customerName} settled`);
-  };
-
-  // 1. Admin sends new dishes to Kitchen (Creates a NEW order/KOT ticket for this table)
-  const handleSendToKitchen = async () => {
+  // Send KOT / Submit New Order
+  const handleSendKOT = async () => {
     if (cart.length === 0) {
-      return toast.error("Cart is empty. Please select dishes from the menu first.");
+      toast.error('Cart is empty. Add dishes first!');
+      return;
     }
-    const token = localStorage.getItem('token');
+
     setIsSubmitting(true);
+    const token = localStorage.getItem('token');
+    const orderPayload = {
+      tenantId,
+      tableNumber: tableNumber === 'Walk-in' ? '' : tableNumber,
+      orderType: tableNumber === 'Walk-in' ? 'takeaway' : 'dine_in',
+      customerName: customerName.trim() || 'Guest',
+      customerPhone: customerPhone.trim(),
+      paymentMethod,
+      paymentStatus: 'pending',
+      items: cart.map(it => ({
+        itemId: it.id,
+        name: it.name,
+        price: it.price,
+        quantity: it.quantity,
+        variant: it.variant ? it.variant.name : null,
+        addons: (it.addons || []).map(a => a.name)
+      })),
+      totalAmount: draftCartTotal
+    };
 
     try {
-      const payload = {
-        items: cart.map(c => ({
-          id: c.id,
-          quantity: c.quantity,
-          variant: c.variant,
-          addons: c.addons
-        })),
-        tenantId: tenantId || '6a762ef86c9d5c8be315f10a',
-        tableNumber: String(tableNumber || '1').trim(),
-        channel: 'POS Counter',
-        status: 'pending',
-        paymentStatus: 'pending',
-        customerDetails: {
-          name: customerName || 'Dine-in Guest',
-          phone: customerPhone || ''
-        }
-      };
-
-      const res = await axios.post(`${API}/orders`, payload, {
+      const res = await axios.post(`${API}/orders`, orderPayload, {
         headers: token ? { 'x-auth-token': token } : {}
       });
 
-      const newOrder = res.data;
-      setCart([]); // Clear draft dishes
-      toast.success(`🍽️ Round #${currentTableOrders.length + 1} sent to Kitchen for Table ${tableNumber}! (Order #${newOrder.orderNumber || newOrder._id?.slice(-4)})`);
-      if (onOrderPlaced) onOrderPlaced(newOrder);
-      if (onOrderCreated) onOrderCreated(newOrder);
+      toast.success(`✓ Order / KOT sent for Table ${tableNumber}!`);
+      setCart([]);
+      if (onOrderPlaced) onOrderPlaced(res.data);
+      if (onOrderCreated) onOrderCreated(res.data);
     } catch (err) {
-      console.error('Send to kitchen error:', err);
-      toast.error(err.response?.data?.error || 'Failed to send order to kitchen');
+      console.error('Send order error:', err);
+      toast.error('Failed to submit order: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 2. Settle Table (Completes all active orders for this table and frees table)
-  const checkoutOrder = async () => {
-    const total = getGrandTotal();
-    if (total === 0 && currentTableOrders.length === 0 && cart.length === 0) {
-      return toast.error("No active orders or dishes to settle");
+  // Settle Bill & Clear Table
+  const handleSettleBill = async () => {
+    if (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0) {
+      toast.error('No items or active orders to settle for this table.');
+      return;
     }
-    const token = localStorage.getItem('token');
-    setIsSettling(true);
 
+    setIsSettling(true);
+    const token = localStorage.getItem('token');
     try {
-      // If there are unsent draft dishes in cart, create an order for them first
+      // 1. If draft cart has items, create the final round first
       if (cart.length > 0) {
-        const draftPayload = {
-          items: cart.map(c => ({
-            id: c.id,
-            name: c.name,
-            quantity: c.quantity,
-            price: c.price,
-            variant: c.variant,
-            addons: c.addons
-          })),
-          tenantId: tenantId || '6a762ef86c9d5c8be315f10a',
-          tableNumber: String(tableNumber || '1').trim(),
-          channel: 'POS Counter',
-          status: 'completed',
-          paymentStatus: 'paid',
+        const orderPayload = {
+          tenantId,
+          tableNumber: tableNumber === 'Walk-in' ? '' : tableNumber,
+          orderType: tableNumber === 'Walk-in' ? 'takeaway' : 'dine_in',
+          customerName: customerName.trim() || 'Guest',
+          customerPhone: customerPhone.trim(),
           paymentMethod,
-          customerDetails: {
-            name: customerName || 'Dine-in Guest',
-            phone: customerPhone || ''
-          }
+          paymentStatus: 'paid',
+          items: cart.map(it => ({
+            itemId: it.id,
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity
+          })),
+          totalAmount: draftCartTotal
         };
-        if (token) {
-          await axios.post(`${API}/orders`, draftPayload, {
-            headers: { 'x-auth-token': token }
-          });
-        }
+        await axios.post(`${API}/orders`, orderPayload, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
       }
 
-      // Settle all active orders for this table via batch settle endpoint
-      if (currentTableOrders.length > 0) {
-        const headers = token ? { 'x-auth-token': token } : {};
+      // 2. Settle all existing orders on this table
+      if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
           { paymentMethod, paymentStatus: 'paid', tenantId },
-          { headers }
+          { headers: token ? { 'x-auth-token': token } : {} }
         );
       }
 
-      toast.success(`✓ Table ${tableNumber} fully settled (₹${total})! Table is now free.`);
+      toast.success(`✓ Table ${tableNumber} fully settled (₹${grandTotal})! Table is now free.`);
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
       setShowSplitModal(false);
 
-      // Trigger parent to re-fetch all orders so the table clears from live view
       if (onOrderPlaced) onOrderPlaced({ tableNumber, status: 'completed', _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber, status: 'completed', _refreshAll: true });
+      if (onSettleTable) onSettleTable(tableNumber);
 
+      // Return to table matrix view
+      setViewMode('tables');
     } catch (err) {
-      console.error('Checkout settle error:', err);
-      const msg = err.response?.data?.error || err.message || 'Settlement failed';
-      toast.error(`Settlement failed: ${msg}. Please try again.`);
+      console.error('Settle table error:', err);
+      toast.error('Settlement error: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsSettling(false);
     }
   };
 
-  const isAllOrdersPaid = currentTableOrders.length > 0 && currentTableOrders.every(o => o.paymentStatus === 'paid');
+  // Quick Thermal Print Receipt simulation
+  const handlePrintReceipt = (e, tblNum, amount) => {
+    if (e) e.stopPropagation();
+    toast.success(`🖨️ Printing receipt for Table ${tblNum} (₹${amount})`, {
+      icon: '🖨️',
+      style: { background: '#0f172a', color: '#ffffff' }
+    });
+  };
+
+  // Create new table
+  const handleAddTableSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTableNum.trim()) {
+      toast.error('Please enter a table number');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const res = await axios.post(`${API}/tables`, {
+        tableNumber: newTableNum.trim(),
+        seatingCapacity: Number(newTableCap) || 4,
+        zone: newTableZone || 'Main Floor',
+        tenantId
+      }, {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
+
+      setDbTables(prev => [...prev, res.data || {
+        _id: Date.now().toString(),
+        tableNumber: newTableNum.trim(),
+        seatingCapacity: Number(newTableCap) || 4,
+        zone: newTableZone
+      }]);
+
+      setShowAddTableModal(false);
+      setNewTableNum('');
+      toast.success(`✓ Table ${newTableNum} created!`);
+    } catch (err) {
+      // Local fallback
+      setDbTables(prev => [...prev, {
+        _id: Date.now().toString(),
+        tableNumber: newTableNum.trim(),
+        seatingCapacity: Number(newTableCap) || 4,
+        zone: newTableZone
+      }]);
+      setShowAddTableModal(false);
+      setNewTableNum('');
+      toast.success(`✓ Table ${newTableNum} added`);
+    }
+  };
 
   return (
     <div className={styles.terminalWrapper}>
-
-      {/* TOP REAL-TIME LIVE SCANNED & ACTIVE ORDERS BANNER (TABLE BATCHING) */}
-      {/* <div className={styles.liveOrdersBanner}>
-        <div className={styles.liveOrdersHeader}>
-          <div className={styles.liveOrdersTitleWrap}>
-            <span className={styles.pulsingLiveDot}></span>
-            <span className={styles.liveOrdersTitle}>Live Customer Scanned & Active Tables</span>
-            <span className={styles.liveOrdersCountBadge}>
-              {activeTableSummaries.length} Active {activeTableSummaries.length === 1 ? 'Table' : 'Tables'}
-            </span>
-          </div>
-          <span className={styles.liveOrdersSubtitle}>
-            Click any table below to inspect customer scanned rounds, add dishes, or settle bill
-          </span>
-        </div>
-
-        <div className={styles.liveOrdersPillsRow}>
-          {activeTableSummaries.length === 0 ? (
-            <div className={styles.liveOrdersEmpty}>
-              <AlertCircle size={15} /> No active customer orders right now. When customers scan QR codes at tables or admin punches an order, it appears here in real-time.
+      
+      {/* ========================================================= */}
+      {/* 1. FLOOR & TABLES MATRIX VIEW (Petpooja Reference Style)  */}
+      {/* ========================================================= */}
+      {viewMode === 'tables' && (
+        <div className={styles.floorContainer}>
+          
+          {/* Floor Top Bar */}
+          <div className={styles.floorTopBar}>
+            <div className={styles.floorTitleBlock}>
+              <div className={styles.floorIconWrap}>
+                <Grid size={20} />
+              </div>
+              <div>
+                <h3 className={styles.floorHeading}>POS Terminal & Table Matrix</h3>
+                <p className={styles.floorSub}>Select any table to start billing, take orders, or settle tabs.</p>
+              </div>
             </div>
-          ) : (
-            activeTableSummaries.map(tbl => {
-              const isSelected = String(tableNumber).trim() === tbl.table || String(tableNumber).replace(/[^0-9]/g, '') === tbl.table;
+
+            {/* Quick Stats Pills */}
+            <div className={styles.floorStatsGroup}>
+              <button
+                type="button"
+                className={`${styles.statPill} ${tableStatusFilter === 'all' ? styles.statPillAllActive : styles.statPillAll}`}
+                onClick={() => setTableStatusFilter('all')}
+              >
+                All Tables ({tableStats.total})
+              </button>
+              <button
+                type="button"
+                className={`${styles.statPill} ${tableStatusFilter === 'free' ? styles.statPillFreeActive : styles.statPillFree}`}
+                onClick={() => setTableStatusFilter('free')}
+              >
+                ● Free ({tableStats.free})
+              </button>
+              <button
+                type="button"
+                className={`${styles.statPill} ${tableStatusFilter === 'occupied' ? styles.statPillOccupiedActive : styles.statPillOccupied}`}
+                onClick={() => setTableStatusFilter('occupied')}
+              >
+                ● Booked / Running ({tableStats.occupied})
+              </button>
+              <button
+                type="button"
+                className={`${styles.statPill} ${tableStatusFilter === 'paid' ? styles.statPillPaidActive : styles.statPillPaid}`}
+                onClick={() => setTableStatusFilter('paid')}
+              >
+                ● Paid / Served ({tableStats.paid})
+              </button>
+            </div>
+          </div>
+
+          {/* Section Filter & Actions Row */}
+          <div className={styles.floorFilterRow}>
+            {/* Zone / Floor Tabs */}
+            <div className={styles.zoneTabs}>
+              {zonesList.map(z => (
+                <button
+                  key={z}
+                  type="button"
+                  className={`${styles.zoneTabBtn} ${selectedZone === z ? styles.zoneTabBtnActive : ''}`}
+                  onClick={() => setSelectedZone(z)}
+                >
+                  {z === 'all' ? 'All Sections' : z}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className={styles.searchBox}>
+              <Search size={14} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search table or guest..."
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+                className={styles.searchInput}
+              />
+              {tableSearch && (
+                <button
+                  type="button"
+                  onClick={() => setTableSearch('')}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className={styles.floorActions}>
+              <button
+                type="button"
+                className={styles.quickWalkinBtn}
+                onClick={handleQuickWalkin}
+              >
+                <Zap size={14} /> <span>Direct Walk-in POS</span>
+              </button>
+              <button
+                type="button"
+                className={styles.addTableBtn}
+                onClick={() => setShowAddTableModal(true)}
+              >
+                <Plus size={14} /> <span>Add Table</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tables Grid Layout grouped by Zones (Petpooja Layout) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {zonesList.filter(z => selectedZone === 'all' || z === selectedZone).filter(z => z !== 'all').map(zoneName => {
+              const zoneTables = filteredFloorTables.filter(t => (t.zone || 'Main Floor') === zoneName);
+              if (zoneTables.length === 0) return null;
 
               return (
-                <button
-                  key={tbl.table}
-                  type="button"
-                  onClick={() => handleSelectTable(tbl.table)}
-                  className={`${styles.liveOrderPill} ${isSelected ? styles.liveOrderPillActive : ''}`}
-                >
-                  <div className={styles.pillTopRow}>
-                    <span className={styles.pillTableTag}>Table {tbl.table}</span>
-                    <span className={styles.pillStatusBadge}>
-                      {tbl.orders.length > 1 ? `📑 ${tbl.orders.length} Rounds` : (tbl.hasCooking ? '🍳 Cooking' : (tbl.allPaid ? '🟢 Paid' : 'Active'))}
-                    </span>
-                  </div>
-                  <div className={styles.pillBottomRow}>
-                    <span>{tbl.totalItems} dishes</span>
-                    <span>•</span>
-                    <span className={styles.pillPriceTag}>₹{Math.round(tbl.totalAmount)}</span>
-                    <span>•</span>
-                    <span style={{ maxWidth: '65px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {tbl.customerName}
-                    </span>
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div> */}
+                <div key={zoneName} className={styles.zoneSection}>
+                  <h4 className={styles.zoneTitle}>{zoneName}</h4>
+                  <div className={styles.tablesGrid}>
+                    {zoneTables.map(tbl => {
+                      const tableOrders = getOrdersForTableObj(tbl);
+                      const isOccupied = tableOrders.length > 0;
+                      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+                      const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
 
-      <div className={styles.container}>
+                      // Calculate running elapsed minutes
+                      let elapsedMin = null;
+                      if (isOccupied && tableOrders[0]?.createdAt) {
+                        const start = new Date(tableOrders[0].createdAt);
+                        const diffMs = Date.now() - start.getTime();
+                        elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+                      }
 
-        {/* LEFT SECTION: CATEGORIES & DISH GRID */}
-        <div className={styles.itemsSection}>
-          {/* Category Pills Bar */}
-          <div className={styles.categoryBar}>
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`${styles.catPill} ${selectedCategory === cat ? styles.activeCatPill : ''}`}
-              >
-                {cat.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
-          {/* Menu Items Grid */}
-          <div className={styles.menuGrid}>
-            {filteredItems.map(item => (
-              <motion.div
-                key={item._id}
-                whileHover={{ y: -3, scale: 1.01 }}
-                onClick={() => handleQuickAdd(item)}
-                className={styles.menuCard}
-              >
-                <div>
-                  <div className={styles.cardHeader}>
-                    <img
-                      src={getValidFoodImage(item)}
-                      alt={item.name}
-                      className={styles.cardImg}
-                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500'; }}
-                    />
-                    <div className={styles.ratingTag}>
-                      <span>★</span> {item.rating || 4.8}
-                    </div>
-                  </div>
-                  <h3 className={styles.itemTitle}>{item.name}</h3>
-                  <p className={styles.itemDesc}>{item.description}</p>
-                </div>
-
-                <div className={styles.cardFooter}>
-                  <div>
-                    <span className={styles.priceTag}>₹{Math.round(Number(item.salePrice || item.price))}</span>
-                    {((item.variants && item.variants.length > 0) || (item.addons && item.addons.length > 0)) && (
-                      <span className={styles.customBadge}>Customizable</span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
-                    className={styles.addBtn}
-                  >
-                    <Plus size={16} strokeWidth={3} />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT SECTION: DEDICATED POS TERMINAL CART PANEL */}
-        <div className={styles.cartPanel}>
-          <div className={styles.cartContentWrap}>
-
-            {/* Header */}
-            <div className={styles.cartHeader}>
-              <div>
-                <h2 className={styles.cartTitle}>
-                  <ShoppingCart size={20} color="#059669" /> POS Billing Cart
-                </h2>
-                <span className={styles.cartSubtitle}>Punch orders & settle table payments</span>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {cart.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleClearCart}
-                    className={styles.clearCartBtn}
-                    title="Clear Draft Dishes"
-                  >
-                    <Trash2 size={14} /> Clear Draft
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Active Table Status Banner */}
-            {currentTableOrders.length > 0 && (
-              <div className={styles.loadedOrderBanner}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Sparkles size={15} color="#059669" />
-                    <span style={{ fontWeight: 800 }}>
-                      Table {tableNumber} — {currentTableOrders.length} Active {currentTableOrders.length === 1 ? 'Round' : 'Rounds'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#047857', display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span>Guest: <strong>{customerName || 'Dine-in Guest'}</strong></span>
-                    <span>•</span>
-                    <span>Status: <strong>{isAllOrdersPaid ? '🟢 Paid Online' : '🟡 Bill Pending'}</strong></span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleSelectTable(tableNumber)}
-                  className={styles.refreshOrderBtn}
-                  title="Refresh table orders"
-                >
-                  <RefreshCw size={13} />
-                </button>
-              </div>
-            )}
-
-            {/* Form Fields: Table Dropdown, Customer & Payment */}
-            <div className={styles.formGrid}>
-              <div>
-                <label className={styles.fieldLabel}>Table # (Dynamic Dropdown)</label>
-                <select
-                  value={tableNumber}
-                  onChange={(e) => handleSelectTable(e.target.value)}
-                  className={styles.fieldInput}
-                >
-                  {availableTables.length === 0 ? (
-                    <option value="">None (No Tables in DB)</option>
-                  ) : (
-                    <>
-                      <option value="">-- Select Table --</option>
-                      {availableTables.map(tbl => {
-                        const numOnly = tbl.replace(/[^0-9]/g, '') || tbl;
-                        const hasActive = Boolean(activeOrdersByTable[tbl] || activeOrdersByTable[numOnly]);
-                        const roundsCount = (activeOrdersByTable[tbl] || activeOrdersByTable[numOnly] || []).length;
+                      // 1. FREE / EMPTY CARD
+                      if (!isOccupied) {
                         return (
-                          <option key={tbl} value={tbl}>
-                            Table {tbl} {hasActive ? `• 🟢 LIVE (${roundsCount} ${roundsCount === 1 ? 'Round' : 'Rounds'})` : ''}
-                          </option>
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={`${styles.tableTile} ${styles.tileFree}`}
+                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                          >
+                            <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                            <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                          </div>
                         );
-                      })}
-                    </>
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className={styles.fieldLabel}>Guest Name</label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Optional"
-                  className={styles.fieldInput}
-                />
-              </div>
-            </div>
+                      }
 
-            <div style={{ marginTop: '0.6rem' }}>
-              <label className={styles.fieldLabel}>Payment Mode</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className={styles.fieldInput}
-                style={{ width: '100%' }}
-              >
-                <option value="UPI / GPay">UPI (GPay / PhonePe / Paytm)</option>
-                <option value="Card (EDC)">Card / EDC Machine</option>
-                <option value="Cash">Cash at Counter</option>
-              </select>
-            </div>
-
-            {/* Cart & Active Rounds List */}
-            <div className={styles.cartList}>
-              {currentTableOrders.length === 0 && cart.length === 0 ? (
-                <div className={styles.emptyCart}>
-                  <ShoppingCart size={34} color="#94a3b8" />
-                  <p style={{ margin: '8px 0 0 0', fontWeight: 700, color: '#475569' }}>
-                    {tableNumber ? `No dishes for Table ${tableNumber}` : 'Select a Table from Dropdown'}
-                  </p>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Select a table with live orders or click dishes on the left to add items.
-                  </span>
-                </div>
-              ) : (
-                <>
-                  {/* EXISTING ACTIVE ORDERS FOR THIS TABLE (ROUNDS) */}
-                  {currentTableOrders.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Active Kitchen Rounds ({currentTableOrders.length})
-                      </div>
-                      {currentTableOrders.map((ord, roundIdx) => {
-                        const ordTotal = Math.round(Number(ord.total || ord.totalAmount) || 0);
-                        const isCooking = ord.status === 'preparing';
-                        const isPending = ord.status === 'pending';
-                        const isReady = ord.status === 'ready';
-
+                      // 2. PAID / BILLED / SERVED CARD (Soft Green)
+                      if (isAllPaid) {
                         return (
-                          <div key={ord._id} className={styles.roundBox}>
-                            <div className={styles.roundHeader}>
-                              <span>
-                                🍳 Round #{roundIdx + 1} <small style={{ color: '#64748b' }}>#{ord.orderNumber || ord._id.slice(-4)}</small>
-                              </span>
-                              <span className={`${styles.roundStatusBadge} ${isPending ? styles.roundStatusBadgePending : ''}`}>
-                                {isPending ? '⏱️ Cooking Pending' : (isCooking ? `🍳 Prepping (${ord.estimatedTime || 20}m)` : (isReady ? '✅ Ready' : ord.status))}
-                              </span>
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={`${styles.tableTile} ${styles.tilePaid}`}
+                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            title={`Table ${tbl.tableNumber} - Billed/Paid. Click to clear or view.`}
+                          >
+                            <div className={styles.tileTopMeta}>
+                              <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
                             </div>
-                            {(ord.items || []).map((it, i) => (
-                              <div key={i} className={styles.roundItemRow}>
-                                <span>{it.name || it.item?.name || 'Dish'} × {it.quantity || 1}</span>
-                                <span>₹{Math.round((Number(it.price) || 0) * (Number(it.quantity) || 1))}</span>
-                              </div>
-                            ))}
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4, borderTop: '1px dashed #e2e8f0', fontSize: '11px', fontWeight: 800, color: '#059669' }}>
-                              Round Total: ₹{ordTotal}
+                            <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                            <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                            <div className={styles.tileFooterActions}>
+                              <button
+                                type="button"
+                                className={styles.tileMiniBtn}
+                                title="Print Receipt"
+                                onClick={(e) => handlePrintReceipt(e, tbl.tableNumber, totalAmt)}
+                              >
+                                <Printer size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.tileMiniBtn}
+                                title="View POS"
+                                onClick={(e) => { e.stopPropagation(); handleOpenTableInPOS(tbl.tableNumber); }}
+                              >
+                                <Eye size={12} />
+                              </button>
                             </div>
                           </div>
                         );
-                      })}
-                    </div>
-                  )}
+                      }
 
-                  {/* DRAFT DISHES BEING ADDED BY ADMIN IN CURRENT ROUND */}
-                  {cart.length > 0 && (
-                    <div className={styles.draftBox}>
-                      <div className={styles.draftHeader}>
-                        <span>➕ New Dishes to Send (Round #{currentTableOrders.length + 1})</span>
-                        <button type="button" onClick={() => setCart([])} className={styles.clearDraftBtn}>
-                          Clear
-                        </button>
-                      </div>
-
-                      {cart.map((item, idx) => (
-                        <div key={idx} className={styles.cartItemCard}>
-                          <div className={styles.cartItemLeft}>
-                            <span className={styles.cartItemName}>{item.name}</span>
-                            <div className={styles.cartItemPriceRow}>
-                              <span className={styles.unitPriceText}>₹{Math.round(item.price)} × {item.quantity}</span>
-                              <span className={styles.itemTotalPrice}>₹{Math.round(item.price * item.quantity)}</span>
-                            </div>
+                      // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
+                      return (
+                        <div
+                          key={tbl._id || tbl.tableNumber}
+                          className={`${styles.tableTile} ${styles.tileOccupied}`}
+                          onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                          title={`Table ${tbl.tableNumber} - Running Order ₹${totalAmt}. Click to open POS.`}
+                        >
+                          <div className={styles.tileTopMeta}>
+                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
                           </div>
-
-                          <div className={styles.qtyControlsWrapper}>
-                            <div className={styles.qtyStepper}>
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(idx, -1)}
-                                className={styles.stepperBtn}
-                              >
-                                <Minus size={12} />
-                              </button>
-                              <span className={styles.qtyText}>{item.quantity}</span>
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(idx, 1)}
-                                className={styles.stepperBtn}
-                              >
-                                <Plus size={12} />
-                              </button>
-                            </div>
-
+                          <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                          <span className={styles.tileAmount}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                          <div className={styles.tileFooterActions}>
                             <button
                               type="button"
-                              onClick={() => removeFromCart(idx)}
-                              className={styles.trashBtn}
-                              title="Remove item"
+                              className={styles.tileMiniBtn}
+                              title="Print Bill"
+                              onClick={(e) => handlePrintReceipt(e, tbl.tableNumber, totalAmt)}
                             >
-                              <Trash2 size={14} />
+                              <Printer size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tileMiniBtn}
+                              title="Open POS Terminal"
+                              onClick={(e) => { e.stopPropagation(); handleOpenTableInPOS(tbl.tableNumber); }}
+                            >
+                              <Eye size={12} />
                             </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredFloorTables.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                <Grid size={32} color="#94a3b8" style={{ marginBottom: 6 }} />
+                <h4 style={{ margin: 0, color: '#334155', fontSize: '0.95rem' }}>No tables found</h4>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.78rem' }}>
+                  {tableSearch ? `No tables matching "${tableSearch}"` : 'Click "+ Add Table" above to create your dining floor layout.'}
+                </p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 2. POS BILLING & ORDER VIEW (High-Speed Terminal)         */}
+      {/* ========================================================= */}
+      {viewMode === 'terminal' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          {/* Header Navigation: Return to Tables + Active Table Bar */}
+          <div className={styles.terminalHeaderNav}>
+            <button
+              type="button"
+              className={styles.backToTablesBtn}
+              onClick={() => setViewMode('tables')}
+              title="Return to Table Matrix"
+            >
+              <ArrowLeft size={16} /> <span>← Back to Floor Tables</span>
+            </button>
+
+            <div className={styles.selectedTableBadge}>
+              <div className={styles.tableTagPill}>
+                <Utensils size={14} color="#2563eb" />
+                <span>{tableNumber === 'Walk-in' ? 'Counter Walk-in' : `Table ${tableNumber}`}</span>
+              </div>
+
+              {tableNumber !== 'Walk-in' && (
+                <select
+                  value={tableNumber}
+                  onChange={(e) => handleOpenTableInPOS(e.target.value)}
+                  className={styles.tableSelectorSelect}
+                  title="Switch Table"
+                >
+                  {allTablesList.map(t => (
+                    <option key={t.tableNumber} value={t.tableNumber}>
+                      Table {t.tableNumber} ({t.zone || 'Floor'})
+                    </option>
+                  ))}
+                  <option value="Walk-in">Counter Walk-in</option>
+                </select>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {currentTableOrders.length > 0 && (
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '3px 9px', borderRadius: '12px', border: '1px solid #fde68a' }}>
+                  ● {currentTableOrders.length} Running Rounds (₹{runningOrdersTotal})
+                </span>
               )}
             </div>
           </div>
 
-          {/* Bill Summary & Action Footer */}
-          <div className={styles.cartFooter}>
-            <div className={styles.summaryRow}>
-              <span>Subtotal</span>
-              <span>₹{Math.round(getTotalSubtotal())}</span>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>GST (5%)</span>
-              <span>₹{Math.round(getTotalTax())}</span>
-            </div>
-            <div className={styles.grandTotalRow}>
-              <span>Grand Total</span>
-              <span className={styles.grandTotalAmount}>₹{Math.round(getGrandTotal())}</span>
+          {/* POS Two-Column Grid */}
+          <div className={styles.posGrid}>
+            
+            {/* Left: Menu Catalog & Categories */}
+            <div className={styles.menuSection}>
+              <div className={styles.menuFilterBar}>
+                <div className={styles.categoryPillsWrap}>
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={styles.searchBox} style={{ width: 180 }}>
+                  <Search size={13} color="#94a3b8" />
+                  <input
+                    type="text"
+                    placeholder="Search dish..."
+                    value={dishSearch}
+                    onChange={(e) => setDishSearch(e.target.value)}
+                    className={styles.searchInput}
+                  />
+                </div>
+              </div>
+
+              {/* Dish Cards Grid */}
+              <div className={styles.dishesGrid}>
+                {filteredMenuItems.map(item => {
+                  const imgUrl = getValidFoodImage(item);
+                  const price = Number(item.salePrice || item.price) || 0;
+
+                  return (
+                    <div
+                      key={item._id}
+                      className={styles.dishCard}
+                      onClick={() => handleQuickAdd(item)}
+                    >
+                      <div className={styles.dishImgWrap}>
+                        <img src={imgUrl} alt={item.name} className={styles.dishImg} />
+                        <div className={styles.vegBadge}>
+                          <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
+                        </div>
+                      </div>
+
+                      <div className={styles.dishInfo}>
+                        <h4>{item.name}</h4>
+                      </div>
+
+                      <div className={styles.dishPriceRow}>
+                        <span className={styles.dishPrice}>₹{price}</span>
+                        <button
+                          type="button"
+                          className={styles.dishAddBtn}
+                          onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
+                          title="Add to cart"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className={styles.actionBtnGrid}>
-              <div className={styles.actionBtnRow}>
-                <button
-                  type="button"
-                  onClick={triggerSplitBill}
-                  disabled={getGrandTotal() === 0}
-                  className={styles.splitBtn}
-                >
-                  Split Bill
-                </button>
+            {/* Right: Order Slip & Settlement Drawer */}
+            <div className={styles.orderDrawer}>
+              <div className={styles.drawerHeader}>
+                <h4 className={styles.drawerTitle}>
+                  {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber} Order Slip`}
+                </h4>
                 {cart.length > 0 && (
                   <button
                     type="button"
-                    onClick={handleClearCart}
-                    className={styles.splitBtn}
-                    style={{ color: '#ef4444', borderColor: '#fca5a5', background: '#fef2f2' }}
+                    onClick={() => setCart([])}
+                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                   >
                     Clear Draft
                   </button>
                 )}
               </div>
 
-              {/* ACTION BUTTONS BASED ON TABLE STATE */}
-              {cart.length > 0 ? (
-                <div className={styles.actionBtnRow}>
-                  <button
-                    type="button"
-                    onClick={handleSendToKitchen}
-                    disabled={isSubmitting}
-                    className={styles.sendKitchenBtn}
-                    title="Send new dishes as a separate KOT ticket to Kitchen"
-                  >
-                    <ChefHat size={16} /> {isSubmitting ? 'Sending...' : `Send Round #${currentTableOrders.length + 1} to Kitchen`}
-                  </button>
+              {/* Customer Inputs */}
+              <div className={styles.customerInputs}>
+                <input
+                  type="text"
+                  placeholder="Guest Name (Optional)"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className={styles.inputField}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className={styles.inputField}
+                />
+              </div>
 
-                  {currentTableOrders.length === 0 ? (
-                    <button
-                      type="button"
-                      onClick={checkoutOrder}
-                      disabled={isSettling}
-                      className={styles.checkoutBtn}
-                      title="Punch order and settle immediately"
-                    >
-                      <CreditCard size={16} /> {isSettling ? 'Processing...' : `Punch & Settle (₹${getGrandTotal()})`}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={checkoutOrder}
-                      disabled={isSettling}
-                      className={styles.checkoutBtn}
-                      title="Settle all rounds for this table and free table"
-                    >
-                      <Check size={16} /> {isSettling ? 'Settling...' : `Settle & Free Table (₹${getGrandTotal()})`}
-                    </button>
-                  )}
+              {/* Running Orders Section (If Table Has Active Rounds) */}
+              {currentTableOrders.length > 0 && (
+                <div className={styles.runningOrdersSection}>
+                  <div className={styles.roundHeader}>
+                    <span>Active Running Rounds ({currentTableOrders.length})</span>
+                    <span>₹{runningOrdersTotal}</span>
+                  </div>
+                  {currentTableOrders.map((ord, idx) => (
+                    <div key={ord._id} style={{ fontSize: '0.75rem', color: '#334155', marginBottom: 4 }}>
+                      <strong>Round #{idx + 1} ({ord.status}):</strong>
+                      <div style={{ color: '#64748b', fontSize: '0.72rem' }}>
+                        {(ord.items || []).map(it => `${it.quantity || 1}x ${it.name}`).join(', ')}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ) : currentTableOrders.length > 0 ? (
-                <div className={styles.actionBtnRow}>
+              )}
+
+              {/* Draft Cart Items */}
+              <div>
+                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
+                  New Draft Items ({cart.length})
+                </span>
+                {cart.length > 0 ? (
+                  <div className={styles.cartList}>
+                    {cart.map((it, idx) => (
+                      <div key={idx} className={styles.cartItem}>
+                        <div>
+                          <p className={styles.cartItemTitle}>{it.name}</p>
+                          <p className={styles.cartItemPrice}>₹{it.price} each</p>
+                        </div>
+                        <div className={styles.qtyControls}>
+                          <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, -1)}>
+                            <Minus size={11} />
+                          </button>
+                          <span className={styles.qtyVal}>{it.quantity}</span>
+                          <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, 1)}>
+                            <Plus size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '6px 0' }}>
+                    Click dishes from the menu to add to this order.
+                  </p>
+                )}
+              </div>
+
+              {/* Payment Mode Selector */}
+              <div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 4, display: 'block' }}>
+                  Payment Method
+                </span>
+                <div className={styles.paymentModeRow}>
+                  {['Cash', 'UPI / GPay', 'Card'].map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      className={`${styles.payModeBtn} ${paymentMethod === m ? styles.payModeBtnActive : ''}`}
+                      onClick={() => setPaymentMethod(m)}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bill Summary */}
+              <div className={styles.billSummary}>
+                {runningOrdersTotal > 0 && (
+                  <div className={styles.billRow}>
+                    <span>Running Orders:</span>
+                    <span>₹{runningOrdersTotal}</span>
+                  </div>
+                )}
+                {draftCartTotal > 0 && (
+                  <div className={styles.billRow}>
+                    <span>Draft Items:</span>
+                    <span>₹{draftCartTotal}</span>
+                  </div>
+                )}
+                <div className={styles.billRowTotal}>
+                  <span>Total Amount:</span>
+                  <span>₹{grandTotal}</span>
+                </div>
+              </div>
+
+              {/* Terminal Action Buttons */}
+              <div className={styles.terminalActionBtns}>
+                {cart.length > 0 && (
                   <button
                     type="button"
-                    onClick={checkoutOrder}
-                    disabled={isSettling}
-                    className={styles.checkoutBtn}
-                    style={{ width: '100%' }}
+                    className={styles.sendKotBtn}
+                    onClick={handleSendKOT}
+                    disabled={isSubmitting}
                   >
-                    <Check size={16} /> {isSettling ? 'Settling...' : (isAllOrdersPaid ? `Mark All Completed & Free Table` : `Settle & Free Table (₹${getGrandTotal()})`)}
+                    <ChefHat size={16} />
+                    <span>{isSubmitting ? 'Sending KOT...' : 'Send KOT & Keep Running'}</span>
                   </button>
-                </div>
-              ) : null}
+                )}
+
+                <button
+                  type="button"
+                  className={styles.settlePayBtn}
+                  onClick={handleSettleBill}
+                  disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>{isSettling ? 'Settling...' : `Settle & Clear Table (₹${grandTotal})`}</span>
+                </button>
+              </div>
+
             </div>
+
           </div>
         </div>
+      )}
 
-      </div>
+      {/* ========================================================= */}
+      {/* 3. ADD TABLE MODAL                                        */}
+      {/* ========================================================= */}
+      {showAddTableModal && (
+        <div className={styles.splitModalOverlay} onClick={() => setShowAddTableModal(false)}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Add Dining Table</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddTableModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTableSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                  Table Number / Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 9 or T9 or C5"
+                  value={newTableNum}
+                  onChange={(e) => setNewTableNum(e.target.value)}
+                  className={styles.inputField}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                  Floor / Zone Section
+                </label>
+                <select
+                  value={newTableZone}
+                  onChange={(e) => setNewTableZone(e.target.value)}
+                  className={styles.inputField}
+                >
+                  <option value="Main Floor">Main Floor / Coffee House</option>
+                  <option value="Roof Top">Roof Top</option>
+                  <option value="Garden">Garden</option>
+                  <option value="AC Lounge">AC Lounge / 1st Floor</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                  Seating Capacity (Guests)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={newTableCap}
+                  onChange={(e) => setNewTableCap(e.target.value)}
+                  className={styles.inputField}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddTableModal(false)}
+                  style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Create Table
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4. DISH CUSTOMIZATION MODAL (VARIANTS & ADDONS)           */}
+      {/* ========================================================= */}
+      {customizingItem && (
+        <div className={styles.splitModalOverlay} onClick={() => setCustomizingItem(null)}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                Customize {customizingItem.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCustomizingItem(null)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Variants */}
+            {customizingItem.variants && customizingItem.variants.length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 6 }}>
+                  Select Portion / Variant
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {customizingItem.variants.map((v, i) => (
+                    <label
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        border: selectedVariant?.name === v.name ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                        background: selectedVariant?.name === v.name ? '#eff6ff' : '#ffffff',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 600
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="variant"
+                        checked={selectedVariant?.name === v.name}
+                        onChange={() => setSelectedVariant(v)}
+                        style={{ display: 'none' }}
+                      />
+                      <span>{v.name}</span>
+                      <span style={{ fontWeight: 800, color: '#059669' }}>₹{v.price}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleAddCustomized}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#2563eb',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                marginTop: 8
+              }}
+            >
+              Add to Order
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
-

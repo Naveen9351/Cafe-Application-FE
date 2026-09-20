@@ -77,6 +77,7 @@ export default function AdminPanel() {
 
   const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [posSelectedTable, setPosSelectedTable] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -301,10 +302,23 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    // Fetch Tenant Info
-    if (tenantId) {
-      axios.get(`${API}/tenants/public/${tenantId}`)
-        .then((res) => setTenantInfo(res.data))
+    // Fetch Tenant Info with robust fallback
+    let tid = tenantId || user?.tenantId;
+    if (!tid) {
+      try {
+        const u = localStorage.getItem('user');
+        if (u) tid = JSON.parse(u)?.tenantId;
+      } catch (e) {}
+    }
+    if (tid) {
+      axios.get(`${API}/tenants/public/${tid}`)
+        .then((res) => {
+          if (res.data) {
+            setTenantInfo(res.data);
+            const l = res.data.logo || res.data.settings?.logo;
+            if (l) localStorage.setItem('restaurant_logo', l);
+          }
+        })
         .catch((err) => console.log('Tenant info fetch error:', err));
     }
 
@@ -979,8 +993,8 @@ export default function AdminPanel() {
     toast.success('Restaurant configuration saved successfully!');
   };
 
-  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || "Deepak's Restaurant";
-  const restaurantLogo = tenantInfo?.logo || user?.restaurantLogo || tenantInfo?.logoUrl || null;
+  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || "Deepak";
+  const restaurantLogo = tenantInfo?.logo || tenantInfo?.settings?.logo || user?.restaurantLogo || tenantInfo?.logoUrl || localStorage.getItem('restaurant_logo') || null;
   const restaurantInitials = restaurantDisplayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   const ownerName = tenantInfo?.ownerName || user?.name || "Deepak";
@@ -1061,17 +1075,6 @@ export default function AdminPanel() {
           >
             <HelpCircle size={16} /> <span>Support</span>
           </button>
-          <div className={styles.profileBadge}>
-            <img
-              src={ownerAvatar}
-              alt="Owner Avatar"
-              className={styles.profileAvatar}
-            />
-            <div className={styles.profileText}>
-              <span className={styles.profileName}>{ownerName}</span>
-              <span className={styles.profileRole}>RESTAURANT OWNER</span>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -1100,11 +1103,14 @@ export default function AdminPanel() {
               <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
             </button>
             <button
-              className={`${styles.navLink} ${activeTab === 'tables_hub' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('tables_hub')}
-              title="Tables & Floor Operations Hub"
+              className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
+              onClick={() => {
+                setPosSelectedTable(null);
+                setActiveTab('pos');
+              }}
+              title="POS Terminal & Tables"
             >
-              <Grid size={18} /> {!sidebarCollapsed && <span>Tables & Floor Hub</span>}
+              <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
@@ -1120,13 +1126,6 @@ export default function AdminPanel() {
               title="Menu Management"
             >
               <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
-              onClick={() => setActiveTab('pos')}
-              title="POS Terminal"
-            >
-              <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
@@ -2223,10 +2222,13 @@ export default function AdminPanel() {
 
                           <button
                             type="button"
-                            onClick={() => setActiveTab('tables_hub')}
+                            onClick={() => {
+                              setPosSelectedTable(null);
+                              setActiveTab('pos');
+                            }}
                             style={{
                               border: 'none',
-                              background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
+                              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
                               color: '#ffffff',
                               fontWeight: 800,
                               fontSize: '11px',
@@ -2236,15 +2238,15 @@ export default function AdminPanel() {
                               display: 'flex',
                               alignItems: 'center',
                               gap: 5,
-                              boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)'
+                              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
                             }}
                           >
-                            <Layers size={13} /> Tables & Floor Operations Hub →
+                            <Grid size={13} /> POS Terminal & Floor Plan →
                           </button>
                         </div>
                       </div>
 
-                      {/* Dynamic Grid of Real Tables (Max 8 slots / 2 rows) */}
+                      {/* Dynamic Grid of Real Tables (Petpooja Style: 3 Clean Colors) */}
                       <div className={styles.tableGridContainer}>
                         {previewTables.map((tbl) => {
                           const activeOrder = getActiveOrderForTable(tbl);
@@ -2256,10 +2258,85 @@ export default function AdminPanel() {
 
                           const orderTotal = Math.round(activeOrder?.total || activeOrder?.totalAmount || 0);
 
+                          // 1. FREE / EMPTY CARD
+                          if (!isOccupied) {
+                            return (
+                              <div
+                                key={tbl._id || tbl.tableNumber}
+                                onClick={() => {
+                                  setPosSelectedTable(tbl.tableNumber);
+                                  setActiveTab('pos');
+                                }}
+                                style={{
+                                  position: 'relative',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between',
+                                  minHeight: '100px',
+                                  padding: '10px 12px',
+                                  borderRadius: '12px',
+                                  border: '1.5px dashed #cbd5e1',
+                                  background: '#ffffff',
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                              >
+                                <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{tbl.seatingCapacity || 4} Seats</span>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', margin: '4px 0' }}>
+                                  Table {tbl.tableNumber}
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                              </div>
+                            );
+                          }
+
+                          // 2. PAID / SERVED CARD (Soft Green)
+                          if (isServed) {
+                            return (
+                              <div
+                                key={tbl._id || tbl.tableNumber}
+                                onClick={() => {
+                                  setPosSelectedTable(tbl.tableNumber);
+                                  setActiveTab('pos');
+                                }}
+                                style={{
+                                  position: 'relative',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between',
+                                  minHeight: '100px',
+                                  padding: '10px 12px',
+                                  borderRadius: '12px',
+                                  border: '1.5px solid #10b981',
+                                  background: '#ecfdf5',
+                                  color: '#065f46',
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
+                                }}
+                                title={`Table ${tbl.tableNumber} - Served/Billed. Click to open POS.`}
+                              >
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
+                                  ✓ {elapsedMins} Min
+                                </div>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#065f46', margin: '2px 0' }}>
+                                  Table {tbl.tableNumber}
+                                </span>
+                                <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal}</strong>
+                              </div>
+                            );
+                          }
+
+                          // 3. OCCUPIED / RUNNING CARD (Orange / Warm Amber)
                           return (
                             <div
                               key={tbl._id || tbl.tableNumber}
-                              className={`${styles.tableTile} ${isOccupied ? styles.tableTileOccupied : styles.tableTileAvailable}`}
+                              onClick={() => {
+                                setPosSelectedTable(tbl.tableNumber);
+                                setActiveTab('pos');
+                              }}
                               style={{
                                 position: 'relative',
                                 display: 'flex',
@@ -2268,209 +2345,22 @@ export default function AdminPanel() {
                                 minHeight: '100px',
                                 padding: '10px 12px',
                                 borderRadius: '12px',
-                                border: !isOccupied ? '1px solid #e2e8f0' : isServed ? '1.5px solid #10b981' : '1.5px solid #f59e0b',
-                                background: '#ffffff',
-                                boxShadow: isOccupied ? (isServed ? '0 3px 12px rgba(16, 185, 129, 0.12)' : '0 3px 12px rgba(245, 158, 11, 0.12)') : '0 1px 3px rgba(0,0,0,0.02)',
-                                overflow: 'hidden'
+                                border: '1.5px solid #f59e0b',
+                                background: '#fef3c7',
+                                color: '#78350f',
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
                               }}
+                              title={`Table ${tbl.tableNumber} - Active Order ₹${orderTotal}. Click to open POS.`}
                             >
-                              {isOccupied && (
-                                <div style={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  height: '3px',
-                                  background: isServed ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #f59e0b, #ef4444)'
-                                }} />
-                              )}
-
-                              <div>
-                                <div className={styles.tableTileTop} style={{ marginBottom: 4 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    <span className={styles.tableTileNum} style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>
-                                      Table {tbl.tableNumber}
-                                    </span>
-                                    <span style={{ fontSize: '9.5px', color: '#475569', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>
-                                      👥 {tbl.seatingCapacity || 4}
-                                    </span>
-                                  </div>
-
-                                  <span
-                                    className={styles.tableTileStatus}
-                                    style={{
-                                      color: !isOccupied ? '#047857' : isServed ? '#15803d' : '#b45309',
-                                      background: !isOccupied ? '#ecfdf5' : isServed ? '#f0fdf4' : '#fef3c7',
-                                      border: !isOccupied ? '1px solid #a7f3d0' : isServed ? '1px solid #bbf7d0' : '1px solid #fde68a',
-                                      padding: '2px 6px',
-                                      borderRadius: '100px',
-                                      fontSize: '9.5px',
-                                      fontWeight: 800,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 3
-                                    }}
-                                  >
-                                    <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: !isOccupied ? '#10b981' : isServed ? '#22c55e' : '#f59e0b' }} />
-                                    {!isOccupied ? 'Free' : isServed ? 'Served' : 'Occupied'}
-                                  </span>
-                                </div>
-
-                                <div className={styles.tableTileMeta} style={{ marginTop: '4px' }}>
-                                  {isOccupied ? (
-                                    <div style={{ background: '#fffdf5', padding: '5px 7px', borderRadius: '7px', border: '1px solid #fef3c7' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                                        <strong style={{ color: '#0f172a', fontSize: '13px', fontWeight: 900 }}>
-                                          ₹{orderTotal}
-                                        </strong>
-                                        <span style={{ fontSize: '9.5px', color: isServed ? '#047857' : '#d97706', fontWeight: 800, textTransform: 'capitalize', background: isServed ? '#ecfdf5' : '#fef3c7', padding: '1px 4px', borderRadius: '3px' }}>
-                                          {activeOrder.status === 'ready' ? 'Served' : activeOrder.status}
-                                        </span>
-                                      </div>
-                                      <div style={{ fontSize: '10.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {activeOrder.items?.map(it => `${it.quantity || 1}x ${it.name}`).join(', ') || 'Dine-in items'}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div style={{ padding: '4px 0', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                      <Coffee size={12} color="#94a3b8" />
-                                      <span style={{ color: '#94a3b8', fontSize: '10.5px', fontWeight: 600 }}>
-                                        Clean & Ready
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
+                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
+                                ⏱️ {elapsedMins} Min
                               </div>
-
-                              {/* Card Action Bar */}
-                              <div style={{ display: 'flex', gap: 4, marginTop: '6px', paddingTop: '5px', borderTop: '1px solid #f1f5f9' }}>
-                                {isOccupied ? (
-                                  isServed ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedTableModal({ table: tbl, activeOrder });
-                                        }}
-                                        style={{
-                                          padding: '4px 6px',
-                                          borderRadius: '6px',
-                                          border: '1px solid #cbd5e1',
-                                          background: '#ffffff',
-                                          color: '#334155',
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          cursor: 'pointer'
-                                        }}
-                                        title="View Bill Details"
-                                      >
-                                        👁️
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSettleTable(tbl.tableNumber);
-                                        }}
-                                        style={{
-                                          flex: 1,
-                                          padding: '4px 8px',
-                                          borderRadius: '6px',
-                                          border: 'none',
-                                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                                          color: '#ffffff',
-                                          fontSize: '10.5px',
-                                          fontWeight: 800,
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          gap: 3,
-                                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
-                                        }}
-                                        title="Settle & Free Table"
-                                      >
-                                        <CreditCard size={10} /> Settle (₹{orderTotal})
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedTableModal({ table: tbl, activeOrder });
-                                        }}
-                                        style={{
-                                          padding: '4px 6px',
-                                          borderRadius: '6px',
-                                          border: '1px solid #cbd5e1',
-                                          background: '#ffffff',
-                                          color: '#334155',
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          cursor: 'pointer'
-                                        }}
-                                        title="View Details"
-                                      >
-                                        👁️
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveTab('pos');
-                                          toast.success(`Opened POS for Table ${tbl.tableNumber}`);
-                                        }}
-                                        style={{
-                                          flex: 1,
-                                          padding: '4px 8px',
-                                          borderRadius: '6px',
-                                          border: '1px solid #cbd5e1',
-                                          background: '#ffffff',
-                                          color: '#334155',
-                                          fontSize: '10.5px',
-                                          fontWeight: 700,
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          gap: 3
-                                        }}
-                                        title="Manage in POS"
-                                      >
-                                        <Plus size={10} /> POS / Add
-                                      </button>
-                                    </>
-                                  )
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveTab('pos');
-                                      toast.success(`Opened POS for Table ${tbl.tableNumber}`);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      padding: '4px 8px',
-                                      borderRadius: '6px',
-                                      border: '1px solid #a7f3d0',
-                                      background: '#ecfdf5',
-                                      color: '#059669',
-                                      fontSize: '10.5px',
-                                      fontWeight: 800,
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: 3
-                                    }}
-                                  >
-                                    <Plus size={11} /> Take Order
-                                  </button>
-                                )}
-                              </div>
+                              <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#78350f', margin: '2px 0' }}>
+                                Table {tbl.tableNumber}
+                              </span>
+                              <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal}</strong>
                             </div>
                           );
                         })}
@@ -2478,11 +2368,14 @@ export default function AdminPanel() {
                         {/* 8th Position "View More" Interactive Card */}
                         {hasMoreTables && (
                           <div
-                            onClick={() => setActiveTab('tables_hub')}
+                            onClick={() => {
+                              setPosSelectedTable(null);
+                              setActiveTab('pos');
+                            }}
                             style={{
-                              background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+                              background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
                               borderRadius: '12px',
-                              border: '1.5px dashed #818cf8',
+                              border: '1.5px dashed #3b82f6',
                               padding: '10px 12px',
                               display: 'flex',
                               flexDirection: 'column',
@@ -2491,30 +2384,15 @@ export default function AdminPanel() {
                               textAlign: 'center',
                               cursor: 'pointer',
                               minHeight: '100px',
-                              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                              boxShadow: '0 2px 8px rgba(79, 70, 229, 0.06)'
+                              transition: 'all 0.2s ease'
                             }}
-                            title="Click to view all tables in Floor Operations Hub"
+                            title="Click to view all tables in POS Terminal"
                           >
-                            <div style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: '9px',
-                              background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
-                              color: '#ffffff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              marginBottom: 5,
-                              boxShadow: '0 3px 8px rgba(79, 70, 229, 0.28)'
-                            }}>
-                              <Layers size={16} />
-                            </div>
-                            <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.01em' }}>
-                              +{remainingCount} More Tables
+                            <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>
+                              +{remainingCount} More
                             </span>
-                            <span style={{ fontSize: '10.5px', color: '#4f46e5', fontWeight: 800, marginTop: 3 }}>
-                              View All ({tables.length}) Hub →
+                            <span style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: 800, marginTop: 3 }}>
+                              Open POS Floor →
                             </span>
                           </div>
                         )}
@@ -3151,6 +3029,7 @@ export default function AdminPanel() {
                   tenantInfo={tenantInfo}
                   menuItems={items}
                   orders={orders}
+                  initialTable={posSelectedTable}
                   onOrderPlaced={(newOrd) => {
                     // For settlement (_refreshAll flag), just re-fetch to clear table
                     if (newOrd?._refreshAll) {

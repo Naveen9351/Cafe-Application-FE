@@ -36,6 +36,15 @@
   cursor: pointer;
 }
 
+.tenantLogoImg {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
 .brandIconSquare {
   width: 28px;
   height: 28px;
@@ -796,83 +805,70 @@
 .kpiCardModern {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 1.35rem;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 1rem;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 0.65rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
 }
 
-.kpiCardModern::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3.5px;
-  transition: all 0.3s ease;
-}
-
-.kpiCardEmerald::before { background: linear-gradient(90deg, #10b981, #059669); }
-.kpiCardIndigo::before { background: linear-gradient(90deg, #6366f1, #4f46e5); }
-.kpiCardAmber::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
-.kpiCardSky::before { background: linear-gradient(90deg, #0284c7, #0369a1); }
-
 .kpiCardModern:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border-color: #cbd5e1;
-}
-
-.kpiCardModern:hover::before {
-  height: 4.5px;
 }
 
 .kpiTopRow {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .kpiIconBox {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #f1f5f9;
 }
 
-.kpiIconEmerald { background: #ecfdf5; color: #059669; }
-.kpiIconIndigo { background: #eef2ff; color: #4f46e5; }
-.kpiIconAmber { background: #fffbeb; color: #d97706; }
-.kpiIconSky { background: #f0f9ff; color: #0284c7; }
+.kpiIconEmerald,
+.kpiIconIndigo,
+.kpiIconAmber,
+.kpiIconSky {
+  background: #f8fafc;
+  color: #334155;
+}
 
 .kpiTitleGroup {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .kpiCardTag {
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: #64748b;
 }
 
 .kpiBigNum {
-  font-size: 1.85rem;
-  font-weight: 900;
+  font-size: 1.35rem;
+  font-weight: 800;
   color: #0f172a;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .kpiPillBadge {
