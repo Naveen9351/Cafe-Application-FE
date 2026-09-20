@@ -36,7 +36,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Helper to detect if user is accessing via admin subdomain (e.g., admin.serviq.app, admin.domain.com)
+const isAdminSubdomain = () => {
+  const host = window.location.hostname.toLowerCase();
+  return host.startsWith('admin.') || host.startsWith('dashboard.') || host.startsWith('portal.') || host.startsWith('app.');
+};
+
 // Home Route: Auto-redirect logged-in users directly to their Dashboard
+// If on admin subdomain, redirect directly to Login if not logged in
 const HomeRoute = () => {
   const { user, loading } = useAuth();
 
@@ -49,6 +56,11 @@ const HomeRoute = () => {
       return <Navigate to="/super-admin" replace />;
     }
     return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  // If user is accessing via admin subdomain, direct to login immediately
+  if (isAdminSubdomain()) {
+    return <Navigate to="/login" replace />;
   }
 
   return <LandingPage />;

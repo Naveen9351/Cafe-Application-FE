@@ -2840,6 +2840,7 @@ export default function AdminPanel() {
                   orders={orders}
                   onUpdateStatus={handleStatusUpdate}
                   onDeleteOrder={handleDeleteOrder}
+                  enableEstimatedPrepTime={tenantInfo?.settings?.enableEstimatedPrepTime || false}
                 />
               </motion.div>
             )}

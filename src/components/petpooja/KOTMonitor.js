@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './KOTMonitor.module.css';
 
-export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder }) {
+export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder, enableEstimatedPrepTime = false }) {
   const [orderChannel, setOrderChannel] = useState('All');
   const [now, setNow] = useState(Date.now());
   const [localOrders, setLocalOrders] = useState([]);
@@ -226,8 +226,13 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder 
                             type="button" 
                             className={styles.acceptPrepBtn}
                             onClick={() => {
-                              setOrderToPrep(order);
-                              setPrepTimeMinutes(order.estimatedTime || 20);
+                              if (enableEstimatedPrepTime) {
+                                setOrderToPrep(order);
+                                setPrepTimeMinutes(order.estimatedTime || 20);
+                              } else {
+                                handleUpdateStage(order._id, 'preparing', 0);
+                                toast.success(`Order for Table ${order.tableNumber} sent to kitchen`);
+                              }
                             }}
                           >
                             Accept & Prep →
@@ -269,16 +274,22 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder 
                           <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span 
-                            className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`} 
-                            title="Click to edit cooking target time"
-                            onClick={() => {
-                              setOrderToEdit(order);
-                              setEditTimeMinutes(order.estimatedTime || 20);
-                            }}
-                          >
-                            <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
-                          </span>
+                          {enableEstimatedPrepTime ? (
+                            <span 
+                              className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`} 
+                              title="Click to edit cooking target time"
+                              onClick={() => {
+                                setOrderToEdit(order);
+                                setEditTimeMinutes(order.estimatedTime || 20);
+                              }}
+                            >
+                              <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
+                            </span>
+                          ) : (
+                            <span className={styles.timerBadge}>
+                              <Clock size={12} /> {formatElapsedTime(order.createdAt)}
+                            </span>
+                          )}
                           <button 
                             type="button"
                             onClick={() => handleDelete(order._id)}

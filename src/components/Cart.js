@@ -13,9 +13,11 @@ import {
   Store,
   Lock,
   Sun,
-  Moon
+  Moon,
+  UserCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import CustomerVerificationModal from "./CustomerVerificationModal";
 import styles from "./Cart.module.css";
 import { API_URL as API } from "../config/api";
 
@@ -37,6 +39,17 @@ export default function Cart() {
   const [isPlacing, setIsPlacing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("counter"); // counter or online
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+
+  // Customer verification profile
+  const [customer, setCustomer] = useState(() => {
+    try {
+      const saved = localStorage.getItem('customer_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   // Sync theme with localStorage (Default is Light Mode)
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -90,14 +103,35 @@ export default function Cart() {
     }
   }, [searchParams]);
 
+  const handleProceedToCheckout = () => {
+    if (!customer?.verified) {
+      setIsVerificationOpen(true);
+    } else {
+      setStep(2);
+    }
+  };
+
+  const handleVerificationSuccess = (verifiedUser) => {
+    setCustomer(verifiedUser);
+    setIsVerificationOpen(false);
+    setStep(2);
+    toast.success(`Welcome, ${verifiedUser.name}!`);
+  };
+
   const handlePlaceOrder = async () => {
-    // 1. Validate Table
+    // 1. Validate Customer Verification
+    if (!customer?.verified) {
+      setIsVerificationOpen(true);
+      return;
+    }
+
+    // 2. Validate Table
     if (!tableNumber && paymentMethod === "counter") {
       toast.error("Please enter a table number");
       return;
     }
 
-    // 2. Validate Tenant
+    // 3. Validate Tenant
     const tenantId = localStorage.getItem("tenantId");
     if (!tenantId) {
       toast.error("Invalid Cafe session. Please rescan QR code.");
@@ -121,8 +155,9 @@ export default function Cart() {
         status: "pending",
         paymentStatus: paymentMethod === "online" ? "paid" : "pending",
         customerDetails: {
-          name: "Guest", // Could add form for this
-          phone: ""
+          name: customer?.name || "Guest",
+          phone: customer?.phone || "",
+          email: customer?.email || ""
         }
       };
 
@@ -241,7 +276,7 @@ export default function Cart() {
                   <span>₹{Math.round(total)}</span>
                 </div>
                 <button
-                  onClick={() => setStep(2)}
+                  onClick={handleProceedToCheckout}
                   className={styles.checkoutBtn}
                 >
                   Proceed to Checkout
@@ -256,6 +291,59 @@ export default function Cart() {
               exit={{ x: -20, opacity: 0 }}
             >
               <div className={styles.formSection}>
+                {/* Verified Customer Card */}
+                {customer?.verified && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: theme.inputBg,
+                    border: `1px solid ${theme.border}`,
+                    marginBottom: '1.25rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        backgroundColor: '#10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        flexShrink: 0
+                      }}>
+                        <UserCheck size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: theme.textMain }}>
+                          {customer.name} <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>● Verified</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: theme.textMuted }}>
+                          {customer.phone ? `+91 ${customer.phone}` : (customer.email || 'Verified Guest')}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsVerificationOpen(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#e05c5c',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+
                 <div className={styles.formGroup}>
                   <label className={styles.label} style={{ color: theme.textMain }}>Where are you sitting?</label>
                   <input
@@ -337,6 +425,15 @@ export default function Cart() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Customer Verification Modal */}
+      <CustomerVerificationModal
+        isOpen={isVerificationOpen}
+        onClose={() => setIsVerificationOpen(false)}
+        onVerified={handleVerificationSuccess}
+        initialName={customer?.name || ''}
+      />
+
       <footer style={{ marginTop: '4rem', padding: '2rem 1rem', textAlign: 'center' }}>
         <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700' }}>
           Powered by <span style={{ color: '#06b6d4', fontWeight: '800' }}>SERVIQ OS</span>

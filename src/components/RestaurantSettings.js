@@ -16,6 +16,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     storeAddress: tenantInfo?.address || '1224 Culinary Heights, Bangalore, India',
     primaryPhone: tenantInfo?.phone || '+91 96801 32562',
     publicEmail: tenantInfo?.email || 'contact@serviq.ai',
+    enableEstimatedPrepTime: tenantInfo?.settings?.enableEstimatedPrepTime || false,
     operatingHours: [
       { day: 'Monday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
       { day: 'Tuesday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
@@ -36,6 +37,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         storeAddress: tenantInfo.address || prev.storeAddress,
         primaryPhone: tenantInfo.phone || prev.primaryPhone,
         publicEmail: tenantInfo.email || prev.publicEmail,
+        enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime !== undefined ? tenantInfo.settings.enableEstimatedPrepTime : false,
         operatingHours: tenantInfo.settings?.operatingHours || prev.operatingHours,
       }));
       if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
@@ -82,6 +84,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         address: form.storeAddress,
         phone: form.primaryPhone,
         email: form.publicEmail,
+        enableEstimatedPrepTime: form.enableEstimatedPrepTime,
         operatingHours: form.operatingHours
       });
     } else {
@@ -323,6 +326,27 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     )}
                   </div>
                 ))}
+              </div>
+
+              {/* Kitchen Prep Time Estimation Feature Toggle */}
+              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Clock size={16} color="#4f46e5" />
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Kitchen Prep Time Estimation</strong>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
+                    Prompt staff for estimated preparation time (e.g. 15 mins) when sending orders to the kitchen, and show a live countdown to customers. (Default: OFF)
+                  </p>
+                </div>
+                <label className={styles.switch}>
+                  <input 
+                    type="checkbox" 
+                    checked={form.enableEstimatedPrepTime} 
+                    onChange={(e) => setForm({ ...form, enableEstimatedPrepTime: e.target.checked })} 
+                  />
+                  <span className={styles.slider}></span>
+                </label>
               </div>
             </div>
           </section>
