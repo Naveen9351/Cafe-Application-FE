@@ -308,7 +308,9 @@ export default function StaffManager() {
                         </div>
                         <div>
                           <div style={{ fontWeight: 700, color: '#0f172a' }}>{staff.fullName}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>@{staff.username}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {staff.username?.includes('@') ? staff.username : `@${staff.username}`}
+                          </div>
                         </div>
                       </div>
                     </td>
