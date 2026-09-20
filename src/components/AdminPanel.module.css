@@ -349,6 +349,7 @@
   box-sizing: border-box;
 }
 
+.mainContentFitScreen,
 .mainContentPos {
   padding: 0.65rem 1rem !important;
   overflow: hidden !important;
@@ -356,6 +357,7 @@
   flex-direction: column !important;
   height: calc(100vh - 54px) !important;
   max-height: calc(100vh - 54px) !important;
+  box-sizing: border-box !important;
 }
 
 /* DEDICATED POS SCREEN STYLES (NO SIDEBAR) */
