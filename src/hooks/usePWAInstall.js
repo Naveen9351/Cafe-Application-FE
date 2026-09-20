@@ -13,19 +13,32 @@ export function usePWAInstall() {
     }
     return false;
   });
+  const [isStandalone, setIsStandalone] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true ||
+        document.referrer.includes('android-app://')
+      );
+    }
+    return false;
+  });
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    // Check if running in standalone mode (already installed)
+    // Check if running in standalone mode (already running inside installed PWA)
     const checkStandalone = () => {
       const isStandaloneMode =
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true ||
         document.referrer.includes('android-app://');
-      setIsInstalled(isStandaloneMode);
+      setIsStandalone(isStandaloneMode);
+      if (isStandaloneMode) {
+        setIsInstalled(true);
+      }
     };
 
     checkStandalone();
@@ -92,6 +105,7 @@ export function usePWAInstall() {
   return {
     isInstallable,
     isInstalled,
+    isStandalone,
     isIOS,
     isAndroid,
     isOnline,

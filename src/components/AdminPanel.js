@@ -66,6 +66,7 @@ export default function AdminPanel() {
   const {
     isInstallable,
     isInstalled,
+    isStandalone,
     isIOS,
     isAndroid,
     isOnline,
@@ -1021,9 +1022,10 @@ export default function AdminPanel() {
     <div className={styles.adminLayout}>
       <Toaster position="top-right" />
 
-      {/* TOP GLOBAL BAR */}
-      <header className={styles.topGlobalBar}>
-        <div className={styles.topBarLeft}>
+      {/* 1. FIXED LEFT SIDEBAR (STARTS FROM TOP, FULL 100VH) */}
+      <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
+        {/* Brand Header inside Top of Sidebar */}
+        <div className={styles.sidebarHeader}>
           <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
             {restaurantLogo ? (
               <img
@@ -1043,138 +1045,80 @@ export default function AdminPanel() {
             >
               {restaurantInitials || 'SQ'}
             </div>
-            <div>
-              <span className={styles.brandTitle}>{restaurantDisplayName}</span>
-              <span className={styles.brandSub}>SERVIQ OS</span>
-            </div>
+            {!sidebarCollapsed && (
+              <div className={styles.brandTextGroup}>
+                <span className={styles.brandTitle}>{restaurantDisplayName}</span>
+                <span className={styles.brandSub}>SERVIQ OS</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Global Search Input */}
-        <div className={styles.topSearchWrapper}>
-          <Search size={16} className={styles.searchIcon} />
-          <input
-            type="text"
-            placeholder="Search dishes, orders, or tables..."
-            className={styles.topSearchInput}
-            value={menuSearchQuery}
-            onChange={(e) => setMenuSearchQuery(e.target.value)}
-          />
-          {menuSearchQuery && (
+        {/* Sidebar Navigation Section */}
+        <div className={styles.navSection}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
+            {!sidebarCollapsed && <span className={styles.navLabel}>MAIN MENU</span>}
             <button
               type="button"
-              onClick={() => setMenuSearchQuery('')}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
+              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        {/* Right User Actions */}
-        <div className={styles.topBarRight}>
-          {/* Network Status Indicator */}
-          <div className={styles.networkStatusChip} title={isOnline ? 'Cloud sync active (Online)' : 'Local offline cache active (Offline)'}>
-            <span className={isOnline ? styles.onlineDot : styles.offlineDot} />
-            <span>{isOnline ? 'Live' : 'Offline'}</span>
-          </div>
-
-          {/* PWA Download / Install App Button */}
-          <button
-            type="button"
-            className={styles.pwaInstallHeaderBtn}
-            onClick={promptInstall}
-            title={isInstalled ? "SERVIQ App is Downloaded" : "Download & Install Cafe Admin App"}
-            style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d', fontWeight: 700 } : {}}
-          >
-            {isInstalled ? <CheckCircle2 size={15} style={{ color: '#16a34a' }} /> : <Download size={15} />}
-            <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>
-          </button>
-
-          <button
-            type="button"
-            className={styles.iconCircleBtn}
-            title="Notifications"
-            onClick={() => toast.success(`SERVIQ active • ${metrics.activeOrders.length} live orders in queue`)}
-          >
-            <Bell size={18} />
-          </button>
-          <button
-            type="button"
-            className={styles.supportBtn}
-            onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SERVIQ%20Support', '_blank')}
-          >
-            <HelpCircle size={16} /> <span>Support</span>
-          </button>
-        </div>
-      </header>
-
-      <div className={styles.mainContainer}>
-
-        {/* LEFT SIDEBAR NAVIGATION */}
-        <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
-          <div className={styles.navSection}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
-              {!sidebarCollapsed && <span className={styles.navLabel}>MAIN MENU</span>}
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
-                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              >
-                {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-              </button>
-            </div>
-
-            <button
-              className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('dashboard')}
-              title="Dashboard"
-            >
-              <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
-              onClick={() => {
-                setPosSelectedTable(null);
-                handleTabChange('pos');
-              }}
-              title="POS Terminal & Tables"
-            >
-              <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('kds')}
-              title="Live Orders & KDS"
-            >
-              <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
-              {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('menu')}
-              title="Menu Management"
-            >
-              <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('qrcodes')}
-              title="Table QR Codes"
-            >
-              <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('settings')}
-              title="Settings"
-            >
-              <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
+              {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             </button>
           </div>
 
-          <div className={styles.sidebarFooter}>
+          <button
+            className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('dashboard')}
+            title="Dashboard"
+          >
+            <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
+            onClick={() => {
+              setPosSelectedTable(null);
+              handleTabChange('pos');
+            }}
+            title="POS Terminal & Tables"
+          >
+            <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('kds')}
+            title="Live Orders & KDS"
+          >
+            <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
+            {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('menu')}
+            title="Menu Management"
+          >
+            <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('qrcodes')}
+            title="Table QR Codes"
+          >
+            <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
+            onClick={() => handleTabChange('settings')}
+            title="Settings"
+          >
+            <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
+          </button>
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className={styles.sidebarFooter}>
+          {!isStandalone && (
             <button
               type="button"
               className={styles.sidebarPwaBtn}
@@ -1185,17 +1129,63 @@ export default function AdminPanel() {
               {isInstalled ? <CheckCircle2 size={16} style={{ color: '#16a34a' }} /> : <Smartphone size={16} />}
               {!sidebarCollapsed && <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>}
             </button>
+          )}
 
+          <button
+            type="button"
+            className={styles.logoutBtn}
+            onClick={() => logout()}
+            title="Sign Out"
+          >
+            <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* 2. RIGHT CONTENT WRAPPER (TOP BAR + MAIN CONTENT BODY) */}
+      <div className={styles.contentWrapper}>
+        {/* TOP GLOBAL BAR */}
+        <header className={styles.topGlobalBar}>
+          {/* Global Search Input on Left */}
+          <div className={styles.topSearchWrapper}>
+            <Search size={16} className={styles.searchIcon} />
+            <input
+              type="text"
+              placeholder="Search dishes, orders, or tables..."
+              className={styles.topSearchInput}
+              value={menuSearchQuery}
+              onChange={(e) => setMenuSearchQuery(e.target.value)}
+            />
+            {menuSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setMenuSearchQuery('')}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Right User Actions (Notifications & Support only) */}
+          <div className={styles.topBarRight}>
             <button
               type="button"
-              className={styles.logoutBtn}
-              onClick={() => logout()}
-              title="Sign Out"
+              className={styles.iconCircleBtn}
+              title="Notifications"
+              onClick={() => toast.success(`SERVIQ active • ${metrics.activeOrders.length} live orders in queue`)}
             >
-              <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
+              <Bell size={18} />
+            </button>
+            <button
+              type="button"
+              className={styles.supportBtn}
+              onClick={() => window.open('https://wa.me/919680132562?text=Hello%20SERVIQ%20Support', '_blank')}
+            >
+              <HelpCircle size={16} /> <span>Support</span>
             </button>
           </div>
-        </aside>
+        </header>
 
         {/* MAIN BODY AREA */}
         <main className={styles.mainContent}>
@@ -1213,8 +1203,8 @@ export default function AdminPanel() {
                 transition={{ duration: 0.25 }}
                 className={styles.dashboardView}
               >
-                {/* PWA Quick Install Banner */}
-                {!isInstalled && showPwaBanner && (
+                {/* PWA Quick Install Banner - only shown when not standalone and not installed */}
+                {!isStandalone && !isInstalled && showPwaBanner && (
                   <div className={styles.pwaBannerCard}>
                     <div className={styles.pwaBannerLeft}>
                       <div className={styles.pwaBannerIcon}>
