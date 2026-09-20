@@ -526,19 +526,9 @@ export default function POSTerminal({
       {viewMode === 'tables' && (
         <div className={styles.floorContainer}>
           
-          {/* Floor Top Bar */}
-          <div className={styles.floorTopBar}>
-            <div className={styles.floorTitleBlock}>
-              <div className={styles.floorIconWrap}>
-                <Grid size={20} />
-              </div>
-              <div>
-                <h3 className={styles.floorHeading}>POS Terminal & Table Matrix</h3>
-                <p className={styles.floorSub}>Select any table to start billing, take orders, or settle tabs.</p>
-              </div>
-            </div>
-
-            {/* Quick Stats Pills */}
+          {/* Streamlined Top Control Toolbar */}
+          <div className={styles.floorTopBarClean}>
+            {/* Quick Status Filter Pills (All / Free / Booked / Paid) */}
             <div className={styles.floorStatsGroup}>
               <button
                 type="button"
@@ -569,47 +559,29 @@ export default function POSTerminal({
                 ● Paid / Served ({tableStats.paid})
               </button>
             </div>
-          </div>
 
-          {/* Section Filter & Actions Row */}
-          <div className={styles.floorFilterRow}>
-            {/* Zone / Floor Tabs */}
-            <div className={styles.zoneTabs}>
-              {zonesList.map(z => (
-                <button
-                  key={z}
-                  type="button"
-                  className={`${styles.zoneTabBtn} ${selectedZone === z ? styles.zoneTabBtnActive : ''}`}
-                  onClick={() => setSelectedZone(z)}
-                >
-                  {z === 'all' ? 'All Sections' : z}
-                </button>
-              ))}
-            </div>
+            {/* Right: Search & Direct Walk-in Button */}
+            <div className={styles.floorRightControls}>
+              <div className={styles.searchBox}>
+                <Search size={14} color="#94a3b8" />
+                <input
+                  type="text"
+                  placeholder="Search table or guest..."
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                  className={styles.searchInput}
+                />
+                {tableSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTableSearch('')}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
 
-            {/* Search Input */}
-            <div className={styles.searchBox}>
-              <Search size={14} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Search table or guest..."
-                value={tableSearch}
-                onChange={(e) => setTableSearch(e.target.value)}
-                className={styles.searchInput}
-              />
-              {tableSearch && (
-                <button
-                  type="button"
-                  onClick={() => setTableSearch('')}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className={styles.floorActions}>
               <button
                 type="button"
                 className={styles.quickWalkinBtn}
@@ -617,31 +589,16 @@ export default function POSTerminal({
               >
                 <Zap size={14} /> <span>Direct Walk-in POS</span>
               </button>
-              <button
-                type="button"
-                className={styles.addTableBtn}
-                onClick={() => setShowAddTableModal(true)}
-              >
-                <Plus size={14} /> <span>Add Table</span>
-              </button>
             </div>
           </div>
 
-          {/* Tables Grid Layout grouped by Zones (Petpooja Layout) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {zonesList.filter(z => selectedZone === 'all' || z === selectedZone).filter(z => z !== 'all').map(zoneName => {
-              const zoneTables = filteredFloorTables.filter(t => (t.zone || 'Main Floor') === zoneName);
-              if (zoneTables.length === 0) return null;
-
-              return (
-                <div key={zoneName} className={styles.zoneSection}>
-                  <h4 className={styles.zoneTitle}>{zoneName}</h4>
-                  <div className={styles.tablesGrid}>
-                    {zoneTables.map(tbl => {
-                      const tableOrders = getOrdersForTableObj(tbl);
-                      const isOccupied = tableOrders.length > 0;
-                      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
-                      const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+          {/* Tables Grid Layout */}
+          <div className={styles.tablesGrid}>
+            {filteredFloorTables.map(tbl => {
+              const tableOrders = getOrdersForTableObj(tbl);
+              const isOccupied = tableOrders.length > 0;
+              const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+              const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
 
                       // Calculate running elapsed minutes
                       let elapsedMin = null;
@@ -738,20 +695,16 @@ export default function POSTerminal({
                       );
                     })}
                   </div>
-                </div>
-              );
-            })}
 
-            {filteredFloorTables.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '2.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                <Grid size={32} color="#94a3b8" style={{ marginBottom: 6 }} />
-                <h4 style={{ margin: 0, color: '#334155', fontSize: '0.95rem' }}>No tables found</h4>
-                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.78rem' }}>
-                  {tableSearch ? `No tables matching "${tableSearch}"` : 'Click "+ Add Table" above to create your dining floor layout.'}
-                </p>
-              </div>
-            )}
-          </div>
+                  {filteredFloorTables.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '2.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                      <Grid size={32} color="#94a3b8" style={{ marginBottom: 6 }} />
+                      <h4 style={{ margin: 0, color: '#334155', fontSize: '0.95rem' }}>No tables found</h4>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.78rem' }}>
+                        {tableSearch ? `No tables matching "${tableSearch}"` : 'No tables available.'}
+                      </p>
+                    </div>
+                  )}
 
         </div>
       )}

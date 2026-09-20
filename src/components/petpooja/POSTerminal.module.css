@@ -21,15 +21,21 @@
   gap: 1.25rem;
 }
 
-/* Floor Top Control Bar */
-.floorTopBar {
+/* Floor Top Control Bar (Clean Single Row) */
+.floorTopBarClean {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  padding-bottom: 1rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #f1f5f9;
+}
+
+.floorRightControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .floorTitleBlock {
