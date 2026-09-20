@@ -68,10 +68,10 @@ const OrderStatus = () => {
         <div className={styles.header}>
           <h1>Order #{order._id.slice(-6).toUpperCase()}</h1>
           <p className={styles.tenantName}>{order?.tenantId?.name || "The Cafe"}</p>
-          {order.estimatedTime && order.status !== 'completed' && order.status !== 'cancelled' && (
+          {Number(order.estimatedTime) > 0 && order.tenantId?.settings?.enableEstimatedPrepTime !== false && order.status !== 'completed' && order.status !== 'cancelled' && (
             <div className={styles.estimatedTimeWrapper}>
               <div className={styles.estimatedTimeHeader}>
-                <Clock size={16} /> <span>Est. Time: {order.estimatedTime} mins</span>
+                <Clock size={15} /> <span>Est. Time: {order.estimatedTime} mins</span>
               </div>
               <div className={styles.progressBarContainer}>
                 <motion.div
@@ -104,12 +104,12 @@ const OrderStatus = () => {
                 <motion.div
                   key={step.id}
                   className={`${styles.step} ${isActive ? styles.activeStep : ''}`}
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
+                  transition={{ delay: index * 0.08 }}
                 >
                   <div className={styles.iconBox}>
-                    <Icon size={24} color={isActive ? "white" : "#94a3b8"} />
+                    <Icon size={18} color={isActive ? "white" : "#94a3b8"} />
                   </div>
                   <div className={styles.stepContent}>
                     <h3>{step.label}</h3>
