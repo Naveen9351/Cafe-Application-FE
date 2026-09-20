@@ -2314,7 +2314,7 @@ export default function AdminPanel() {
                             type="button"
                             onClick={() => {
                               setPosSelectedTable(null);
-                              setActiveTab('pos');
+                              handleTabChange('pos');
                             }}
                             style={{
                               border: 'none',
@@ -2358,7 +2358,7 @@ export default function AdminPanel() {
                                   key={tbl._id || tbl.tableNumber}
                                   onClick={() => {
                                     setPosSelectedTable(tbl.tableNumber);
-                                    setActiveTab('pos');
+                                    handleTabChange('pos');
                                   }}
                                   style={{
                                     position: 'relative',
@@ -2392,7 +2392,7 @@ export default function AdminPanel() {
                                   key={tbl._id || tbl.tableNumber}
                                   onClick={() => {
                                     setPosSelectedTable(tbl.tableNumber);
-                                    setActiveTab('pos');
+                                    handleTabChange('pos');
                                   }}
                                   style={{
                                     position: 'relative',
@@ -2428,7 +2428,7 @@ export default function AdminPanel() {
                                 key={tbl._id || tbl.tableNumber}
                                 onClick={() => {
                                   setPosSelectedTable(tbl.tableNumber);
-                                  setActiveTab('pos');
+                                  handleTabChange('pos');
                                 }}
                                 style={{
                                   position: 'relative',
@@ -2463,7 +2463,7 @@ export default function AdminPanel() {
                             <div
                               onClick={() => {
                                 setPosSelectedTable(null);
-                                setActiveTab('pos');
+                                handleTabChange('pos');
                               }}
                               style={{
                                 background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
@@ -2790,7 +2790,7 @@ export default function AdminPanel() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setActiveTab('menu')}
+                        onClick={() => handleTabChange('menu')}
                         style={{ background: 'transparent', border: 'none', color: '#4f46e5', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                       >
                         Manage Menu →
@@ -2845,7 +2845,7 @@ export default function AdminPanel() {
                   onSettleTable={handleSettleTable}
                   onUpdateOrderStatus={handleUpdateOrderStatus}
                   onOpenPOS={(tableNum) => {
-                    setActiveTab('pos');
+                    handleTabChange('pos');
                     toast.success(`POS opened for Table ${tableNum}`);
                   }}
                   onRefresh={() => {
