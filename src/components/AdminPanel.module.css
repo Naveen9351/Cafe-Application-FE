@@ -3963,3 +3963,647 @@
   color: #ffffff;
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* ========================================================================= */
+/* MENU MANAGEMENT & CATALOG - ULTRA MODERN LUXURY STYLING                  */
+/* ========================================================================= */
+
+.menuManagementView {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+/* 1. Header & Primary Add Button */
+.menuHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.sectionHeading {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.sectionSubtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.25rem 0 0 0;
+}
+
+.addNewItemBtn {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
+}
+
+.addNewItemBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+}
+
+.bulkDeleteBtn {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bulkDeleteBtn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* 2. Menu Quick Stat Badges */
+.menuStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.85rem;
+}
+
+.menuStatCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.menuStatIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.menuStatContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.menuStatValue {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.menuStatLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* 3. Category Pills Bar with Smooth Scroll and Hidden Scrollbar */
+.categoriesPillRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.15rem 0.5rem 0.15rem;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+
+.categoriesPillRow::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.categoryPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 100px;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.categoryPill:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.activeCategoryPill {
+  background: #0f172a !important;
+  border-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+}
+
+.catCountBadge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 100px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.activeCategoryPill .catCountBadge {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* 4. Filter & Search Toolbar */
+.menuToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.menuToolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.menuInlineSearch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  width: 240px;
+}
+
+.menuInlineSearch input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.78rem;
+  color: #0f172a;
+  width: 100%;
+}
+
+.dietFilterGroup {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.dietFilterBtn {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.activeDietBtn {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.menuToolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.menuSelectControl {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+}
+
+/* 5. Menu Items Grid */
+.menuItemsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+/* 6. Individual Dish Card */
+.dishCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.dishCard:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.08);
+  transform: translateY(-3px);
+}
+
+.dishOutOfStock {
+  opacity: 0.88;
+  border-style: dashed;
+}
+
+.dishImageWrap {
+  position: relative;
+  height: 175px;
+  width: 100%;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.dishImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.dishCard:hover .dishImage {
+  transform: scale(1.04);
+}
+
+.dishOutOfStock .dishImage {
+  filter: grayscale(80%) opacity(0.85);
+}
+
+.dishImageTopBar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.selectCheckboxBtn {
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.selectCheckboxBtn:hover {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.dishBadgesRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.fssaiSquareVeg {
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 2px solid #16a34a;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fssaiDotVeg {
+  width: 10px;
+  height: 10px;
+  background-color: #16a34a;
+  border-radius: 50%;
+}
+
+.fssaiSquareNonVeg {
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 2px solid #dc2626;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fssaiTriNonVeg {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid #dc2626;
+}
+
+.discountBadgePill {
+  background: linear-gradient(135deg, #ef4444 0%, #ea580c 100%);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 100px;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+}
+
+.outOfStockBadge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 100px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.dishBody {
+  padding: 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dishTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.dishName {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dishPrice {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.discountPriceWrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.discountedPriceText {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+
+.originalPriceStriked {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.dishCategoryBadge {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  margin-top: 0.35rem;
+  text-transform: capitalize;
+}
+
+.dishDescription {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.4;
+  margin: 0.45rem 0 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.2em;
+}
+
+.dishCardFooter {
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stockToggleWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.stockToggleSwitch {
+  width: 32px;
+  height: 18px;
+  border-radius: 100px;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.stockToggleKnob {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  position: absolute;
+  top: 2px;
+  transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.stockStatusLabel {
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.cardActionBtns {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cardEditBtn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cardEditBtn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.cardDeleteBtn {
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #fee2e2;
+  background: #fef2f2;
+  color: #ef4444;
+  font-size: 0.74rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cardDeleteBtn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #dc2626;
+}
+
+/* 7. Floating Batch Selection Bar */
+.floatingBatchBar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 100px;
+  padding: 0.55rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.batchCountText {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.batchActionBtn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 100px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.batchActionBtn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.batchDeleteBtn {
+  background: #ef4444;
+  border: none;
+  color: #ffffff;
+  padding: 0.35rem 0.85rem;
+  border-radius: 100px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.batchDeleteBtn:hover {
+  background: #dc2626;
+}

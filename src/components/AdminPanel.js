@@ -50,11 +50,12 @@ const itemMatchesCategory = (item, catId) => {
 
 export const getValidFoodImage = (item) => {
   const img = item?.image;
-  if (img && (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/uploads') || img.startsWith('data:image'))) {
+  if (img && !img.toLowerCase().includes('policy') && !img.toLowerCase().includes('document') && !img.toLowerCase().includes('reminder') &&
+      (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/uploads') || img.startsWith('data:image'))) {
     return img;
   }
   if (item?.name) {
-    return `https://image.pollinations.ai/prompt/gourmet%20dish%20of%20${encodeURIComponent(item.name)}%20restaurant%20plating?width=600&height=400&nologo=true`;
+    return `https://image.pollinations.ai/prompt/delicious%20gourmet%20dish%20${encodeURIComponent(item.name)}%20restaurant%20food%20plating?width=600&height=400&nologo=true`;
   }
   return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
 };
@@ -130,6 +131,8 @@ export default function AdminPanel() {
   // Menu Management State
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [menuSearchQuery, setMenuSearchQuery] = useState('');
+  const [dietaryFilter, setDietaryFilter] = useState('all'); // 'all', 'veg', 'non-veg'
+  const [stockFilter, setStockFilter] = useState('all'); // 'all', 'in-stock', 'out-of-stock'
   const [sortOption, setSortOption] = useState('default');
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -910,6 +913,21 @@ export default function AdminPanel() {
     toast.success('Selected dishes deleted');
   };
 
+  const handleBulkSetAvailability = async (newAvailability) => {
+    if (selectedItemIds.length === 0) return;
+    const token = localStorage.getItem('token');
+    setItems(prev => prev.map(it => selectedItemIds.includes(it._id) ? { ...it, available: newAvailability } : it));
+    toast.success(`${selectedItemIds.length} dishes marked ${newAvailability ? 'In Stock' : 'Out of Stock'}`);
+    for (const id of selectedItemIds) {
+      if (token && !id.startsWith('dish_')) {
+        try {
+          await axios.put(`${API}/menu/${id}`, { isAvailable: newAvailability }, { headers: { 'x-auth-token': token } });
+        } catch (e) { }
+      }
+    }
+    setSelectedItemIds([]);
+  };
+
   const handleToggleSelectItem = (itemId) => {
     setSelectedItemIds(prev =>
       prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
@@ -969,19 +987,39 @@ export default function AdminPanel() {
     toast.success('Task added to checklist');
   };
 
-  // Filtered menu items with robust search
-  const filteredMenuItems = items.filter(item => {
-    const matchesCat = itemMatchesCategory(item, selectedCategory);
-    const searchLower = menuSearchQuery.toLowerCase().trim();
-    const matchesSearch = !searchLower ||
-      item.name.toLowerCase().includes(searchLower) ||
-      (item.description && item.description.toLowerCase().includes(searchLower));
-    return matchesCat && matchesSearch;
-  }).sort((a, b) => {
-    if (sortOption === 'low-to-high') return a.price - b.price;
-    if (sortOption === 'high-to-low') return b.price - a.price;
-    return 0;
-  });
+  // Filtered menu items with multi-dimension filtering and sorting
+  const filteredMenuItems = useMemo(() => {
+    return items.filter(item => {
+      const matchesCat = itemMatchesCategory(item, selectedCategory);
+      const searchLower = menuSearchQuery.toLowerCase().trim();
+      const matchesSearch = !searchLower ||
+        item.name.toLowerCase().includes(searchLower) ||
+        (item.description && item.description.toLowerCase().includes(searchLower)) ||
+        (item.category && item.category.toLowerCase().includes(searchLower));
+
+      const matchesDiet =
+        dietaryFilter === 'all' ? true :
+        dietaryFilter === 'veg' ? Boolean(item.isVeg) :
+        !item.isVeg;
+
+      const matchesStock =
+        stockFilter === 'all' ? true :
+        stockFilter === 'in-stock' ? Boolean(item.available) :
+        !item.available;
+
+      return matchesCat && matchesSearch && matchesDiet && matchesStock;
+    }).sort((a, b) => {
+      if (sortOption === 'low-to-high') return a.price - b.price;
+      if (sortOption === 'high-to-low') return b.price - a.price;
+      if (sortOption === 'discount') {
+        const discA = a.discount?.isDiscounted ? (Number(a.discount?.value) || 0) : 0;
+        const discB = b.discount?.isDiscounted ? (Number(b.discount?.value) || 0) : 0;
+        return discB - discA;
+      }
+      if (sortOption === 'name') return a.name.localeCompare(b.name);
+      return 0;
+    });
+  }, [items, selectedCategory, menuSearchQuery, dietaryFilter, stockFilter, sortOption]);
 
   const handleSaveTenantSettings = async (updatedSettings) => {
     const token = localStorage.getItem('token');
