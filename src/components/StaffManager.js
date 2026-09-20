@@ -110,11 +110,9 @@ export default function StaffManager() {
         }
       });
       if (res.data) {
-        if (Array.isArray(res.data)) {
-          setStaffList(res.data);
-        } else if (res.data.staff) {
-          setStaffList(res.data.staff);
-        }
+        const raw = Array.isArray(res.data) ? res.data : (res.data.staff || []);
+        const filtered = raw.filter(s => s.role?.toLowerCase() !== 'admin' && s.role?.toLowerCase() !== 'super_admin');
+        setStaffList(filtered);
       }
     } catch (err) {
       console.error('Failed to fetch staff list:', err);
@@ -207,7 +205,11 @@ export default function StaffManager() {
     }
   };
 
-  const handleDeleteStaff = async (id, name) => {
+  const handleDeleteStaff = async (id, name, role) => {
+    if (role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'super_admin') {
+      alert('Admin accounts cannot be deleted.');
+      return;
+    }
     if (!window.confirm(`Are you sure you want to remove staff member "${name}"?`)) return;
     try {
       const token = localStorage.getItem('token');
@@ -348,13 +350,15 @@ export default function StaffManager() {
                           <Edit size={14} />
                           Edit
                         </button>
-                        <button
-                          className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                          onClick={() => handleDeleteStaff(staff._id, staff.fullName)}
-                          title="Delete Staff"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {staff.role?.toLowerCase() !== 'admin' && staff.role?.toLowerCase() !== 'super_admin' && (
+                          <button
+                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                            onClick={() => handleDeleteStaff(staff._id, staff.fullName, staff.role)}
+                            title="Delete Staff"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
