@@ -576,16 +576,17 @@
 .dishCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.5rem;
+  border-radius: 12px;
+  padding: 0.55rem 0.55rem 0.65rem 0.55rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.35rem;
+  gap: 0.4rem;
   cursor: pointer;
   transition: all 0.18s ease;
   position: relative;
-  min-height: 155px;
+  min-height: 165px;
+  box-sizing: border-box;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
@@ -598,7 +599,7 @@
 .dishImgWrap {
   width: 100%;
   height: 80px;
-  border-radius: 7px;
+  border-radius: 8px;
   overflow: hidden;
   position: relative;
   background: #f1f5f9;
@@ -644,7 +645,7 @@
   flex-direction: column;
   gap: 2px;
   flex-grow: 1;
-  min-height: 28px;
+  min-height: 32px;
 }
 
 .dishInfo h4 {
@@ -652,11 +653,12 @@
   font-size: 0.78rem;
   font-weight: 700;
   color: #0f172a;
-  line-height: 1.25;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  height: 2.6em;
 }
 
 .dishPriceRow {
@@ -664,7 +666,8 @@
   justify-content: space-between;
   align-items: center;
   margin-top: auto;
-  padding-top: 2px;
+  padding-top: 6px;
+  padding-bottom: 2px;
 }
 
 .dishPrice {
@@ -677,14 +680,15 @@
   background: #eff6ff;
   color: #2563eb;
   border: 1px solid #bfdbfe;
-  border-radius: 5px;
-  width: 24px;
-  height: 24px;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .dishAddBtn:hover {
