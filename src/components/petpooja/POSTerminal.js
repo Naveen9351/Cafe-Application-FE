@@ -776,7 +776,15 @@ export default function POSTerminal({
                       onClick={() => handleQuickAdd(item)}
                     >
                       <div className={styles.dishImgWrap}>
-                        <img src={imgUrl} alt={item.name} className={styles.dishImg} />
+                        <img
+                          src={imgUrl}
+                          alt={item.name}
+                          className={styles.dishImg}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400';
+                          }}
+                        />
                         <div className={styles.vegBadge}>
                           <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
                         </div>
@@ -792,9 +800,9 @@ export default function POSTerminal({
                           type="button"
                           className={styles.dishAddBtn}
                           onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
-                          title="Add to cart"
+                          title="Add to order"
                         >
-                          <Plus size={14} />
+                          <Plus size={13} />
                         </button>
                       </div>
                     </div>
@@ -805,69 +813,76 @@ export default function POSTerminal({
 
             {/* Right: Order Slip & Settlement Drawer */}
             <div className={styles.orderDrawer}>
-              <div className={styles.drawerHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h4 className={styles.drawerTitle}>
-                    {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber} Order Slip`}
-                  </h4>
-                  {runningOrdersTotal > 0 && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: '10px', border: '1px solid #fde68a' }}>
-                      ● Active (₹{runningOrdersTotal})
-                    </span>
+              
+              {/* Top Block: Title & Inputs (Pinned Top) */}
+              <div className={styles.drawerTopBlock}>
+                <div className={styles.drawerHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h4 className={styles.drawerTitle}>
+                      {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber} Order Slip`}
+                    </h4>
+                    {runningOrdersTotal > 0 && (
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                        ● Active (₹{runningOrdersTotal})
+                      </span>
+                    )}
+                  </div>
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCart([])}
+                      style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    >
+                      Clear Draft
+                    </button>
                   )}
                 </div>
-                {cart.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setCart([])}
-                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Clear Draft
-                  </button>
-                )}
-              </div>
 
-              {/* Customer Inputs */}
-              <div className={styles.customerInputs}>
-                <input
-                  type="text"
-                  placeholder="Guest Name (Optional)"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className={styles.inputField}
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone Number"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className={styles.inputField}
-                />
-              </div>
-
-              {/* Running Orders Section (If Table Has Active Rounds) */}
-              {currentTableOrders.length > 0 && (
-                <div className={styles.runningOrdersSection}>
-                  <div className={styles.roundHeader}>
-                    <span>Active Running Rounds ({currentTableOrders.length})</span>
-                    <span>₹{runningOrdersTotal}</span>
-                  </div>
-                  {currentTableOrders.map((ord, idx) => (
-                    <div key={ord._id} style={{ fontSize: '0.75rem', color: '#334155', marginBottom: 4 }}>
-                      <strong>Round #{idx + 1} ({ord.status}):</strong>
-                      <div style={{ color: '#64748b', fontSize: '0.72rem' }}>
-                        {(ord.items || []).map(it => `${it.quantity || 1}x ${it.name}`).join(', ')}
-                      </div>
-                    </div>
-                  ))}
+                {/* Customer Inputs */}
+                <div className={styles.customerInputs}>
+                  <input
+                    type="text"
+                    placeholder="Guest Name (Optional)"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className={styles.inputField}
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className={styles.inputField}
+                  />
                 </div>
-              )}
+              </div>
 
-              {/* Draft Cart Items */}
-              <div>
-                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-                  New Draft Items ({cart.length})
-                </span>
+              {/* Middle Block: Running Orders + Draft Items (Flex-1, Scrollable) */}
+              <div className={styles.drawerMiddleBlock}>
+                {/* Running Orders Section (If Table Has Active Rounds) */}
+                {currentTableOrders.length > 0 && (
+                  <div className={styles.runningOrdersSection}>
+                    <div className={styles.roundHeader}>
+                      <span>Active Rounds ({currentTableOrders.length})</span>
+                      <span>₹{runningOrdersTotal}</span>
+                    </div>
+                    {currentTableOrders.map((ord, idx) => (
+                      <div key={ord._id} style={{ fontSize: '0.72rem', color: '#334155', marginBottom: 3 }}>
+                        <strong>Round #{idx + 1} ({ord.status}):</strong>
+                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                          {(ord.items || []).map(it => `${it.quantity || 1}x ${it.name}`).join(', ')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Draft Section Header */}
+                <div className={styles.draftSectionHeader}>
+                  <span>NEW DRAFT ITEMS ({cart.length})</span>
+                </div>
+
+                {/* Cart items list or empty placeholder */}
                 {cart.length > 0 ? (
                   <div className={styles.cartList}>
                     {cart.map((it, idx) => (
@@ -878,73 +893,77 @@ export default function POSTerminal({
                         </div>
                         <div className={styles.qtyControls}>
                           <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, -1)}>
-                            <Minus size={11} />
+                            <Minus size={10} />
                           </button>
                           <span className={styles.qtyVal}>{it.quantity}</span>
                           <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, 1)}>
-                            <Plus size={11} />
+                            <Plus size={10} />
                           </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '6px 0' }}>
-                    Click dishes from the menu to add to this order.
-                  </p>
+                  <div className={styles.emptyCartPlaceholder}>
+                    <ShoppingCart size={22} style={{ color: '#cbd5e1', marginBottom: 4 }} />
+                    <p style={{ margin: 0, fontWeight: 600 }}>No draft items yet</p>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Click dishes to add to this order</span>
+                  </div>
                 )}
               </div>
 
-              {/* Payment Mode Selector */}
-              <div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 4, display: 'block' }}>
-                  Payment Method
-                </span>
-                <div className={styles.paymentModeRow}>
-                  {['Cash', 'UPI / GPay', 'Card'].map(m => (
+              {/* Bottom Block: Payment Mode, Total & Action Buttons (Pinned Bottom) */}
+              <div className={styles.drawerBottomBlock}>
+                <div className={styles.paymentSection}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
+                    Payment Method
+                  </span>
+                  <div className={styles.paymentModeRow}>
+                    {['Cash', 'UPI / GPay', 'Card'].map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        className={`${styles.payModeBtn} ${paymentMethod === m ? styles.payModeBtnActive : ''}`}
+                        onClick={() => setPaymentMethod(m)}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bill Summary */}
+                <div className={styles.billSummary}>
+                  <div className={styles.billRowTotal}>
+                    <span>Total Amount:</span>
+                    <span>₹{grandTotal}</span>
+                  </div>
+                </div>
+
+                {/* Terminal Action Buttons */}
+                <div className={styles.terminalActionBtns}>
+                  {cart.length > 0 && (
                     <button
-                      key={m}
                       type="button"
-                      className={`${styles.payModeBtn} ${paymentMethod === m ? styles.payModeBtnActive : ''}`}
-                      onClick={() => setPaymentMethod(m)}
+                      className={styles.sendKotBtn}
+                      onClick={handleSendKOT}
+                      disabled={isSubmitting}
                     >
-                      {m}
+                      <ChefHat size={14} />
+                      <span>{isSubmitting ? 'Sending...' : 'Send KOT'}</span>
                     </button>
-                  ))}
-                </div>
-              </div>
+                  )}
 
-              {/* Bill Summary (Clean Single Row) */}
-              <div className={styles.billSummary}>
-                <div className={styles.billRowTotal}>
-                  <span>Total Amount:</span>
-                  <span>₹{grandTotal}</span>
-                </div>
-              </div>
-
-              {/* Terminal Action Buttons (Side-by-Side in One Row) */}
-              <div className={styles.terminalActionBtns}>
-                {cart.length > 0 && (
                   <button
                     type="button"
-                    className={styles.sendKotBtn}
-                    onClick={handleSendKOT}
-                    disabled={isSubmitting}
+                    className={styles.settlePayBtn}
+                    onClick={handleSettleBill}
+                    disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
                   >
-                    <ChefHat size={15} />
-                    <span>{isSubmitting ? 'Sending...' : 'Send KOT'}</span>
+                    <CheckCircle2 size={15} />
+                    <span>{isSettling ? 'Settling...' : `Settle & Clear (₹${grandTotal})`}</span>
                   </button>
-                )}
-
-                <button
-                  type="button"
-                  className={styles.settlePayBtn}
-                  onClick={handleSettleBill}
-                  disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
-                >
-                  <CheckCircle2 size={16} />
-                  <span>{isSettling ? 'Settling...' : `Settle & Clear (₹${grandTotal})`}</span>
-                </button>
+                </div>
               </div>
 
             </div>
