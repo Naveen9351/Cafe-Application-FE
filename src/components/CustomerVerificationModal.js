@@ -32,7 +32,17 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
     return () => clearInterval(timer);
   }, [step, countdown]);
 
-  if (!isOpen) return null;
+  // Load Google Identity Services SDK unconditionally at component mount
+  useEffect(() => {
+    if (!window.google && !document.getElementById('google-gsi-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-gsi-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, []);
 
   const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
@@ -149,18 +159,6 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
     }
   };
 
-  // Load Google Identity Services SDK
-  useEffect(() => {
-    if (!window.google && !document.getElementById('google-gsi-script')) {
-      const script = document.createElement('script');
-      script.id = 'google-gsi-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
-    }
-  }, []);
-
   // Google OAuth / Google Identity Services Integration
   const handleGoogleLogin = async () => {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -253,6 +251,8 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
   };
 
   const isOtpComplete = otp.join('').length === 6;
+
+  if (!isOpen) return null;
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
