@@ -865,27 +865,15 @@ export default function POSTerminal({
                 </div>
               </div>
 
-              {/* Bill Summary */}
+              {/* Bill Summary (Clean Single Row) */}
               <div className={styles.billSummary}>
-                {runningOrdersTotal > 0 && (
-                  <div className={styles.billRow}>
-                    <span>Running Orders:</span>
-                    <span>₹{runningOrdersTotal}</span>
-                  </div>
-                )}
-                {draftCartTotal > 0 && (
-                  <div className={styles.billRow}>
-                    <span>Draft Items:</span>
-                    <span>₹{draftCartTotal}</span>
-                  </div>
-                )}
                 <div className={styles.billRowTotal}>
                   <span>Total Amount:</span>
                   <span>₹{grandTotal}</span>
                 </div>
               </div>
 
-              {/* Terminal Action Buttons */}
+              {/* Terminal Action Buttons (Side-by-Side in One Row) */}
               <div className={styles.terminalActionBtns}>
                 {cart.length > 0 && (
                   <button
@@ -894,8 +882,8 @@ export default function POSTerminal({
                     onClick={handleSendKOT}
                     disabled={isSubmitting}
                   >
-                    <ChefHat size={16} />
-                    <span>{isSubmitting ? 'Sending KOT...' : 'Send KOT & Keep Running'}</span>
+                    <ChefHat size={15} />
+                    <span>{isSubmitting ? 'Sending...' : 'Send KOT'}</span>
                   </button>
                 )}
 
@@ -905,8 +893,8 @@ export default function POSTerminal({
                   onClick={handleSettleBill}
                   disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
                 >
-                  <CheckCircle2 size={18} />
-                  <span>{isSettling ? 'Settling...' : `Settle & Clear Table (₹${grandTotal})`}</span>
+                  <CheckCircle2 size={16} />
+                  <span>{isSettling ? 'Settling...' : `Settle & Clear (₹${grandTotal})`}</span>
                 </button>
               </div>
 
