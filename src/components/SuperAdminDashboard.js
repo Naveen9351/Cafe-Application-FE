@@ -21,10 +21,17 @@ const SuperAdminDashboard = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [activeTab, setActiveTab] = useState('businesses'); // 'businesses', 'inquiries', 'history'
 
+    // Pagination State
+    const [tenantsPage, setTenantsPage] = useState(1);
+    const [tenantsPerPage, setTenantsPerPage] = useState(8);
+    const [leadsPage, setLeadsPage] = useState(1);
+    const [leadsPerPage, setLeadsPerPage] = useState(10);
+
     // Modals
     const [showOnboardModal, setShowOnboardModal] = useState(false);
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const [editingTenant, setEditingTenant] = useState(null);
     const [historyTenant, setHistoryTenant] = useState(null);
@@ -316,7 +323,7 @@ const SuperAdminDashboard = () => {
                 <div style={{ padding: '1rem' }}>
                     <button
                         type="button"
-                        onClick={handleLogout}
+                        onClick={() => setShowLogoutModal(true)}
                         className={styles.logoutBtn}
                         style={{ width: '100%', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}
                         title="Sign Out"
@@ -353,41 +360,41 @@ const SuperAdminDashboard = () => {
 
                     {/* STATS CARDS */}
                     <div className={styles.statsGrid}>
-                        <div className={styles.statCard}>
+                        <div className={`${styles.statCard} ${styles.statCardBlue}`}>
                             <div className={`${styles.iconBox} ${styles.blueIcon}`}>
                                 <Building size={24} />
                             </div>
-                            <div>
+                            <div className={styles.statInfo}>
                                 <h3>Total Cafes</h3>
                                 <p className={styles.statValue}>{tenants.length}</p>
                             </div>
                         </div>
 
-                        <div className={styles.statCard}>
+                        <div className={`${styles.statCard} ${styles.statCardGreen}`}>
                             <div className={`${styles.iconBox} ${styles.greenIcon}`}>
                                 <CreditCard size={24} />
                             </div>
-                            <div>
+                            <div className={styles.statInfo}>
                                 <h3>Active Plans</h3>
                                 <p className={styles.statValue}>{stats.activesubs}</p>
                             </div>
                         </div>
 
-                        <div className={styles.statCard}>
+                        <div className={`${styles.statCard} ${styles.statCardPurple}`}>
                             <div className={`${styles.iconBox} ${styles.purpleIcon}`}>
                                 <BarChart3 size={24} />
                             </div>
-                            <div>
+                            <div className={styles.statInfo}>
                                 <h3>Total Platform Revenue</h3>
                                 <p className={styles.statValue}>₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
                             </div>
                         </div>
 
-                        <div className={styles.statCard} style={{ borderColor: stats.expiringSoonCount > 0 ? '#f59e0b' : undefined }}>
-                            <div className={`${styles.iconBox}`} style={{ background: '#fef3c7', color: '#d97706' }}>
+                        <div className={`${styles.statCard} ${styles.statCardAmber}`} style={{ borderColor: stats.expiringSoonCount > 0 ? '#f59e0b' : undefined }}>
+                            <div className={`${styles.iconBox} ${styles.amberIcon}`}>
                                 <AlertTriangle size={24} />
                             </div>
-                            <div>
+                            <div className={styles.statInfo}>
                                 <h3>Expiring in ≤ 3 Days</h3>
                                 <p className={styles.statValue} style={{ color: stats.expiringSoonCount > 0 ? '#d97706' : undefined }}>
                                     {stats.expiringSoonCount}
@@ -407,216 +414,323 @@ const SuperAdminDashboard = () => {
                     )}
 
                     {/* SECTION 1: REGISTERED CAFES */}
-                    {activeTab === 'businesses' && (
-                        <div className={styles.tableSection}>
-                            <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <h2>Registered Cafes ({tenants.length})</h2>
-                                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>Manage cafe subscriptions, activation, history, and logo/branding</p>
+                    {activeTab === 'businesses' && (() => {
+                        const totalTenantsPages = Math.max(1, Math.ceil(tenants.length / tenantsPerPage));
+                        const paginatedTenants = tenants.slice((tenantsPage - 1) * tenantsPerPage, tenantsPage * tenantsPerPage);
+
+                        return (
+                            <div className={styles.tableSection}>
+                                <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <h2>Registered Cafes ({tenants.length})</h2>
+                                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>Manage cafe subscriptions, activation, and status in real-time</p>
+                                    </div>
+                                    <button type="button" onClick={() => setShowOnboardModal(true)} className={styles.actionBtn}>
+                                        + Onboard Cafe
+                                    </button>
                                 </div>
-                                <button type="button" onClick={() => setShowOnboardModal(true)} className={styles.actionBtn}>
-                                    + Onboard Cafe
-                                </button>
+
+                                <div className={styles.tableWrapper}>
+                                    <table className={styles.table}>
+                                        <thead>
+                                            <tr>
+                                                <th>Cafe Name</th>
+                                                <th>Owner / Contact</th>
+                                                <th>Email</th>
+                                                <th>Phone</th>
+                                                <th>Current Plan</th>
+                                                <th>Status</th>
+                                                <th>Expiry Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedTenants.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                        No cafes registered yet.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                paginatedTenants.map(tenant => {
+                                                    const sub = tenant.subscription || {};
+                                                    const now = new Date();
+                                                    const endDate = sub.endDate ? new Date(sub.endDate) : null;
+                                                    const daysLeft = endDate ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)) : null;
+
+                                                    const isExpiring3Days = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3 && sub.isActive;
+                                                    const isExpired = endDate && endDate < now;
+
+                                                    return (
+                                                        <tr key={tenant._id}>
+                                                            <td className={styles.tenantName}>{tenant.name}</td>
+                                                            <td style={{ fontWeight: 600, color: '#334155' }}>
+                                                                {tenant.adminName || tenant.ownerName || 'Admin'}
+                                                            </td>
+                                                            <td style={{ color: '#475569' }}>{tenant.email}</td>
+                                                            <td style={{ color: '#475569' }}>{tenant.phone || '—'}</td>
+                                                            <td>
+                                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                                    <span className={`${styles.badge} ${styles.planBadge}`}>
+                                                                        {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569' }}>
+                                                                        ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                {!sub.isActive ? (
+                                                                    <span className={styles.badge} style={{ background: '#fee2e2', color: '#dc2626' }}>
+                                                                        Deactivated
+                                                                    </span>
+                                                                ) : isExpiring3Days ? (
+                                                                    <span className={styles.badge} style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fcd34d' }}>
+                                                                        ⚠️ Expiring ({daysLeft}d)
+                                                                    </span>
+                                                                ) : isExpired ? (
+                                                                    <span className={styles.badge} style={{ background: '#fee2e2', color: '#dc2626' }}>
+                                                                        Expired
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className={styles.badge} style={{ background: '#dcfce7', color: '#166534' }}>
+                                                                        Active ({daysLeft !== null ? `${daysLeft} days` : 'Unlimited'})
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                                                                {endDate ? endDate.toLocaleDateString('en-IN') : 'N/A'}
+                                                            </td>
+                                                            <td>
+                                                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.actionBtn}
+                                                                        onClick={() => {
+                                                                            setEditingTenant(tenant);
+                                                                            setSelectedPlan(sub.plan || '1_month');
+                                                                            setCustomPriceVal(sub.price || 999);
+                                                                            setShowPlanModal(true);
+                                                                        }}
+                                                                    >
+                                                                        Manage Plan
+                                                                    </button>
+
+                                                                    {sub.isActive ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={styles.deleteBtn}
+                                                                            style={{ color: '#d97706', borderColor: '#fcd34d', background: '#fffbeb' }}
+                                                                            onClick={() => handleDeactivatePlan(tenant._id)}
+                                                                        >
+                                                                            Deactivate
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={styles.actionBtn}
+                                                                            style={{ color: '#166534', borderColor: '#86efac', background: '#f0fdf4' }}
+                                                                            onClick={() => {
+                                                                                setEditingTenant(tenant);
+                                                                                setSelectedPlan(sub.plan || '1_month');
+                                                                                setShowPlanModal(true);
+                                                                            }}
+                                                                        >
+                                                                            Activate
+                                                                        </button>
+                                                                    )}
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.historyBtn}
+                                                                        onClick={() => handleViewHistory(tenant)}
+                                                                        title="View Plan History"
+                                                                    >
+                                                                        <History size={14} />
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.deleteBtn}
+                                                                        onClick={() => handleDeleteTenant(tenant._id, tenant.name)}
+                                                                        title="Delete Tenant"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* PAGINATION CONTROLS */}
+                                {tenants.length > 0 && (
+                                    <div className={styles.paginationBar}>
+                                        <div className={styles.paginationInfo}>
+                                            Showing <strong>{Math.min((tenantsPage - 1) * tenantsPerPage + 1, tenants.length)}</strong> to <strong>{Math.min(tenantsPage * tenantsPerPage, tenants.length)}</strong> of <strong>{tenants.length}</strong> cafes
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#64748b' }}>
+                                                <span>Per page:</span>
+                                                <select
+                                                    className={styles.pageSizeSelect}
+                                                    value={tenantsPerPage}
+                                                    onChange={(e) => {
+                                                        setTenantsPerPage(Number(e.target.value));
+                                                        setTenantsPage(1);
+                                                    }}
+                                                >
+                                                    <option value={5}>5</option>
+                                                    <option value={8}>8</option>
+                                                    <option value={10}>10</option>
+                                                    <option value={20}>20</option>
+                                                </select>
+                                            </div>
+                                            <div className={styles.paginationControls}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.pageBtn}
+                                                    disabled={tenantsPage === 1}
+                                                    onClick={() => setTenantsPage(p => Math.max(1, p - 1))}
+                                                    title="Previous Page"
+                                                >
+                                                    <ChevronLeft size={16} />
+                                                </button>
+                                                {Array.from({ length: totalTenantsPages }, (_, i) => i + 1).map(page => (
+                                                    <button
+                                                        key={page}
+                                                        type="button"
+                                                        className={`${styles.pageBtn} ${tenantsPage === page ? styles.activePageBtn : ''}`}
+                                                        onClick={() => setTenantsPage(page)}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    className={styles.pageBtn}
+                                                    disabled={tenantsPage === totalTenantsPages}
+                                                    onClick={() => setTenantsPage(p => Math.min(totalTenantsPages, p + 1))}
+                                                    title="Next Page"
+                                                >
+                                                    <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
+                        );
+                    })()}
 
-                            <div className={styles.tableWrapper}>
-                                <table className={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th>Cafe & Logo</th>
-                                            <th>Owner Admin</th>
-                                            <th>Current Plan</th>
-                                            <th>Status & Alerts</th>
-                                            <th>Expiry Date</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {tenants.map(tenant => {
-                                            const sub = tenant.subscription || {};
-                                            const logo = tenant.settings?.logo || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=400';
+                    {/* SECTION 2: DEMO INQUIRIES */}
+                    {activeTab === 'inquiries' && (() => {
+                        const totalLeadsPages = Math.max(1, Math.ceil(leads.length / leadsPerPage));
+                        const paginatedLeads = leads.slice((leadsPage - 1) * leadsPerPage, leadsPage * leadsPerPage);
 
-                                            const now = new Date();
-                                            const endDate = sub.endDate ? new Date(sub.endDate) : null;
-                                            const daysLeft = endDate ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)) : null;
+                        return (
+                            <div className={styles.tableSection}>
+                                <div className={styles.tableHeader}>
+                                    <h2>Website Demo Inquiries ({leads.length})</h2>
+                                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Requests submitted via the website demo form</p>
+                                </div>
 
-                                            const isExpiring3Days = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3 && sub.isActive;
-                                            const isExpired = endDate && endDate < now;
-
-                                            return (
-                                                <tr key={tenant._id}>
-                                                    <td className={styles.nameCell}>
-                                                        <img
-                                                            src={logo}
-                                                            alt="Cafe Logo"
-                                                            style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', border: '1px solid #e2e8f0' }}
-                                                        />
-                                                        <div>
-                                                            <div className={styles.tenantName}>{tenant.name}</div>
-                                                            <div className={styles.tenantId}>ID: #{tenant._id.slice(-6)}</div>
-                                                        </div>
+                                <div className={styles.tableWrapper}>
+                                    <table className={styles.table}>
+                                        <thead>
+                                            <tr>
+                                                <th>Contact Name</th>
+                                                <th>Email</th>
+                                                <th>Phone Number</th>
+                                                <th>Date Received</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedLeads.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                        No demo inquiries logged yet.
                                                     </td>
-                                                    <td>
-                                                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{tenant.email}</div>
-                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>{tenant.phone || 'No phone'}</div>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                            <span className={`${styles.badge} ${styles.planBadge}`} style={{ alignSelf: 'flex-start' }}>
-                                                                {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
-                                                            </span>
-                                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', paddingLeft: 4 }}>
-                                                                ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {!sub.isActive ? (
-                                                            <span className={styles.badge} style={{ background: '#fee2e2', color: '#dc2626' }}>
-                                                                Deactivated
-                                                            </span>
-                                                        ) : isExpiring3Days ? (
-                                                            <span className={styles.badge} style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fcd34d' }}>
-                                                                ⚠️ Expiring ({daysLeft}d)
-                                                            </span>
-                                                        ) : isExpired ? (
-                                                            <span className={styles.badge} style={{ background: '#fee2e2', color: '#dc2626' }}>
-                                                                Expired
-                                                            </span>
-                                                        ) : (
-                                                            <span className={styles.badge} style={{ background: '#dcfce7', color: '#166534' }}>
-                                                                Active ({daysLeft !== null ? `${daysLeft} days` : 'Unlimited'})
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td style={{ fontSize: '13px', fontWeight: 600 }}>
-                                                        {endDate ? endDate.toLocaleDateString('en-IN') : 'N/A'}
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                            <button
-                                                                type="button"
-                                                                className={styles.actionBtn}
-                                                                onClick={() => {
-                                                                    setEditingTenant(tenant);
-                                                                    setSelectedPlan(sub.plan || '1_month');
-                                                                    setCustomPriceVal(sub.price || 999);
-                                                                    setShowPlanModal(true);
-                                                                }}
-                                                            >
-                                                                Manage Plan
-                                                            </button>
-
-                                                            {sub.isActive ? (
-                                                                <button
-                                                                    type="button"
-                                                                    className={styles.deleteBtn}
-                                                                    style={{ color: '#d97706', borderColor: '#fcd34d', background: '#fffbeb' }}
-                                                                    onClick={() => handleDeactivatePlan(tenant._id)}
-                                                                >
-                                                                    Deactivate
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    type="button"
-                                                                    className={styles.actionBtn}
-                                                                    style={{ color: '#166534', borderColor: '#86efac', background: '#f0fdf4' }}
-                                                                    onClick={() => {
-                                                                        setEditingTenant(tenant);
-                                                                        setSelectedPlan(sub.plan || '1_month');
-                                                                        setShowPlanModal(true);
-                                                                    }}
-                                                                >
-                                                                    Activate
-                                                                </button>
-                                                            )}
-
-                                                            <button
-                                                                type="button"
-                                                                className={styles.historyBtn}
-                                                                onClick={() => handleViewHistory(tenant)}
-                                                                title="View Plan History"
-                                                            >
-                                                                <History size={14} />
-                                                            </button>
-
+                                                </tr>
+                                            ) : (
+                                                paginatedLeads.map(lead => (
+                                                    <tr key={lead._id}>
+                                                        <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                                                            {lead.fullName || lead.contactName || 'Lead'}
+                                                        </td>
+                                                        <td>{lead.workEmail || lead.email}</td>
+                                                        <td>
+                                                            <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', fontWeight: 800, textDecoration: 'none' }}>
+                                                                {lead.phone}
+                                                            </a>
+                                                        </td>
+                                                        <td style={{ fontSize: '13px', color: '#64748b' }}>
+                                                            {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'Recent'}
+                                                        </td>
+                                                        <td>
                                                             <button
                                                                 type="button"
                                                                 className={styles.deleteBtn}
-                                                                onClick={() => handleDeleteTenant(tenant._id, tenant.name)}
-                                                                title="Delete Tenant"
+                                                                onClick={() => handleDeleteLead(lead._id)}
                                                             >
-                                                                <Trash2 size={14} />
+                                                                Delete
                                                             </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
 
-                    {/* SECTION 2: DEMO INQUIRIES */}
-                    {activeTab === 'inquiries' && (
-                        <div className={styles.tableSection}>
-                            <div className={styles.tableHeader}>
-                                <h2>Website Demo Inquiries ({leads.length})</h2>
-                                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Requests submitted via the website demo form</p>
+                                {/* PAGINATION CONTROLS FOR INQUIRIES */}
+                                {leads.length > 0 && (
+                                    <div className={styles.paginationBar}>
+                                        <div className={styles.paginationInfo}>
+                                            Showing <strong>{Math.min((leadsPage - 1) * leadsPerPage + 1, leads.length)}</strong> to <strong>{Math.min(leadsPage * leadsPerPage, leads.length)}</strong> of <strong>{leads.length}</strong> leads
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <div className={styles.paginationControls}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.pageBtn}
+                                                    disabled={leadsPage === 1}
+                                                    onClick={() => setLeadsPage(p => Math.max(1, p - 1))}
+                                                    title="Previous Page"
+                                                >
+                                                    <ChevronLeft size={16} />
+                                                </button>
+                                                {Array.from({ length: totalLeadsPages }, (_, i) => i + 1).map(page => (
+                                                    <button
+                                                        key={page}
+                                                        type="button"
+                                                        className={`${styles.pageBtn} ${leadsPage === page ? styles.activePageBtn : ''}`}
+                                                        onClick={() => setLeadsPage(page)}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    className={styles.pageBtn}
+                                                    disabled={leadsPage === totalLeadsPages}
+                                                    onClick={() => setLeadsPage(p => Math.min(totalLeadsPages, p + 1))}
+                                                    title="Next Page"
+                                                >
+                                                    <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-
-                            <div className={styles.tableWrapper}>
-                                <table className={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th>Contact Name</th>
-                                            <th>Email</th>
-                                            <th>Phone Number</th>
-                                            <th>Date Received</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {leads.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                                                    No demo inquiries logged yet.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            leads.map(lead => (
-                                                <tr key={lead._id}>
-                                                    <td style={{ fontWeight: 700, color: '#0f172a' }}>
-                                                        {lead.fullName || lead.contactName || 'Lead'}
-                                                    </td>
-                                                    <td>{lead.workEmail || lead.email}</td>
-                                                    <td>
-                                                        <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', fontWeight: 800, textDecoration: 'none' }}>
-                                                            {lead.phone}
-                                                        </a>
-                                                    </td>
-                                                    <td style={{ fontSize: '13px', color: '#64748b' }}>
-                                                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'Recent'}
-                                                    </td>
-                                                    <td>
-                                                        <button
-                                                            type="button"
-                                                            className={styles.deleteBtn}
-                                                            onClick={() => handleDeleteLead(lead._id)}
-                                                        >
-                                                            Delete
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                 </div>
             </main>
@@ -919,6 +1033,64 @@ const SuperAdminDashboard = () => {
 
                         <div style={{ marginTop: 20, textAlign: 'right' }}>
                             <button type="button" onClick={() => setShowHistoryModal(false)} className={styles.cancelBtn}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL 4: LOGOUT CONFIRMATION MODAL */}
+            {showLogoutModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent} style={{ maxWidth: 420, textAlign: 'center', padding: '2.2rem 2rem' }}>
+                        <div style={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: '50%',
+                            background: '#fee2e2',
+                            color: '#dc2626',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 1.25rem auto'
+                        }}>
+                            <LogOut size={28} />
+                        </div>
+                        <h2 style={{ margin: '0 0 8px 0', fontSize: '1.35rem', fontWeight: 900, color: '#0f172a' }}>
+                            Confirm Sign Out
+                        </h2>
+                        <p style={{ margin: '0 0 1.75rem 0', fontSize: '13.5px', color: '#64748b', lineHeight: 1.5 }}>
+                            Are you sure you really want to log out from the Super Admin dashboard?
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowLogoutModal(false)}
+                                className={styles.cancelBtn}
+                                style={{ flex: 1, padding: '10px 16px' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowLogoutModal(false);
+                                    handleLogout();
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    background: '#dc2626',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    fontWeight: 800,
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                                }}
+                            >
+                                Yes, Sign Out
+                            </button>
                         </div>
                     </div>
                 </div>
