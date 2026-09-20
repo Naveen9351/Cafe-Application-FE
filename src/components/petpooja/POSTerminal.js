@@ -4,7 +4,8 @@ import {
   Grid, Plus, Minus, Search, Check, X, RefreshCw, CreditCard,
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
-  Utensils, ChefHat, Eye, CheckCircle2, AlertCircle, Sparkles, Filter
+  Utensils, ChefHat, Eye, CheckCircle2, AlertCircle, Sparkles, Filter,
+  User, Phone, BookOpen, StickyNote
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1425,71 +1426,187 @@ export default function POSTerminal({
       )}
 
       {/* ========================================================= */}
-      {/* 5. KHATA / BORROW (UDHARI) SETTLEMENT MODAL               */}
+      {/* 5. KHATA / BORROW (UDHARI) SETTLEMENT MODAL (PREMIUM UI)   */}
       {/* ========================================================= */}
       {showKhataModal && (
         <div className={styles.splitModalOverlay} onClick={() => setShowKhataModal(false)}>
-          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.8rem' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ background: '#fef3c7', padding: '4px 8px', borderRadius: '8px', fontSize: '1.1rem' }}>📒</span>
-                  Customer Khata / Borrow
-                </h3>
-                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                  Record partial payment and maintain remaining as customer credit / udhari.
-                </p>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={styles.khataModal} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className={styles.khataHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className={styles.khataIconWrap}>
+                  <BookOpen size={22} />
+                </div>
+                <div className={styles.khataTitleArea}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3>Customer Khata & Credit</h3>
+                    <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.68rem', fontWeight: 800, padding: '2px 8px', borderRadius: '100px' }}>
+                      UDHARI
+                    </span>
+                  </div>
+                  <p>Record partial payment and maintain live borrower balance.</p>
+                </div>
               </div>
               <button
                 type="button"
+                className={styles.khataCloseBtn}
                 onClick={() => setShowKhataModal(false)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                title="Close"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
-                <span>Total Bill Amount:</span>
-                <span style={{ fontSize: '1.05rem', color: '#0f172a', fontWeight: 900 }}>₹{formatAmount(grandTotal)}</span>
+            {/* Total Bill Card with Dual-Progress Split Visualizer */}
+            <div className={styles.khataBillCard}>
+              <div className={styles.khataBillHeader}>
+                <span className={styles.khataBillLabel}>Total Order Bill</span>
+                <span className={styles.khataBillAmount}>₹{formatAmount(grandTotal)}</span>
+              </div>
+
+              {/* Live Visual Split Bar */}
+              <div className={styles.khataSplitVisualizer}>
+                <div className={styles.khataSplitTrack}>
+                  <div 
+                    className={styles.khataPaidFill} 
+                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, ((Number(khataPaidAmount) || 0) / grandTotal) * 100)) : 0}%` }} 
+                  />
+                  <div 
+                    className={styles.khataBorrowFill} 
+                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, (Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)) / grandTotal) * 100)) : 100}%` }} 
+                  />
+                </div>
+
+                <div className={styles.khataSplitLabels}>
+                  <span className={styles.khataPaidTag}>
+                    ● Paid: ₹{formatAmount(Number(khataPaidAmount) || 0)} ({grandTotal > 0 ? Math.round(((Number(khataPaidAmount) || 0) / grandTotal) * 100) : 0}%)
+                  </span>
+                  <span className={styles.khataBorrowTag}>
+                    ● Udhar Due: ₹{formatAmount(Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)))} ({grandTotal > 0 ? Math.max(0, 100 - Math.round(((Number(khataPaidAmount) || 0) / grandTotal) * 100)) : 100}%)
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
-                  Customer Name *
+            {/* Quick Split Action Chips */}
+            <div className={styles.khataPresetChips}>
+              <button
+                type="button"
+                className={`${styles.khataPresetChip} ${(Number(khataPaidAmount) || 0) === 0 ? styles.khataPresetActive : ''}`}
+                onClick={() => {
+                  setKhataPaidAmount('0');
+                  setKhataBorrowAmount(grandTotal);
+                }}
+              >
+                Full Credit (₹0 Paid)
+              </button>
+
+              {grandTotal > 100 && (
+                <button
+                  type="button"
+                  className={`${styles.khataPresetChip} ${(Number(khataPaidAmount) || 0) === 100 ? styles.khataPresetActive : ''}`}
+                  onClick={() => {
+                    setKhataPaidAmount('100');
+                    setKhataBorrowAmount(Math.max(0, grandTotal - 100));
+                  }}
+                >
+                  ₹100 Paid
+                </button>
+              )}
+
+              {grandTotal > 500 && (
+                <button
+                  type="button"
+                  className={`${styles.khataPresetChip} ${(Number(khataPaidAmount) || 0) === 500 ? styles.khataPresetActive : ''}`}
+                  onClick={() => {
+                    setKhataPaidAmount('500');
+                    setKhataBorrowAmount(Math.max(0, grandTotal - 500));
+                  }}
+                >
+                  ₹500 Paid
+                </button>
+              )}
+
+              <button
+                type="button"
+                className={`${styles.khataPresetChip} ${(Number(khataPaidAmount) || 0) === Math.round(grandTotal / 2) ? styles.khataPresetActive : ''}`}
+                onClick={() => {
+                  const half = Math.round(grandTotal / 2);
+                  setKhataPaidAmount(String(half));
+                  setKhataBorrowAmount(grandTotal - half);
+                }}
+              >
+                50% Split (₹{Math.round(grandTotal / 2)})
+              </button>
+
+              {grandTotal > 100 && Math.floor(grandTotal / 100) * 100 !== grandTotal && (
+                <button
+                  type="button"
+                  className={`${styles.khataPresetChip} ${(Number(khataPaidAmount) || 0) === (Math.floor(grandTotal / 100) * 100) ? styles.khataPresetActive : ''}`}
+                  onClick={() => {
+                    const rounded = Math.floor(grandTotal / 100) * 100;
+                    setKhataPaidAmount(String(rounded));
+                    setKhataBorrowAmount(grandTotal - rounded);
+                  }}
+                >
+                  Round to ₹{Math.floor(grandTotal / 100) * 100}
+                </button>
+              )}
+            </div>
+
+            {/* Customer Information Inputs (2-Col Side by Side) */}
+            <div className={styles.khataTwoColGrid}>
+              <div className={styles.khataFieldGroup}>
+                <label className={styles.khataFieldLabel}>
+                  <User size={13} color="#64748b" /> Customer Name <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Rahul Sharma"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className={styles.inputField}
-                  required
-                />
+                <div className={styles.khataInputWrapper}>
+                  <User size={14} className={styles.khataInputIcon} />
+                  <input
+                    type="text"
+                    placeholder="e.g. Rahul Sharma"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className={styles.khataInputField}
+                    required
+                  />
+                </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
-                  Customer Phone Number *
+              <div className={styles.khataFieldGroup}>
+                <label className={styles.khataFieldLabel}>
+                  <Phone size={13} color="#64748b" /> Phone Number <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <input
-                  type="tel"
-                  placeholder="e.g. 9876543210"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className={styles.inputField}
-                  required
-                />
+                <div className={styles.khataInputWrapper}>
+                  <Phone size={14} className={styles.khataInputIcon} />
+                  <input
+                    type="tel"
+                    placeholder="e.g. 98765 43210"
+                    maxLength="14"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className={styles.khataInputField}
+                    required
+                  />
+                </div>
               </div>
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>
-                    Paid Now (₹)
-                  </label>
+            {/* Split Amount Dual-Card Inputs */}
+            <div className={styles.khataAmountsGrid}>
+              <div className={`${styles.khataAmountBox} ${styles.khataPaidBox}`}>
+                <div className={styles.khataAmountBoxLabel} style={{ color: '#15803d' }}>
+                  Amount Paid Now
+                </div>
+                <div className={styles.khataAmountInputWrap}>
+                  <span className={styles.khataAmountCurrency} style={{ color: '#16a34a' }}>₹</span>
                   <input
                     type="number"
                     min="0"
@@ -1501,14 +1618,17 @@ export default function POSTerminal({
                       setKhataPaidAmount(e.target.value);
                       setKhataBorrowAmount(Math.max(0, grandTotal - val));
                     }}
-                    className={styles.inputField}
+                    className={`${styles.khataAmountInput} ${styles.khataPaidInput}`}
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>
-                    Borrow / Udhari (₹) *
-                  </label>
+              <div className={`${styles.khataAmountBox} ${styles.khataBorrowBox}`}>
+                <div className={styles.khataAmountBoxLabel} style={{ color: '#b45309' }}>
+                  Borrow / Udhar Due *
+                </div>
+                <div className={styles.khataAmountInputWrap}>
+                  <span className={styles.khataAmountCurrency} style={{ color: '#d97706' }}>₹</span>
                   <input
                     type="number"
                     min="0"
@@ -1517,45 +1637,71 @@ export default function POSTerminal({
                     onChange={(e) => {
                       const val = Number(e.target.value) || 0;
                       setKhataBorrowAmount(e.target.value);
-                      setKhataPaidAmount(Math.max(0, grandTotal - val));
+                      setKhataPaidAmount(String(Math.max(0, grandTotal - val)));
                     }}
-                    className={styles.inputField}
+                    className={`${styles.khataAmountInput} ${styles.khataBorrowInput}`}
                   />
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
-                  Notes / Reference (Optional)
-                </label>
+            {/* Notes & Quick Tags */}
+            <div className={styles.khataFieldGroup} style={{ marginBottom: 0 }}>
+              <label className={styles.khataFieldLabel}>
+                <StickyNote size={13} color="#64748b" /> Notes / Ledger Memo (Optional)
+              </label>
+              <div className={styles.khataInputWrapper}>
+                <StickyNote size={14} className={styles.khataInputIcon} />
                 <input
                   type="text"
-                  placeholder="e.g. Regular regular customer, will pay tomorrow"
+                  placeholder="e.g. Regular customer, will settle Friday"
                   value={khataNotes}
                   onChange={(e) => setKhataNotes(e.target.value)}
-                  className={styles.inputField}
+                  className={styles.khataInputField}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowKhataModal(false)}
-                  style={{ flex: 1, padding: 11, borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmKhataSettlement}
-                  disabled={isSettling}
-                  style={{ flex: 2, padding: 11, borderRadius: 8, border: 'none', background: '#d97706', color: '#ffffff', fontWeight: 800, cursor: 'pointer' }}
-                >
-                  {isSettling ? 'Recording...' : `Record Khata & Clear`}
-                </button>
+              {/* Quick Tag Badges */}
+              <div className={styles.khataTagsWrap}>
+                {['Regular Customer', 'Will Pay Tomorrow', 'Weekly Settlement', 'Office Tab'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={styles.khataTagBtn}
+                    onClick={() => {
+                      setKhataNotes(prev => prev ? `${prev} • ${tag}` : tag);
+                    }}
+                  >
+                    + {tag}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
+
+            {/* Action Buttons */}
+            <div className={styles.khataActions}>
+              <button
+                type="button"
+                className={styles.khataCancelBtn}
+                onClick={() => setShowKhataModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.khataSubmitBtn}
+                onClick={handleConfirmKhataSettlement}
+                disabled={isSubmittingKhata || isSettling}
+              >
+                <CheckCircle2 size={16} />
+                <span>
+                  {isSubmittingKhata || isSettling 
+                    ? 'Recording...' 
+                    : `Record Khata & Settle (₹${formatAmount(Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)))} Due)`}
+                </span>
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
 

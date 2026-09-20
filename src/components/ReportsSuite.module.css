@@ -1,5 +1,5 @@
 .container {
-  padding: 24px;
+  padding: 16px 20px;
   background-color: #f8fafc;
   min-height: calc(100vh - 80px);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -9,63 +9,86 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
+  flex-wrap: nowrap;
   gap: 16px;
 }
 
+@media (max-width: 860px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
 .titleGroup h2 {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .titleGroup p {
   color: #64748b;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   margin: 0;
+  line-height: 1.3;
 }
 
 .controlsGroup {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .dateFilterBtn {
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   color: #475569;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.dateFilterBtn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
 }
 
 .dateFilterActive {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
 }
 
 .printBtn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #334155;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.printBtn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
 }
 
 .kpiGrid {

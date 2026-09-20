@@ -1097,16 +1097,32 @@ export default function AdminPanel() {
     if (logoToSave) {
       localStorage.setItem('restaurant_logo', logoToSave);
     }
-    setTenantInfo(prev => ({
-      ...prev,
-      ...updatedSettings,
-      name: updatedSettings.name || updatedSettings.restaurantName || prev?.name,
-      logo: logoToSave || prev?.logo,
-      address: updatedSettings.address || updatedSettings.storeAddress || prev?.address,
-      phone: updatedSettings.phone || updatedSettings.primaryPhone || prev?.phone,
-      email: updatedSettings.email || updatedSettings.publicEmail || prev?.email,
-      gstNumber: updatedSettings.gstNumber || prev?.gstNumber,
-    }));
+    setTenantInfo(prev => {
+      const prevSettings = prev?.settings || {};
+      const newSettings = updatedSettings.settings || {};
+      return {
+        ...prev,
+        ...updatedSettings,
+        settings: {
+          ...prevSettings,
+          ...newSettings,
+          enableEstimatedPrepTime: updatedSettings.enableEstimatedPrepTime !== undefined
+            ? updatedSettings.enableEstimatedPrepTime
+            : (newSettings.enableEstimatedPrepTime !== undefined ? newSettings.enableEstimatedPrepTime : prevSettings.enableEstimatedPrepTime),
+          enableKhata: updatedSettings.enableKhata !== undefined
+            ? updatedSettings.enableKhata
+            : (newSettings.enableKhata !== undefined ? newSettings.enableKhata : prevSettings.enableKhata),
+          operatingHours: updatedSettings.operatingHours || newSettings.operatingHours || prevSettings.operatingHours,
+          logo: logoToSave || newSettings.logo || prevSettings.logo,
+        },
+        name: updatedSettings.name || updatedSettings.restaurantName || prev?.name,
+        logo: logoToSave || prev?.logo,
+        address: updatedSettings.address || updatedSettings.storeAddress || prev?.address,
+        phone: updatedSettings.phone || updatedSettings.primaryPhone || prev?.phone,
+        email: updatedSettings.email || updatedSettings.publicEmail || prev?.email,
+        gstNumber: updatedSettings.gstNumber || prev?.gstNumber,
+      };
+    });
     toast.success('Restaurant configuration saved successfully!');
   };
 
