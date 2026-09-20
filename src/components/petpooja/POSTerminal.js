@@ -1067,38 +1067,58 @@ export default function POSTerminal({
                   </div>
                 )}
 
-                {/* Draft Section Header */}
-                <div className={styles.draftSectionHeader}>
-                  <span>NEW ORDER (DRAFT) ({cart.length})</span>
-                  {cart.length > 0 && <span>₹{formatAmount(draftCartTotal)}</span>}
-                </div>
-
-                {/* Cart items list or empty placeholder */}
+                {/* Draft Section / Next Round */}
                 {cart.length > 0 ? (
-                  <div className={styles.cartList} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px' }}>
-                    {cart.map((it, idx) => (
-                      <div key={idx} className={styles.cartItem} style={{ padding: '5px 0', borderBottom: idx < cart.length - 1 ? '1px dashed #f1f5f9' : 'none' }}>
-                        <div>
-                          <p className={styles.cartItemTitle}>{it.name}</p>
-                          <p className={styles.cartItemPrice}>₹{formatAmount(it.price)} each</p>
+                  <div style={{ marginTop: currentTableOrders.length > 0 ? '10px' : '0' }}>
+                    <div className={styles.draftSectionHeader}>
+                      <span>NEW ORDER (DRAFT) ({cart.length})</span>
+                      <span>₹{formatAmount(draftCartTotal)}</span>
+                    </div>
+
+                    <div className={styles.cartList} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px 10px' }}>
+                      {cart.map((it, idx) => (
+                        <div key={idx} className={styles.cartItem} style={{ padding: '5px 0', borderBottom: idx < cart.length - 1 ? '1px dashed #f1f5f9' : 'none' }}>
+                          <div>
+                            <p className={styles.cartItemTitle}>{it.name}</p>
+                            <p className={styles.cartItemPrice}>₹{formatAmount(it.price)} each</p>
+                          </div>
+                          <div className={styles.qtyControls}>
+                            <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, -1)}>
+                              <Minus size={10} />
+                            </button>
+                            <span className={styles.qtyVal}>{it.quantity}</span>
+                            <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, 1)}>
+                              <Plus size={10} />
+                            </button>
+                          </div>
                         </div>
-                        <div className={styles.qtyControls}>
-                          <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, -1)}>
-                            <Minus size={10} />
-                          </button>
-                          <span className={styles.qtyVal}>{it.quantity}</span>
-                          <button type="button" className={styles.qtyBtn} onClick={() => updateCartQty(idx, 1)}>
-                            <Plus size={10} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                ) : currentTableOrders.length > 0 ? (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1.5px dashed #cbd5e1',
+                    background: '#f8fafc',
+                    textAlign: 'center',
+                    color: '#64748b',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}>
+                    <Plus size={13} color="#2563eb" />
+                    <span>Click dishes on left to add next round</span>
                   </div>
                 ) : (
                   <div className={styles.emptyCartPlaceholder}>
-                    <ShoppingCart size={22} style={{ color: '#cbd5e1', marginBottom: 4 }} />
-                    <p style={{ margin: 0, fontWeight: 600 }}>No draft items yet</p>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Click dishes to add to this order</span>
+                    <ShoppingCart size={24} style={{ color: '#cbd5e1', marginBottom: 6 }} />
+                    <p style={{ margin: 0, fontWeight: 700, color: '#475569' }}>Order Slip is Empty</p>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>Click dishes on the menu to take order</span>
                   </div>
                 )}
               </div>
