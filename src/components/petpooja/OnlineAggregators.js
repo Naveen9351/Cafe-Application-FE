@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Share2, Smartphone, Send, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './OnlineAggregators.module.css';
+import { API_URL as API } from '../../config/api';
 
 export default function OnlineAggregators({ tenantId }) {
   const [platform, setPlatform] = useState('Zomato');
@@ -10,10 +11,6 @@ export default function OnlineAggregators({ tenantId }) {
   const [qty, setQty] = useState(1);
   const [custName, setCustName] = useState('Mock Customer');
   const [custPhone, setCustPhone] = useState('9876543210');
-
-  const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
 
   const triggerMockOrder = async () => {
     if (!itemName) return toast.error("Enter food item name");

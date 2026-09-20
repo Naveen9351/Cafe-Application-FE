@@ -3,10 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Sparkles, X, Send, Bot, MessageSquare, ArrowRight, CornerDownLeft, CheckCircle2, Phone, Zap } from 'lucide-react';
 import styles from '../styles/Chatbot.module.css';
-
-const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:5000/api'
-  : (process.env.REACT_APP_API_URL || 'https://cafe-application-be-1.onrender.com/api');
+import { API_URL as API } from '../config/api';
 
 const renderFormattedText = (rawText) => {
   if (!rawText) return null;
