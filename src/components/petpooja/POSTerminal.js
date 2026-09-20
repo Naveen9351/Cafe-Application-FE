@@ -351,21 +351,28 @@ export default function POSTerminal({
 
     setIsSubmitting(true);
     const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
     const orderPayload = {
-      tenantId,
-      tableNumber: tableNumber === 'Walk-in' ? '' : tableNumber,
+      tenantId: effectiveTenantId,
+      tableNumber: tableNumber === 'Walk-in' ? 'Walk-in' : String(tableNumber),
       orderType: tableNumber === 'Walk-in' ? 'takeaway' : 'dine_in',
       customerName: customerName.trim() || 'Guest',
       customerPhone: customerPhone.trim(),
+      customerDetails: {
+        name: customerName.trim() || 'Guest',
+        phone: customerPhone.trim()
+      },
       paymentMethod,
       paymentStatus: 'pending',
       items: cart.map(it => ({
+        id: it.id,
         itemId: it.id,
         name: it.name,
         price: it.price,
         quantity: it.quantity,
-        variant: it.variant ? it.variant.name : null,
-        addons: (it.addons || []).map(a => a.name)
+        variant: it.variant ? it.variant : null,
+        addons: (it.addons || [])
       })),
       totalAmount: draftCartTotal
     };
@@ -396,22 +403,31 @@ export default function POSTerminal({
 
     setIsSettling(true);
     const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
     try {
       // 1. If draft cart has items, create the final round first
       if (cart.length > 0) {
         const orderPayload = {
-          tenantId,
-          tableNumber: tableNumber === 'Walk-in' ? '' : tableNumber,
+          tenantId: effectiveTenantId,
+          tableNumber: tableNumber === 'Walk-in' ? 'Walk-in' : String(tableNumber),
           orderType: tableNumber === 'Walk-in' ? 'takeaway' : 'dine_in',
           customerName: customerName.trim() || 'Guest',
           customerPhone: customerPhone.trim(),
+          customerDetails: {
+            name: customerName.trim() || 'Guest',
+            phone: customerPhone.trim()
+          },
           paymentMethod,
           paymentStatus: 'paid',
           items: cart.map(it => ({
+            id: it.id,
             itemId: it.id,
             name: it.name,
             price: it.price,
-            quantity: it.quantity
+            quantity: it.quantity,
+            variant: it.variant ? it.variant : null,
+            addons: (it.addons || [])
           })),
           totalAmount: draftCartTotal
         };
@@ -424,7 +440,7 @@ export default function POSTerminal({
       if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { paymentMethod, paymentStatus: 'paid', tenantId },
+          { paymentMethod, paymentStatus: 'paid', tenantId: effectiveTenantId },
           { headers: token ? { 'x-auth-token': token } : {} }
         );
       }
