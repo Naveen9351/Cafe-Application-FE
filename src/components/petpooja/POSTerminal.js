@@ -581,14 +581,6 @@ export default function POSTerminal({
                   </button>
                 )}
               </div>
-
-              <button
-                type="button"
-                className={styles.quickWalkinBtn}
-                onClick={handleQuickWalkin}
-              >
-                <Zap size={14} /> <span>Direct Walk-in POS</span>
-              </button>
             </div>
           </div>
 
@@ -715,66 +707,35 @@ export default function POSTerminal({
       {viewMode === 'terminal' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
-          {/* Header Navigation: Return to Tables + Active Table Bar */}
-          <div className={styles.terminalHeaderNav}>
-            <button
-              type="button"
-              className={styles.backToTablesBtn}
-              onClick={() => setViewMode('tables')}
-              title="Return to Table Matrix"
-            >
-              <ArrowLeft size={16} /> <span>← Back to Floor Tables</span>
-            </button>
-
-            <div className={styles.selectedTableBadge}>
-              <div className={styles.tableTagPill}>
-                <Utensils size={14} color="#2563eb" />
-                <span>{tableNumber === 'Walk-in' ? 'Counter Walk-in' : `Table ${tableNumber}`}</span>
-              </div>
-
-              {tableNumber !== 'Walk-in' && (
-                <select
-                  value={tableNumber}
-                  onChange={(e) => handleOpenTableInPOS(e.target.value)}
-                  className={styles.tableSelectorSelect}
-                  title="Switch Table"
-                >
-                  {allTablesList.map(t => (
-                    <option key={t.tableNumber} value={t.tableNumber}>
-                      Table {t.tableNumber} ({t.zone || 'Floor'})
-                    </option>
-                  ))}
-                  <option value="Walk-in">Counter Walk-in</option>
-                </select>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {currentTableOrders.length > 0 && (
-                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '3px 9px', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                  ● {currentTableOrders.length} Running Rounds (₹{runningOrdersTotal})
-                </span>
-              )}
-            </div>
-          </div>
-
           {/* POS Two-Column Grid */}
           <div className={styles.posGrid}>
             
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
               <div className={styles.menuFilterBar}>
-                <div className={styles.categoryPillsWrap}>
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
-                      onClick={() => setSelectedCategory(cat)}
-                    >
-                      {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {/* Inline Back Arrow Button */}
+                  <button
+                    type="button"
+                    className={styles.backIconBtn}
+                    onClick={() => setViewMode('tables')}
+                    title="Back to Floor Tables"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+
+                  <div className={styles.categoryPillsWrap}>
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
+                        onClick={() => setSelectedCategory(cat)}
+                      >
+                        {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className={styles.searchBox} style={{ width: 180 }}>
@@ -832,9 +793,16 @@ export default function POSTerminal({
             {/* Right: Order Slip & Settlement Drawer */}
             <div className={styles.orderDrawer}>
               <div className={styles.drawerHeader}>
-                <h4 className={styles.drawerTitle}>
-                  {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber} Order Slip`}
-                </h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h4 className={styles.drawerTitle}>
+                    {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber} Order Slip`}
+                  </h4>
+                  {runningOrdersTotal > 0 && (
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: '10px', border: '1px solid #fde68a' }}>
+                      ● Active (₹{runningOrdersTotal})
+                    </span>
+                  )}
+                </div>
                 {cart.length > 0 && (
                   <button
                     type="button"
