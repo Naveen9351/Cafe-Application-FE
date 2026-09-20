@@ -149,13 +149,80 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
     }
   };
 
-  // Google OAuth / One-Tap Simulation & Integration
+  // Load Google Identity Services SDK
+  useEffect(() => {
+    if (!window.google && !document.getElementById('google-gsi-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-gsi-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Google OAuth / Google Identity Services Integration
   const handleGoogleLogin = async () => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+    // If Google SDK & Client ID are available, open genuine Google Account Chooser popup
+    if (window.google?.accounts?.oauth2 && clientId) {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'email profile openid',
+          callback: async (tokenResponse) => {
+            if (tokenResponse?.access_token) {
+              setIsLoading(true);
+              try {
+                // Fetch verified profile directly from Google
+                const userInfoRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                });
+                const { name: gName, email: gEmail, sub: gSub } = userInfoRes.data;
+
+                const res = await axios.post(`${API}/customer/google-auth`, {
+                  name: gName,
+                  email: gEmail,
+                  googleId: gSub
+                });
+
+                if (res.data.verified) {
+                  const customerProfile = {
+                    name: gName,
+                    email: gEmail,
+                    phone: phone.replace(/[^0-9]/g, '') || '',
+                    authProvider: 'google',
+                    verified: true
+                  };
+
+                  localStorage.setItem('verifiedCustomer', JSON.stringify(customerProfile));
+                  localStorage.setItem('customer_user', JSON.stringify(customerProfile));
+                  toast.success(`Signed in as ${gName}!`);
+                  if (onVerified) onVerified(customerProfile);
+                  onClose();
+                }
+              } catch (err) {
+                console.error('Google profile fetch failed:', err);
+                toast.error('Failed to verify Google profile.');
+              } finally {
+                setIsLoading(false);
+              }
+            }
+          }
+        });
+        client.requestAccessToken();
+        return;
+      } catch (e) {
+        console.warn('Google client init failed:', e);
+      }
+    }
+
+    // Fallback simulation when REACT_APP_GOOGLE_CLIENT_ID is not configured in .env
     setIsLoading(true);
     try {
-      // Check if user has name already or prompt fallback
-      const guestName = name.trim() || 'Google Guest';
-      const fakeEmail = `${guestName.toLowerCase().replace(/[^a-z0-9]/g, '')}@gmail.com`;
+      const guestName = name.trim() || 'Google User';
+      const fakeEmail = `${guestName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user'}@gmail.com`;
 
       const res = await axios.post(`${API}/customer/google-auth`, {
         name: guestName,
@@ -173,7 +240,8 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
         };
 
         localStorage.setItem('verifiedCustomer', JSON.stringify(customerProfile));
-        toast.success(`Signed in with Google as ${customerProfile.name}!`);
+        localStorage.setItem('customer_user', JSON.stringify(customerProfile));
+        toast.success(`Verified with Google! (Add REACT_APP_GOOGLE_CLIENT_ID to .env for live Google Popup)`, { duration: 5000 });
         if (onVerified) onVerified(customerProfile);
         onClose();
       }
