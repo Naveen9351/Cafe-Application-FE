@@ -222,14 +222,19 @@
   display: flex;
   gap: 8px;
   justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0.75rem 0 1rem;
 }
 
 .otpBox {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  width: 0;
   height: 48px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
+  background: #ffffff;
   text-align: center;
   font-size: 1.25rem;
   font-weight: 800;
@@ -240,8 +245,8 @@
 }
 
 .otpBox:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
 }
 
 .otpSentBanner {
@@ -263,13 +268,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 0.5rem;
 }
 
 .resendText {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #64748b;
+  color: #94a3b8;
+  white-space: nowrap;
 }
 
 .resendLink {
@@ -279,6 +286,7 @@
   border: none;
   background: transparent;
   padding: 0;
+  font-size: 0.85rem;
 }
 
 .resendLink:hover {
@@ -286,26 +294,27 @@
 }
 
 .confirmBtn {
-  flex: 1.2;
-  padding: 0.8rem 1.25rem;
-  border-radius: 10px;
+  min-width: 130px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   border: none;
   background: #e2e8f0;
-  color: #94a3b8;
+  color: #ffffff;
   font-size: 0.95rem;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 700;
+  cursor: not-allowed;
   transition: all 0.15s ease;
 }
 
 .confirmBtnActive {
-  background: #10b981 !important;
+  background: #f97316 !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  cursor: pointer !important;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3);
 }
 
 .confirmBtnActive:hover {
-  background: #059669 !important;
+  background: #ea580c !important;
 }
 
 @keyframes fadeIn {
