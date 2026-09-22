@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Sun, Moon, Sparkles, Heart
+  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Minus, Sun, Moon, Sparkles, Heart
 } from "lucide-react";
 import { getValidFoodImage } from "./AdminPanel";
 import styles from "./Menu.module.css";
@@ -23,7 +23,7 @@ export default function Menu() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const { addItem, items: cartItems, getCartTotal } = useCartContext();
+  const { addItem, updateItemQuantity, removeItem, items: cartItems, getCartTotal } = useCartContext();
   const [searchParams] = useSearchParams();
 
   const [categories, setCategories] = useState([]);
@@ -36,6 +36,30 @@ export default function Menu() {
   useEffect(() => {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
+
+  // History management for Mobile Device Back button
+  const openItemDetails = (item) => {
+    window.history.pushState({ itemDetailModal: true, itemId: item._id }, "");
+    setSelectedItem(item);
+  };
+
+  const closeItemDetails = () => {
+    if (window.history.state && window.history.state.itemDetailModal) {
+      window.history.back();
+    } else {
+      setSelectedItem(null);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedItem) {
+        setSelectedItem(null);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [selectedItem]);
 
   // Animation States for Flying Cart Particles & Cart Badge Bounce
   const [flyingParticles, setFlyingParticles] = useState([]);
@@ -204,13 +228,51 @@ export default function Menu() {
     return matchesCategory && matchesSearch;
   });
 
+  const getItemQuantity = (item) => {
+    if (!item) return 0;
+    const matching = cartItems.filter(ci => 
+      ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
+    );
+    return matching.reduce((sum, ci) => sum + (ci.quantity || 0), 0);
+  };
+
+  const handleIncrement = (item, event) => {
+    if (event && event.stopPropagation) event.stopPropagation();
+    const matching = cartItems.filter(ci => 
+      ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
+    );
+    if (matching.length === 1) {
+      updateItemQuantity(matching[0].id, matching[0].quantity + 1);
+    } else if (matching.length > 1) {
+      updateItemQuantity(matching[matching.length - 1].id, matching[matching.length - 1].quantity + 1);
+    } else {
+      handleAdd(item, event);
+    }
+  };
+
+  const handleDecrement = (item, event) => {
+    if (event && event.stopPropagation) event.stopPropagation();
+    const matching = cartItems.filter(ci => 
+      ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
+    );
+    if (matching.length > 0) {
+      const target = matching[matching.length - 1];
+      if (target.quantity <= 1) {
+        removeItem(target.id);
+      } else {
+        updateItemQuantity(target.id, target.quantity - 1);
+      }
+    }
+  };
+
   const handleAdd = (item, event, overrideVariant = null) => {
     if (!item.available && item.available !== undefined) {
       toast.error(`${item.name} is currently out of stock`);
       return;
     }
 
-    const chosenVariant = overrideVariant || selectedVariant;
+    const vars = item.variants || item.sizes || item.portionSizes || [];
+    const chosenVariant = overrideVariant || selectedVariant || (vars.length > 0 ? vars[0] : null);
     let basePrice = item.price;
     let variantLabel = '';
 
@@ -238,11 +300,14 @@ export default function Menu() {
 
     addItem({
       id: cartId,
+      itemId: item._id,
       name: cartName,
       price: finalPrice,
       originalPrice: basePrice,
       category: item.category,
       image: getValidFoodImage(item),
+      variant: chosenVariant ? (typeof chosenVariant === 'object' ? chosenVariant : { name: variantLabel, price: finalPrice }) : null,
+      addons: []
     });
 
     // Spawn Flying Particle Animation to Cart
@@ -426,7 +491,9 @@ export default function Menu() {
                 >
                   All Items
                 </button>
-                {categories.map((c) => (
+                {categories
+                  .filter((c) => c.id !== "all" && c.name?.toLowerCase() !== "all" && c.name?.toLowerCase() !== "all items")
+                  .map((c) => (
                   <button
                     key={c.id}
                     onClick={() => setSelectedCategory(c.id)}
@@ -487,7 +554,7 @@ export default function Menu() {
                           }}
                           whileHover={!isOutOfStock ? { y: -3, borderColor: theme.accent } : {}}
                           whileTap={!isOutOfStock ? { scale: 0.97 } : {}}
-                          onClick={() => !isOutOfStock && setSelectedItem(item)}
+                          onClick={() => !isOutOfStock && openItemDetails(item)}
                         >
                           <div style={{ borderRadius: '14px', overflow: 'hidden', height: '105px', position: 'relative', width: '100%' }}>
                             <motion.img
@@ -541,31 +608,94 @@ export default function Menu() {
                               )}
                             </div>
 
-                            {/* Centered + Icon Button */}
-                            <motion.button
-                              whileHover={!isOutOfStock ? { scale: 1.12 } : {}}
-                              whileTap={!isOutOfStock ? { scale: 0.88 } : {}}
-                              disabled={isOutOfStock}
-                              onClick={(e) => { e.stopPropagation(); handleAdd(item, e); }}
-                              style={{
-                                backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
-                                border: 'none',
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                color: '#ffffff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: 0,
-                                margin: 0,
-                                cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                                boxShadow: isOutOfStock ? 'none' : `0 3px 10px ${theme.accentGlow}`,
-                                flexShrink: 0
-                              }}
-                            >
-                              <Plus size={15} strokeWidth={3.2} style={{ display: 'block', margin: 'auto' }} />
-                            </motion.button>
+                            {/* Quantity Stepper (+ -) when selected, otherwise + button */}
+                            {(() => {
+                              const qty = getItemQuantity(item);
+                              if (qty > 0) {
+                                return (
+                                  <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      backgroundColor: theme.accent,
+                                      borderRadius: '100px',
+                                      padding: '2px 4px',
+                                      gap: '5px',
+                                      boxShadow: `0 3px 10px ${theme.accentGlow}`,
+                                      height: '28px',
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <motion.button
+                                      whileTap={{ scale: 0.8 }}
+                                      onClick={(e) => handleDecrement(item, e)}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#ffffff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        padding: '2px 3px'
+                                      }}
+                                      title="Decrease quantity"
+                                    >
+                                      <Minus size={13} strokeWidth={3.5} />
+                                    </motion.button>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: '900', color: '#ffffff', minWidth: '14px', textAlign: 'center' }}>
+                                      {qty}
+                                    </span>
+                                    <motion.button
+                                      whileTap={{ scale: 0.8 }}
+                                      onClick={(e) => handleIncrement(item, e)}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#ffffff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        padding: '2px 3px'
+                                      }}
+                                      title="Increase quantity"
+                                    >
+                                      <Plus size={13} strokeWidth={3.5} />
+                                    </motion.button>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <motion.button
+                                  whileHover={!isOutOfStock ? { scale: 1.12 } : {}}
+                                  whileTap={!isOutOfStock ? { scale: 0.88 } : {}}
+                                  disabled={isOutOfStock}
+                                  onClick={(e) => { e.stopPropagation(); handleAdd(item, e); }}
+                                  style={{
+                                    backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
+                                    border: 'none',
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '50%',
+                                    color: '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: 0,
+                                    margin: 0,
+                                    cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                                    boxShadow: isOutOfStock ? 'none' : `0 3px 10px ${theme.accentGlow}`,
+                                    flexShrink: 0
+                                  }}
+                                  title="Add to basket"
+                                >
+                                  <Plus size={15} strokeWidth={3.2} style={{ display: 'block', margin: 'auto' }} />
+                                </motion.button>
+                              );
+                            })()}
                           </div>
                         </motion.div>
                       );
@@ -597,7 +727,7 @@ export default function Menu() {
                           layoutId={`dish-card-${cb._id}`}
                           whileHover={{ scale: 1.01 }}
                           whileTap={{ scale: 0.98 }}
-                          onClick={() => setSelectedItem(cb)}
+                          onClick={() => openItemDetails(cb)}
                           style={{ display: 'flex', borderRadius: '18px', overflow: 'hidden', backgroundColor: theme.accent, height: '105px', boxShadow: `0 6px 20px ${theme.accentGlow}`, cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
                         >
                           <div style={{ flex: 1.2, padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
@@ -608,30 +738,92 @@ export default function Menu() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <motion.span layoutId={`dish-price-${cb._id}`} style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>₹{cb.price}</motion.span>
 
-                              {/* Centered + Icon Button for Combos */}
-                              <motion.button
-                                whileHover={{ scale: 1.12 }}
-                                whileTap={{ scale: 0.88 }}
-                                onClick={(e) => { e.stopPropagation(); handleAdd(cb, e); }}
-                                style={{
-                                  backgroundColor: '#ffffff',
-                                  border: 'none',
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '50%',
-                                  color: theme.accent,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  padding: 0,
-                                  margin: 0,
-                                  cursor: 'pointer',
-                                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
-                                  flexShrink: 0
-                                }}
-                              >
-                                <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
-                              </motion.button>
+                              {/* Stepper (+ -) when selected, otherwise + button for Combos */}
+                              {(() => {
+                                const qty = getItemQuantity(cb);
+                                if (qty > 0) {
+                                  return (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        backgroundColor: '#ffffff',
+                                        borderRadius: '100px',
+                                        padding: '2px 4px',
+                                        gap: '5px',
+                                        boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
+                                        height: '28px',
+                                        boxSizing: 'border-box'
+                                      }}
+                                    >
+                                      <motion.button
+                                        whileTap={{ scale: 0.8 }}
+                                        onClick={(e) => handleDecrement(cb, e)}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: theme.accent,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer',
+                                          padding: '2px 3px'
+                                        }}
+                                        title="Decrease quantity"
+                                      >
+                                        <Minus size={13} strokeWidth={3.5} />
+                                      </motion.button>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: '900', color: theme.accent, minWidth: '14px', textAlign: 'center' }}>
+                                        {qty}
+                                      </span>
+                                      <motion.button
+                                        whileTap={{ scale: 0.8 }}
+                                        onClick={(e) => handleIncrement(cb, e)}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: theme.accent,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer',
+                                          padding: '2px 3px'
+                                        }}
+                                        title="Increase quantity"
+                                      >
+                                        <Plus size={13} strokeWidth={3.5} />
+                                      </motion.button>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <motion.button
+                                    whileHover={{ scale: 1.12 }}
+                                    whileTap={{ scale: 0.88 }}
+                                    onClick={(e) => { e.stopPropagation(); handleAdd(cb, e); }}
+                                    style={{
+                                      backgroundColor: '#ffffff',
+                                      border: 'none',
+                                      width: '28px',
+                                      height: '28px',
+                                      borderRadius: '50%',
+                                      color: theme.accent,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      padding: 0,
+                                      margin: 0,
+                                      cursor: 'pointer',
+                                      boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
+                                  </motion.button>
+                                );
+                              })()}
                             </div>
                           </div>
                           <div style={{ flex: 0.8, overflow: 'hidden' }}>
@@ -656,7 +848,7 @@ export default function Menu() {
               <div style={{ padding: '1.25rem 1.25rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'none', borderBottom: `1px solid ${theme.border}`, boxSizing: 'border-box', width: '100%' }}>
                 <motion.button
                   whileTap={{ scale: 0.88 }}
-                  onClick={() => setSelectedItem(null)}
+                  onClick={closeItemDetails}
                   style={{ backgroundColor: 'transparent', border: `none`, width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', cursor: 'pointer', color: theme.textMain, boxShadow: 'none' }}
                 >
                   <ChevronLeft size={22} color={theme.textMain} />
@@ -784,7 +976,14 @@ export default function Menu() {
                         <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>People Also Ordered</h3>
                         <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
                           {items.filter(it => it._id !== selectedItem._id).slice(0, 3).map(rec => (
-                            <div key={rec._id} onClick={() => setSelectedItem(rec)} style={{ minWidth: '130px', backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.5rem', borderRadius: '14px', cursor: 'pointer' }}>
+                            <div
+                              key={rec._id}
+                              onClick={() => {
+                                window.history.replaceState({ itemDetailModal: true, itemId: rec._id }, "");
+                                setSelectedItem(rec);
+                              }}
+                              style={{ minWidth: '130px', backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.5rem', borderRadius: '14px', cursor: 'pointer' }}
+                            >
                               <img src={getValidFoodImage(rec)} alt={rec.name} style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
                               <h4 style={{ fontSize: '0.75rem', fontWeight: '800', color: theme.textMain, margin: '4px 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.name}</h4>
                               <span style={{ fontSize: '0.75rem', fontWeight: '900', color: theme.accent }}>₹{rec.price}</span>
@@ -796,15 +995,112 @@ export default function Menu() {
 
                     {/* Sticky Bottom Action Bar (Quantity + Add to Basket) */}
                     <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.96 }}
-                        onClick={(e) => { handleAdd(selectedItem, e, selectedVariant); setSelectedItem(null); }}
-                        style={{ flex: 1, backgroundColor: theme.accent, color: '#ffffff', border: 'none', fontWeight: '800', fontSize: '0.98rem', padding: '0.95rem', borderRadius: '14px', cursor: 'pointer', boxShadow: `0 8px 25px ${theme.accentGlow}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
-                      >
-                        Add to Order • ₹{currentPrice}
-                        <Plus size={16} strokeWidth={3} />
-                      </motion.button>
+                      {(() => {
+                        const variantLabel = selectedVariant ? (selectedVariant.name || selectedVariant.size || '') : '';
+                        const targetCartId = variantLabel ? `${selectedItem._id}_${variantLabel}` : selectedItem._id;
+                        const cartItemMatch = cartItems.find(ci => ci.id === targetCartId);
+                        const qtyInCart = cartItemMatch ? cartItemMatch.quantity : 0;
+
+                        if (qtyInCart > 0) {
+                          return (
+                            <div style={{ flex: 1, display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  backgroundColor: theme.bgCard,
+                                  border: `1.5px solid ${theme.accent}`,
+                                  borderRadius: '14px',
+                                  padding: '0.4rem 0.75rem',
+                                  gap: '1rem',
+                                  height: '48px',
+                                  boxSizing: 'border-box'
+                                }}
+                              >
+                                <motion.button
+                                  whileTap={{ scale: 0.8 }}
+                                  onClick={() => {
+                                    if (qtyInCart <= 1) {
+                                      removeItem(targetCartId);
+                                    } else {
+                                      updateItemQuantity(targetCartId, qtyInCart - 1);
+                                    }
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                                  title="Decrease quantity"
+                                >
+                                  <Minus size={18} strokeWidth={3} />
+                                </motion.button>
+                                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: theme.textMain, minWidth: '18px', textAlign: 'center' }}>
+                                  {qtyInCart}
+                                </span>
+                                <motion.button
+                                  whileTap={{ scale: 0.8 }}
+                                  onClick={() => updateItemQuantity(targetCartId, qtyInCart + 1)}
+                                  style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                                  title="Increase quantity"
+                                >
+                                  <Plus size={18} strokeWidth={3} />
+                                </motion.button>
+                              </div>
+
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.96 }}
+                                onClick={closeItemDetails}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: theme.accent,
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  fontWeight: '800',
+                                  fontSize: '0.98rem',
+                                  padding: '0.85rem',
+                                  borderRadius: '14px',
+                                  cursor: 'pointer',
+                                  boxShadow: `0 8px 25px ${theme.accentGlow}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.4rem',
+                                  height: '48px'
+                                }}
+                              >
+                                Added (₹{currentPrice * qtyInCart}) • Done
+                              </motion.button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={(e) => {
+                              handleAdd(selectedItem, e, selectedVariant);
+                            }}
+                            style={{
+                              flex: 1,
+                              backgroundColor: theme.accent,
+                              color: '#ffffff',
+                              border: 'none',
+                              fontWeight: '800',
+                              fontSize: '0.98rem',
+                              padding: '0.95rem',
+                              borderRadius: '14px',
+                              cursor: 'pointer',
+                              boxShadow: `0 8px 25px ${theme.accentGlow}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.4rem'
+                            }}
+                          >
+                            Add to Order • ₹{currentPrice}
+                            <Plus size={16} strokeWidth={3} />
+                          </motion.button>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

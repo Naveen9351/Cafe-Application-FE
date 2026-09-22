@@ -149,7 +149,21 @@ export default function Cart() {
     setIsPlacing(true);
     try {
       const payload = {
-        items: items.map((i) => ({ id: i.id, quantity: i.quantity })), // Send minimal data
+        items: items.map((i) => {
+          let cleanId = i.itemId || i._id;
+          if (!cleanId && typeof i.id === 'string') {
+            cleanId = i.id.includes('_') ? i.id.split('_')[0] : i.id;
+          }
+          return {
+            id: cleanId,
+            itemId: cleanId,
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            variant: i.variant || null,
+            addons: i.addons || []
+          };
+        }),
         tenantId, // CRITICAL: Multi-tenant support
         tableNumber: tableNumber || "Online Order",
         status: "pending",
