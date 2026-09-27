@@ -171,16 +171,24 @@ export default function Cart() {
         customerDetails: {
           name: customer?.name || "Guest",
           phone: customer?.phone || "",
-          email: customer?.email || ""
+          email: customer?.email || "",
+          isPhoneVerified: Boolean(customer?.verified)
         }
       };
 
       const { data } = await axios.post(`${API}/orders`, payload);
 
+      // Save last active order id for customer dashboard banner
+      try {
+        localStorage.setItem('serviq_last_order_id', data._id);
+        localStorage.setItem('serviq_last_table', String(tableNumber || ''));
+      } catch (e) {}
+
       setItems([]);
       localStorage.removeItem("cartItems");
       toast.success("Order placed successfully!");
-      navigate(`/order/status/${data._id}`);
+      // Replace history so hardware/browser back goes to Menu, NOT back to Cart
+      navigate(`/order/status/${data._id}`, { replace: true });
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.error || "Failed to place order");

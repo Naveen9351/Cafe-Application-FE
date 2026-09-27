@@ -385,11 +385,11 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
       const pngUrl = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream');
       const downloadLink = document.createElement('a');
       downloadLink.href = pngUrl;
-      downloadLink.download = `table-${tableNum}.png`; // Exact table-{num} naming format
+      downloadLink.download = `table - ${tableNum}.png`; // Exact table - [number].png naming format
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      toast.success(`Downloaded table-${tableNum}.png`);
+      toast.success(`Downloaded table - ${tableNum}.png`);
     } else {
       toast.error('Unable to capture QR image');
     }

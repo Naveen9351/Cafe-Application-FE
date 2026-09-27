@@ -206,6 +206,233 @@
   border-color: #cbd5e1;
 }
 
+.contentWrapperFull {
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+/* STAFF NAVBAR BRANDING */
+.staffNavbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.staffBrandWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* STAFF HORIZONTAL TABS IN TOP NAVBAR */
+.staffNavbarTabs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f1f5f9;
+  padding: 0.25rem 0.35rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.staffNavTabBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.85rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.staffNavTabBtn:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #0f172a;
+}
+
+.staffNavTabBtnActive {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
+  font-weight: 700;
+}
+
+.staffNavTabBtnActive svg {
+  color: #ffffff !important;
+}
+
+.staffTabBadge {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  margin-left: 0.2rem;
+}
+
+/* LOGGED IN USER PILL IN TOPBAR RIGHT */
+.userProfilePill {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.35rem;
+  border-radius: 30px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s ease;
+}
+
+.userProfilePill:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.userAvatarCircle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.userMetaText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.userEmailText {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0f172a;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userRoleBadge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.08rem 0.4rem;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  margin-top: 1px;
+}
+
+.roleBadgeAdmin {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.roleBadgeStaff {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.staffSignOutBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.staffSignOutBtn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+/* ACCESS RESTRICTED CARD */
+.accessRestrictedWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  width: 100%;
+}
+
+.accessRestrictedCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 2.5rem;
+  max-width: 460px;
+  text-align: center;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.accessRestrictedIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #fef2f2;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+}
+
+.accessRestrictedCard h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.6rem;
+}
+
+.accessRestrictedCard p {
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.goToPermittedBtn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.goToPermittedBtn:hover {
+  background: #1d4ed8;
+}
+
 .profileBadge {
   display: flex;
   align-items: center;

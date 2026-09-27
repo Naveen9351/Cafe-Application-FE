@@ -170,7 +170,8 @@ export default function StaffManager() {
         email: username.trim(),
         name: fullName.trim(),
         phone: phone.trim(),
-        role: selectedRole,
+        role: selectedRole.trim().toLowerCase(),
+        designation: selectedRole.trim(),
         permissions
       };
       if (password) payload.password = password;
@@ -527,6 +528,14 @@ export default function StaffManager() {
                       onChange={() => handlePermissionToggle('access_reports')}
                     />
                     Financial Reports & Analytics
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={!!permissions.access_crm}
+                      onChange={() => handlePermissionToggle('access_crm')}
+                    />
+                    Customer Management & CRM
                   </label>
                   <label className={styles.checkboxLabel}>
                     <input

@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   ChefHat, Clock, CheckCircle, RefreshCw, 
   RotateCcw, Sparkles, Filter, ChevronRight, AlertCircle, 
-  Coffee, Utensils, Send, Check, Flame, ShoppingBag, Trash2, XCircle
+  Coffee, Utensils, Send, Check, Flame, ShoppingBag, Trash2, XCircle,
+  LayoutGrid, Table as TableIcon, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './KOTMonitor.module.css';
 
 export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder, enableEstimatedPrepTime = false }) {
+  const [viewMode, setViewMode] = useState('card'); // 'card' | 'table'
+  const [tableStatusTab, setTableStatusTab] = useState('all'); // 'all', 'pending', 'preparing', 'ready', 'completed', 'cancelled'
+  const [tableSearchQuery, setTableSearchQuery] = useState('');
   const [orderChannel, setOrderChannel] = useState('All');
   const [now, setNow] = useState(Date.now());
   const [localOrders, setLocalOrders] = useState([]);
@@ -116,27 +120,81 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const readyOrders = filteredOrders.filter(o => o.status === 'ready');
   const servedOrders = filteredOrders.filter(o => o.status === 'completed' || o.status === 'served');
 
+  // Filtered orders for Table View based on secondary status toggle + channel + search
+  const displayedTableOrders = localOrders.filter(ord => {
+    // 1. Channel filter
+    if (orderChannel !== 'All' && (ord.channel || '').toLowerCase() !== orderChannel.toLowerCase()) {
+      return false;
+    }
+    // 2. Status filter
+    if (tableStatusTab === 'pending') {
+      if (ord.status !== 'pending' && ord.status !== 'confirmed') return false;
+    } else if (tableStatusTab === 'preparing') {
+      if (ord.status !== 'preparing') return false;
+    } else if (tableStatusTab === 'ready') {
+      if (ord.status !== 'ready') return false;
+    } else if (tableStatusTab === 'completed') {
+      if (ord.status !== 'completed' && ord.status !== 'served') return false;
+    } else if (tableStatusTab === 'cancelled') {
+      if (ord.status !== 'cancelled') return false;
+    }
+    // 3. Search query
+    if (tableSearchQuery.trim()) {
+      const q = tableSearchQuery.toLowerCase();
+      const matchOrderNum = String(ord.orderNumber || '').toLowerCase().includes(q);
+      const matchTable = String(ord.tableNumber || '').toLowerCase().includes(q);
+      const matchCust = String(ord.customerName || '').toLowerCase().includes(q);
+      const matchItems = (ord.items || []).some(it => String(it.name || '').toLowerCase().includes(q));
+      if (!matchOrderNum && !matchTable && !matchCust && !matchItems) return false;
+    }
+    return true;
+  });
+
   return (
     <div className={styles.kdsWrapper}>
       <div className={styles.mainKdsLayout}>
         <div className={styles.kdsBoardColumn}>
           
-          {/* Streamlined Channel Filter & Actions Bar */}
+          {/* Top Bar: View Mode Toggle & Metrics */}
           <div className={styles.channelBar}>
-            <div className={styles.channelTabs}>
-              {['All', 'Dine-in', 'Takeaway', 'Delivery'].map(ch => (
-                <button
-                  key={ch}
-                  type="button"
-                  className={`${styles.channelTab} ${orderChannel === ch ? styles.activeChannelTab : ''}`}
-                  onClick={() => setOrderChannel(ch)}
-                >
-                  {ch === 'All' ? 'All Orders' : ch}
-                </button>
-              ))}
+            {/* Primary Toggle: Card View vs Table View */}
+            <div className={styles.viewModeToggleGroup}>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'card' ? styles.viewModeBtnActive : ''}`}
+                onClick={() => setViewMode('card')}
+                title="Card View (Kanban Board)"
+              >
+                <LayoutGrid size={15} />
+                <span>Card View</span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeBtnActive : ''}`}
+                onClick={() => setViewMode('table')}
+                title="Table View (Filtered List)"
+              >
+                <TableIcon size={15} />
+                <span>Table View</span>
+              </button>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {viewMode === 'card' && (
+                <div className={styles.channelTabs} style={{ marginRight: '4px' }}>
+                  {['All', 'Dine-in', 'Takeaway', 'Delivery'].map(ch => (
+                    <button
+                      key={ch}
+                      type="button"
+                      className={`${styles.channelTab} ${orderChannel === ch ? styles.activeChannelTab : ''}`}
+                      onClick={() => setOrderChannel(ch)}
+                      style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                    >
+                      {ch === 'All' ? 'All' : ch}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={styles.perfMetric}>
                 <span>Active In Prep:</span>
                 <span className={styles.avgTimePill}>{inKitchenOrders.length} Tickets</span>
@@ -152,8 +210,9 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             </div>
           </div>
 
-          {/* 4-STAGE KANBAN COLUMNS */}
-          <div className={styles.kanbanGrid}>
+          {viewMode === 'card' ? (
+            /* 4-STAGE KANBAN COLUMNS */
+            <div className={styles.kanbanGrid}>
             
             {/* COLUMN 1: NEW ORDERS */}
             <div className={styles.kanbanCol}>
@@ -472,6 +531,283 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             </div>
 
           </div>
+          ) : (
+            /* TABLE VIEW */
+            <div className={styles.tableKdsContainer}>
+              {/* Secondary Status Filter Tabs + Search */}
+              <div className={styles.tableFilterBar}>
+                <div className={styles.statusTabsGroup}>
+                  {[
+                    { id: 'all', label: 'All Orders', count: localOrders.length, color: '#4f46e5' },
+                    { id: 'pending', label: 'New Orders', count: newOrders.length, color: '#2563eb' },
+                    { id: 'preparing', label: 'In Kitchen', count: inKitchenOrders.length, color: '#d97706' },
+                    { id: 'ready', label: 'Ready for Pass', count: readyOrders.length, color: '#16a34a' },
+                    { id: 'completed', label: 'Served (Completed)', count: servedOrders.length, color: '#64748b' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`${styles.statusTabBtn} ${tableStatusTab === tab.id ? styles.statusTabBtnActive : ''}`}
+                      onClick={() => setTableStatusTab(tab.id)}
+                    >
+                      <span>{tab.label}</span>
+                      <span 
+                        className={styles.statusTabBadge}
+                        style={{
+                          backgroundColor: tableStatusTab === tab.id ? tab.color : '#e2e8f0',
+                          color: tableStatusTab === tab.id ? '#ffffff' : '#475569'
+                        }}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {/* Search Input */}
+                  <div style={{ position: 'relative' }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search order #, table, dish..."
+                      value={tableSearchQuery}
+                      onChange={(e) => setTableSearchQuery(e.target.value)}
+                      style={{
+                        padding: '6px 10px 6px 30px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.78rem',
+                        outline: 'none',
+                        width: '190px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Channel quick filter */}
+                  <select
+                    value={orderChannel}
+                    onChange={(e) => setOrderChannel(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.78rem',
+                      background: '#ffffff',
+                      fontWeight: 600,
+                      outline: 'none',
+                      color: '#334155'
+                    }}
+                  >
+                    <option value="All">All Channels</option>
+                    <option value="Dine-in">Dine-in</option>
+                    <option value="Takeaway">Takeaway</option>
+                    <option value="Delivery">Delivery</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Table of Orders */}
+              <div className={styles.kdsTableWrap}>
+                <table className={styles.kdsDataTable}>
+                  <thead>
+                    <tr>
+                      <th>Order #</th>
+                      <th>Table / Channel</th>
+                      <th>Customer</th>
+                      <th>Items & Modifiers</th>
+                      <th>Placed & Elapsed</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedTableOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className={styles.emptyTableState}>
+                          No orders found matching the filter criteria ({tableStatusTab.replace('_', ' ')}).
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedTableOrders.map((order) => {
+                        const elapsedMins = getElapsedMinutes(order.createdAt);
+                        const isLate = elapsedMins >= (order.estimatedTime || 15);
+                        const isNew = order.status === 'pending' || order.status === 'confirmed';
+                        const isPrep = order.status === 'preparing';
+                        const isReady = order.status === 'ready';
+                        const isDone = order.status === 'completed' || order.status === 'served';
+                        const isCancelled = order.status === 'cancelled';
+
+                        return (
+                          <tr key={order._id}>
+                            <td>
+                              <div className={styles.tableOrderNum}>
+                                #{order.orderNumber}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                ID: {order._id.slice(-6)}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 800, color: '#0f172a' }}>
+                                Table {order.tableNumber}
+                              </div>
+                              <span className={styles.tableChannelBadge}>
+                                {order.channel || 'Dine-in'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                                {order.customerName || 'Walk-in Guest'}
+                              </div>
+                            </td>
+                            <td style={{ maxWidth: '280px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                {order.items.map((it, idx) => (
+                                  <div key={idx} className={styles.tableDishItem}>
+                                    <span className={styles.tableDishQty}>x{it.quantity}</span>
+                                    <span>{it.name}</span>
+                                    {it.modifiers && (
+                                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>({it.modifiers})</span>
+                                    )}
+                                  </div>
+                                ))}
+                                {order.specialInstructions && (
+                                  <div style={{ fontSize: '0.68rem', color: '#ea580c', fontStyle: 'italic', marginTop: '2px' }}>
+                                    Note: {order.specialInstructions}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 600 }}>
+                                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              <div style={{ marginTop: '2px' }}>
+                                <span className={`${styles.timerBadge} ${isLate && !isDone ? styles.timerLate : ''}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
+                                  <Clock size={10} /> {formatElapsedTime(order.createdAt)}
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.85rem' }}>
+                                ₹{Math.round(order.totalAmount || order.total || 0)}
+                              </div>
+                            </td>
+                            <td>
+                              {isNew && (
+                                <span className={styles.statusPillNew}>
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }}></span>
+                                  New Order
+                                </span>
+                              )}
+                              {isPrep && (
+                                <span className={styles.statusPillPrep}>
+                                  <Flame size={11} /> In Kitchen
+                                </span>
+                              )}
+                              {isReady && (
+                                <span className={styles.statusPillReady}>
+                                  <Check size={11} /> Ready
+                                </span>
+                              )}
+                              {isDone && (
+                                <span className={styles.statusPillServed}>
+                                  Delivered
+                                </span>
+                              )}
+                              {isCancelled && (
+                                <span className={styles.statusPillCancelled}>
+                                  Cancelled
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                {isNew && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={styles.tblBtnPrep}
+                                      onClick={() => {
+                                        if (enableEstimatedPrepTime) {
+                                          setOrderToPrep(order);
+                                          setPrepTimeMinutes(order.estimatedTime || 20);
+                                        } else {
+                                          handleUpdateStage(order._id, 'preparing', 20);
+                                          toast.success(`Cooking started for Table ${order.tableNumber}`);
+                                        }
+                                      }}
+                                    >
+                                      <Flame size={12} /> Start Prep
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.tblBtnCancel}
+                                      onClick={() => handleUpdateStage(order._id, 'cancelled')}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
+                                {isPrep && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={styles.tblBtnReady}
+                                      onClick={() => handleUpdateStage(order._id, 'ready')}
+                                    >
+                                      <Check size={12} /> Mark Ready
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.tblBtnCancel}
+                                      onClick={() => handleUpdateStage(order._id, 'cancelled')}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
+                                {isReady && (
+                                  <button
+                                    type="button"
+                                    className={styles.tblBtnServed}
+                                    onClick={() => handleUpdateStage(order._id, 'completed')}
+                                  >
+                                    <CheckCircle size={12} /> Mark Served
+                                  </button>
+                                )}
+                                {isDone && (
+                                  <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>
+                                    Completed
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setOrderToDelete(order)}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '4px'
+                                  }}
+                                  title="Delete Order"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

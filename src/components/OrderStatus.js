@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import styles from "./OrderStatus.module.css";
 import axios from "axios";
-import { CheckCircle, Clock, ChefHat, ShoppingBag, ArrowRight } from "lucide-react";
+import { CheckCircle, Clock, ChefHat, ShoppingBag, ArrowRight, Plus, ChevronLeft, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { API_URL as API } from "../config/api";
 
 const OrderStatus = () => {
   const { id } = useParams(); // Should matched defined route param (App.js: /order/status/:id)
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,6 +19,18 @@ const OrderStatus = () => {
     { id: 'ready', label: 'Ready', icon: CheckCircle },
     { id: 'completed', label: 'Completed', icon: CheckCircle },
   ];
+
+  // Intercept browser / hardware Back button: Always navigate to Menu instead of returning to Cart
+  useEffect(() => {
+    const handlePopState = (e) => {
+      const tbl = order?.tableNumber || localStorage.getItem('serviq_last_table') || '';
+      navigate(`/menu${tbl ? `?table=${encodeURIComponent(tbl)}` : ''}`, { replace: true });
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate, order?.tableNumber]);
 
   useEffect(() => {
     if (!id || id === 'undefined') {
@@ -61,13 +74,40 @@ const OrderStatus = () => {
 
   const currentStepIndex = steps.findIndex(s => s.id === order.status);
   const isCancelled = order.status === 'cancelled';
+  const tableTarget = order.tableNumber ? `?table=${encodeURIComponent(order.tableNumber)}` : '';
 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
+        {/* Top Header with Back to Menu navigation */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              border: 'none',
+              background: '#f1f5f9',
+              color: '#334155',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+          >
+            <ChevronLeft size={16} /> Back to Menu
+          </button>
+          <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748b' }}>
+            Table {order.tableNumber || 'Takeaway'}
+          </span>
+        </div>
+
         <div className={styles.header}>
-          <h1>Order #{order._id.slice(-6).toUpperCase()}</h1>
-          <p className={styles.tenantName}>{order?.tenantId?.name || "The Cafe"}</p>
+          <h1>Order #{order.orderNumber ? order.orderNumber : (order._id ? order._id.slice(-6).toUpperCase() : 'ORD')}</h1>
+          <p className={styles.tenantName}>{order?.tenantId?.name || "SERVIQ Cafe"}</p>
           {Number(order.estimatedTime) > 0 && order.tenantId?.settings?.enableEstimatedPrepTime !== false && order.status !== 'completed' && order.status !== 'cancelled' && (
             <div className={styles.estimatedTimeWrapper}>
               <div className={styles.estimatedTimeHeader}>
@@ -122,23 +162,102 @@ const OrderStatus = () => {
           </div>
         )}
 
+        {/* ORDER SUMMARY WITH COMPLETE ITEM BREAKDOWN */}
         <div className={styles.details}>
-          <h3>Order Summary</h3>
-          {order.items.map((item, i) => (
-            <div key={i} className={styles.itemRow}>
-              <span>{item.quantity}x {item.name}</span>
-              <span>₹{item.price * item.quantity}</span>
-            </div>
-          ))}
-          <div className={styles.totalRow}>
-            <span>Total</span>
-            <span>₹{Math.round(order.total || 0)}</span>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem' }}>Ordered Items Summary</h3>
+          {order.items && order.items.map((item, i) => {
+            const varLabel = item.variant?.name ? `(${item.variant.name})` : '';
+            const addonsLabel = item.addons && item.addons.length > 0
+              ? item.addons.map(a => a.name).join(', ')
+              : '';
+
+            return (
+              <div
+                key={i}
+                className={styles.itemRow}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  padding: '6px 0',
+                  borderBottom: '1px dashed #e2e8f0'
+                }}
+              >
+                <div style={{ flex: 1, paddingRight: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>
+                    {item.quantity}x {item.name} {varLabel}
+                  </div>
+                  {addonsLabel && (
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
+                      Add-ons: {addonsLabel}
+                    </div>
+                  )}
+                  {item.specialNotes && (
+                    <div style={{ fontSize: '11px', color: '#b45309', fontStyle: 'italic', marginTop: 1 }}>
+                      Note: "{item.specialNotes}"
+                    </div>
+                  )}
+                </div>
+                <span style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>
+                  ₹{Math.round(item.price * item.quantity)}
+                </span>
+              </div>
+            );
+          })}
+
+          <div className={styles.totalRow} style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '2px solid #e2e8f0' }}>
+            <span style={{ fontWeight: 800 }}>Grand Total</span>
+            <span style={{ fontWeight: 900, color: '#2563eb', fontSize: '1.15rem' }}>₹{Math.round(order.settledAmount || order.total || 0)}</span>
           </div>
+        </div>
+
+        {/* PROMINENT + ADD MORE ITEMS BUTTON */}
+        <div style={{ margin: '1.25rem 0' }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
+            style={{
+              width: '100%',
+              padding: '13px 16px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+              color: '#ffffff',
+              border: 'none',
+              fontWeight: 800,
+              fontSize: '0.95rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+              transition: 'transform 0.15s ease'
+            }}
+          >
+            <Plus size={18} strokeWidth={2.5} /> + Add More Items
+          </button>
         </div>
 
         <div className={styles.footer}>
           <p>Table: <strong>{order.tableNumber}</strong> — Enjoy your meal!</p>
-          <div className={styles.poweredBy}>Powered by <span>SERVIQ OS</span></div>
+          <div className={styles.poweredBy}>
+            Powered by{' '}
+            <a
+              href="https://serviq.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#2563eb',
+                fontWeight: 800,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3
+              }}
+            >
+              SERVIQ OS <ExternalLink size={11} />
+            </a>
+          </div>
         </div>
       </div>
     </div>

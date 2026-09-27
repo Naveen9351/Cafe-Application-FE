@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useCartContext } from "../context/CartContext";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Minus, Sun, Moon, Sparkles, Heart
+  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Minus, Sun, Moon, Sparkles, Heart, Check, Clock
 } from "lucide-react";
 import { getValidFoodImage } from "./AdminPanel";
 import styles from "./Menu.module.css";
 import { API_URL as API } from "../config/api";
 
 export default function Menu() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [tableNumber, setTableNumber] = useState("");
@@ -19,9 +20,15 @@ export default function Menu() {
   const [tenantId, setTenantId] = useState("");
   const [tenantInfo, setTenantInfo] = useState({ name: "SERVIQ Gourmet Cafe", address: "Premium Dining Area" });
 
-  // Selected Item & Variant for Detail View (Screen 2)
+  // Selected Item & Variant for Detail View (Bottom Sheet)
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [dishNotes, setDishNotes] = useState("");
+  const [modalDishQty, setModalDishQty] = useState(1);
+
+  // Live Active Order on Customer Dashboard
+  const [activeRunningOrder, setActiveRunningOrder] = useState(null);
 
   const { addItem, updateItemQuantity, removeItem, items: cartItems, getCartTotal } = useCartContext();
   const [searchParams] = useSearchParams();
@@ -41,6 +48,11 @@ export default function Menu() {
   const openItemDetails = (item) => {
     window.history.pushState({ itemDetailModal: true, itemId: item._id }, "");
     setSelectedItem(item);
+    const vars = item.variants || item.sizes || item.portionSizes || [];
+    setSelectedVariant(vars.length > 0 ? vars[0] : null);
+    setSelectedAddons([]);
+    setDishNotes("");
+    setModalDishQty(1);
   };
 
   const closeItemDetails = () => {
@@ -76,10 +88,66 @@ export default function Menu() {
       } else {
         setSelectedVariant(null);
       }
+      setSelectedAddons([]);
+      setDishNotes("");
+      setModalDishQty(1);
     } else {
       setSelectedVariant(null);
+      setSelectedAddons([]);
+      setDishNotes("");
+      setModalDishQty(1);
     }
   }, [selectedItem]);
+
+  // Polling for live active order for customer dashboard banner
+  useEffect(() => {
+    let pollInterval;
+    const checkLiveOrder = async () => {
+      const lastOrdId = localStorage.getItem('serviq_last_order_id');
+      const curTable = tableNumber || searchParams.get('table') || localStorage.getItem('tableNumber');
+
+      if (lastOrdId) {
+        try {
+          const res = await axios.get(`${API}/orders/status/${lastOrdId}`);
+          if (res.data && ['pending', 'confirmed', 'preparing', 'ready'].includes(res.data.status)) {
+            setActiveRunningOrder(res.data);
+            return;
+          } else {
+            setActiveRunningOrder(null);
+          }
+        } catch (e) {
+          // Fall through
+        }
+      }
+
+      if (curTable && curTable !== 'Takeaway' && curTable !== 'Counter') {
+        try {
+          const currentTenantId = tenantId || searchParams.get('tenantId') || localStorage.getItem('tenantId');
+          const res = await axios.get(`${API}/orders`, {
+            params: {
+              tableNumber: curTable,
+              tenantId: currentTenantId,
+              status: 'active'
+            }
+          });
+          if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+            const active = res.data.find(o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status));
+            if (active) {
+              setActiveRunningOrder(active);
+              return;
+            }
+          }
+          setActiveRunningOrder(null);
+        } catch (e) {
+          setActiveRunningOrder(null);
+        }
+      }
+    };
+
+    checkLiveOrder();
+    pollInterval = setInterval(checkLiveOrder, 6000);
+    return () => clearInterval(pollInterval);
+  }, [tableNumber, tenantId, searchParams]);
 
   const theme = isDarkMode ? {
     bgPage: '#090706',
@@ -223,8 +291,14 @@ export default function Menu() {
   };
 
   const filteredItems = items.filter((item) => {
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = !q ||
+      item.name.toLowerCase().includes(q) ||
+      (item.description && item.description.toLowerCase().includes(q)) ||
+      (item.category && item.category.toLowerCase().includes(q));
+
+    // When searching, search all categories so user finds dish across entire menu
+    const matchesCategory = q ? true : (selectedCategory === "all" || item.category === selectedCategory);
     return matchesCategory && matchesSearch;
   });
 
@@ -265,13 +339,21 @@ export default function Menu() {
     }
   };
 
-  const handleAdd = (item, event, overrideVariant = null) => {
+  const handleAdd = (item, event, overrideVariant = null, overrideAddons = null, overrideNotes = null, overrideQty = 1) => {
     if (!item.available && item.available !== undefined) {
       toast.error(`${item.name} is currently out of stock`);
       return;
     }
 
     const vars = item.variants || item.sizes || item.portionSizes || [];
+    const addons = item.addons || [];
+
+    // If item has customizable options (variants or add-ons) and user tapped without customizing, open bottom-sheet modal!
+    if ((vars.length > 0 || addons.length > 0) && !overrideVariant && !selectedItem) {
+      openItemDetails(item);
+      return;
+    }
+
     const chosenVariant = overrideVariant || selectedVariant || (vars.length > 0 ? vars[0] : null);
     let basePrice = item.price;
     let variantLabel = '';
@@ -285,29 +367,45 @@ export default function Menu() {
       }
     }
 
+    const chosenAddons = overrideAddons || selectedAddons || [];
+    const addonsPrice = chosenAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+    const addonsLabel = chosenAddons.map(a => a.name).join(', ');
+
     const discount = item.discount || {};
-    let finalPrice = basePrice;
+    let finalBasePrice = basePrice;
     if (discount.isDiscounted && discount.value > 0) {
       if (discount.type === 'percentage') {
-        finalPrice = Math.max(0, Math.round(basePrice * (1 - discount.value / 100)));
+        finalBasePrice = Math.max(0, Math.round(basePrice * (1 - discount.value / 100)));
       } else {
-        finalPrice = Math.max(0, basePrice - discount.value);
+        finalBasePrice = Math.max(0, basePrice - discount.value);
       }
     }
 
-    const cartId = variantLabel ? `${item._id}_${variantLabel}` : item._id;
-    const cartName = variantLabel ? `${item.name} (${variantLabel})` : item.name;
+    const finalItemPrice = finalBasePrice + addonsPrice;
+    const notes = overrideNotes !== null ? overrideNotes : (dishNotes || '');
+    const qty = Math.max(1, overrideQty || 1);
+
+    const parts = [item._id];
+    if (variantLabel) parts.push(variantLabel);
+    if (addonsLabel) parts.push(addonsLabel);
+    const cartId = parts.join('_');
+
+    let cartName = item.name;
+    if (variantLabel) cartName += ` (${variantLabel})`;
+    if (addonsLabel) cartName += ` + ${addonsLabel}`;
 
     addItem({
       id: cartId,
       itemId: item._id,
       name: cartName,
-      price: finalPrice,
-      originalPrice: basePrice,
+      price: finalItemPrice,
+      originalPrice: basePrice + addonsPrice,
       category: item.category,
       image: getValidFoodImage(item),
-      variant: chosenVariant ? (typeof chosenVariant === 'object' ? chosenVariant : { name: variantLabel, price: finalPrice }) : null,
-      addons: []
+      variant: chosenVariant ? (typeof chosenVariant === 'object' ? chosenVariant : { name: variantLabel, price: finalBasePrice }) : null,
+      addons: chosenAddons,
+      specialNotes: notes,
+      quantity: qty
     });
 
     // Spawn Flying Particle Animation to Cart
@@ -460,6 +558,48 @@ export default function Menu() {
                     </Link>
                   </div>
                 </div>
+
+                {/* Live Active Order Banner (Customer Dashboard) */}
+                {activeRunningOrder && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => navigate(`/order/status/${activeRunningOrder._id}`)}
+                    style={{
+                      marginBottom: '0.85rem',
+                      padding: '10px 14px',
+                      background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                      border: '1.5px solid #3b82f6',
+                      borderRadius: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 2px 8px rgba(59, 130, 246, 0.15)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <div style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: '#2563eb',
+                        boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.25)'
+                      }} />
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e3a8a' }}>
+                          Active Order #{activeRunningOrder.orderNumber || activeRunningOrder._id?.slice(-4)} • Table {activeRunningOrder.tableNumber}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, textTransform: 'capitalize' }}>
+                          Status: {activeRunningOrder.status} ({activeRunningOrder.items?.length || 0} items)
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                      Track →
+                    </span>
+                  </motion.div>
+                )}
 
                 {/* Search Box */}
                 <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
@@ -928,7 +1068,7 @@ export default function Menu() {
                       {Array.isArray(availableVariants) && availableVariants.length > 0 && (
                         <div style={{ marginTop: '1.25rem' }}>
                           <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>Serving Portion Size</h3>
-                          <div style={{ display: 'flex', gap: '0.65rem' }}>
+                          <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
                             {availableVariants.map((v, idx) => {
                               const vName = typeof v === 'object' ? (v.name || v.size || `Option ${idx + 1}`) : String(v);
                               const vPrice = typeof v === 'object' ? (Number(v.price) || selectedItem.price) : selectedItem.price;
@@ -942,7 +1082,8 @@ export default function Menu() {
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => setSelectedVariant(v)}
                                   style={{
-                                    flex: 1,
+                                    flex: '1 1 calc(50% - 0.5rem)',
+                                    minWidth: '100px',
                                     backgroundColor: isSelected ? theme.accent : theme.bgCard,
                                     border: isSelected ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
                                     borderRadius: '12px',
@@ -957,12 +1098,12 @@ export default function Menu() {
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    justify: 'center'
+                                    justifyContent: 'center'
                                   }}
                                 >
                                   <span>{vName}</span>
-                                  {vPrice && vPrice !== selectedItem.price && (
-                                    <span style={{ fontSize: '0.7rem', opacity: 0.85, marginTop: '2px' }}>₹{vPrice}</span>
+                                  {vPrice && (
+                                    <span style={{ fontSize: '0.72rem', opacity: 0.9, marginTop: '2px', fontWeight: '900' }}>₹{vPrice}</span>
                                   )}
                                 </motion.button>
                               );
@@ -970,6 +1111,75 @@ export default function Menu() {
                           </div>
                         </div>
                       )}
+
+                      {/* Extra Add-ons Options */}
+                      {Array.isArray(selectedItem.addons) && selectedItem.addons.length > 0 && (
+                        <div style={{ marginTop: '1.25rem' }}>
+                          <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>Extra Add-ons</h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {selectedItem.addons.map((addon, aIdx) => {
+                              const isChecked = selectedAddons.some(a => a.name === addon.name);
+                              return (
+                                <div
+                                  key={addon.name || aIdx}
+                                  onClick={() => {
+                                    if (isChecked) {
+                                      setSelectedAddons(prev => prev.filter(a => a.name !== addon.name));
+                                    } else {
+                                      setSelectedAddons(prev => [...prev, addon]);
+                                    }
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '0.65rem 0.85rem',
+                                    backgroundColor: isChecked ? `${theme.accent}15` : theme.bgCard,
+                                    border: isChecked ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                                    borderRadius: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {}}
+                                      style={{ accentColor: theme.accent, width: '16px', height: '16px', cursor: 'pointer' }}
+                                    />
+                                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: theme.textMain }}>{addon.name}</span>
+                                  </div>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: '900', color: theme.accent }}>+₹{addon.price || 0}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cooking Instructions / Notes */}
+                      <div style={{ marginTop: '1.25rem' }}>
+                        <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.45rem' }}>Cooking Instructions / Notes</h3>
+                        <input
+                          type="text"
+                          value={dishNotes}
+                          onChange={(e) => setDishNotes(e.target.value)}
+                          placeholder="e.g. Less spicy, no onions, extra crispy..."
+                          style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            backgroundColor: theme.bgCard,
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: '12px',
+                            padding: '0.75rem 0.85rem',
+                            color: theme.textMain,
+                            fontSize: '0.82rem',
+                            outline: 'none',
+                            transition: 'border 0.2s ease'
+                          }}
+                        />
+                      </div>
 
                       {/* Pair with recommendation list */}
                       <div style={{ marginTop: '1.5rem' }}>
@@ -993,91 +1203,54 @@ export default function Menu() {
                       </div>
                     </div>
 
-                    {/* Sticky Bottom Action Bar (Quantity + Add to Basket) */}
-                    <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                      {(() => {
-                        const variantLabel = selectedVariant ? (selectedVariant.name || selectedVariant.size || '') : '';
-                        const targetCartId = variantLabel ? `${selectedItem._id}_${variantLabel}` : selectedItem._id;
-                        const cartItemMatch = cartItems.find(ci => ci.id === targetCartId);
-                        const qtyInCart = cartItemMatch ? cartItemMatch.quantity : 0;
+                    {/* Sticky Bottom Action Bar (Quantity Stepper + Dynamic Total Add to Cart) */}
+                    {(() => {
+                      const addonsTotal = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+                      const unitPrice = currentPrice + addonsTotal;
+                      const dynamicTotal = unitPrice * modalDishQty;
 
-                        if (qtyInCart > 0) {
-                          return (
-                            <div style={{ flex: 1, display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  backgroundColor: theme.bgCard,
-                                  border: `1.5px solid ${theme.accent}`,
-                                  borderRadius: '14px',
-                                  padding: '0.4rem 0.75rem',
-                                  gap: '1rem',
-                                  height: '48px',
-                                  boxSizing: 'border-box'
-                                }}
-                              >
-                                <motion.button
-                                  whileTap={{ scale: 0.8 }}
-                                  onClick={() => {
-                                    if (qtyInCart <= 1) {
-                                      removeItem(targetCartId);
-                                    } else {
-                                      updateItemQuantity(targetCartId, qtyInCart - 1);
-                                    }
-                                  }}
-                                  style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                                  title="Decrease quantity"
-                                >
-                                  <Minus size={18} strokeWidth={3} />
-                                </motion.button>
-                                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: theme.textMain, minWidth: '18px', textAlign: 'center' }}>
-                                  {qtyInCart}
-                                </span>
-                                <motion.button
-                                  whileTap={{ scale: 0.8 }}
-                                  onClick={() => updateItemQuantity(targetCartId, qtyInCart + 1)}
-                                  style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                                  title="Increase quantity"
-                                >
-                                  <Plus size={18} strokeWidth={3} />
-                                </motion.button>
-                              </div>
+                      return (
+                        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              backgroundColor: theme.bgCard,
+                              border: `1.5px solid ${theme.accent}`,
+                              borderRadius: '14px',
+                              padding: '0.4rem 0.75rem',
+                              gap: '0.85rem',
+                              height: '48px',
+                              boxSizing: 'border-box'
+                            }}
+                          >
+                            <motion.button
+                              whileTap={{ scale: 0.8 }}
+                              onClick={() => setModalDishQty(prev => Math.max(1, prev - 1))}
+                              style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                              title="Decrease quantity"
+                            >
+                              <Minus size={18} strokeWidth={3} />
+                            </motion.button>
+                            <span style={{ fontSize: '1.05rem', fontWeight: '900', color: theme.textMain, minWidth: '18px', textAlign: 'center' }}>
+                              {modalDishQty}
+                            </span>
+                            <motion.button
+                              whileTap={{ scale: 0.8 }}
+                              onClick={() => setModalDishQty(prev => prev + 1)}
+                              style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                              title="Increase quantity"
+                            >
+                              <Plus size={18} strokeWidth={3} />
+                            </motion.button>
+                          </div>
 
-                              <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.96 }}
-                                onClick={closeItemDetails}
-                                style={{
-                                  flex: 1,
-                                  backgroundColor: theme.accent,
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  fontWeight: '800',
-                                  fontSize: '0.98rem',
-                                  padding: '0.85rem',
-                                  borderRadius: '14px',
-                                  cursor: 'pointer',
-                                  boxShadow: `0 8px 25px ${theme.accentGlow}`,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '0.4rem',
-                                  height: '48px'
-                                }}
-                              >
-                                Added (₹{currentPrice * qtyInCart}) • Done
-                              </motion.button>
-                            </div>
-                          );
-                        }
-
-                        return (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.96 }}
                             onClick={(e) => {
-                              handleAdd(selectedItem, e, selectedVariant);
+                              handleAdd(selectedItem, e, selectedVariant, selectedAddons, dishNotes, modalDishQty);
+                              closeItemDetails();
                             }}
                             style={{
                               flex: 1,
@@ -1086,22 +1259,23 @@ export default function Menu() {
                               border: 'none',
                               fontWeight: '800',
                               fontSize: '0.98rem',
-                              padding: '0.95rem',
+                              padding: '0.85rem',
                               borderRadius: '14px',
                               cursor: 'pointer',
                               boxShadow: `0 8px 25px ${theme.accentGlow}`,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '0.4rem'
+                              gap: '0.4rem',
+                              height: '48px'
                             }}
                           >
-                            Add to Order • ₹{currentPrice}
+                            Add to Cart • ₹{dynamicTotal}
                             <Plus size={16} strokeWidth={3} />
                           </motion.button>
-                        );
-                      })()}
-                    </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}

@@ -17,6 +17,8 @@ import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilo
 import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
 import PageLoader from './components/PageLoader';
 
+const ALL_STAFF_ROLES = ['admin', 'manager', 'cashier', 'chef', 'waiter', 'staff', 'kitchen', 'custom', 'super_admin'];
+
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -29,7 +31,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  const effectiveRoles = allowedRoles || ALL_STAFF_ROLES;
+  const userRole = (user.role || 'staff').toLowerCase();
+
+  if (!effectiveRoles.includes(userRole) && userRole !== 'super_admin') {
     return <Navigate to="/" replace />;
   }
 
@@ -146,7 +151,7 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute allowedRoles={['admin', 'staff', 'super_admin']}>
+          <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}>
             <Navigate to="/admin/dashboard" replace />
           </ProtectedRoute>
         }
@@ -154,7 +159,7 @@ function AppRoutes() {
       <Route
         path="/admin/:tab"
         element={
-          <ProtectedRoute allowedRoles={['admin', 'staff', 'super_admin']}>
+          <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}>
             <AdminPanel />
           </ProtectedRoute>
         }

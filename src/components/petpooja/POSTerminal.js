@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   Grid, Plus, Minus, Search, Check, X, RefreshCw, CreditCard,
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
   Utensils, ChefHat, Eye, CheckCircle2, AlertCircle, Sparkles, Filter,
-  User, Phone, BookOpen, StickyNote
+  User, Phone, BookOpen, StickyNote, Volume2, VolumeX
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getValidFoodImage } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
+import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioChime';
 
 export default function POSTerminal({
   tenantId,
@@ -59,10 +60,28 @@ export default function POSTerminal({
   const [customizingItem, setCustomizingItem] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedAddons, setSelectedAddons] = useState([]);
+  const [customNotes, setCustomNotes] = useState('');
+  const [customQty, setCustomQty] = useState(1);
 
   // Split bill states
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
+
+  // Merged tables state
+  const [mergedTables, setMergedTables] = useState([]);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [actualAmountReceived, setActualAmountReceived] = useState('');
+  const [isMuted, setIsMuted] = useState(() => isAudioMuted());
+
+  const prevOrdersCountRef = useRef(orders ? orders.length : 0);
+  useEffect(() => {
+    if (orders && orders.length > prevOrdersCountRef.current) {
+      if (!isMuted) {
+        playOrderChime();
+      }
+    }
+    prevOrdersCountRef.current = orders ? orders.length : 0;
+  }, [orders, isMuted]);
 
   // Fetch dynamic tables from backend DB
   const fetchDbTables = useCallback(() => {
@@ -266,13 +285,23 @@ export default function POSTerminal({
     toast.success('Opened Counter Walk-in POS');
   };
 
-  // Active orders currently belonging to the selected table in POS
+  // Active orders currently belonging to the selected table + any merged tables in POS
   const currentTableOrders = useMemo(() => {
     if (!tableNumber) return [];
-    const tStr = String(tableNumber).trim();
-    const numOnly = tStr.replace(/[^0-9]/g, '') || tStr;
-    return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
-  }, [tableNumber, activeOrdersByTable]);
+    const allTableNums = [tableNumber, ...mergedTables];
+    const combinedOrders = [];
+    allTableNums.forEach((t) => {
+      const tStr = String(t).trim();
+      const numOnly = tStr.replace(/[^0-9]/g, '') || tStr;
+      const ords = activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
+      ords.forEach(o => {
+        if (!combinedOrders.some(existing => existing._id === o._id)) {
+          combinedOrders.push(o);
+        }
+      });
+    });
+    return combinedOrders;
+  }, [tableNumber, mergedTables, activeOrdersByTable]);
 
   // Format money helper to eliminate floating point precision junk (e.g. 1739.8500000000001 -> 1,739.85)
   const formatAmount = (val) => {
@@ -359,30 +388,35 @@ export default function POSTerminal({
     }
     const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
     const totalPrice = finalPrice + addonPrice;
+    const addQty = Math.max(1, customQty || 1);
 
     const existingIndex = cart.findIndex(c =>
       c.id === customizingItem._id &&
       ((!c.variant && !selectedVariant) || (c.variant?.name === selectedVariant?.name)) &&
-      JSON.stringify(c.addons || []) === JSON.stringify(selectedAddons || [])
+      JSON.stringify(c.addons || []) === JSON.stringify(selectedAddons || []) &&
+      (c.specialNotes || '') === (customNotes || '')
     );
 
     if (existingIndex > -1) {
       const newCart = [...cart];
-      newCart[existingIndex].quantity += 1;
+      newCart[existingIndex].quantity += addQty;
       setCart(newCart);
     } else {
       setCart([...cart, {
         id: customizingItem._id,
         name: variantName ? `${customizingItem.name} (${variantName})` : customizingItem.name,
         price: totalPrice,
-        quantity: 1,
+        quantity: addQty,
         variant: selectedVariant,
-        addons: selectedAddons
+        addons: selectedAddons,
+        specialNotes: customNotes
       }]);
     }
 
     setCustomizingItem(null);
-    toast.success(`Added ${customizingItem.name}${variantName ? ` (${variantName})` : ''}`);
+    setCustomNotes('');
+    setCustomQty(1);
+    toast.success(`Added ${addQty}x ${customizingItem.name}${variantName ? ` (${variantName})` : ''}`);
   };
 
   const updateCartQty = (idx, delta) => {
@@ -530,24 +564,39 @@ export default function POSTerminal({
         });
       }
 
-      // 2. Settle all existing orders on this table
+      // 2. Settle all existing orders on this table (including merged tables)
+      const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
+      const finalSettledAmount = actualAmountReceived !== '' ? Number(actualAmountReceived) : grandTotal;
+
       if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { paymentMethod, paymentStatus: 'paid', tenantId: effectiveTenantId },
+          { 
+            paymentMethod, 
+            paymentStatus: 'paid', 
+            tenantId: effectiveTenantId,
+            mergedTables: allSettleTables,
+            settledAmount: finalSettledAmount,
+            originalTotal: grandTotal
+          },
           { headers: token ? { 'x-auth-token': token } : {} }
         );
       }
 
-      toast.success(`✓ Table ${tableNumber} fully settled (₹${grandTotal})! Table is now free.`);
+      const tableLabel = allSettleTables.length > 1 ? `Tables ${allSettleTables.join(', ')}` : `Table ${tableNumber}`;
+      toast.success(`✓ ${tableLabel} fully settled (₹${finalSettledAmount})! Tables are now free.`);
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
+      setMergedTables([]);
+      setActualAmountReceived('');
       setShowSplitModal(false);
 
-      if (onOrderPlaced) onOrderPlaced({ tableNumber, status: 'completed', _refreshAll: true });
-      if (onOrderCreated) onOrderCreated({ tableNumber, status: 'completed', _refreshAll: true });
-      if (onSettleTable) onSettleTable(tableNumber);
+      allSettleTables.forEach(tNum => {
+        if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+        if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+        if (onSettleTable) onSettleTable(tNum);
+      });
 
       // Return to table matrix view
       setViewMode('tables');
@@ -809,6 +858,8 @@ export default function POSTerminal({
                   );
                 }
 
+                const custName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName;
+
                 // 2. PAID / BILLED / SERVED CARD (Soft Green)
                 if (isAllPaid) {
                   return (
@@ -821,7 +872,14 @@ export default function POSTerminal({
                       <div className={styles.tileTopMeta}>
                         <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
                       </div>
-                      <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                      <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                        {custName || `Table ${tbl.tableNumber}`}
+                      </span>
+                      {custName && (
+                        <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
+                          Table {tbl.tableNumber}
+                        </span>
+                      )}
                       <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                     </div>
                   );
@@ -838,7 +896,14 @@ export default function POSTerminal({
                     <div className={styles.tileTopMeta}>
                       <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
                     </div>
-                    <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                    <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                      {custName || `Table ${tbl.tableNumber}`}
+                    </span>
+                    {custName && (
+                      <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
+                        Table {tbl.tableNumber}
+                      </span>
+                    )}
                     <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                   </div>
                 );
@@ -1036,25 +1101,89 @@ export default function POSTerminal({
               {/* Top Block: Title & Inputs (Pinned Top) */}
               <div className={styles.drawerTopBlock}>
                 <div className={styles.drawerHeader}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <h4 className={styles.drawerTitle}>
-                      {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber} Order Slip`}
-                    </h4>
-                    {runningOrdersTotal > 0 && (
-                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                        ● Active (₹{formatAmount(runningOrdersTotal)})
-                      </span>
-                    )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <h4 className={styles.drawerTitle} style={{ margin: 0 }}>
+                        {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber}`}
+                      </h4>
+                      {mergedTables.map(mTable => (
+                        <span
+                          key={mTable}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            backgroundColor: '#e0e7ff',
+                            color: '#3730a3',
+                            border: '1px solid #c7d2fe',
+                            padding: '1px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.72rem',
+                            fontWeight: '800'
+                          }}
+                        >
+                          + Table {mTable}
+                          <button
+                            type="button"
+                            onClick={() => setMergedTables(prev => prev.filter(t => t !== mTable))}
+                            title={`Demerge Table ${mTable}`}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4338ca', padding: 0, display: 'flex' }}
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                      {tableNumber !== 'Walk-in' && (
+                        <button
+                          type="button"
+                          onClick={() => setShowMergeModal(true)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            backgroundColor: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            color: '#334155'
+                          }}
+                        >
+                          <Plus size={11} /> Merge
+                        </button>
+                      )}
+                      {runningOrdersTotal > 0 && (
+                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                          ● Active (₹{formatAmount(runningOrdersTotal)})
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {cart.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
-                      onClick={() => setCart([])}
-                      style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                      onClick={() => {
+                        const next = !isMuted;
+                        setIsMuted(next);
+                        setAudioMuted(next);
+                      }}
+                      title={isMuted ? "Unmute Order Chimes" : "Mute Order Chimes"}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#94a3b8' : '#e05c5c', padding: 2 }}
                     >
-                      Clear Draft
+                      {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                     </button>
-                  )}
+                    {cart.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCart([])}
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                      >
+                        Clear Draft
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Customer Inputs */}
@@ -1219,8 +1348,43 @@ export default function POSTerminal({
                 {/* Bill Summary */}
                 <div className={styles.billSummary}>
                   <div className={styles.billRowTotal}>
-                    <span>Total Amount:</span>
+                    <span>Original Bill Total:</span>
                     <span>₹{formatAmount(grandTotal)}</span>
+                  </div>
+
+                  {/* Actual Amount Received */}
+                  <div style={{ marginTop: '0.65rem', paddingTop: '0.65rem', borderTop: '1px dashed #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b' }}>Actual Amount Received:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.85rem' }}>₹</span>
+                        <input
+                          type="number"
+                          placeholder={String(grandTotal)}
+                          value={actualAmountReceived}
+                          onChange={(e) => setActualAmountReceived(e.target.value)}
+                          style={{
+                            width: '85px',
+                            padding: '4px 6px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontWeight: '800',
+                            fontSize: '0.82rem',
+                            textAlign: 'right'
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {actualAmountReceived !== '' && Number(actualAmountReceived) > grandTotal && (
+                      <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: '700', textAlign: 'right', marginTop: '3px' }}>
+                        Change to return: ₹{formatAmount(Number(actualAmountReceived) - grandTotal)}
+                      </div>
+                    )}
+                    {actualAmountReceived !== '' && Number(actualAmountReceived) < grandTotal && (
+                      <div style={{ fontSize: '0.72rem', color: '#ea580c', fontWeight: '700', textAlign: 'right', marginTop: '3px' }}>
+                        Settled with adjustment: -₹{formatAmount(grandTotal - Number(actualAmountReceived))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1403,23 +1567,239 @@ export default function POSTerminal({
               </div>
             )}
 
+            {/* Add-ons */}
+            {customizingItem.addons && customizingItem.addons.length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 6 }}>
+                  Extra Add-ons
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {customizingItem.addons.map((addon, aIdx) => {
+                    const isChecked = selectedAddons.some(a => a.name === addon.name);
+                    return (
+                      <div
+                        key={addon.name || aIdx}
+                        onClick={() => {
+                          if (isChecked) {
+                            setSelectedAddons(prev => prev.filter(a => a.name !== addon.name));
+                          } else {
+                            setSelectedAddons(prev => [...prev, addon]);
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          border: isChecked ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                          background: isChecked ? '#eff6ff' : '#ffffff',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            style={{ accentColor: '#2563eb', width: 15, height: 15 }}
+                          />
+                          <span>{addon.name}</span>
+                        </div>
+                        <span style={{ fontWeight: 800, color: '#059669' }}>+₹{addon.price || 0}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Special Instructions / Notes */}
+            <div style={{ marginBottom: '1rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 4 }}>
+                Special Cooking Instructions / Notes
+              </span>
+              <input
+                type="text"
+                placeholder="e.g. Less spicy, extra sauce, well done..."
+                value={customNotes}
+                onChange={(e) => setCustomNotes(e.target.value)}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: '0.8rem',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Quantity Stepper & Dynamic Total */}
+            {(() => {
+              const vPrice = selectedVariant ? (Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : (customizingItem.salePrice || customizingItem.price)) : (customizingItem.salePrice || customizingItem.price);
+              const aPrice = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+              const singleUnitPrice = vPrice + aPrice;
+              const modalTotal = singleUnitPrice * customQty;
+
+              return (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    border: '1.5px solid #2563eb',
+                    borderRadius: 8,
+                    padding: '4px 8px',
+                    gap: 10,
+                    height: '42px',
+                    boxSizing: 'border-box'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setCustomQty(prev => Math.max(1, prev - 1))}
+                      style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', display: 'flex', padding: 0 }}
+                    >
+                      <Minus size={15} />
+                    </button>
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', minWidth: 16, textAlign: 'center' }}>
+                      {customQty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCustomQty(prev => prev + 1)}
+                      style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', display: 'flex', padding: 0 }}
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddCustomized}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      height: '42px'
+                    }}
+                  >
+                    Add to Order (₹{modalTotal})
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4B. MERGE TABLE MODAL                                     */}
+      {/* ========================================================= */}
+      {showMergeModal && (
+        <div className={styles.splitModalOverlay} onClick={() => setShowMergeModal(false)}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                Merge Tables with Table {tableNumber}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowMergeModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 1rem' }}>
+              Select occupied tables to combine their running orders into one bill. You can demerge at any time before payment.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
+              {dbTables
+                .filter(tbl => String(tbl.tableNumber).trim() !== String(tableNumber).trim())
+                .map(tbl => {
+                  const tStr = String(tbl.tableNumber).trim();
+                  const ords = activeOrdersByTable[tStr] || activeOrdersByTable[`Table ${tStr}`] || [];
+                  const isMerged = mergedTables.includes(tStr);
+                  const isOccupied = ords.length > 0;
+                  const total = ords.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+
+                  return (
+                    <div
+                      key={tbl._id || tStr}
+                      onClick={() => {
+                        if (isMerged) {
+                          setMergedTables(prev => prev.filter(t => t !== tStr));
+                        } else {
+                          setMergedTables(prev => [...prev, tStr]);
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: isMerged ? '2px solid #4f46e5' : '1px solid #e2e8f0',
+                        backgroundColor: isMerged ? '#eef2ff' : '#ffffff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={isMerged}
+                          onChange={() => {}}
+                          style={{ accentColor: '#4f46e5', width: 16, height: 16 }}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a' }}>
+                            Table {tbl.tableNumber}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: isOccupied ? '#b45309' : '#10b981', fontWeight: 700 }}>
+                            {isOccupied ? `● Occupied (${ords.length} orders)` : 'Free'}
+                          </div>
+                        </div>
+                      </div>
+                      {isOccupied && (
+                        <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#e05c5c' }}>
+                          ₹{formatAmount(total)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
             <button
               type="button"
-              onClick={handleAddCustomized}
+              onClick={() => {
+                setShowMergeModal(false);
+                toast.success(mergedTables.length > 0 ? `Merged ${mergedTables.length} tables with Table ${tableNumber}` : 'Demerged tables');
+              }}
               style={{
                 width: '100%',
                 padding: '10px',
-                borderRadius: 8,
+                borderRadius: '8px',
                 border: 'none',
-                background: '#2563eb',
+                background: '#4f46e5',
                 color: '#ffffff',
                 fontWeight: 800,
                 fontSize: '0.85rem',
                 cursor: 'pointer',
-                marginTop: 8
+                marginTop: '1rem'
               }}
             >
-              Add to Order
+              Done ({mergedTables.length} Tables Merged)
             </button>
           </div>
         </div>

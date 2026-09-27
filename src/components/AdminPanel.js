@@ -29,6 +29,7 @@ import BrandLogo from './BrandLogo';
 import usePWAInstall from '../hooks/usePWAInstall';
 import PWAInstallModal from './pwa/PWAInstallModal';
 import { API_URL as API } from '../config/api';
+import { playOrderChime } from '../utils/audioChime';
 
 // Standard Categories with Icons
 const standardCategories = [
@@ -82,18 +83,6 @@ export default function AdminPanel() {
     deferredPrompt
   } = usePWAInstall();
 
-  const { tab } = useParams();
-  const activeTab = useMemo(() => {
-    if (!tab) return 'dashboard';
-    const validTabs = ['dashboard', 'pos', 'kds', 'menu', 'qrcodes', 'staff', 'reports', 'khata', 'settings'];
-    const t = tab.toLowerCase();
-    if (t === 'live-orders') return 'kds';
-    return validTabs.includes(t) ? t : 'dashboard';
-  }, [tab]);
-
-  const handleTabChange = (newTab) => {
-    navigate(`/admin/${newTab}`);
-  };
   const [posSelectedTable, setPosSelectedTable] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
@@ -102,6 +91,71 @@ export default function AdminPanel() {
   const [orders, setOrders] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  // Master module tab configuration with permission keys
+  const ALL_TABS_CONFIG = useMemo(() => [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permKey: 'access_dashboard', adminOnly: true },
+    { id: 'pos', label: 'POS Terminal', icon: IndianRupee, permKey: 'access_pos' },
+    { id: 'kds', label: 'Live Orders', icon: ChefHat, permKey: 'access_live_orders', badge: true },
+    { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, permKey: 'access_menu' },
+    { id: 'qrcodes', label: 'Table QR Codes', icon: QrCode, permKey: 'access_tables' },
+    { id: 'crm', label: 'Customer CRM', icon: Users, permKey: 'access_crm', adminOnly: true },
+    { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true },
+    { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports' },
+    { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata' },
+    { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
+  ], []);
+
+  // Compute strictly allowed tabs for current user based on permission bucket
+  const allowedTabs = useMemo(() => {
+    if (isAdmin) {
+      return ALL_TABS_CONFIG.filter(t => {
+        if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
+        return true;
+      });
+    }
+    const perms = user?.permissions || {};
+    return ALL_TABS_CONFIG.filter(t => {
+      if (t.adminOnly) return false;
+      if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
+      return Boolean(perms[t.permKey]);
+    });
+  }, [isAdmin, user?.permissions, tenantInfo?.settings, ALL_TABS_CONFIG]);
+
+  const { tab } = useParams();
+  const activeTab = useMemo(() => {
+    if (!tab) {
+      if (!isAdmin && allowedTabs.length > 0) return allowedTabs[0].id;
+      return 'dashboard';
+    }
+    const t = tab.toLowerCase();
+    if (t === 'live-orders') return 'kds';
+    const validTabs = ['dashboard', 'pos', 'kds', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'khata', 'settings'];
+    return validTabs.includes(t) ? t : (isAdmin ? 'dashboard' : (allowedTabs[0]?.id || 'pos'));
+  }, [tab, isAdmin, allowedTabs]);
+
+  const hasAccessToCurrentTab = isAdmin || allowedTabs.some(t => t.id === activeTab);
+
+  // Auto-redirect staff to their first permitted tab if navigating to an unauthorized route
+  useEffect(() => {
+    if (user && !isAdmin && allowedTabs.length > 0) {
+      const hasPerm = allowedTabs.some(t => t.id === activeTab);
+      if (!hasPerm) {
+        navigate(`/admin/${allowedTabs[0].id}`, { replace: true });
+      }
+    }
+  }, [user, isAdmin, allowedTabs, activeTab, navigate]);
+
+  const handleTabChange = (newTab) => {
+    navigate(`/admin/${newTab}`);
+  };
+
+  // User identity metadata for top navbar display
+  const userEmail = user?.email || user?.username || (isAdmin ? 'admin@serviq.in' : 'staff@serviq.in');
+  const userRoleLabel = (user?.designation || user?.role || (isAdmin ? 'Admin' : 'Staff')).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const userInitials = (user?.name || user?.fullName || userEmail.split('@')[0] || 'U').slice(0, 2).toUpperCase();
 
   // Dashboard Date Filter State
   const [dateRange, setDateRange] = useState('today'); // 'today', 'this_week', 'this_month', 'custom'
@@ -355,6 +409,7 @@ export default function AdminPanel() {
       socket.on('newOrder', (newOrder) => {
         setOrders((prev) => [newOrder, ...prev]);
         toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-4)}`);
+        playOrderChime();
         fetchTables();
       });
       socket.on('orderUpdate', (updatedOrder) => {
@@ -1126,187 +1181,264 @@ export default function AdminPanel() {
     toast.success('Restaurant configuration saved successfully!');
   };
 
-  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || user?.tenantName || user?.name || "Deepak";
+  const restaurantDisplayName = tenantInfo?.name || user?.restaurantName || tenantInfo?.restaurantName || user?.tenantName || user?.name || "ServiQ";
   const restaurantLogo = tenantInfo?.logo || tenantInfo?.settings?.logo || user?.restaurantLogo || user?.logo || tenantInfo?.logoUrl || localStorage.getItem('restaurant_logo') || null;
   const restaurantInitials = restaurantDisplayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
-  const ownerName = tenantInfo?.ownerName || user?.name || "Deepak";
+  const ownerName = tenantInfo?.ownerName || user?.name || "Cafe Admin";
   const ownerAvatar = tenantInfo?.ownerImage || user?.avatar || user?.profileImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100";
 
   return (
     <div className={styles.adminLayout}>
       <Toaster position="top-right" />
 
-      {/* 1. FIXED LEFT SIDEBAR (STARTS FROM TOP, FULL 100VH) */}
-      <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
-        {/* Brand Header inside Top of Sidebar */}
-        <div className={styles.sidebarHeader}>
-          <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
-            {restaurantLogo ? (
-              <img
-                src={restaurantLogo}
-                alt="Restaurant Logo"
-                className={styles.tenantLogoImg}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  const fb = e.target.parentElement?.querySelector(`.${styles.brandIconSquare}`);
-                  if (fb) fb.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div
-              className={styles.brandIconSquare}
-              style={restaurantLogo ? { display: 'none' } : {}}
-            >
-              {restaurantInitials || 'SQ'}
-            </div>
-            {!sidebarCollapsed && (
-              <div className={styles.brandTextGroup}>
-                <span className={styles.brandTitle}>{restaurantDisplayName}</span>
-                <span className={styles.brandSub}>SERVIQ OS</span>
+      {/* 1. FIXED LEFT SIDEBAR - ONLY RENDERED FOR ADMIN */}
+      {isAdmin && (
+        <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
+          {/* Brand Header inside Top of Sidebar */}
+          <div className={styles.sidebarHeader}>
+            <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
+              {restaurantLogo ? (
+                <img
+                  src={restaurantLogo}
+                  alt="Restaurant Logo"
+                  className={styles.tenantLogoImg}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fb = e.target.parentElement?.querySelector(`.${styles.brandIconSquare}`);
+                    if (fb) fb.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div
+                className={styles.brandIconSquare}
+                style={restaurantLogo ? { display: 'none' } : {}}
+              >
+                {restaurantInitials || 'SQ'}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Sidebar Navigation Section */}
-        <div className={styles.navSection}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
-            {!sidebarCollapsed && <span className={styles.navLabel}>MAIN MENU</span>}
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
-              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            >
-              {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </button>
+              {!sidebarCollapsed && (
+                <div className={styles.brandTextGroup}>
+                  <span className={styles.brandTitle}>{restaurantDisplayName}</span>
+                  <span className={styles.brandSub}>SERVIQ OS</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          <button
-            className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('dashboard')}
-            title="Dashboard"
-          >
-            <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
-          </button>
-          <button
-            className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
-            onClick={() => {
-              setPosSelectedTable(null);
-              handleTabChange('pos');
-            }}
-            title="POS Terminal & Tables"
-          >
-            <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
-          </button>
-          <button
-            className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('kds')}
-            title="Live Orders & KDS"
-          >
-            <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
-            {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
-          </button>
-          <button
-            className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('menu')}
-            title="Menu Management"
-          >
-            <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
-          </button>
-          <button
-            className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('qrcodes')}
-            title="Table QR Codes"
-          >
-            <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
-          </button>
-          <button
-            className={`${styles.navLink} ${activeTab === 'staff' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('staff')}
-            title="Staff & Role Management"
-          >
-            <Users size={18} /> {!sidebarCollapsed && <span>Staff Management</span>}
-          </button>
-          <button
-            className={`${styles.navLink} ${activeTab === 'reports' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('reports')}
-            title="Reports & Analytics"
-          >
-            <BarChart3 size={18} /> {!sidebarCollapsed && <span>Reports Suite</span>}
-          </button>
-          {tenantInfo?.settings?.enableKhata && (
-            <button
-              className={`${styles.navLink} ${activeTab === 'khata' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('khata')}
-              title="Customer Khata / Borrow Ledger"
-            >
-              <BookOpen size={18} /> {!sidebarCollapsed && <span>Khata Ledger</span>}
-            </button>
-          )}
-          <button
-            className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
-            onClick={() => handleTabChange('settings')}
-            title="Settings"
-          >
-            <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
-          </button>
-        </div>
-
-        {/* Sidebar Footer */}
-        <div className={styles.sidebarFooter}>
-          {!isStandalone && (
-            <button
-              type="button"
-              className={styles.sidebarPwaBtn}
-              onClick={promptInstall}
-              title={isInstalled ? "SERVIQ App is Downloaded" : "Download & Install Admin App"}
-              style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d', fontWeight: 700 } : {}}
-            >
-              {isInstalled ? <CheckCircle2 size={16} style={{ color: '#16a34a' }} /> : <Smartphone size={16} />}
-              {!sidebarCollapsed && <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>}
-            </button>
-          )}
-
-          <button
-            type="button"
-            className={styles.logoutBtn}
-            onClick={() => logout()}
-            title="Sign Out"
-          >
-            <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
-          </button>
-        </div>
-      </aside>
-
-      {/* 2. RIGHT CONTENT WRAPPER (TOP BAR + MAIN CONTENT BODY) */}
-      <div className={styles.contentWrapper}>
-        {/* TOP GLOBAL BAR */}
-        <header className={styles.topGlobalBar}>
-          {/* Global Search Input on Left */}
-          <div className={styles.topSearchWrapper}>
-            <Search size={16} className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search dishes, orders, or tables..."
-              className={styles.topSearchInput}
-              value={menuSearchQuery}
-              onChange={(e) => setMenuSearchQuery(e.target.value)}
-            />
-            {menuSearchQuery && (
+          {/* Sidebar Navigation Section */}
+          <div className={styles.navSection}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
+              {!sidebarCollapsed && <span className={styles.navLabel}>MAIN MENU</span>}
               <button
                 type="button"
-                onClick={() => setMenuSearchQuery('')}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
+                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               >
-                <X size={14} />
+                {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              </button>
+            </div>
+
+            <button
+              className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('dashboard')}
+              title="Dashboard"
+            >
+              <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
+              onClick={() => {
+                setPosSelectedTable(null);
+                handleTabChange('pos');
+              }}
+              title="POS Terminal & Tables"
+            >
+              <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('kds')}
+              title="Live Orders & KDS"
+            >
+              <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
+              {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('menu')}
+              title="Menu Management"
+            >
+              <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('qrcodes')}
+              title="Table QR Codes"
+            >
+              <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'crm' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('crm')}
+              title="Customer Management & CRM"
+            >
+              <Users size={18} /> {!sidebarCollapsed && <span>Customer CRM</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'staff' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('staff')}
+              title="Staff & Role Management"
+            >
+              <Users size={18} /> {!sidebarCollapsed && <span>Staff Management</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'reports' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('reports')}
+              title="Reports & Analytics"
+            >
+              <BarChart3 size={18} /> {!sidebarCollapsed && <span>Reports Suite</span>}
+            </button>
+            {tenantInfo?.settings?.enableKhata && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'khata' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('khata')}
+                title="Customer Khata / Borrow Ledger"
+              >
+                <BookOpen size={18} /> {!sidebarCollapsed && <span>Khata Ledger</span>}
               </button>
             )}
+            <button
+              className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('settings')}
+              title="Settings"
+            >
+              <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
+            </button>
           </div>
 
-          {/* Right User Actions (Notifications & Support only) */}
+          {/* Sidebar Footer */}
+          <div className={styles.sidebarFooter}>
+            {!isStandalone && (
+              <button
+                type="button"
+                className={styles.sidebarPwaBtn}
+                onClick={promptInstall}
+                title={isInstalled ? "SERVIQ App is Downloaded" : "Download & Install Admin App"}
+                style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d', fontWeight: 700 } : {}}
+              >
+                {isInstalled ? <CheckCircle2 size={16} style={{ color: '#16a34a' }} /> : <Smartphone size={16} />}
+                {!sidebarCollapsed && <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>}
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={styles.logoutBtn}
+              onClick={() => logout()}
+              title="Sign Out"
+            >
+              <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* 2. RIGHT CONTENT WRAPPER (TOP BAR + MAIN CONTENT BODY) */}
+      <div className={`${styles.contentWrapper} ${!isAdmin ? styles.contentWrapperFull : ''}`}>
+        {/* TOP GLOBAL BAR */}
+        <header className={styles.topGlobalBar}>
+          {!isAdmin ? (
+            <div className={styles.staffNavbarLeft}>
+              <div
+                className={styles.staffBrandWrap}
+                onClick={() => allowedTabs.length > 0 && handleTabChange(allowedTabs[0].id)}
+              >
+                {restaurantLogo ? (
+                  <img
+                    src={restaurantLogo}
+                    alt="Restaurant Logo"
+                    className={styles.tenantLogoImg}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className={styles.brandIconSquare}>
+                    {restaurantInitials || 'SQ'}
+                  </div>
+                )}
+                <div className={styles.brandTextGroup}>
+                  <span className={styles.brandTitle}>{restaurantDisplayName}</span>
+                  <span className={styles.brandSub}>SERVIQ OS</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.topSearchWrapper}>
+              <Search size={16} className={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search dishes, orders, or tables..."
+                className={styles.topSearchInput}
+                value={menuSearchQuery}
+                onChange={(e) => setMenuSearchQuery(e.target.value)}
+              />
+              {menuSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setMenuSearchQuery('')}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Staff Navigation Tabs in Navbar */}
+          {!isAdmin && allowedTabs.length > 0 && (
+            <nav className={styles.staffNavbarTabs}>
+              {allowedTabs.map((t) => {
+                const IconComponent = t.icon;
+                const isActive = activeTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      if (t.id === 'pos') setPosSelectedTable(null);
+                      handleTabChange(t.id);
+                    }}
+                    className={`${styles.staffNavTabBtn} ${isActive ? styles.staffNavTabBtnActive : ''}`}
+                    title={t.label}
+                  >
+                    <IconComponent size={15} />
+                    <span>{t.label}</span>
+                    {t.badge && metrics.activeOrders.length > 0 && (
+                      <span className={styles.staffTabBadge}>{metrics.activeOrders.length}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+
+          {/* Right User Actions (User Identity Pill, Notifications, Support, Sign Out) */}
           <div className={styles.topBarRight}>
+            {/* Logged in User Identity Badge */}
+            <div className={styles.userProfilePill} title={`Signed in as ${userEmail} (${userRoleLabel})`}>
+              <div className={styles.userAvatarCircle}>
+                {userInitials}
+              </div>
+              <div className={styles.userMetaText}>
+                <span className={styles.userEmailText}>{userEmail}</span>
+                <span className={`${styles.userRoleBadge} ${isAdmin ? styles.roleBadgeAdmin : styles.roleBadgeStaff}`}>
+                  {userRoleLabel}
+                </span>
+              </div>
+            </div>
+
             <button
               type="button"
               className={styles.iconCircleBtn}
@@ -1323,12 +1455,46 @@ export default function AdminPanel() {
             >
               <HelpCircle size={16} /> <span>Support</span>
             </button>
+
+            {!isAdmin && (
+              <button
+                type="button"
+                className={styles.staffSignOutBtn}
+                onClick={() => logout()}
+                title="Sign Out"
+              >
+                <LogOut size={15} />
+                <span>Sign Out</span>
+              </button>
+            )}
           </div>
         </header>
 
         {/* MAIN BODY AREA */}
         <main className={`${styles.mainContent} ${(activeTab === 'pos' || activeTab === 'kds') ? styles.mainContentFitScreen : ''}`}>
-          <AnimatePresence mode="wait">
+          {!hasAccessToCurrentTab ? (
+            <div className={styles.accessRestrictedWrap}>
+              <div className={styles.accessRestrictedCard}>
+                <div className={styles.accessRestrictedIcon}>
+                  <ShieldCheck size={32} />
+                </div>
+                <h3>Access Restricted</h3>
+                <p>
+                  You are signed in as <strong>{userRoleLabel}</strong> ({userEmail}). You do not have permission to access the <strong>{activeTab}</strong> section.
+                </p>
+                {allowedTabs.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.goToPermittedBtn}
+                    onClick={() => handleTabChange(allowedTabs[0].id)}
+                  >
+                    Go to {allowedTabs[0].label}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
 
             {/* ========================================================= */}
             {/* 1. ULTRA-MODERN LUXURY DASHBOARD VIEW                     */}
@@ -2484,9 +2650,14 @@ export default function AdminPanel() {
                                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
                                     ✓ {elapsedMins} Min
                                   </div>
-                                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#065f46', margin: '2px 0' }}>
-                                    Table {tbl.tableNumber}
+                                  <span style={{ fontSize: '1rem', fontWeight: 900, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {activeOrder?.customerDetails?.name || activeOrder?.customerName || `Table ${tbl.tableNumber}`}
                                   </span>
+                                  {(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
+                                    <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
+                                      Table {tbl.tableNumber}
+                                    </span>
+                                  )}
                                   <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal}</strong>
                                 </div>
                               );
@@ -2520,9 +2691,14 @@ export default function AdminPanel() {
                                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
                                   ⏱️ {elapsedMins} Min
                                 </div>
-                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#78350f', margin: '2px 0' }}>
-                                  Table {tbl.tableNumber}
+                                <span style={{ fontSize: '1rem', fontWeight: 900, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {activeOrder?.customerDetails?.name || activeOrder?.customerName || `Table ${tbl.tableNumber}`}
                                 </span>
+                                {(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
+                                  <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
+                                    Table {tbl.tableNumber}
+                                  </span>
+                                )}
                                 <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal}</strong>
                               </div>
                             );
@@ -3323,7 +3499,8 @@ export default function AdminPanel() {
             )}
 
           </AnimatePresence>
-        </main>
+        )}
+      </main>
       </div>
 
       {/* DRAWER FOR ADDING / EDITING DISH */}

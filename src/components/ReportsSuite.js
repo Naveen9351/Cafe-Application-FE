@@ -10,8 +10,15 @@ import {
   PieChart, 
   Award, 
   ArrowUpRight,
-  BookOpen
+  BookOpen,
+  Search,
+  X,
+  Receipt,
+  CheckCircle2,
+  XCircle,
+  Eye
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import styles from './ReportsSuite.module.css';
@@ -21,6 +28,9 @@ export default function ReportsSuite() {
   const [khataRecords, setKhataRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('all'); // 'today', '7d', '30d', 'all'
+  const [orderSearch, setOrderSearch] = useState('');
+  const [tableFilter, setTableFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
     fetchReportData();
@@ -71,9 +81,20 @@ export default function ReportsSuite() {
     return true;
   });
 
+  // Robust order amount resolver across schemas and fallbacks
+  const getOrderAmount = (ord) => {
+    if (!ord) return 0;
+    const val = Number(ord.settledAmount || ord.finalAmount || ord.total || ord.totalAmount || ord.subTotal);
+    if (!isNaN(val) && val > 0) return val;
+    if (Array.isArray(ord.items) && ord.items.length > 0) {
+      return ord.items.reduce((sum, it) => sum + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
+    }
+    return 0;
+  };
+
   // Calculate metrics
   const completedOrders = filteredOrders.filter(o => o.status === 'completed');
-  const totalGrossRevenue = completedOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  const totalGrossRevenue = completedOrders.reduce((acc, o) => acc + getOrderAmount(o), 0);
   const totalOrdersCount = completedOrders.length;
   const avgTicketSize = totalOrdersCount > 0 ? Math.round(totalGrossRevenue / totalOrdersCount) : 0;
 
@@ -87,7 +108,7 @@ export default function ReportsSuite() {
 
   completedOrders.forEach(ord => {
     const method = (ord.paymentMethod || 'Cash').toLowerCase();
-    const amt = ord.totalAmount || 0;
+    const amt = getOrderAmount(ord);
     if (method.includes('upi') || method.includes('gpay')) {
       paymentBreakdown.UPI += amt;
     } else if (method.includes('card')) {
@@ -101,8 +122,8 @@ export default function ReportsSuite() {
 
   // Khata Total Outstanding
   const outstandingKhata = khataRecords
-    .filter(k => k.status === 'pending' || k.status === 'partial')
-    .reduce((acc, k) => acc + (k.remainingAmount || 0), 0);
+    .filter(k => k.status !== 'settled')
+    .reduce((acc, k) => acc + (Number(k.borrowAmount || k.remainingAmount || k.totalBill) || 0), 0);
 
   // Top Dishes
   const dishSales = {};
@@ -281,63 +302,374 @@ export default function ReportsSuite() {
         </div>
       </div>
 
-      {/* Recent Settled Orders Table */}
-      <div className={styles.chartCard}>
-        <div className={styles.chartCardHeader}>
-          <h3>Recent Settled Transactions</h3>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Latest 10 bills</span>
-        </div>
+      {/* Order History & Details Section */}
+      {(() => {
+        const uniqueTables = Array.from(new Set(orders.map(o => o.tableNumber).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+        const q = orderSearch.toLowerCase();
+        const displayedOrders = completedOrders.filter(ord => {
+          const matchesSearch = q ? (
+            (ord.orderNumber && String(ord.orderNumber).toLowerCase().includes(q)) ||
+            (ord._id && ord._id.toLowerCase().includes(q)) ||
+            (ord.customerName && ord.customerName.toLowerCase().includes(q)) ||
+            (ord.customerPhone && ord.customerPhone.includes(q)) ||
+            ((ord.items || []).some(it => (it.name || it.item?.name || '').toLowerCase().includes(q)))
+          ) : true;
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className={styles.recentOrdersTable}>
-            <thead>
-              <tr>
-                <th>Table / Channel</th>
-                <th>Customer</th>
-                <th>Items Summary</th>
-                <th>Payment Mode</th>
-                <th>Date & Time</th>
-                <th style={{ textAlign: 'right' }}>Total Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {completedOrders.slice(0, 10).map((ord) => (
-                <tr key={ord._id}>
-                  <td style={{ fontWeight: 700, color: '#0f172a' }}>
-                    {ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS'}
-                  </td>
-                  <td>
-                    <div>{ord.customerName || 'Walk-in Guest'}</div>
-                    {ord.customerPhone && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{ord.customerPhone}</div>}
-                  </td>
-                  <td style={{ maxWidth: '240px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {(ord.items || []).map(it => `${it.quantity}x ${it.name || it.item?.name}`).join(', ')}
-                  </td>
-                  <td>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      background: ord.paymentMethod === 'Cash' ? '#ecfdf5' : '#eff6ff',
-                      color: ord.paymentMethod === 'Cash' ? '#059669' : '#2563eb'
-                    }}>
-                      {ord.paymentMethod || 'Cash'}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    {new Date(ord.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                    ₹{ord.totalAmount}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          const matchesTable = tableFilter !== 'all' ? (String(ord.tableNumber) === String(tableFilter)) : true;
+          return matchesSearch && matchesTable;
+        });
+
+        return (
+          <div className={styles.chartCard} style={{ marginTop: '1.5rem' }}>
+            <div className={styles.chartCardHeader} style={{ flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                  Order History & Financial Details
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Showing {displayedOrders.length} settled orders
+                </span>
+              </div>
+
+              {/* Search & Table Filter Controls */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    placeholder="Search by order #, guest, phone..."
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    style={{
+                      padding: '6px 10px 6px 28px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                      width: '210px'
+                    }}
+                  />
+                  {orderSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderSearch('')}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={tableFilter}
+                  onChange={(e) => setTableFilter(e.target.value)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8rem',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    fontWeight: 600
+                  }}
+                >
+                  <option value="all">All Tables</option>
+                  {uniqueTables.map(tNum => (
+                    <option key={tNum} value={tNum}>Table {tNum}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+              <table className={styles.recentOrdersTable}>
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Table / Channel</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Items Summary</th>
+                    <th>Payment Mode</th>
+                    <th>Date & Time</th>
+                    <th style={{ textAlign: 'right' }}>Final Amount</th>
+                    <th style={{ textAlign: 'center' }}>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                        No orders match your filter criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedOrders.slice(0, 50).map((ord, idx) => {
+                      const isVerified = ord.isPhoneVerified || ord.customerDetails?.isPhoneVerified;
+                      const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : `ORD-${idx + 1}`);
+                      const displayAmount = getOrderAmount(ord);
+
+                      return (
+                        <tr key={ord._id || idx}>
+                          <td style={{ fontWeight: 800, color: '#4f46e5' }}>
+                            #{orderNum}
+                          </td>
+                          <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                            {ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS'}
+                            <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 500 }}>
+                              {ord.source || (ord.tableNumber ? 'Table QR Code' : 'Staff / Waiter')}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700 }}>{ord.customerName || ord.customerDetails?.name || 'Walk-in Guest'}</div>
+                            {(ord.customerPhone || ord.customerDetails?.phone) && (
+                              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                {ord.customerPhone || ord.customerDetails?.phone}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            {isVerified ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#16a34a', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                <CheckCircle2 size={11} /> Verified
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 600 }}>
+                                Standard
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {(ord.items || []).map(it => `${it.quantity}x ${it.name || it.item?.name}`).join(', ')}
+                          </td>
+                          <td>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              background: ord.paymentMethod === 'Cash' ? '#ecfdf5' : '#eff6ff',
+                              color: ord.paymentMethod === 'Cash' ? '#059669' : '#2563eb'
+                            }}>
+                              {ord.paymentMethod || 'Cash'}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {new Date(ord.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                            ₹{displayAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrder(ord)}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                background: '#f8fafc',
+                                color: '#334155',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Eye size={12} /> View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Order Details & Bill Reprint Modal */}
+            <AnimatePresence>
+              {selectedOrder && (
+                <div style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  backdropFilter: 'blur(4px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 99999,
+                  padding: '1rem'
+                }}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      maxWidth: '560px',
+                      width: '100%',
+                      maxHeight: '90vh',
+                      overflowY: 'auto',
+                      padding: '1.5rem',
+                      boxShadow: '0 20px 50px rgba(0,0,0,0.25)'
+                    }}
+                  >
+                    {/* Modal Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                          Order #{selectedOrder.orderNumber || selectedOrder._id?.slice(-6).toUpperCase()}
+                        </h3>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '3px' }}>
+                          {new Date(selectedOrder.createdAt).toLocaleString()} • Table {selectedOrder.tableNumber || 'Takeaway'} ({selectedOrder.orderType || 'Dine-in'})
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrder(null)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Customer & Service Metadata */}
+                    <div style={{ backgroundColor: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '0.8rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Guest Name: </span>
+                        <strong>{selectedOrder.customerName || selectedOrder.customerDetails?.name || 'Walk-in Guest'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Phone: </span>
+                        <strong>{selectedOrder.customerPhone || selectedOrder.customerDetails?.phone || 'Not provided'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Verification: </span>
+                        <strong style={{ color: (selectedOrder.isPhoneVerified || selectedOrder.customerDetails?.isPhoneVerified) ? '#16a34a' : '#64748b' }}>
+                          {(selectedOrder.isPhoneVerified || selectedOrder.customerDetails?.isPhoneVerified) ? 'Verified' : 'Unverified'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Source: </span>
+                        <strong>{selectedOrder.source || (selectedOrder.tableNumber ? 'Table QR Code' : 'Staff / Waiter POS')}</strong>
+                      </div>
+                    </div>
+
+                    {/* Item Breakdown */}
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
+                      Item Breakdown ({selectedOrder.items?.length || 0})
+                    </h4>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                        <thead style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                          <tr>
+                            <th style={{ padding: '6px 10px', textAlign: 'left' }}>Item</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'center' }}>Qty</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'right' }}>Price</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'right' }}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(selectedOrder.items || []).map((it, idx) => {
+                            const varLabel = it.variant ? (typeof it.variant === 'object' ? it.variant.name : String(it.variant)) : '';
+                            const addonsLabel = Array.isArray(it.addons) ? it.addons.map(a => a.name).join(', ') : '';
+                            const notes = it.specialNotes || it.notes;
+                            const itemPrice = Number(it.price) || 0;
+                            const qty = Number(it.quantity) || 1;
+
+                            return (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '6px 10px' }}>
+                                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.name || it.item?.name}</div>
+                                  {varLabel && <div style={{ fontSize: '0.7rem', color: '#4f46e5' }}>Size: {varLabel}</div>}
+                                  {addonsLabel && <div style={{ fontSize: '0.7rem', color: '#059669' }}>Add-ons: {addonsLabel}</div>}
+                                  {notes && <div style={{ fontSize: '0.7rem', color: '#ea580c', fontStyle: 'italic' }}>Note: {notes}</div>}
+                                </td>
+                                <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 800 }}>{qty}</td>
+                                <td style={{ padding: '6px 10px', textAlign: 'right' }}>₹{itemPrice}</td>
+                                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800 }}>₹{itemPrice * qty}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Financials & Settlement */}
+                    <div style={{ backgroundColor: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '0.8rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span style={{ color: '#64748b' }}>Original Bill Total:</span>
+                        <span>₹{selectedOrder.totalAmount || selectedOrder.total || 0}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span style={{ color: '#64748b' }}>Payment Method:</span>
+                        <strong>{selectedOrder.paymentMethod || 'Cash'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span style={{ color: '#64748b' }}>Payment Status:</span>
+                        <strong style={{ color: '#16a34a', textTransform: 'capitalize' }}>{selectedOrder.paymentStatus || 'paid'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0 0', marginTop: '4px', borderTop: '1px solid #e2e8f0', fontWeight: 900, fontSize: '0.92rem', color: '#0f172a' }}>
+                        <span>Final Settled Amount:</span>
+                        <span style={{ color: '#e05c5c' }}>₹{selectedOrder.settledAmount || selectedOrder.finalAmount || selectedOrder.totalAmount || selectedOrder.total || 0}</span>
+                      </div>
+                    </div>
+
+                    {/* Action: Reprint Bill */}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toast.success('Reprinting bill...');
+                          window.print();
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          fontWeight: 800,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <Printer size={15} /> Reprint Bill
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrder(null)}
+                        style={{
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: '#f1f5f9',
+                          color: '#475569',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })()}
     </div>
   );
 }
