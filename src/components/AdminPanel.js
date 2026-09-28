@@ -1190,7 +1190,7 @@ export default function AdminPanel() {
 
   return (
     <div className={styles.adminLayout}>
-      <Toaster position="top-right" />
+      <Toaster position="top-right" containerStyle={{ zIndex: 9999999 }} toastOptions={{ style: { zIndex: 9999999 } }} />
 
       {/* 1. FIXED LEFT SIDEBAR - ONLY RENDERED FOR ADMIN */}
       {isAdmin && (

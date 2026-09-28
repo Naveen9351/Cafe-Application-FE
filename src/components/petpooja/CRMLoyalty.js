@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { 
   Users, Award, Search, Plus, PhoneCall, Mail, Star, 
   CheckCircle2, XCircle, Calendar, ArrowUpDown, Filter, 
-  Receipt, Clock, ChevronRight, X
+  Receipt, Clock, ChevronRight, X, TrendingUp, IndianRupee,
+  RefreshCw, UserCheck, ShieldCheck, ShoppingBag, Sparkles,
+  Info, ArrowRight, UserPlus, Download, Crown, Eye, MessageSquare, Phone,
+  UtensilsCrossed, Tag, Gift, Edit3, Heart, AlertCircle, Send, KeyRound
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CRMLoyalty.module.css';
 import { API_URL as API } from '../../config/api';
@@ -13,18 +16,75 @@ import { API_URL as API } from '../../config/api';
 export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Segment Tab ('all', 'vip', 'regular', 'new', 'inactive')
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Search & Detailed Filters
   const [search, setSearch] = useState('');
   const [phoneSearch, setPhoneSearch] = useState('');
   const [verificationFilter, setVerificationFilter] = useState('all'); // 'all', 'verified', 'unverified'
-  const [tierFilter, setTierFilter] = useState('all'); // 'all', 'vip', 'regular', 'new'
-  const [sortBy, setSortBy] = useState('highest_spend'); // 'highest_spend', 'recent_visit', 'total_visits'
+  const [sortBy, setSortBy] = useState('highest_spend'); // 'highest_spend', 'highest_aov', 'recent_visit', 'total_visits'
   
+  // Side Drawer & Add Modal State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
+  const [formError, setFormError] = useState('');
+  
+  // OTP Verification State in Add Customer Modal
+  const [isOtpMode, setIsOtpMode] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [isOtpSending, setIsOtpSending] = useState(false);
+  const [isOtpVerifying, setIsOtpVerifying] = useState(false);
+  const [countdown, setCountdown] = useState(30);
+  const [canResend, setCanResend] = useState(false);
+  const otpInputsRef = useRef([]);
+
+  // Notes State per customer
+  const [customerNotes, setCustomerNotes] = useState({});
+  const [activeNoteText, setActiveNoteText] = useState('');
 
   useEffect(() => {
     fetchCustomers();
   }, [orders]);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      const key = selectedCustomer._id || selectedCustomer.phone;
+      setActiveNoteText(customerNotes[key] || selectedCustomer.notes || '');
+    }
+  }, [selectedCustomer]);
+
+  // Countdown timer for OTP
+  useEffect(() => {
+    let timer;
+    if (isOtpMode && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isOtpMode, countdown]);
+
+  const resetAddModal = () => {
+    setNewCustomer({ name: '', phone: '', email: '' });
+    setFormError('');
+    setIsOtpMode(false);
+    setIsPhoneVerified(false);
+    setOtpDigits(['', '', '', '', '', '']);
+    setCountdown(30);
+    setCanResend(false);
+    setIsAddModalOpen(false);
+  };
 
   const fetchCustomers = async () => {
     setIsLoading(true);
@@ -34,7 +94,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         const res = await axios.get(`${API}/petpooja/customers`, {
           headers: { 'x-auth-token': token }
         });
-        if (res.data && Array.isArray(res.data)) {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
           setCustomers(res.data);
           setIsLoading(false);
           return;
@@ -44,7 +104,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       console.log('CRM API fetch error, deriving from active orders:', err);
     }
 
-    // Derive from actual orders if API fails or backend returns empty
+    // Derive from active orders if API fails or backend returns empty
     if (orders && orders.length > 0) {
       const custMap = new Map();
       orders.forEach((o) => {
@@ -57,7 +117,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
           if (!custMap.has(key)) {
             custMap.set(key, {
-              _id: `cust_${key.replace(/\D/g, '') || Date.now()}`,
+              _id: `cust_${String(key).replace(/\D/g, '') || Date.now()}`,
               name: name,
               phone: phone || 'Not Provided',
               email: o.customerDetails?.email || '',
@@ -66,14 +126,14 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               lastVisit: orderDate,
               totalVisits: 1,
               lifetimeSpend: orderTotal,
-              aov: orderTotal,
+              averageOrderValue: orderTotal,
               orders: [o]
             });
           } else {
             const existing = custMap.get(key);
             existing.totalVisits += 1;
             existing.lifetimeSpend += orderTotal;
-            existing.aov = Math.round(existing.lifetimeSpend / existing.totalVisits);
+            existing.averageOrderValue = Math.round(existing.lifetimeSpend / existing.totalVisits);
             if (orderDate < new Date(existing.firstVisit)) existing.firstVisit = orderDate;
             if (orderDate > new Date(existing.lastVisit)) existing.lastVisit = orderDate;
             if (o.isPhoneVerified || o.customerDetails?.isPhoneVerified) existing.isPhoneVerified = true;
@@ -84,7 +144,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
       const derived = Array.from(custMap.values()).map(c => ({
         ...c,
-        tier: c.lifetimeSpend >= 2500 ? 'VIP' : c.totalVisits >= 3 ? 'Regular' : 'New'
+        tier: c.lifetimeSpend >= 2500 || c.totalVisits >= 6 ? 'VIP' : c.totalVisits >= 2 ? 'Regular' : 'New'
       }));
       setCustomers(derived);
     } else {
@@ -93,75 +153,207 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     setIsLoading(false);
   };
 
+  // OTP Handlers
+  const handleSendOtp = async () => {
+    setFormError('');
+    const cleanPhone = newCustomer.phone.replace(/[^0-9]/g, '');
+    
+    if (!newCustomer.name.trim()) {
+      setFormError("Please enter Full Name before sending OTP");
+      toast.error("Please enter Full Name before sending OTP");
+      return;
+    }
+    if (cleanPhone.length < 10) {
+      setFormError("Please enter a valid 10-digit mobile number");
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    setIsOtpSending(true);
+    try {
+      const res = await axios.post(`${API}/customer/send-otp`, {
+        phone: cleanPhone,
+        name: newCustomer.name.trim()
+      });
+
+      toast.success(res.data.message || `OTP sent to +91 ${cleanPhone}`);
+      if (res.data.devOtp) {
+        toast(`Demo OTP: ${res.data.devOtp}`, { icon: '🔑', duration: 6000 });
+      }
+
+      setIsOtpMode(true);
+      setCountdown(30);
+      setCanResend(false);
+      setOtpDigits(['', '', '', '', '', '']);
+
+      setTimeout(() => {
+        otpInputsRef.current[0]?.focus();
+      }, 150);
+    } catch (err) {
+      console.error('Send OTP failed:', err);
+      const errMsg = err.response?.data?.error || 'Failed to send OTP code. Please try again.';
+      setFormError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setIsOtpSending(false);
+    }
+  };
+
+  const handleOtpDigitChange = (idx, value) => {
+    setFormError('');
+    const clean = value.replace(/[^0-9]/g, '');
+    const newOtp = [...otpDigits];
+
+    if (clean.length > 1) {
+      const digits = clean.slice(0, 6).split('');
+      for (let i = 0; i < 6; i++) {
+        newOtp[i] = digits[i] || '';
+      }
+      setOtpDigits(newOtp);
+      const nextIdx = Math.min(digits.length, 5);
+      otpInputsRef.current[nextIdx]?.focus();
+      return;
+    }
+
+    newOtp[idx] = clean;
+    setOtpDigits(newOtp);
+
+    if (clean && idx < 5) {
+      otpInputsRef.current[idx + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (idx, e) => {
+    if (e.key === 'Backspace' && !otpDigits[idx] && idx > 0) {
+      otpInputsRef.current[idx - 1]?.focus();
+    }
+  };
+
+  const handleConfirmOtp = async () => {
+    setFormError('');
+    const fullOtp = otpDigits.join('');
+    if (fullOtp.length < 6) {
+      setFormError("Please enter the complete 6-digit OTP code");
+      return toast.error("Please enter the complete 6-digit OTP");
+    }
+
+    setIsOtpVerifying(true);
+    const cleanPhone = newCustomer.phone.replace(/[^0-9]/g, '');
+
+    try {
+      const res = await axios.post(`${API}/customer/verify-otp`, {
+        phone: cleanPhone,
+        otp: fullOtp,
+        name: newCustomer.name.trim()
+      });
+
+      if (res.data.verified) {
+        setIsPhoneVerified(true);
+        setIsOtpMode(false);
+        toast.success(`Mobile verified successfully! ✅`);
+      }
+    } catch (err) {
+      console.error('OTP Verification Error:', err);
+      const errMsg = err.response?.data?.error || 'Incorrect OTP code. Please check and retry.';
+      setFormError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setIsOtpVerifying(false);
+    }
+  };
+
   const handleRegisterCustomer = async (e) => {
     e.preventDefault();
-    if (!newCustomer.name || !newCustomer.phone) {
-      return toast.error("Please enter guest name and phone number");
+    setFormError('');
+    if (!newCustomer.name.trim()) {
+      setFormError("Please enter guest full name");
+      return toast.error("Please enter guest full name");
+    }
+    if (!newCustomer.phone.trim()) {
+      setFormError("Please enter mobile number");
+      return toast.error("Please enter mobile number");
     }
 
     const cleanPhone = newCustomer.phone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
-      return toast.error("Please enter a valid 10-digit phone number");
+      setFormError("Please enter a valid 10-digit mobile number");
+      return toast.error("Please enter a valid 10-digit mobile number");
     }
 
+    setIsSubmitting(true);
     const token = localStorage.getItem('token');
     const newCustObj = {
       ...newCustomer,
       _id: `cust_${Date.now()}`,
-      isPhoneVerified: true,
+      isPhoneVerified: isPhoneVerified,
       firstVisit: new Date(),
       lastVisit: new Date(),
       totalVisits: 1,
       lifetimeSpend: 0,
-      aov: 0,
+      averageOrderValue: 0,
       tier: 'New',
       orders: []
     };
 
     try {
       if (token) {
-        await axios.post(`${API}/petpooja/customers`, newCustomer, {
+        await axios.post(`${API}/petpooja/customers`, {
+          ...newCustomer,
+          isPhoneVerified: isPhoneVerified
+        }, {
           headers: { 'x-auth-token': token }
         });
       }
+      setCustomers(prev => [newCustObj, ...prev]);
+      toast.success(`Guest profile registered for ${newCustomer.name}!`);
+      resetAddModal();
     } catch (err) {
-      console.log('Customer registered locally:', err);
+      console.log('Customer registered locally fallback:', err);
+      setCustomers(prev => [newCustObj, ...prev]);
+      toast.success(`Guest profile registered for ${newCustomer.name}!`);
+      resetAddModal();
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setCustomers(prev => [newCustObj, ...prev]);
-    toast.success(`Guest profile registered for ${newCustomer.name}!`);
-    setNewCustomer({ name: '', phone: '', email: '' });
   };
 
-  // Filtering & Sorting
-  const filteredCustomers = customers
-    .filter(c => {
-      const matchesName = (c.name || '').toLowerCase().includes(search.toLowerCase());
-      const matchesPhone = phoneSearch ? (c.phone || '').includes(phoneSearch) : true;
-      
-      let matchesVerification = true;
-      if (verificationFilter === 'verified') matchesVerification = Boolean(c.isPhoneVerified);
-      if (verificationFilter === 'unverified') matchesVerification = !Boolean(c.isPhoneVerified);
+  const handleSaveNotes = () => {
+    if (!selectedCustomer) return;
+    const key = selectedCustomer._id || selectedCustomer.phone;
+    setCustomerNotes(prev => ({ ...prev, [key]: activeNoteText }));
+    toast.success("Guest preference notes saved!");
+  };
 
-      let matchesTier = true;
-      if (tierFilter !== 'all') {
-        matchesTier = (c.tier || '').toLowerCase() === tierFilter.toLowerCase();
-      }
+  // Avatar Gradient Generation
+  const getAvatarGradient = (name = '') => {
+    const gradients = [
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+      'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+      'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % gradients.length;
+    return gradients[index];
+  };
 
-      return matchesName && matchesPhone && matchesVerification && matchesTier;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'highest_spend') {
-        return (b.lifetimeSpend || 0) - (a.lifetimeSpend || 0);
-      }
-      if (sortBy === 'recent_visit') {
-        return new Date(b.lastVisit || 0) - new Date(a.lastVisit || 0);
-      }
-      if (sortBy === 'total_visits') {
-        return (b.totalVisits || 0) - (a.totalVisits || 0);
-      }
-      return 0;
-    });
+  const getInitials = (name = '') => {
+    const parts = name.trim().split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return (name.slice(0, 2) || 'GU').toUpperCase();
+  };
+
+  const formatCurrency = (num) => {
+    const val = Number(num) || 0;
+    return '₹' + Math.round(val).toLocaleString('en-IN');
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
@@ -173,422 +365,1035 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     }
   };
 
+  // Calculate top favorite dishes for customer
+  const favoriteItems = useMemo(() => {
+    if (!selectedCustomer || !selectedCustomer.orders || selectedCustomer.orders.length === 0) {
+      return [];
+    }
+    const counts = {};
+    selectedCustomer.orders.forEach(ord => {
+      (ord.items || []).forEach(it => {
+        const name = it.name || it.item?.name || 'Item';
+        const qty = Number(it.quantity || 1);
+        counts[name] = (counts[name] || 0) + qty;
+      });
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [selectedCustomer]);
+
+  // Group customer orders by Date for timeline
+  const groupedOrders = useMemo(() => {
+    if (!selectedCustomer || !selectedCustomer.orders || selectedCustomer.orders.length === 0) {
+      return {};
+    }
+
+    const groups = {};
+    const today = new Date();
+    const todayStr = today.toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    const sorted = [...selectedCustomer.orders].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    sorted.forEach(ord => {
+      const d = new Date(ord.createdAt || Date.now());
+      const dStr = d.toDateString();
+      let label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      if (dStr === todayStr) label = `Today (${label})`;
+      else if (dStr === yesterdayStr) label = `Yesterday (${label})`;
+
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(ord);
+    });
+
+    return groups;
+  }, [selectedCustomer]);
+
+  // Export CSV Feature
+  const handleExportCSV = () => {
+    if (customers.length === 0) return toast.error("No customer records to export");
+    const headers = ["Full Name", "Mobile", "Email", "Tier", "Verified", "Visits", "Lifetime Spend", "AOV", "First Visit", "Last Visit"];
+    const rows = customers.map(c => [
+      `"${c.name || 'Guest'}"`,
+      `"${c.phone || ''}"`,
+      `"${c.email || ''}"`,
+      `"${c.tier || 'New'}"`,
+      c.isPhoneVerified ? 'Yes' : 'No',
+      c.totalVisits || 1,
+      Math.round(c.lifetimeSpend || 0),
+      Math.round(c.averageOrderValue || c.aov || 0),
+      c.firstVisit ? new Date(c.firstVisit).toISOString().slice(0,10) : '',
+      c.lastVisit ? new Date(c.lastVisit).toISOString().slice(0,10) : ''
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `serviq_crm_customers_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Customer directory exported as CSV!");
+  };
+
+  // WhatsApp Promo Link Generator
+  const getWhatsAppPromoUrl = (phone, promoType = 'vip10') => {
+    if (!phone || phone === 'Not Provided') return '#';
+    const cleanPhone = phone.replace(/\D/g, '');
+    const name = selectedCustomer?.name || 'Guest';
+
+    let message = '';
+    if (promoType === 'vip10') {
+      message = `Hello ${name}! ✨ As a valued VIP guest at our cafe, here's an exclusive 10% discount on your next dine-in visit! Use code: *VIP10*. See you soon! ☕🍕`;
+    } else if (promoType === 'feedback') {
+      message = `Hello ${name}! 🌟 Thank you for dining with us. We hope you loved the food! We would love to hear your feedback on your experience. 💬`;
+    } else if (promoType === 'miss_you') {
+      message = `Hey ${name}! 🎁 We miss having you around! Visit us this week and get a complimentary dessert/beverage on your order! ☕🍰`;
+    }
+
+    return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  // Computed KPI Metrics & Tab Counts
+  const { metrics, tabCounts } = useMemo(() => {
+    const totalCust = customers.length;
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    const vipCount = customers.filter(c => (c.tier || '').toUpperCase() === 'VIP').length;
+    const regularCount = customers.filter(c => (c.tier || '').toUpperCase() === 'REGULAR').length;
+    const newCount = customers.filter(c => !c.tier || (c.tier || '').toUpperCase() === 'NEW').length;
+    const inactiveCount = customers.filter(c => new Date(c.lastVisit || 0).getTime() < thirtyDaysAgo).length;
+    
+    const totalSpend = customers.reduce((sum, c) => sum + (Number(c.lifetimeSpend) || 0), 0);
+    const totalVisitsSum = customers.reduce((s, c) => s + (Number(c.totalVisits) || 1), 0);
+    const overallAov = totalCust > 0 ? Math.round(totalSpend / Math.max(1, totalVisitsSum)) : 0;
+    
+    const verifiedCount = customers.filter(c => c.isPhoneVerified).length;
+    const verifiedRate = totalCust > 0 ? Math.round((verifiedCount / totalCust) * 100) : 0;
+    const repeatCustCount = customers.filter(c => (Number(c.totalVisits) || 1) >= 2).length;
+    const repeatRate = totalCust > 0 ? Math.round((repeatCustCount / totalCust) * 100) : 0;
+
+    return {
+      metrics: { totalCust, vipCount, totalSpend, overallAov, verifiedRate, repeatRate },
+      tabCounts: { all: totalCust, vip: vipCount, regular: regularCount, new: newCount, inactive: inactiveCount }
+    };
+  }, [customers]);
+
+  // Filtering & Sorting
+  const filteredCustomers = useMemo(() => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    return customers
+      .filter(c => {
+        // Tab Segment Filter
+        if (activeTab === 'vip' && (c.tier || '').toUpperCase() !== 'VIP') return false;
+        if (activeTab === 'regular' && (c.tier || '').toUpperCase() !== 'REGULAR') return false;
+        if (activeTab === 'new' && (c.tier || '').toUpperCase() !== 'NEW' && c.tier) return false;
+        if (activeTab === 'inactive' && new Date(c.lastVisit || 0).getTime() >= thirtyDaysAgo) return false;
+
+        const matchesName = (c.name || '').toLowerCase().includes(search.toLowerCase());
+        const matchesPhone = phoneSearch ? (c.phone || '').includes(phoneSearch) : true;
+        
+        let matchesVerification = true;
+        if (verificationFilter === 'verified') matchesVerification = Boolean(c.isPhoneVerified);
+        if (verificationFilter === 'unverified') matchesVerification = !Boolean(c.isPhoneVerified);
+
+        return matchesName && matchesPhone && matchesVerification;
+      })
+      .sort((a, b) => {
+        const aSpend = Number(a.lifetimeSpend || 0);
+        const bSpend = Number(b.lifetimeSpend || 0);
+        const aVisits = Number(a.totalVisits || 1);
+        const bVisits = Number(b.totalVisits || 1);
+        const aAov = Number(a.averageOrderValue || a.aov || (aSpend / aVisits));
+        const bAov = Number(b.averageOrderValue || b.aov || (bSpend / bVisits));
+
+        if (sortBy === 'highest_spend') return bSpend - aSpend;
+        if (sortBy === 'highest_aov') return bAov - aAov;
+        if (sortBy === 'recent_visit') return new Date(b.lastVisit || 0) - new Date(a.lastVisit || 0);
+        if (sortBy === 'total_visits') return bVisits - aVisits;
+        return 0;
+      });
+  }, [customers, activeTab, search, phoneSearch, verificationFilter, sortBy]);
+
+  const hasActiveFilters = search || phoneSearch || verificationFilter !== 'all' || activeTab !== 'all';
+
+  const resetFilters = () => {
+    setActiveTab('all');
+    setSearch('');
+    setPhoneSearch('');
+    setVerificationFilter('all');
+    setSortBy('highest_spend');
+  };
+
   return (
     <div className={styles.page}>
+      {/* Local high z-index Toaster for instant front-facing notifications */}
+      <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
+
+      {/* ── Top Compact Header Row ── */}
       <div className={styles.headerRow}>
-        <div>
-          <h2 className={styles.title}>
-            <div className={styles.iconWrap}>
-              <Users size={22} />
-            </div>
-            <span>ServiQ Customer Directory & CRM</span>
-          </h2>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0' }}>
-            Live profile directory generated directly from actual customer orders and visit records.
-          </p>
-        </div>
-      </div>
-
-      {/* Filter and Search Controls Bar */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '0.75rem', 
-        flexWrap: 'wrap', 
-        alignItems: 'center', 
-        marginBottom: '1.5rem',
-        backgroundColor: '#ffffff',
-        padding: '1rem',
-        borderRadius: '14px',
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-      }}>
-        {/* Name Search */}
-        <div style={{ position: 'relative', flex: '1 1 200px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          <input
-            type="text"
-            placeholder="Search by customer name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '0.55rem 0.75rem 0.55rem 2.2rem',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              fontSize: '0.82rem',
-              outline: 'none'
-            }}
-          />
-        </div>
-
-        {/* Phone Search */}
-        <div style={{ position: 'relative', flex: '1 1 180px' }}>
-          <PhoneCall size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          <input
-            type="text"
-            placeholder="Search by mobile number..."
-            value={phoneSearch}
-            onChange={(e) => setPhoneSearch(e.target.value)}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '0.55rem 0.75rem 0.55rem 2.2rem',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              fontSize: '0.82rem',
-              outline: 'none'
-            }}
-          />
-        </div>
-
-        {/* Verification Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b' }}>Verification:</span>
-          <select
-            value={verificationFilter}
-            onChange={(e) => setVerificationFilter(e.target.value)}
-            style={{
-              padding: '0.55rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              fontSize: '0.82rem',
-              backgroundColor: '#f8fafc',
-              outline: 'none'
-            }}
-          >
-            <option value="all">All Statuses</option>
-            <option value="verified">Verified Only</option>
-            <option value="unverified">Unverified Only</option>
-          </select>
-        </div>
-
-        {/* Tier Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b' }}>Tier:</span>
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
-            style={{
-              padding: '0.55rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              fontSize: '0.82rem',
-              backgroundColor: '#f8fafc',
-              outline: 'none'
-            }}
-          >
-            <option value="all">All Tiers</option>
-            <option value="vip">VIP Only</option>
-            <option value="regular">Regular</option>
-            <option value="new">New</option>
-          </select>
-        </div>
-
-        {/* Sorting Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b' }}>Sort By:</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              padding: '0.55rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              fontSize: '0.82rem',
-              backgroundColor: '#f8fafc',
-              outline: 'none',
-              fontWeight: '600'
-            }}
-          >
-            <option value="highest_spend">Highest Lifetime Spend</option>
-            <option value="recent_visit">Most Recent Visit</option>
-            <option value="total_visits">Total Visits</option>
-          </select>
-        </div>
-      </div>
-
-      <div className={styles.gridTwoCol}>
-        {/* Customer Directory Table */}
-        <div className={styles.card} style={{ flex: 1 }}>
+        <div className={styles.titleArea}>
+          <div className={styles.brandIconWrap}>
+            <Users size={20} />
+          </div>
           <div>
-            <div className={styles.cardHeader}>
-              <h3 className={styles.cardTitle}>
-                Customer Profiles ({filteredCustomers.length})
-              </h3>
+            <h2 className={styles.title}>Customer Directory & CRM</h2>
+            <p className={styles.subtitle}>
+              Unified guest profiles, visit frequencies, and loyalty spend tracking powered by real orders.
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.headerActions}>
+          <div className={styles.liveBadge}>
+            <span className={styles.liveDot}></span>
+            <span>Live Sync</span>
+          </div>
+
+          <button 
+            className={styles.btnSecondary}
+            onClick={handleExportCSV}
+            title="Download CSV"
+          >
+            <Download size={13} />
+            <span>Export CSV</span>
+          </button>
+
+          <button 
+            className={styles.btnSecondary} 
+            onClick={fetchCustomers}
+            title="Refresh Directory"
+          >
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
+
+          <button 
+            className={styles.btnPrimary}
+            onClick={() => {
+              setFormError('');
+              setIsAddModalOpen(true);
+            }}
+          >
+            <UserPlus size={14} />
+            <span>Add Customer</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Streamlined Mini KPI Ribbon ── */}
+      <div className={styles.compactKpiRibbon}>
+        <div className={styles.miniKpiCard}>
+          <div className={styles.miniKpiInfo}>
+            <span className={styles.miniKpiLabel}>Total Guests</span>
+            <div className={styles.miniKpiValueRow}>
+              <span className={styles.miniKpiVal}>{metrics.totalCust}</span>
+              <span className={styles.miniKpiSub}>({metrics.verifiedRate}% Verified)</span>
+            </div>
+          </div>
+          <div className={`${styles.miniKpiIcon} ${styles.iconEmerald}`}>
+            <Users size={16} />
+          </div>
+        </div>
+
+        <div className={styles.miniKpiCard}>
+          <div className={styles.miniKpiInfo}>
+            <span className={styles.miniKpiLabel}>VIP Diners</span>
+            <div className={styles.miniKpiValueRow}>
+              <span className={styles.miniKpiVal}>{metrics.vipCount}</span>
+              <span className={styles.miniKpiSub}>({metrics.repeatRate}% Repeat)</span>
+            </div>
+          </div>
+          <div className={`${styles.miniKpiIcon} ${styles.iconAmber}`}>
+            <Crown size={16} />
+          </div>
+        </div>
+
+        <div className={styles.miniKpiCard}>
+          <div className={styles.miniKpiInfo}>
+            <span className={styles.miniKpiLabel}>Total CRM Spend</span>
+            <div className={styles.miniKpiValueRow}>
+              <span className={styles.miniKpiVal}>{formatCurrency(metrics.totalSpend)}</span>
+            </div>
+          </div>
+          <div className={`${styles.miniKpiIcon} ${styles.iconIndigo}`}>
+            <IndianRupee size={16} />
+          </div>
+        </div>
+
+        <div className={styles.miniKpiCard}>
+          <div className={styles.miniKpiInfo}>
+            <span className={styles.miniKpiLabel}>Average Ticket (AOV)</span>
+            <div className={styles.miniKpiValueRow}>
+              <span className={styles.miniKpiVal}>{formatCurrency(metrics.overallAov)}</span>
+            </div>
+          </div>
+          <div className={`${styles.miniKpiIcon} ${styles.iconRose}`}>
+            <Receipt size={16} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Full-Width Maximized Customer Table Card ── */}
+      <div className={styles.fullWidthCard}>
+        {/* Unified Toolbar */}
+        <div className={styles.unifiedToolbar}>
+          {/* Segment Tabs */}
+          <div className={styles.toolbarLeft}>
+            <button 
+              className={`${styles.tabPill} ${activeTab === 'all' ? styles.tabPillActive : ''}`}
+              onClick={() => setActiveTab('all')}
+            >
+              <span>All Guests</span>
+              <span className={styles.tabCount}>{tabCounts.all}</span>
+            </button>
+
+            <button 
+              className={`${styles.tabPill} ${activeTab === 'vip' ? styles.tabPillActive : ''}`}
+              onClick={() => setActiveTab('vip')}
+            >
+              <Star size={11} color={activeTab === 'vip' ? '#fcd34d' : '#d97706'} fill={activeTab === 'vip' ? '#fcd34d' : '#d97706'} />
+              <span>VIP Diners</span>
+              <span className={styles.tabCount}>{tabCounts.vip}</span>
+            </button>
+
+            <button 
+              className={`${styles.tabPill} ${activeTab === 'regular' ? styles.tabPillActive : ''}`}
+              onClick={() => setActiveTab('regular')}
+            >
+              <span>Regulars (2+)</span>
+              <span className={styles.tabCount}>{tabCounts.regular}</span>
+            </button>
+
+            <button 
+              className={`${styles.tabPill} ${activeTab === 'new' ? styles.tabPillActive : ''}`}
+              onClick={() => setActiveTab('new')}
+            >
+              <span>New</span>
+              <span className={styles.tabCount}>{tabCounts.new}</span>
+            </button>
+
+            {tabCounts.inactive > 0 && (
+              <button 
+                className={`${styles.tabPill} ${activeTab === 'inactive' ? styles.tabPillActive : ''}`}
+                onClick={() => setActiveTab('inactive')}
+              >
+                <AlertCircle size={11} color={activeTab === 'inactive' ? '#fca5a5' : '#ef4444'} />
+                <span>Inactive (>30d)</span>
+                <span className={styles.tabCount}>{tabCounts.inactive}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Search & Filters */}
+          <div className={styles.toolbarRight}>
+            {/* Name Search */}
+            <div className={styles.searchField}>
+              <Search size={13} className={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={styles.inputField}
+              />
+              {search && (
+                <button className={styles.clearBtn} onClick={() => setSearch('')}>
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
-            <div className={styles.tableWrapper} style={{ overflowX: 'auto' }}>
-              <table className={styles.table} style={{ width: '100%', minWidth: '750px', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Full Name</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Mobile Number</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Status</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>First Visit</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Last Visit</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Total Visits</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Lifetime Spend</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>AOV</th>
-                    <th className={styles.th} style={{ padding: '0.75rem' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
-                        No customer profiles match your search criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCustomers.map(cust => (
-                      <motion.tr 
-                        key={cust._id || cust.phone} 
-                        whileHover={{ backgroundColor: '#f8fafc' }}
-                        className={styles.trHover}
-                        style={{ borderBottom: '1px solid #f1f5f9' }}
-                      >
-                        <td className={styles.td} style={{ padding: '0.75rem', fontWeight: '800', color: '#0f172a' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{cust.name}</span>
-                            {cust.tier === 'VIP' && (
-                              <span style={{ fontSize: '0.65rem', backgroundColor: '#fef08a', color: '#854d0e', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
-                                VIP
-                              </span>
+            {/* Mobile Search */}
+            <div className={styles.searchField}>
+              <PhoneCall size={13} className={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search mobile..."
+                value={phoneSearch}
+                onChange={(e) => setPhoneSearch(e.target.value)}
+                className={styles.inputField}
+              />
+              {phoneSearch && (
+                <button className={styles.clearBtn} onClick={() => setPhoneSearch('')}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Verification Status */}
+            <select
+              value={verificationFilter}
+              onChange={(e) => setVerificationFilter(e.target.value)}
+              className={styles.selectField}
+            >
+              <option value="all">All Verification</option>
+              <option value="verified">Verified Only</option>
+              <option value="unverified">Unverified Only</option>
+            </select>
+
+            {/* Sorting */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className={styles.selectField}
+            >
+              <option value="highest_spend">Sort: Highest Spend</option>
+              <option value="highest_aov">Sort: Highest AOV</option>
+              <option value="recent_visit">Sort: Recent Visit</option>
+              <option value="total_visits">Sort: Total Visits</option>
+            </select>
+
+            {/* Reset Button */}
+            {hasActiveFilters && (
+              <button className={styles.resetBtn} onClick={resetFilters}>
+                <X size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Maximized Full-Width Table */}
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.th}>Customer</th>
+                <th className={styles.th}>Mobile Number</th>
+                <th className={styles.th}>Status</th>
+                <th className={styles.th}>First Visit</th>
+                <th className={styles.th}>Last Visit</th>
+                <th className={styles.th} style={{ textAlign: 'center' }}>Visits</th>
+                <th className={styles.th}>Lifetime Spend</th>
+                <th className={styles.th}>AOV</th>
+                <th className={styles.th} style={{ textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={9}>
+                    <div className={styles.emptyState}>
+                      <Users size={34} strokeWidth={1.5} />
+                      <p style={{ margin: 0, fontWeight: '700', color: '#64748b' }}>
+                        No customer profiles match your selected search criteria.
+                      </p>
+                      {hasActiveFilters && (
+                        <button className={styles.resetBtn} onClick={resetFilters}>
+                          Clear All Filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map(cust => {
+                  const spend = Number(cust.lifetimeSpend) || 0;
+                  const visits = Number(cust.totalVisits) || (cust.orders?.length || 1);
+                  const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
+                  const isVip = (cust.tier || '').toUpperCase() === 'VIP';
+                  const isRegular = (cust.tier || '').toUpperCase() === 'REGULAR';
+                  const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
+
+                  return (
+                    <motion.tr 
+                      key={cust._id || cust.phone} 
+                      className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
+                      onClick={() => setSelectedCustomer(cust)}
+                    >
+                      {/* Customer Identity */}
+                      <td className={styles.td}>
+                        <div className={styles.customerIdentity}>
+                          <div 
+                            className={styles.avatar} 
+                            style={{ background: getAvatarGradient(cust.name) }}
+                          >
+                            {getInitials(cust.name)}
+                          </div>
+                          <div className={styles.identityText}>
+                            <div className={styles.nameRow}>
+                              <span>{cust.name || 'Guest Diner'}</span>
+                              {isVip && (
+                                <span className={styles.tierVip}>
+                                  <Star size={9} fill="#92400e" /> VIP
+                                </span>
+                              )}
+                              {isRegular && (
+                                <span className={styles.tierRegular}>Regular</span>
+                              )}
+                              {!isVip && !isRegular && (
+                                <span className={styles.tierNew}>New</span>
+                              )}
+                            </div>
+                            {cust.email && (
+                              <span className={styles.emailText}>{cust.email}</span>
                             )}
                           </div>
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem', color: '#334155', fontWeight: '600' }}>
-                          {cust.phone}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem' }}>
-                          {cust.isPhoneVerified ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#16a34a', backgroundColor: '#dcfce7', padding: '3px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800' }}>
-                              <CheckCircle2 size={12} /> Verified
-                            </span>
-                          ) : (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#dc2626', backgroundColor: '#fee2e2', padding: '3px 8px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: '800' }}>
-                              <XCircle size={12} /> Unverified
-                            </span>
-                          )}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem', fontSize: '0.8rem', color: '#64748b' }}>
-                          {formatDate(cust.firstVisit)}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem', fontSize: '0.8rem', color: '#64748b' }}>
-                          {formatDate(cust.lastVisit)}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem', fontWeight: '800', textAlign: 'center' }}>
-                          {cust.totalVisits || 1}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem', fontWeight: '900', color: '#e05c5c' }}>
-                          ₹{cust.lifetimeSpend || 0}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem', fontWeight: '700', color: '#0f172a' }}>
-                          ₹{cust.aov || 0}
-                        </td>
-                        <td className={styles.td} style={{ padding: '0.75rem' }}>
-                          <button
-                            onClick={() => setSelectedCustomer(cust)}
-                            style={{
-                              backgroundColor: '#f1f5f9',
-                              border: '1px solid #cbd5e1',
-                              borderRadius: '8px',
-                              padding: '0.35rem 0.65rem',
-                              fontSize: '0.75rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              color: '#334155'
-                            }}
-                          >
-                            View Orders
-                          </button>
-                        </td>
-                      </motion.tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                        </div>
+                      </td>
+
+                      {/* Mobile Number */}
+                      <td className={styles.td} style={{ fontWeight: '700', color: '#1e293b' }}>
+                        {cust.phone || 'Not Provided'}
+                      </td>
+
+                      {/* Status */}
+                      <td className={styles.td}>
+                        {cust.isPhoneVerified ? (
+                          <span className={styles.badgeVerified}>
+                            <CheckCircle2 size={11} /> Verified
+                          </span>
+                        ) : (
+                          <span className={styles.badgeUnverified}>
+                            <XCircle size={11} /> Unverified
+                          </span>
+                        )}
+                      </td>
+
+                      {/* First Visit */}
+                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '500' }}>
+                        {formatDate(cust.firstVisit)}
+                      </td>
+
+                      {/* Last Visit */}
+                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '500' }}>
+                        {formatDate(cust.lastVisit)}
+                      </td>
+
+                      {/* Visits Count */}
+                      <td className={styles.td} style={{ textAlign: 'center' }}>
+                        <span className={styles.visitsPill}>
+                          {visits}
+                        </span>
+                      </td>
+
+                      {/* Lifetime Spend */}
+                      <td className={styles.td}>
+                        <span className={styles.spendText}>
+                          {formatCurrency(spend)}
+                        </span>
+                      </td>
+
+                      {/* AOV */}
+                      <td className={styles.td}>
+                        <span className={styles.aovText}>
+                          {formatCurrency(aov)}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className={styles.td} style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCustomer(cust);
+                          }}
+                          className={styles.actionBtn}
+                        >
+                          <Eye size={12} />
+                          <span>View Profile</span>
+                        </button>
+                      </td>
+                    </motion.tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Register New Guest Profile Form */}
-        <div className={styles.card} style={{ alignSelf: 'flex-start' }}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>Add Customer Record</h3>
-          </div>
-
-          <form onSubmit={handleRegisterCustomer} className={styles.formStack}>
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Full Name *</label>
-              <input 
-                type="text" 
-                required
-                placeholder="e.g. Rahul Kapoor"
-                value={newCustomer.name}
-                onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                className={styles.input}
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Mobile Number (10 Digits) *</label>
-              <input 
-                type="tel" 
-                required
-                maxLength={10}
-                placeholder="e.g. 9876543210"
-                value={newCustomer.phone}
-                onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value.replace(/\D/g, '') })}
-                className={styles.input}
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Email Address (Optional)</label>
-              <input 
-                type="email" 
-                placeholder="rahul@domain.com"
-                value={newCustomer.email}
-                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                className={styles.input}
-              />
-            </div>
-
-            <button type="submit" className={styles.submitBtn}>
-              <Plus size={16} /> Register Profile
-            </button>
-          </form>
+        {/* Table Footer */}
+        <div className={styles.tableFooter}>
+          <span>Showing <strong>{filteredCustomers.length}</strong> of <strong>{customers.length}</strong> total customer profiles</span>
+          <span>Click any row to open full 360° Order Timeline</span>
         </div>
       </div>
 
-      {/* Customer Orders Breakdown Modal */}
+      {/* ── Slide-over Modal: Add Customer Record with OTP Verification ── */}
       <AnimatePresence>
-        {selectedCustomer && (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '1rem'
-          }}>
+        {isAddModalOpen && (
+          <div 
+            className={styles.modalOverlay}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) resetAddModal();
+            }}
+          >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '20px',
-                maxWidth: '650px',
-                width: '100%',
-                maxHeight: '85vh',
-                overflowY: 'auto',
-                boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
-                padding: '1.75rem'
-              }}
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className={styles.modalContent}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
-                    {selectedCustomer.name}
+              <div className={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                  <UserPlus size={18} color="#059669" />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
+                    Register New Customer
                   </h3>
-                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '6px', fontSize: '0.82rem', color: '#64748b' }}>
-                    <span>📞 {selectedCustomer.phone}</span>
-                    <span>•</span>
-                    <span>{selectedCustomer.isPhoneVerified ? '✅ Phone Verified' : '❌ Unverified'}</span>
-                  </div>
                 </div>
                 <button
-                  onClick={() => setSelectedCustomer(null)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                  onClick={resetAddModal}
+                  className={styles.closeBtn}
                 >
-                  <X size={20} />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Metrics Summary Strip */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '0.75rem',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                padding: '1rem',
-                borderRadius: '12px',
-                marginBottom: '1.5rem',
-                textAlign: 'center'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>TOTAL VISITS</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}>{selectedCustomer.totalVisits}</div>
+              {/* Prominent Inline Error Banner right in the modal */}
+              {formError && (
+                <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{formError}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setFormError('')} 
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>LIFETIME SPEND</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#e05c5c' }}>₹{selectedCustomer.lifetimeSpend}</div>
+              )}
+
+              <form onSubmit={handleRegisterCustomer} className={styles.formWrapper}>
+                {/* 1. Full Name */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    <span>Full Name</span>
+                    <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <div className={styles.inputIconWrap}>
+                    <Users size={15} className={styles.fieldIcon} />
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="e.g. Rahul Kapoor"
+                      value={newCustomer.name}
+                      onChange={(e) => {
+                        setNewCustomer({ ...newCustomer, name: e.target.value });
+                        if (formError) setFormError('');
+                      }}
+                      className={`${styles.formInput} ${formError && !newCustomer.name.trim() ? styles.inputError : ''}`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>AVG ORDER VALUE</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}>₹{selectedCustomer.aov}</div>
+
+                {/* 2. Mobile Number with OTP Verification trigger */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    <span>Mobile Number</span>
+                    <span style={{ color: '#dc2626' }}>* (10 Digits)</span>
+                  </label>
+                  <div className={styles.inputIconWrap}>
+                    <PhoneCall size={15} className={styles.fieldIcon} />
+                    <input 
+                      type="tel" 
+                      required
+                      maxLength={10}
+                      disabled={isPhoneVerified}
+                      placeholder="e.g. 9876543210"
+                      value={newCustomer.phone}
+                      onChange={(e) => {
+                        setNewCustomer({ ...newCustomer, phone: e.target.value.replace(/\D/g, '') });
+                        setIsPhoneVerified(false);
+                        if (formError) setFormError('');
+                      }}
+                      className={`${styles.formInput} ${formError && newCustomer.phone.length < 10 ? styles.inputError : ''}`}
+                    />
+
+                    {/* Verified Pill or Send OTP Button */}
+                    {isPhoneVerified ? (
+                      <span className={styles.verifiedPhonePill}>
+                        <CheckCircle2 size={12} /> Verified
+                      </span>
+                    ) : (
+                      newCustomer.phone.length === 10 && !isOtpMode && (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isOtpSending}
+                          className={styles.sendOtpPillBtn}
+                        >
+                          <KeyRound size={12} />
+                          <span>{isOtpSending ? 'Sending...' : 'Verify with OTP'}</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. OTP Code Input Section (Visible when OTP Mode is active) */}
+                {isOtpMode && !isPhoneVerified && (
+                  <div className={styles.otpSectionBox}>
+                    <div className={styles.otpHeaderRow}>
+                      <span className={styles.otpPromptTitle}>
+                        <ShieldCheck size={14} color="#059669" />
+                        <span>Enter 6-Digit Verification Code</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOtpMode(false);
+                          setFormError('');
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className={styles.otpInputsContainer}>
+                      {otpDigits.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          ref={(el) => (otpInputsRef.current[idx] = el)}
+                          type="text"
+                          maxLength={1}
+                          inputMode="numeric"
+                          value={digit}
+                          onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          className={styles.otpDigitInput}
+                        />
+                      ))}
+                    </div>
+
+                    <div className={styles.otpActionsRow}>
+                      <div>
+                        {countdown > 0 ? (
+                          <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Resend in <strong>{countdown}s</strong></span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!canResend || isOtpSending}
+                            onClick={handleSendOtp}
+                            className={styles.resendBtn}
+                          >
+                            Resend OTP Code
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isOtpVerifying || otpDigits.join('').length < 6}
+                        onClick={handleConfirmOtp}
+                        className={styles.verifyOtpConfirmBtn}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>{isOtpVerifying ? 'Verifying...' : 'Confirm OTP'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Email Address */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    <span>Email Address</span>
+                    <span style={{ color: '#94a3b8', fontWeight: '600' }}>Optional</span>
+                  </label>
+                  <div className={styles.inputIconWrap}>
+                    <Mail size={15} className={styles.fieldIcon} />
+                    <input 
+                      type="email" 
+                      placeholder="rahul@domain.com"
+                      value={newCustomer.email}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                      className={styles.formInput}
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Submit Button */}
+                <button type="submit" disabled={isSubmitting} className={styles.submitBtn}>
+                  <Plus size={15} />
+                  <span>
+                    {isSubmitting 
+                      ? 'Registering...' 
+                      : isPhoneVerified 
+                        ? 'Save Verified Customer Profile' 
+                        : 'Register Customer Profile'}
+                  </span>
+                </button>
+
+                <div className={styles.infoBanner}>
+                  <Info size={15} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <p className={styles.infoText}>
+                    <strong>Smart Sync:</strong> Orders placed via Dine-in QR or POS Terminal using this mobile number will automatically sync to this CRM profile.
+                  </p>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Right Slide-Over Side Drawer: Customer 360° Profile & Date-Grouped Timeline ── */}
+      <AnimatePresence>
+        {selectedCustomer && (
+          <div 
+            className={styles.drawerOverlay}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedCustomer(null);
+            }}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className={styles.drawerPanel}
+            >
+              {/* Drawer Header */}
+              <div className={styles.drawerHeader}>
+                <div className={styles.drawerProfile}>
+                  <div 
+                    className={styles.drawerAvatar} 
+                    style={{ background: getAvatarGradient(selectedCustomer.name) }}
+                  >
+                    {getInitials(selectedCustomer.name)}
+                  </div>
+                  <div>
+                    <div className={styles.drawerName}>
+                      <span>{selectedCustomer.name}</span>
+                      {(selectedCustomer.tier || '').toUpperCase() === 'VIP' && (
+                        <span className={styles.tierVip}>
+                          <Star size={9} fill="#92400e" /> VIP
+                        </span>
+                      )}
+                    </div>
+                    <div className={styles.drawerContactRow}>
+                      <span>📞 {selectedCustomer.phone}</span>
+                      <span>•</span>
+                      <span>{selectedCustomer.isPhoneVerified ? '✅ Verified' : '❌ Unverified'}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className={styles.quickActionBtns}>
+                  {selectedCustomer.phone && selectedCustomer.phone !== 'Not Provided' && (
+                    <>
+                      <a 
+                        href={`https://wa.me/91${selectedCustomer.phone.replace(/\D/g, '')}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className={styles.contactIconBtn}
+                        title="Chat on WhatsApp"
+                      >
+                        <MessageSquare size={14} color="#16a34a" />
+                      </a>
+                      <a 
+                        href={`tel:${selectedCustomer.phone}`} 
+                        className={styles.contactIconBtn}
+                        title="Call Customer"
+                      >
+                        <Phone size={14} />
+                      </a>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setSelectedCustomer(null)}
+                    className={styles.closeDrawerBtn}
+                    title="Close Drawer"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               </div>
 
-              {/* Order History List */}
-              <h4 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem' }}>
-                Order History ({selectedCustomer.orders?.length || 0})
-              </h4>
+              {/* Drawer Body */}
+              <div className={styles.drawerBody}>
+                {/* Metrics Summary Strip */}
+                <div className={styles.drawerMetricsGrid}>
+                  <div>
+                    <div className={styles.drawerMetricLabel}>Total Visits</div>
+                    <div className={styles.drawerMetricVal}>
+                      {selectedCustomer.totalVisits || selectedCustomer.orders?.length || 1}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={styles.drawerMetricLabel}>Lifetime Spend</div>
+                    <div className={styles.drawerMetricVal} style={{ color: '#059669' }}>
+                      {formatCurrency(selectedCustomer.lifetimeSpend || 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={styles.drawerMetricLabel}>Avg Ticket (AOV)</div>
+                    <div className={styles.drawerMetricVal}>
+                      {formatCurrency(
+                        selectedCustomer.averageOrderValue || 
+                        selectedCustomer.aov || 
+                        Math.round((Number(selectedCustomer.lifetimeSpend) || 0) / Math.max(1, Number(selectedCustomer.totalVisits) || 1))
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-              {(!selectedCustomer.orders || selectedCustomer.orders.length === 0) ? (
-                <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No past order records found for this guest.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {selectedCustomer.orders.map((ord, idx) => (
-                    <div
-                      key={ord._id || idx}
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        padding: '1rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <div>
-                          <span style={{ fontWeight: '800', fontSize: '0.88rem', color: '#0f172a' }}>
-                            Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
-                          </span>
-                          <span style={{ marginLeft: '8px', fontSize: '0.75rem', backgroundColor: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                            Table {ord.tableNumber || 'Takeaway'}
+                {/* 1. ⭐ Favorite / Most-Ordered Dishes */}
+                {favoriteItems.length > 0 && (
+                  <div className={styles.drawerSectionCard}>
+                    <h5 className={styles.drawerSectionTitle}>
+                      <UtensilsCrossed size={14} color="#d97706" />
+                      <span>Favorite & Most-Ordered Dishes</span>
+                    </h5>
+                    <div className={styles.favTagsWrap}>
+                      {favoriteItems.map((fav, fIdx) => (
+                        <div key={fIdx} className={styles.favTag}>
+                          <span>{fav.name}</span>
+                          <span className={styles.favCountBadge}>×{fav.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. 💬 1-Click WhatsApp Loyalty Promos */}
+                {selectedCustomer.phone && selectedCustomer.phone !== 'Not Provided' && (
+                  <div className={styles.drawerSectionCard}>
+                    <h5 className={styles.drawerSectionTitle}>
+                      <Gift size={14} color="#059669" />
+                      <span>1-Click WhatsApp Loyalty Offers</span>
+                    </h5>
+                    <div className={styles.promoOptionsWrap}>
+                      <a
+                        href={getWhatsAppPromoUrl(selectedCustomer.phone, 'vip10')}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.promoBtn}
+                      >
+                        <span>🎁 Send VIP 10% Off Promo Code</span>
+                        <Send size={12} />
+                      </a>
+                      <a
+                        href={getWhatsAppPromoUrl(selectedCustomer.phone, 'feedback')}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.promoBtn}
+                      >
+                        <span>⭐ Send Thank You & Rating Request</span>
+                        <Send size={12} />
+                      </a>
+                      <a
+                        href={getWhatsAppPromoUrl(selectedCustomer.phone, 'miss_you')}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.promoBtn}
+                      >
+                        <span>☕ Send "We Miss You" Free Beverage Offer</span>
+                        <Send size={12} />
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. 📝 Guest Preferences & Dietary Notes */}
+                <div className={styles.drawerSectionCard}>
+                  <h5 className={styles.drawerSectionTitle}>
+                    <Edit3 size={14} color="#4f46e5" />
+                    <span>Guest Preferences & Dietary Notes</span>
+                  </h5>
+                  <textarea
+                    placeholder="e.g. Prefers window table #4, less spicy food, likes almond milk..."
+                    value={activeNoteText}
+                    onChange={(e) => setActiveNoteText(e.target.value)}
+                    className={styles.notesInput}
+                  />
+                  <button onClick={handleSaveNotes} className={styles.saveNotesBtn}>
+                    Save Notes
+                  </button>
+                </div>
+
+                {/* 4. 📅 Date-Grouped Order History Timeline */}
+                <div className={styles.timelineSection}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: '900', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={15} color="#059669" />
+                      <span>Order History Timeline ({selectedCustomer.orders?.length || 0})</span>
+                    </h4>
+                  </div>
+
+                  {(!selectedCustomer.orders || selectedCustomer.orders.length === 0) ? (
+                    <div className={styles.emptyState} style={{ padding: '2rem 1rem' }}>
+                      <Receipt size={30} />
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '600' }}>
+                        No past order records found for this guest.
+                      </p>
+                    </div>
+                  ) : (
+                    Object.entries(groupedOrders).map(([dateLabel, dateOrders]) => (
+                      <div key={dateLabel} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {/* Date Header Badge */}
+                        <div className={styles.dateGroupHeader}>
+                          <Calendar size={13} color="#059669" />
+                          <span>{dateLabel}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: 'auto', fontWeight: '700' }}>
+                            {dateOrders.length} {dateOrders.length === 1 ? 'order' : 'orders'}
                           </span>
                         </div>
-                        <span style={{ fontWeight: '900', color: '#e05c5c', fontSize: '0.95rem' }}>
-                          ₹{ord.settledAmount || ord.finalAmount || ord.totalAmount || ord.total || 0}
-                        </span>
-                      </div>
 
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.5rem' }}>
-                        {formatDate(ord.createdAt)} • Status: <strong style={{ textTransform: 'capitalize' }}>{ord.status || 'completed'}</strong>
-                      </div>
+                        {/* Orders under this date */}
+                        <div className={styles.dateGroupOrders}>
+                          {dateOrders.map((ord, idx) => (
+                            <div
+                              key={ord._id || idx}
+                              className={styles.orderCardDrawer}
+                            >
+                              <div className={styles.orderCardHeader}>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                  <span className={styles.orderNumber}>
+                                    Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
+                                  </span>
+                                  <span className={styles.tableTag}>
+                                    {ord.tableNumber ? `Table ${ord.tableNumber}` : (ord.orderType || 'Dine-In')}
+                                  </span>
+                                </div>
+                                <span className={styles.orderAmount}>
+                                  {formatCurrency(ord.settledAmount || ord.finalAmount || ord.totalAmount || ord.total || 0)}
+                                </span>
+                              </div>
 
-                      {/* Items list */}
-                      {ord.items && ord.items.length > 0 && (
-                        <div style={{ backgroundColor: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem' }}>
-                          {ord.items.map((it, itIdx) => (
-                            <div key={itIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                              <span>{it.quantity}x {it.name || it.item?.name}</span>
-                              <span style={{ fontWeight: '700' }}>₹{it.price * it.quantity}</span>
+                              <div className={styles.orderMetaRow}>
+                                <span>{new Date(ord.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span>•</span>
+                                <span>Status: <strong style={{ textTransform: 'capitalize', color: '#0f172a' }}>{ord.status || 'completed'}</strong></span>
+                                {ord.paymentMethod && (
+                                  <>
+                                    <span>•</span>
+                                    <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
+                                      {ord.paymentMethod}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Items list */}
+                              {ord.items && ord.items.length > 0 && (
+                                <div className={styles.itemsContainer}>
+                                  {ord.items.map((it, itIdx) => (
+                                    <div key={itIdx} className={styles.itemRow}>
+                                      <span>{it.quantity}x {it.name || it.item?.name || 'Menu Item'}</span>
+                                      <span style={{ fontWeight: '800' }}>₹{(it.price || 0) * (it.quantity || 1)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    ))
+                  )}
                 </div>
-              )}
+              </div>
             </motion.div>
           </div>
         )}
