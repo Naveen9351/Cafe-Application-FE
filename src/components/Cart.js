@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CustomerVerificationModal from "./CustomerVerificationModal";
+import { decodeTableToken } from "../utils/tableToken";
 import styles from "./Cart.module.css";
 import { API_URL as API } from "../config/api";
 
@@ -88,10 +89,17 @@ export default function Cart() {
   };
 
   useEffect(() => {
-    const urlTable = searchParams.get("table");
-    if (urlTable) {
-      setTableNumber(urlTable);
-      localStorage.setItem("tableNumber", urlTable);
+    const tokenParam = searchParams.get("t") || searchParams.get("code") || searchParams.get("token");
+    let resolvedTable = null;
+    if (tokenParam) {
+      resolvedTable = decodeTableToken(tokenParam);
+    } else if (searchParams.get("table")) {
+      resolvedTable = decodeTableToken(searchParams.get("table"));
+    }
+
+    if (resolvedTable) {
+      setTableNumber(resolvedTable);
+      localStorage.setItem("tableNumber", resolvedTable);
     }
 
     // Fetch tenant info for branding
@@ -161,7 +169,8 @@ export default function Cart() {
             quantity: i.quantity,
             price: i.price,
             variant: i.variant || null,
-            addons: i.addons || []
+            addons: i.addons || [],
+            specialNotes: i.specialNotes || i.notes || ''
           };
         }),
         tenantId, // CRITICAL: Multi-tenant support

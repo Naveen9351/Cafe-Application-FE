@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
 import toast from 'react-hot-toast';
+import { buildTableMenuUrl } from '../utils/tableToken';
 
 export default function TableOperationsHub({
   tables = [],
@@ -182,8 +183,8 @@ export default function TableOperationsHub({
   };
 
   const getQRScanUrl = (tableNum) => {
-    const base = window.location.origin || 'http://localhost:3000';
-    return `${base}/menu?tenantId=${tenantId}&table=${encodeURIComponent(tableNum)}`;
+    const base = 'https://cafe-application-fe.vercel.app';
+    return buildTableMenuUrl(base, tableNum, tenantId);
   };
 
   return (

@@ -4,6 +4,7 @@ import styles from "./OrderStatus.module.css";
 import axios from "axios";
 import { CheckCircle, Clock, ChefHat, ShoppingBag, ArrowRight, Plus, ChevronLeft, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
+import { encodeTableToken } from "../utils/tableToken";
 import { API_URL as API } from "../config/api";
 
 const OrderStatus = () => {
@@ -24,7 +25,8 @@ const OrderStatus = () => {
   useEffect(() => {
     const handlePopState = (e) => {
       const tbl = order?.tableNumber || localStorage.getItem('serviq_last_table') || '';
-      navigate(`/menu${tbl ? `?table=${encodeURIComponent(tbl)}` : ''}`, { replace: true });
+      const token = tbl ? encodeTableToken(tbl) : '';
+      navigate(`/menu${token ? `?t=${encodeURIComponent(token)}` : ''}`, { replace: true });
     };
 
     window.history.pushState(null, '', window.location.href);
@@ -74,7 +76,8 @@ const OrderStatus = () => {
 
   const currentStepIndex = steps.findIndex(s => s.id === order.status);
   const isCancelled = order.status === 'cancelled';
-  const tableTarget = order.tableNumber ? `?table=${encodeURIComponent(order.tableNumber)}` : '';
+  const tableToken = order.tableNumber ? encodeTableToken(order.tableNumber) : '';
+  const tableTarget = tableToken ? `?t=${encodeURIComponent(tableToken)}` : '';
 
   return (
     <div className={styles.container}>

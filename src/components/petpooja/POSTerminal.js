@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getValidFoodImage } from '../AdminPanel';
+import { getValidFoodImage, getCustomerFirstName } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
 import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioChime';
@@ -97,11 +97,7 @@ export default function POSTerminal({
             { _id: 't1', tableNumber: '1', seatingCapacity: 4, zone: 'Main Floor' },
             { _id: 't2', tableNumber: '2', seatingCapacity: 4, zone: 'Main Floor' },
             { _id: 't3', tableNumber: '3', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't5', tableNumber: '5', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't6', tableNumber: '6', seatingCapacity: 4, zone: 'Main Floor' },
-            { _id: 't7', tableNumber: '7', seatingCapacity: 2, zone: 'Garden' },
-            { _id: 't8', tableNumber: '8', seatingCapacity: 4, zone: 'Roof Top' }
+            { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' }
           ]);
         }
       })
@@ -111,11 +107,7 @@ export default function POSTerminal({
           { _id: 't1', tableNumber: '1', seatingCapacity: 4, zone: 'Main Floor' },
           { _id: 't2', tableNumber: '2', seatingCapacity: 4, zone: 'Main Floor' },
           { _id: 't3', tableNumber: '3', seatingCapacity: 4, zone: 'Main Floor' },
-          { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' },
-          { _id: 't5', tableNumber: '5', seatingCapacity: 4, zone: 'Main Floor' },
-          { _id: 't6', tableNumber: '6', seatingCapacity: 4, zone: 'Main Floor' },
-          { _id: 't7', tableNumber: '7', seatingCapacity: 2, zone: 'Garden' },
-          { _id: 't8', tableNumber: '8', seatingCapacity: 4, zone: 'Roof Top' }
+          { _id: 't4', tableNumber: '4', seatingCapacity: 4, zone: 'Main Floor' }
         ]);
       })
       .finally(() => {
@@ -145,7 +137,7 @@ export default function POSTerminal({
     (orders || []).forEach(o => {
       if (o.status === 'completed' || o.status === 'cancelled') return;
       const rawTable = String(o.tableNumber || o.table || '').trim();
-      const numOnly = rawTable.replace(/[^0-9]/g, '') || rawTable;
+      const numOnly = rawTable.replace(/^Table\s*/i, '').trim();
       if (rawTable) {
         if (!map[rawTable]) map[rawTable] = [];
         if (!map[rawTable].some(e => e._id === o._id)) map[rawTable].push(o);
@@ -154,9 +146,6 @@ export default function POSTerminal({
           if (!map[numOnly]) map[numOnly] = [];
           if (!map[numOnly].some(e => e._id === o._id)) map[numOnly].push(o);
         }
-        const tblKey = `Table ${numOnly}`;
-        if (!map[tblKey]) map[tblKey] = [];
-        if (!map[tblKey].some(e => e._id === o._id)) map[tblKey].push(o);
       }
     });
     return map;
@@ -165,21 +154,27 @@ export default function POSTerminal({
   // Helper: Get active orders for a specific table object
   const getOrdersForTableObj = useCallback((tbl) => {
     const tStr = String(tbl.tableNumber || tbl.table || '').trim();
-    const numOnly = tStr.replace(/[^0-9]/g, '') || tStr;
-    return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
+    const numOnly = tStr.replace(/^Table\s*/i, '').trim();
+    return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || [];
   }, [activeOrdersByTable]);
 
   // Unified tables list (combines DB tables and active orders)
   const allTablesList = useMemo(() => {
     if (isLoadingTables) return [];
     const fromDb = [...dbTables];
-    // Check if any active orders have tables not in DB
-    Object.keys(activeOrdersByTable).forEach(rawTbl => {
-      const numOnly = rawTbl.replace(/[^0-9]/g, '') || rawTbl;
-      if (!fromDb.some(t => String(t.tableNumber) === numOnly || String(t.tableNumber) === rawTbl)) {
+    // Check if any active orders have distinct table numbers not in DB
+    const activeTableNumbers = new Set(
+      (orders || [])
+        .filter(o => o.status !== 'completed' && o.status !== 'cancelled')
+        .map(o => String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim())
+        .filter(Boolean)
+    );
+
+    activeTableNumbers.forEach(tNum => {
+      if (!fromDb.some(t => String(t.tableNumber).replace(/^Table\s*/i, '').trim() === tNum)) {
         fromDb.push({
-          _id: `auto_${rawTbl}`,
-          tableNumber: numOnly || rawTbl,
+          _id: `auto_${tNum}`,
+          tableNumber: tNum,
           seatingCapacity: 4,
           zone: 'Main Floor'
         });
@@ -189,7 +184,7 @@ export default function POSTerminal({
     return fromDb.sort((a, b) => {
       return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [dbTables, activeOrdersByTable, isLoadingTables]);
+  }, [dbTables, orders, isLoadingTables]);
 
   // Available zones / floor sections
   const zonesList = useMemo(() => {
@@ -858,7 +853,8 @@ export default function POSTerminal({
                   );
                 }
 
-                const custName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName;
+                const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
+                const custName = getCustomerFirstName(rawCustName);
 
                 // 2. PAID / BILLED / SERVED CARD (Soft Green)
                 if (isAllPaid) {

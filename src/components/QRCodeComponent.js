@@ -6,6 +6,7 @@ import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCi
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_URL as API } from '../config/api';
+import { buildTableMenuUrl } from '../utils/tableToken';
 
 const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   const { user, tenantId } = useAuth();
@@ -28,9 +29,13 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'available' | 'occupied'
   
-  // Base QR Target Host Configuration for Mobile Wi-Fi Scanning
-  const localDefaultHost = window.location.hostname === 'localhost' ? 'http://192.168.1.10:3000' : (window.location.origin || 'http://localhost:3000');
-  const [qrBaseUrl, setQrBaseUrl] = useState(() => localStorage.getItem('serivq_qr_base_url') || localDefaultHost);
+  // Production Target Host Configuration for QR Codes
+  const defaultHost = 'https://cafe-application-fe.vercel.app';
+  const [qrBaseUrl, setQrBaseUrl] = useState(() => {
+    const saved = localStorage.getItem('serivq_qr_base_url');
+    if (saved && !saved.includes('localhost') && !saved.includes('192.168.')) return saved;
+    return defaultHost;
+  });
   const [isEditingHost, setIsEditingHost] = useState(false);
   const [tempHost, setTempHost] = useState(qrBaseUrl);
   
@@ -68,8 +73,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   }, [initialTables]);
 
   const getTableQRUrl = (tableNum) => {
-    const cleanBase = (qrBaseUrl || window.location.origin || 'http://localhost:3000').replace(/\/$/, '');
-    return `${cleanBase}/menu?tenantId=${effectiveTenantId}&table=${encodeURIComponent(tableNum)}`;
+    return buildTableMenuUrl(qrBaseUrl || 'https://cafe-application-fe.vercel.app', tableNum, effectiveTenantId);
   };
 
   const handleSaveHost = (newHost) => {
@@ -818,26 +822,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
                   </button>
                 </div>
 
-                {/* Live Order Peek Badge (if table is active) */}
-                {activeOrder && (
-                  <div style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '4px 10px',
-                    background: '#fffbeb',
-                    border: '1px solid #fde68a',
-                    borderRadius: '8px',
-                    marginBottom: '10px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#92400e'
-                  }}>
-                    <span>🍳 {activeOrder.itemCount} items active</span>
-                    <span>₹{activeOrder.totalAmount}</span>
-                  </div>
-                )}
+
 
                 {/* 2. QR Code Canvas Frame (Clickable for High-Res Full Screen Preview) */}
                 <div
@@ -1016,7 +1001,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
             );
           })}
         </div>
-      )}  )}
+      )}
 
       {filteredTables.length === 0 && (
         <div style={{ textAlign: 'center', padding: '3rem', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1rem' }}>

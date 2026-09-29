@@ -19,6 +19,7 @@ import {
   Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import styles from './ReportsSuite.module.css';

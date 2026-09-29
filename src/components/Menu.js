@@ -8,6 +8,7 @@ import {
   ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Minus, Sun, Moon, Sparkles, Heart, Check, Clock
 } from "lucide-react";
 import { getValidFoodImage } from "./AdminPanel";
+import { decodeTableToken } from "../utils/tableToken";
 import styles from "./Menu.module.css";
 import { API_URL as API } from "../config/api";
 
@@ -104,7 +105,8 @@ export default function Menu() {
     let pollInterval;
     const checkLiveOrder = async () => {
       const lastOrdId = localStorage.getItem('serviq_last_order_id');
-      const curTable = tableNumber || searchParams.get('table') || localStorage.getItem('tableNumber');
+      const tokenParam = searchParams.get('t') || searchParams.get('code') || searchParams.get('token');
+      const curTable = tableNumber || (tokenParam ? decodeTableToken(tokenParam) : null) || (searchParams.get('table') ? decodeTableToken(searchParams.get('table')) : null) || localStorage.getItem('tableNumber');
 
       if (lastOrdId) {
         try {
@@ -202,11 +204,20 @@ export default function Menu() {
       }
     }
 
-    if (urlTable) {
-      setTableNumber(urlTable);
-      localStorage.setItem("tableNumber", urlTable);
+    const tokenParam = searchParams.get("t") || searchParams.get("code") || searchParams.get("token");
+    let resolvedTable = null;
+
+    if (tokenParam) {
+      resolvedTable = decodeTableToken(tokenParam);
+    } else if (urlTable) {
+      resolvedTable = decodeTableToken(urlTable);
+    }
+
+    if (resolvedTable) {
+      setTableNumber(resolvedTable);
+      localStorage.setItem("tableNumber", resolvedTable);
     } else {
-      const stored = localStorage.getItem("tableNumber") || "4";
+      const stored = localStorage.getItem("tableNumber") || "1";
       setTableNumber(stored);
     }
 
@@ -508,567 +519,517 @@ export default function Menu() {
 
       <div className={styles.appContainer} style={{ backgroundColor: theme.bgPage, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}`, boxShadow: isDarkMode ? '0 20px 80px rgba(0, 0, 0, 0.8)' : '0 10px 40px rgba(0, 0, 0, 0.05)', transition: 'background-color 0.3s, border-color 0.3s' }}>
 
-        <AnimatePresence mode="wait">
-          {!selectedItem ? (
-            // SCREEN 1: Home Menu Browsing
-            <motion.div
-              key="menu-home"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}
-            >
-              {/* Top Header */}
-              <div style={{ backgroundColor: theme.bgHeader, padding: '1.25rem 1rem 1rem', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: `linear-gradient(135deg, ${theme.accent}, #b91c1c)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 15px ${theme.accentGlow}`, flexShrink: 0 }}>
-                      <Sparkles size={18} color="#ffffff" />
-                    </div>
-                    <div style={{ overflow: 'hidden' }}>
-                      <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.8px', color: theme.textMuted, fontWeight: '700', display: 'block' }}>Table #{tableNumber}</span>
-                      <h2 style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenantInfo.name || "SERVIQ Bistro"}</h2>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                    {/* Theme Toggle Button */}
-                    <button
-                      onClick={() => setIsDarkMode(!isDarkMode)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                    >
-                      {isDarkMode ? <Sun size={19} color="#fbbe21" /> : <Moon size={19} color="#475569" />}
-                    </button>
-
-                    {/* Cart Header Icon */}
-                    <Link to={`/cart?table=${tableNumber}`} ref={cartIconRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                      <motion.div
-                        animate={isCartBouncing ? { scale: [1, 1.35, 0.9, 1.15, 1], rotate: [0, -10, 10, 0] } : { scale: 1 }}
-                        transition={{ duration: 0.45 }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <ShoppingBag size={21} color={theme.textMain} />
-                        {cartTotalItems > 0 && (
-                          <span style={{ position: 'absolute', top: '-5px', right: '-7px', backgroundColor: theme.accent, color: '#ffffff', fontSize: '0.6rem', fontWeight: '900', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${theme.accentGlow}` }}>
-                            {cartTotalItems}
-                          </span>
-                        )}
-                      </motion.div>
-                    </Link>
-                  </div>
+        {/* SCREEN 1: Home Menu Browsing (Always rendered) */}
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}>
+          {/* Top Header */}
+          <div style={{ backgroundColor: theme.bgHeader, padding: '1.25rem 1rem 1rem', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: `linear-gradient(135deg, ${theme.accent}, #b91c1c)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 15px ${theme.accentGlow}`, flexShrink: 0 }}>
+                  <Sparkles size={18} color="#ffffff" />
                 </div>
-
-                {/* Live Active Order Banner (Customer Dashboard) */}
-                {activeRunningOrder && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => navigate(`/order/status/${activeRunningOrder._id}`)}
-                    style={{
-                      marginBottom: '0.85rem',
-                      padding: '10px 14px',
-                      background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                      border: '1.5px solid #3b82f6',
-                      borderRadius: '14px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      boxShadow: '0 2px 8px rgba(59, 130, 246, 0.15)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <div style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: '#2563eb',
-                        boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.25)'
-                      }} />
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e3a8a' }}>
-                          Active Order #{activeRunningOrder.orderNumber || activeRunningOrder._id?.slice(-4)} • Table {activeRunningOrder.tableNumber}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, textTransform: 'capitalize' }}>
-                          Status: {activeRunningOrder.status} ({activeRunningOrder.items?.length || 0} items)
-                        </div>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
-                      Track →
-                    </span>
-                  </motion.div>
-                )}
-
-                {/* Search Box */}
-                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <Search size={16} color={theme.textMuted} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      type="text"
-                      placeholder="Would you like to eat something?..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '14px', padding: '0.65rem 0.85rem 0.65rem 2.5rem', color: theme.inputText, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                    />
-                  </div>
-
+                <div style={{ overflow: 'hidden' }}>
+                  <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.8px', color: theme.textMuted, fontWeight: '700', display: 'block' }}>Table #{tableNumber}</span>
+                  <h2 style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenantInfo.name || "SERVIQ Bistro"}</h2>
                 </div>
               </div>
 
-              {/* Categories Navigation */}
-              <section className={styles.categoryBar}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                {/* Theme Toggle Button */}
                 <button
-                  onClick={() => setSelectedCategory("all")}
-                  style={{
-                    backgroundColor: selectedCategory === "all" ? theme.accent : theme.catBg,
-                    color: selectedCategory === "all" ? '#ffffff' : theme.catText,
-                    border: selectedCategory === "all" ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                    padding: '0.45rem 0.95rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.78rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.25s ease',
-                    boxShadow: selectedCategory === "all" ? `0 4px 12px ${theme.accentGlow}` : 'none'
-                  }}
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                 >
-                  All Items
+                  {isDarkMode ? <Sun size={19} color="#fbbe21" /> : <Moon size={19} color="#475569" />}
                 </button>
-                {categories
-                  .filter((c) => c.id !== "all" && c.name?.toLowerCase() !== "all" && c.name?.toLowerCase() !== "all items")
-                  .map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedCategory(c.id)}
-                    style={{
-                      backgroundColor: selectedCategory === c.id ? theme.accent : theme.catBg,
-                      color: selectedCategory === c.id ? '#ffffff' : theme.catText,
-                      border: selectedCategory === c.id ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                      padding: '0.45rem 0.95rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.78rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.25s ease',
-                      boxShadow: selectedCategory === c.id ? `0 4px 12px ${theme.accentGlow}` : 'none'
-                    }}
+
+                {/* Cart Header Icon */}
+                <Link to={`/cart?table=${tableNumber}`} ref={cartIconRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+                  <motion.div
+                    animate={isCartBouncing ? { scale: [1, 1.35, 0.9, 1.15, 1], rotate: [0, -10, 10, 0] } : { scale: 1 }}
+                    transition={{ duration: 0.45 }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    {c.name}
-                  </button>
-                ))}
-              </section>
+                    <ShoppingBag size={21} color={theme.textMain} />
+                    {cartTotalItems > 0 && (
+                      <span style={{ position: 'absolute', top: '-5px', right: '-7px', backgroundColor: theme.accent, color: '#ffffff', fontSize: '0.6rem', fontWeight: '900', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${theme.accentGlow}` }}>
+                        {cartTotalItems}
+                      </span>
+                    )}
+                  </motion.div>
+                </Link>
+              </div>
+            </div>
 
-              {/* Dishes Grid */}
-              <main style={{ padding: '0.5rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }}>
-                {filteredItems.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3rem 1rem', color: theme.textMuted }}>
-                    <p>No dishes found. Try searching for something else!</p>
+            {/* Live Active Order Banner (Customer Dashboard) */}
+            {activeRunningOrder && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => navigate(`/order/status/${activeRunningOrder._id}`)}
+                style={{
+                  marginBottom: '0.85rem',
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                  border: '1.5px solid #3b82f6',
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.15)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <div style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: '#2563eb',
+                    boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.25)'
+                  }} />
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e3a8a' }}>
+                      Active Order #{activeRunningOrder.orderNumber || activeRunningOrder._id?.slice(-4)} • Table {activeRunningOrder.tableNumber}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, textTransform: 'capitalize' }}>
+                      Status: {activeRunningOrder.status} ({activeRunningOrder.items?.length || 0} items)
+                    </div>
                   </div>
-                ) : (
-                  <div className={styles.grid}>
-                    {filteredItems.map((item) => {
-                      const discount = item.discount || {};
-                      const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
-                      let discountedPrice = item.price;
-                      if (hasDiscount) {
-                        if (discount.type === 'percentage') {
-                          discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
-                        } else {
-                          discountedPrice = Math.max(0, item.price - discount.value);
-                        }
-                      }
-                      const isOutOfStock = item.available === false || item.isAvailable === false;
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  Track →
+                </span>
+              </motion.div>
+            )}
 
-                      return (
-                        <motion.div
-                          key={item._id}
-                          layoutId={`dish-card-${item._id}`}
-                          transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                          style={{
-                            backgroundColor: theme.bgCard,
-                            border: `1px solid ${theme.cardBorder}`,
-                            borderRadius: '18px',
-                            padding: '0.65rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                            opacity: isOutOfStock ? 0.6 : 1,
-                            transition: 'box-shadow 0.25s, border-color 0.25s',
-                            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            overflow: 'hidden'
-                          }}
-                          whileHover={!isOutOfStock ? { y: -3, borderColor: theme.accent } : {}}
-                          whileTap={!isOutOfStock ? { scale: 0.97 } : {}}
-                          onClick={() => !isOutOfStock && openItemDetails(item)}
-                        >
-                          <div style={{ borderRadius: '14px', overflow: 'hidden', height: '105px', position: 'relative', width: '100%' }}>
-                            <motion.img
-                              layoutId={`dish-img-${item._id}`}
-                              src={getValidFoodImage(item)}
-                              alt={item.name}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
-                            />
-                            <div style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', padding: '2px 6px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Star size={10} color="#fbbe21" fill="#fbbe21" />
-                              <span style={{ fontSize: '9px', color: '#ffffff', fontWeight: 800 }}>{item.rating || '4.8'}</span>
+            {/* Search Box */}
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={16} color={theme.textMuted} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Would you like to eat something?..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '14px', padding: '0.65rem 0.85rem 0.65rem 2.5rem', color: theme.inputText, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Categories Navigation */}
+          <section className={styles.categoryBar}>
+            <button
+              onClick={() => setSelectedCategory("all")}
+              style={{
+                backgroundColor: selectedCategory === "all" ? theme.accent : theme.catBg,
+                color: selectedCategory === "all" ? '#ffffff' : theme.catText,
+                border: selectedCategory === "all" ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                padding: '0.45rem 0.95rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.78rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.25s ease',
+                boxShadow: selectedCategory === "all" ? `0 4px 12px ${theme.accentGlow}` : 'none'
+              }}
+            >
+              All Items
+            </button>
+            {categories
+              .filter((c) => c.id !== "all" && c.name?.toLowerCase() !== "all" && c.name?.toLowerCase() !== "all items")
+              .map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCategory(c.id)}
+                style={{
+                  backgroundColor: selectedCategory === c.id ? theme.accent : theme.catBg,
+                  color: selectedCategory === c.id ? '#ffffff' : theme.catText,
+                  border: selectedCategory === c.id ? `1px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                  padding: '0.45rem 0.95rem', borderRadius: '100px', fontWeight: '700', fontSize: '0.78rem', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.25s ease',
+                  boxShadow: selectedCategory === c.id ? `0 4px 12px ${theme.accentGlow}` : 'none'
+                }}
+              >
+                {c.name}
+              </button>
+            ))}
+          </section>
+
+          {/* Dishes Grid */}
+          <main style={{ padding: '0.5rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }}>
+            {filteredItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: theme.textMuted }}>
+                <p>No dishes found. Try searching for something else!</p>
+              </div>
+            ) : (
+              <div className={styles.grid}>
+                {filteredItems.map((item) => {
+                  const discount = item.discount || {};
+                  const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
+                  let discountedPrice = item.price;
+                  if (hasDiscount) {
+                    if (discount.type === 'percentage') {
+                      discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+                    } else {
+                      discountedPrice = Math.max(0, item.price - discount.value);
+                    }
+                  }
+                  const isOutOfStock = item.available === false || item.isAvailable === false;
+                  const vars = item.variants || item.sizes || item.portionSizes || [];
+                  const addons = item.addons || [];
+                  const isCustomizable = vars.length > 0 || addons.length > 0;
+
+                  return (
+                    <motion.div
+                      key={item._id}
+                      style={{
+                        backgroundColor: theme.bgCard,
+                        border: `1px solid ${theme.cardBorder}`,
+                        borderRadius: '18px',
+                        padding: '0.65rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                        opacity: isOutOfStock ? 0.6 : 1,
+                        transition: 'box-shadow 0.25s, border-color 0.25s',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        overflow: 'hidden'
+                      }}
+                      whileHover={!isOutOfStock ? { y: -3, borderColor: theme.accent } : {}}
+                      whileTap={!isOutOfStock ? { scale: 0.97 } : {}}
+                      onClick={() => !isOutOfStock && openItemDetails(item)}
+                    >
+                      <div style={{ borderRadius: '14px', overflow: 'hidden', height: '105px', position: 'relative', width: '100%' }}>
+                        <img
+                          src={getValidFoodImage(item)}
+                          alt={item.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
+                        />
+                        <div style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', padding: '2px 6px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Star size={10} color="#fbbe21" fill="#fbbe21" />
+                          <span style={{ fontSize: '9px', color: '#ffffff', fontWeight: 800 }}>{item.rating || '4.8'}</span>
+                        </div>
+
+                        {hasDiscount && (
+                          <span style={{ position: 'absolute', top: 5, left: 5, background: '#ef4444', color: '#fff', fontSize: '8.5px', fontWeight: 900, padding: '2px 5px', borderRadius: 5, boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)' }}>
+                            {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                          </span>
+                        )}
+                        {isOutOfStock && (
+                          <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(2px)', color: '#fff', fontSize: '10px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            OUT OF STOCK
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: '0.5rem', width: '100%', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', minWidth: 0 }}>
+                          <span style={{ fontSize: '10px', color: item.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 900, lineHeight: 1, flexShrink: 0 }}>
+                            {item.isVeg !== false ? '●' : '▲'}
+                          </span>
+                          <h3
+                            style={{ fontSize: '0.85rem', fontWeight: '800', color: theme.textMain, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}
+                          >
+                            {item.name}
+                          </h3>
+                        </div>
+                        <p style={{ fontSize: '0.68rem', color: theme.textMuted, margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description || "Prepared fresh to order"}</p>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem', width: '100%' }}>
+                        <div style={{ overflow: 'hidden' }}>
+                          {hasDiscount ? (
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                              <span style={{ fontSize: '0.95rem', fontWeight: '900', color: '#16a34a' }}>₹{discountedPrice}</span>
+                              <span style={{ fontSize: '0.7rem', color: theme.textMuted, textDecoration: 'line-through' }}>₹{item.price}</span>
                             </div>
+                          ) : (
+                            <span style={{ fontSize: '0.95rem', fontWeight: '900', color: theme.textMain }}>₹{item.price}</span>
+                          )}
+                          {isCustomizable && (
+                            <span style={{ fontSize: '0.6rem', color: theme.accent, fontWeight: 700, display: 'block', marginTop: '-2px' }}>Customizable</span>
+                          )}
+                        </div>
 
-                            {hasDiscount && (
-                              <span style={{ position: 'absolute', top: 5, left: 5, background: '#ef4444', color: '#fff', fontSize: '8.5px', fontWeight: 900, padding: '2px 5px', borderRadius: 5, boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)' }}>
-                                {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
-                              </span>
-                            )}
-                            {isOutOfStock && (
-                              <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(2px)', color: '#fff', fontSize: '10px', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                OUT OF STOCK
-                              </span>
-                            )}
-                          </div>
-
-                          <div style={{ marginTop: '0.5rem', width: '100%', minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', minWidth: 0 }}>
-                              <span style={{ fontSize: '10px', color: item.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 900, lineHeight: 1, flexShrink: 0 }}>
-                                {item.isVeg !== false ? '●' : '▲'}
-                              </span>
-                              <motion.h3
-                                layoutId={`dish-title-${item._id}`}
-                                style={{ fontSize: '0.85rem', fontWeight: '800', color: theme.textMain, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}
+                        {/* Quantity Stepper (+ -) when selected, otherwise + Add button */}
+                        {(() => {
+                          const qty = getItemQuantity(item);
+                          if (qty > 0 && !isCustomizable) {
+                            return (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  backgroundColor: theme.accent,
+                                  borderRadius: '100px',
+                                  padding: '2px 4px',
+                                  gap: '5px',
+                                  boxShadow: `0 3px 10px ${theme.accentGlow}`,
+                                  height: '28px',
+                                  boxSizing: 'border-box'
+                                }}
                               >
-                                {item.name}
-                              </motion.h3>
-                            </div>
-                            <p style={{ fontSize: '0.68rem', color: theme.textMuted, margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description || "Prepared fresh to order"}</p>
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem', width: '100%' }}>
-                            <div style={{ overflow: 'hidden' }}>
-                              {hasDiscount ? (
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                                  <motion.span layoutId={`dish-price-${item._id}`} style={{ fontSize: '0.95rem', fontWeight: '900', color: '#16a34a' }}>₹{discountedPrice}</motion.span>
-                                  <span style={{ fontSize: '0.7rem', color: theme.textMuted, textDecoration: 'line-through' }}>₹{item.price}</span>
-                                </div>
-                              ) : (
-                                <motion.span layoutId={`dish-price-${item._id}`} style={{ fontSize: '0.95rem', fontWeight: '900', color: theme.textMain }}>₹{item.price}</motion.span>
-                              )}
-                            </div>
-
-                            {/* Quantity Stepper (+ -) when selected, otherwise + button */}
-                            {(() => {
-                              const qty = getItemQuantity(item);
-                              if (qty > 0) {
-                                return (
-                                  <div
-                                    onClick={(e) => e.stopPropagation()}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      backgroundColor: theme.accent,
-                                      borderRadius: '100px',
-                                      padding: '2px 4px',
-                                      gap: '5px',
-                                      boxShadow: `0 3px 10px ${theme.accentGlow}`,
-                                      height: '28px',
-                                      boxSizing: 'border-box'
-                                    }}
-                                  >
-                                    <motion.button
-                                      whileTap={{ scale: 0.8 }}
-                                      onClick={(e) => handleDecrement(item, e)}
-                                      style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#ffffff',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        padding: '2px 3px'
-                                      }}
-                                      title="Decrease quantity"
-                                    >
-                                      <Minus size={13} strokeWidth={3.5} />
-                                    </motion.button>
-                                    <span style={{ fontSize: '0.82rem', fontWeight: '900', color: '#ffffff', minWidth: '14px', textAlign: 'center' }}>
-                                      {qty}
-                                    </span>
-                                    <motion.button
-                                      whileTap={{ scale: 0.8 }}
-                                      onClick={(e) => handleIncrement(item, e)}
-                                      style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#ffffff',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        padding: '2px 3px'
-                                      }}
-                                      title="Increase quantity"
-                                    >
-                                      <Plus size={13} strokeWidth={3.5} />
-                                    </motion.button>
-                                  </div>
-                                );
-                              }
-
-                              return (
                                 <motion.button
-                                  whileHover={!isOutOfStock ? { scale: 1.12 } : {}}
-                                  whileTap={!isOutOfStock ? { scale: 0.88 } : {}}
-                                  disabled={isOutOfStock}
-                                  onClick={(e) => { e.stopPropagation(); handleAdd(item, e); }}
+                                  whileTap={{ scale: 0.8 }}
+                                  onClick={(e) => handleDecrement(item, e)}
                                   style={{
-                                    backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
+                                    background: 'none',
                                     border: 'none',
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '50%',
                                     color: '#ffffff',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    padding: 0,
-                                    margin: 0,
-                                    cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                                    boxShadow: isOutOfStock ? 'none' : `0 3px 10px ${theme.accentGlow}`,
-                                    flexShrink: 0
+                                    cursor: 'pointer',
+                                    padding: '2px 3px'
                                   }}
-                                  title="Add to basket"
+                                  title="Decrease quantity"
                                 >
-                                  <Plus size={15} strokeWidth={3.2} style={{ display: 'block', margin: 'auto' }} />
+                                  <Minus size={13} strokeWidth={3.5} />
                                 </motion.button>
-                              );
-                            })()}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
-              </main>
+                                <span style={{ fontSize: '0.82rem', fontWeight: '900', color: '#ffffff', minWidth: '14px', textAlign: 'center' }}>
+                                  {qty}
+                                </span>
+                                <motion.button
+                                  whileTap={{ scale: 0.8 }}
+                                  onClick={(e) => handleIncrement(item, e)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    padding: '2px 3px'
+                                  }}
+                                  title="Increase quantity"
+                                >
+                                  <Plus size={13} strokeWidth={3.5} />
+                                </motion.button>
+                              </div>
+                            );
+                          }
 
-              {/* Dynamic Combos & Special Offers */}
-              {(() => {
-                const comboItems = items.filter(it => {
-                  const cat = (it.category || '').toLowerCase();
-                  return cat.includes('combo') || cat.includes('offer') || it.isCombo || it.isOffer;
-                });
-
-                if (comboItems.length === 0) return null;
-
-                return (
-                  <div style={{ padding: '0 1rem 1.25rem', width: '100%', boxSizing: 'border-box' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>Combos & Special Offers</h3>
-                      <span style={{ fontSize: '0.72rem', fontWeight: '700', color: theme.accent, cursor: 'pointer' }}>Chef Special</span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-                      {comboItems.map((cb) => (
-                        <motion.div
-                          key={cb._id}
-                          layoutId={`dish-card-${cb._id}`}
-                          whileHover={{ scale: 1.01 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => openItemDetails(cb)}
-                          style={{ display: 'flex', borderRadius: '18px', overflow: 'hidden', backgroundColor: theme.accent, height: '105px', boxShadow: `0 6px 20px ${theme.accentGlow}`, cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
-                        >
-                          <div style={{ flex: 1.2, padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
-                            <div>
-                              <motion.span layoutId={`dish-title-${cb._id}`} style={{ fontSize: '0.9rem', fontWeight: '800', color: '#ffffff', lineHeight: '1.2', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cb.name}</motion.span>
-                              <p style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.88)', margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cb.description || 'Special Chef Combo'}</p>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <motion.span layoutId={`dish-price-${cb._id}`} style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>₹{cb.price}</motion.span>
-
-                              {/* Stepper (+ -) when selected, otherwise + button for Combos */}
-                              {(() => {
-                                const qty = getItemQuantity(cb);
-                                if (qty > 0) {
-                                  return (
-                                    <div
-                                      onClick={(e) => e.stopPropagation()}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        backgroundColor: '#ffffff',
-                                        borderRadius: '100px',
-                                        padding: '2px 4px',
-                                        gap: '5px',
-                                        boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
-                                        height: '28px',
-                                        boxSizing: 'border-box'
-                                      }}
-                                    >
-                                      <motion.button
-                                        whileTap={{ scale: 0.8 }}
-                                        onClick={(e) => handleDecrement(cb, e)}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: theme.accent,
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          cursor: 'pointer',
-                                          padding: '2px 3px'
-                                        }}
-                                        title="Decrease quantity"
-                                      >
-                                        <Minus size={13} strokeWidth={3.5} />
-                                      </motion.button>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: '900', color: theme.accent, minWidth: '14px', textAlign: 'center' }}>
-                                        {qty}
-                                      </span>
-                                      <motion.button
-                                        whileTap={{ scale: 0.8 }}
-                                        onClick={(e) => handleIncrement(cb, e)}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: theme.accent,
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          cursor: 'pointer',
-                                          padding: '2px 3px'
-                                        }}
-                                        title="Increase quantity"
-                                      >
-                                        <Plus size={13} strokeWidth={3.5} />
-                                      </motion.button>
-                                    </div>
-                                  );
+                          return (
+                            <motion.button
+                              whileHover={!isOutOfStock ? { scale: 1.08 } : {}}
+                              whileTap={!isOutOfStock ? { scale: 0.92 } : {}}
+                              disabled={isOutOfStock}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isCustomizable) {
+                                  openItemDetails(item);
+                                } else {
+                                  handleAdd(item, e);
                                 }
+                              }}
+                              style={{
+                                backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
+                                border: 'none',
+                                padding: isCustomizable ? '4px 10px' : '0',
+                                width: isCustomizable ? 'auto' : '28px',
+                                height: '28px',
+                                borderRadius: isCustomizable ? '100px' : '50%',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '3px',
+                                cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                                boxShadow: isOutOfStock ? 'none' : `0 3px 10px ${theme.accentGlow}`,
+                                flexShrink: 0,
+                                fontSize: '0.75rem',
+                                fontWeight: '800'
+                              }}
+                              title={isCustomizable ? "Customize & Add" : "Add to basket"}
+                            >
+                              <Plus size={14} strokeWidth={3.2} />
+                              {isCustomizable && <span>Add</span>}
+                            </motion.button>
+                          );
+                        })()}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </main>
 
-                                return (
-                                  <motion.button
-                                    whileHover={{ scale: 1.12 }}
-                                    whileTap={{ scale: 0.88 }}
-                                    onClick={(e) => { e.stopPropagation(); handleAdd(cb, e); }}
-                                    style={{
-                                      backgroundColor: '#ffffff',
-                                      border: 'none',
-                                      width: '28px',
-                                      height: '28px',
-                                      borderRadius: '50%',
-                                      color: theme.accent,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      padding: 0,
-                                      margin: 0,
-                                      cursor: 'pointer',
-                                      boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
-                                      flexShrink: 0
-                                    }}
-                                  >
-                                    <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
-                                  </motion.button>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                          <div style={{ flex: 0.8, overflow: 'hidden' }}>
-                            <motion.img layoutId={`dish-img-${cb._id}`} src={getValidFoodImage(cb)} alt={cb.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        </motion.div>
-                      ))}
+          {/* Dynamic Combos & Special Offers */}
+          {(() => {
+            const comboItems = items.filter(it => {
+              const cat = (it.category || '').toLowerCase();
+              return cat.includes('combo') || cat.includes('offer') || it.isCombo || it.isOffer;
+            });
+
+            if (comboItems.length === 0) return null;
+
+            return (
+              <div style={{ padding: '0 1rem 1.25rem', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>Combos & Special Offers</h3>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: theme.accent, cursor: 'pointer' }}>Chef Special</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                  {comboItems.map((cb) => (
+                    <motion.div
+                      key={cb._id}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => openItemDetails(cb)}
+                      style={{ display: 'flex', borderRadius: '18px', overflow: 'hidden', backgroundColor: theme.accent, height: '105px', boxShadow: `0 6px 20px ${theme.accentGlow}`, cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
+                    >
+                      <div style={{ flex: 1.2, padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
+                        <div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#ffffff', lineHeight: '1.2', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cb.name}</span>
+                          <p style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.88)', margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cb.description || 'Special Chef Combo'}</p>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>₹{cb.price}</span>
+
+                          <motion.button
+                            whileHover={{ scale: 1.12 }}
+                            whileTap={{ scale: 0.88 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const vars = cb.variants || cb.sizes || cb.portionSizes || [];
+                              const addons = cb.addons || [];
+                              if (vars.length > 0 || addons.length > 0) {
+                                openItemDetails(cb);
+                              } else {
+                                handleAdd(cb, e);
+                              }
+                            }}
+                            style={{
+                              backgroundColor: '#ffffff',
+                              border: 'none',
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              color: theme.accent,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              margin: 0,
+                              cursor: 'pointer',
+                              boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
+                              flexShrink: 0
+                            }}
+                          >
+                            <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
+                          </motion.button>
+                        </div>
+                      </div>
+                      <div style={{ flex: 0.8, overflow: 'hidden' }}>
+                        <img src={getValidFoodImage(cb)} alt={cb.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* INTERACTIVE CUSTOMIZATION BOTTOM SHEET MODAL (Slides Up Smoothly)         */}
+        {/* ========================================================================= */}
+        <AnimatePresence>
+          {selectedItem && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={closeItemDetails}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                  backdropFilter: 'blur(4px)',
+                  zIndex: 10000,
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center'
+                }}
+              >
+                {/* Bottom Sheet Sheet Card */}
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    backgroundColor: theme.bgCard,
+                    borderTopLeftRadius: '28px',
+                    borderTopRightRadius: '28px',
+                    width: '100%',
+                    maxWidth: '480px',
+                    maxHeight: '88vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.3)',
+                    border: `1px solid ${theme.border}`,
+                    borderBottom: 'none'
+                  }}
+                >
+                  {/* Drag Handle & Top Header */}
+                  <div style={{ padding: '12px 16px 8px', borderBottom: `1px solid ${theme.border}`, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ width: '40px', height: '4px', borderRadius: '4px', backgroundColor: theme.textMuted, opacity: 0.4, marginBottom: '8px' }} />
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '800', color: theme.textMain }}>Customize Dish</span>
+                      <button
+                        type="button"
+                        onClick={closeItemDetails}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, fontSize: '1.2rem', padding: '2px 6px', fontWeight: '700' }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
-                );
-              })()}
-            </motion.div>
-          ) : (
-            // SCREEN 2: Product Detail View (Refined matching target UI)
-            <motion.div
-              key="menu-detail"
-              layoutId={`dish-card-${selectedItem._id}`}
-              transition={{ type: "spring", stiffness: 300, damping: 28 }}
-              style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: theme.bgPage, overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}
-            >
-              {/* Header Bar */}
-              <div style={{ padding: '1.25rem 1.25rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'none', borderBottom: `1px solid ${theme.border}`, boxSizing: 'border-box', width: '100%' }}>
-                <motion.button
-                  whileTap={{ scale: 0.88 }}
-                  onClick={closeItemDetails}
-                  style={{ backgroundColor: 'transparent', border: `none`, width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', cursor: 'pointer', color: theme.textMain, boxShadow: 'none' }}
-                >
-                  <ChevronLeft size={22} color={theme.textMain} />
-                </motion.button>
-                <span style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain }}>Item Details</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
 
-                  <Link to={`/cart?table=${tableNumber}`} style={{ backgroundColor: 'none', border: `none`, width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justify: 'center', position: 'relative', textDecoration: 'none', boxShadow: 'none' }}>
-                    <ShoppingBag size={18} color={theme.textMain} />
-                    {cartTotalItems > 0 && (
-                      <span style={{ position: 'absolute', top: '-4px', right: '-4px', backgroundColor: theme.accent, color: '#ffffff', fontSize: '0.58rem', fontWeight: '900', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(224, 92, 92, 0.4)' }}>
-                        {cartTotalItems}
-                      </span>
-                    )}
-                  </Link>
-                </div>
-              </div>
-
-              {/* Centered Floating Dish Hero Image */}
-              <div style={{ padding: '1.5rem 1.25rem 0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ width: '220px', height: '220px', borderRadius: '28px', overflow: 'hidden', boxShadow: `0 15px 40px ${theme.accentGlow}`, border: `2px solid ${theme.border}`, position: 'relative' }}>
-                  <motion.img
-                    layoutId={`dish-img-${selectedItem._id}`}
-                    transition={{ type: "spring", stiffness: 300, damping: 28 }}
-                    src={getValidFoodImage(selectedItem)}
-                    alt={selectedItem.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                  <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', padding: '3px 8px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <Star size={12} color="#fbbe21" fill="#fbbe21" />
-                    <span style={{ fontSize: '11px', color: '#ffffff', fontWeight: 800 }}>{selectedItem.rating || '4.8'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Title, Outlet Info & Details */}
-              {(() => {
-                const availableVariants = selectedItem ? (selectedItem.variants || selectedItem.sizes || selectedItem.portionSizes || []) : [];
-                const currentPrice = selectedVariant
-                  ? (typeof selectedVariant === 'object' ? (Number(selectedVariant.price) || selectedItem.price) : selectedItem.price)
-                  : selectedItem.price;
-
-                return (
-                  <div style={{ padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                        <div>
-                          <motion.h1
-                            layoutId={`dish-title-${selectedItem._id}`}
-                            style={{ fontSize: '1.4rem', fontWeight: '900', color: theme.textMain, margin: 0 }}
-                          >
-                            {selectedItem.name}
-                          </motion.h1>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                            <span style={{ fontSize: '11px', color: selectedItem.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 900 }}>
-                              {selectedItem.isVeg !== false ? '● VEG' : '▲ NON-VEG'}
-                            </span>
-                            <span style={{ fontSize: '11px', color: theme.textMuted }}>• Fresh In Stock</span>
-                          </div>
+                  {/* Scrollable Customization Content */}
+                  <div style={{ padding: '1rem', overflowY: 'auto', flex: 1 }}>
+                    {/* Item Thumbnail & Header */}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: `1px solid ${theme.border}` }}>
+                      <img
+                        src={getValidFoodImage(selectedItem)}
+                        alt={selectedItem.name}
+                        style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '10px', color: selectedItem.isVeg !== false ? '#16a34a' : '#dc2626', fontWeight: 900 }}>
+                            {selectedItem.isVeg !== false ? '● VEG' : '▲ NON-VEG'}
+                          </span>
+                          <span style={{ fontSize: '10px', color: '#fbbe21', fontWeight: 800 }}>★ {selectedItem.rating || '4.8'}</span>
                         </div>
-                        <motion.div layoutId={`dish-price-${selectedItem._id}`} style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '1.4rem', fontWeight: '900', color: theme.accent }}>₹{currentPrice}</span>
-                        </motion.div>
+                        <h4 style={{ fontSize: '1rem', fontWeight: '800', color: theme.textMain, margin: '2px 0' }}>{selectedItem.name}</h4>
+                        <p style={{ fontSize: '0.75rem', color: theme.textMuted, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {selectedItem.description || "Prepared fresh to order with choice ingredients."}
+                        </p>
                       </div>
+                    </div>
 
-                      {/* Restaurant Outlet Pill */}
-                      <div style={{ marginTop: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.4rem 0.85rem', borderRadius: '100px' }}>
-                        <Sparkles size={14} color={theme.accent} />
-                        <span style={{ fontSize: '0.78rem', fontWeight: '700', color: theme.textMain }}>{tenantInfo.name || "SERVIQ Gourmet Bistro"}</span>
-                      </div>
+                    {/* Variants / Portion Sizes */}
+                    {(() => {
+                      const availableVariants = selectedItem.variants || selectedItem.sizes || selectedItem.portionSizes || [];
+                      if (!Array.isArray(availableVariants) || availableVariants.length === 0) return null;
 
-                      <p style={{ color: theme.textMuted, fontSize: '0.85rem', marginTop: '0.85rem', lineHeight: '1.5' }}>
-                        {selectedItem.description || "Prepared with fresh organic ingredients, slow cooked to perfection."}
-                      </p>
-
-                      {/* Portion Size Options - DYNAMIC: ONLY SHOW IF ITEM HAS VARIANTS/SIZES */}
-                      {Array.isArray(availableVariants) && availableVariants.length > 0 && (
-                        <div style={{ marginTop: '1.25rem' }}>
-                          <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>Serving Portion Size</h3>
-                          <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                      return (
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>
+                            Select Size / Variant
+                          </h4>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             {availableVariants.map((v, idx) => {
                               const vName = typeof v === 'object' ? (v.name || v.size || `Option ${idx + 1}`) : String(v);
                               const vPrice = typeof v === 'object' ? (Number(v.price) || selectedItem.price) : selectedItem.price;
@@ -1077,9 +1038,9 @@ export default function Menu() {
                               );
 
                               return (
-                                <motion.button
+                                <button
                                   key={vName || idx}
-                                  whileTap={{ scale: 0.95 }}
+                                  type="button"
                                   onClick={() => setSelectedVariant(v)}
                                   style={{
                                     flex: '1 1 calc(50% - 0.5rem)',
@@ -1087,11 +1048,10 @@ export default function Menu() {
                                     backgroundColor: isSelected ? theme.accent : theme.bgCard,
                                     border: isSelected ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
                                     borderRadius: '12px',
-                                    color: isSelected ? '#ffffff' : theme.textMuted,
+                                    color: isSelected ? '#ffffff' : theme.textMain,
                                     fontWeight: '800',
                                     fontSize: '0.8rem',
                                     padding: '0.65rem 0.4rem',
-                                    textTransform: 'capitalize',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease',
                                     boxShadow: isSelected ? `0 4px 15px ${theme.accentGlow}` : 'none',
@@ -1105,181 +1065,166 @@ export default function Menu() {
                                   {vPrice && (
                                     <span style={{ fontSize: '0.72rem', opacity: 0.9, marginTop: '2px', fontWeight: '900' }}>₹{vPrice}</span>
                                   )}
-                                </motion.button>
+                                </button>
                               );
                             })}
                           </div>
-                        </div>
-                      )}
-
-                      {/* Extra Add-ons Options */}
-                      {Array.isArray(selectedItem.addons) && selectedItem.addons.length > 0 && (
-                        <div style={{ marginTop: '1.25rem' }}>
-                          <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>Extra Add-ons</h3>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {selectedItem.addons.map((addon, aIdx) => {
-                              const isChecked = selectedAddons.some(a => a.name === addon.name);
-                              return (
-                                <div
-                                  key={addon.name || aIdx}
-                                  onClick={() => {
-                                    if (isChecked) {
-                                      setSelectedAddons(prev => prev.filter(a => a.name !== addon.name));
-                                    } else {
-                                      setSelectedAddons(prev => [...prev, addon]);
-                                    }
-                                  }}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '0.65rem 0.85rem',
-                                    backgroundColor: isChecked ? `${theme.accent}15` : theme.bgCard,
-                                    border: isChecked ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                                    borderRadius: '12px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={() => {}}
-                                      style={{ accentColor: theme.accent, width: '16px', height: '16px', cursor: 'pointer' }}
-                                    />
-                                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: theme.textMain }}>{addon.name}</span>
-                                  </div>
-                                  <span style={{ fontSize: '0.85rem', fontWeight: '900', color: theme.accent }}>+₹{addon.price || 0}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Cooking Instructions / Notes */}
-                      <div style={{ marginTop: '1.25rem' }}>
-                        <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.45rem' }}>Cooking Instructions / Notes</h3>
-                        <input
-                          type="text"
-                          value={dishNotes}
-                          onChange={(e) => setDishNotes(e.target.value)}
-                          placeholder="e.g. Less spicy, no onions, extra crispy..."
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            backgroundColor: theme.bgCard,
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: '12px',
-                            padding: '0.75rem 0.85rem',
-                            color: theme.textMain,
-                            fontSize: '0.82rem',
-                            outline: 'none',
-                            transition: 'border 0.2s ease'
-                          }}
-                        />
-                      </div>
-
-                      {/* Pair with recommendation list */}
-                      <div style={{ marginTop: '1.5rem' }}>
-                        <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>People Also Ordered</h3>
-                        <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-                          {items.filter(it => it._id !== selectedItem._id).slice(0, 3).map(rec => (
-                            <div
-                              key={rec._id}
-                              onClick={() => {
-                                window.history.replaceState({ itemDetailModal: true, itemId: rec._id }, "");
-                                setSelectedItem(rec);
-                              }}
-                              style={{ minWidth: '130px', backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, padding: '0.5rem', borderRadius: '14px', cursor: 'pointer' }}
-                            >
-                              <img src={getValidFoodImage(rec)} alt={rec.name} style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
-                              <h4 style={{ fontSize: '0.75rem', fontWeight: '800', color: theme.textMain, margin: '4px 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.name}</h4>
-                              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: theme.accent }}>₹{rec.price}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sticky Bottom Action Bar (Quantity Stepper + Dynamic Total Add to Cart) */}
-                    {(() => {
-                      const addonsTotal = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
-                      const unitPrice = currentPrice + addonsTotal;
-                      const dynamicTotal = unitPrice * modalDishQty;
-
-                      return (
-                        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              backgroundColor: theme.bgCard,
-                              border: `1.5px solid ${theme.accent}`,
-                              borderRadius: '14px',
-                              padding: '0.4rem 0.75rem',
-                              gap: '0.85rem',
-                              height: '48px',
-                              boxSizing: 'border-box'
-                            }}
-                          >
-                            <motion.button
-                              whileTap={{ scale: 0.8 }}
-                              onClick={() => setModalDishQty(prev => Math.max(1, prev - 1))}
-                              style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                              title="Decrease quantity"
-                            >
-                              <Minus size={18} strokeWidth={3} />
-                            </motion.button>
-                            <span style={{ fontSize: '1.05rem', fontWeight: '900', color: theme.textMain, minWidth: '18px', textAlign: 'center' }}>
-                              {modalDishQty}
-                            </span>
-                            <motion.button
-                              whileTap={{ scale: 0.8 }}
-                              onClick={() => setModalDishQty(prev => prev + 1)}
-                              style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                              title="Increase quantity"
-                            >
-                              <Plus size={18} strokeWidth={3} />
-                            </motion.button>
-                          </div>
-
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={(e) => {
-                              handleAdd(selectedItem, e, selectedVariant, selectedAddons, dishNotes, modalDishQty);
-                              closeItemDetails();
-                            }}
-                            style={{
-                              flex: 1,
-                              backgroundColor: theme.accent,
-                              color: '#ffffff',
-                              border: 'none',
-                              fontWeight: '800',
-                              fontSize: '0.98rem',
-                              padding: '0.85rem',
-                              borderRadius: '14px',
-                              cursor: 'pointer',
-                              boxShadow: `0 8px 25px ${theme.accentGlow}`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.4rem',
-                              height: '48px'
-                            }}
-                          >
-                            Add to Cart • ₹{dynamicTotal}
-                            <Plus size={16} strokeWidth={3} />
-                          </motion.button>
                         </div>
                       );
                     })()}
+
+                    {/* Extra Add-ons */}
+                    {Array.isArray(selectedItem.addons) && selectedItem.addons.length > 0 && (
+                      <div style={{ marginBottom: '1.25rem' }}>
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.65rem' }}>
+                          Extra Add-ons
+                        </h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {selectedItem.addons.map((addon, aIdx) => {
+                            const isChecked = selectedAddons.some(a => a.name === addon.name);
+                            return (
+                              <div
+                                key={addon.name || aIdx}
+                                onClick={() => {
+                                  if (isChecked) {
+                                    setSelectedAddons(prev => prev.filter(a => a.name !== addon.name));
+                                  } else {
+                                    setSelectedAddons(prev => [...prev, addon]);
+                                  }
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '0.65rem 0.85rem',
+                                  backgroundColor: isChecked ? `${theme.accent}15` : theme.bgCard,
+                                  border: isChecked ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                                  borderRadius: '12px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {}}
+                                    style={{ accentColor: theme.accent, width: '16px', height: '16px', cursor: 'pointer' }}
+                                  />
+                                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: theme.textMain }}>{addon.name}</span>
+                                </div>
+                                <span style={{ fontSize: '0.82rem', fontWeight: '900', color: theme.accent }}>+₹{addon.price || 0}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Cooking Instructions / Special Notes */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: theme.textMain, marginBottom: '0.45rem' }}>
+                        Special Instructions / Cooking Notes
+                      </h4>
+                      <input
+                        type="text"
+                        value={dishNotes}
+                        onChange={(e) => setDishNotes(e.target.value)}
+                        placeholder="e.g. Less spicy, no onion, extra crispy..."
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          backgroundColor: theme.bgCard,
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: '12px',
+                          padding: '0.75rem 0.85rem',
+                          color: theme.textMain,
+                          fontSize: '0.82rem',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
                   </div>
-                );
-              })()}
-            </motion.div>
+
+                  {/* Sticky Bottom Action Bar with Stepper & Dynamic Total */}
+                  {(() => {
+                    const currentPrice = selectedVariant
+                      ? (typeof selectedVariant === 'object' ? (Number(selectedVariant.price) || selectedItem.price) : selectedItem.price)
+                      : selectedItem.price;
+                    const addonsTotal = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+                    const unitPrice = currentPrice + addonsTotal;
+                    const dynamicTotal = unitPrice * modalDishQty;
+
+                    return (
+                      <div style={{ padding: '12px 16px', borderTop: `1px solid ${theme.border}`, display: 'flex', gap: '0.75rem', alignItems: 'center', backgroundColor: theme.bgHeader }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: theme.bgCard,
+                            border: `1.5px solid ${theme.accent}`,
+                            borderRadius: '12px',
+                            padding: '0.35rem 0.65rem',
+                            gap: '0.75rem',
+                            height: '44px',
+                            boxSizing: 'border-box'
+                          }}
+                        >
+                          <motion.button
+                            whileTap={{ scale: 0.8 }}
+                            onClick={() => setModalDishQty(prev => Math.max(1, prev - 1))}
+                            style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                            title="Decrease quantity"
+                          >
+                            <Minus size={16} strokeWidth={3} />
+                          </motion.button>
+                          <span style={{ fontSize: '0.95rem', fontWeight: '900', color: theme.textMain, minWidth: '16px', textAlign: 'center' }}>
+                            {modalDishQty}
+                          </span>
+                          <motion.button
+                            whileTap={{ scale: 0.8 }}
+                            onClick={() => setModalDishQty(prev => prev + 1)}
+                            style={{ background: 'none', border: 'none', color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                            title="Increase quantity"
+                          >
+                            <Plus size={16} strokeWidth={3} />
+                          </motion.button>
+                        </div>
+
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.96 }}
+                          onClick={(e) => {
+                            handleAdd(selectedItem, e, selectedVariant, selectedAddons, dishNotes, modalDishQty);
+                            closeItemDetails();
+                          }}
+                          style={{
+                            flex: 1,
+                            backgroundColor: theme.accent,
+                            color: '#ffffff',
+                            border: 'none',
+                            fontWeight: '800',
+                            fontSize: '0.92rem',
+                            padding: '0.75rem',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            boxShadow: `0 8px 25px ${theme.accentGlow}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            height: '44px'
+                          }}
+                        >
+                          Add to Cart • ₹{dynamicTotal}
+                          <Plus size={16} strokeWidth={3} />
+                        </motion.button>
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 

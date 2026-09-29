@@ -55,6 +55,22 @@ const itemMatchesCategory = (item, catId) => {
   return itemCat === catId.toLowerCase();
 };
 
+export const getCustomerFirstName = (customerNameOrObj, fallback = '') => {
+  if (!customerNameOrObj) return fallback;
+  let fullName = '';
+  if (typeof customerNameOrObj === 'object') {
+    fullName = customerNameOrObj.name || customerNameOrObj.fullName || customerNameOrObj.customerName || '';
+  } else {
+    fullName = String(customerNameOrObj);
+  }
+  const clean = fullName.trim();
+  if (!clean || clean.toLowerCase() === 'guest' || clean.toLowerCase() === 'walk-in guest' || clean.toLowerCase() === 'walk-in customer' || clean.toLowerCase() === 'undefined' || clean.toLowerCase() === 'null') {
+    return fallback;
+  }
+  const firstName = clean.split(/\s+/)[0];
+  return firstName || fallback;
+};
+
 export const getValidFoodImage = (item) => {
   const img = item?.image;
   if (img && !img.toLowerCase().includes('policy') && !img.toLowerCase().includes('document') && !img.toLowerCase().includes('reminder') &&
@@ -244,8 +260,32 @@ export default function AdminPanel() {
     }
   };
 
-  // Fetch Orders from API based on dateRange
+
+  // Dashboard-specific Orders State (Controlled by Dashboard Date Filter only)
+  const [dashboardOrders, setDashboardOrders] = useState([]);
+
+  // 7-Day Notification History State
+  const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+
+  // Fetch Master Orders (unfiltered / latest active & recent) for POS, Tables & KDS
   const fetchOrders = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API}/orders`, { headers: { 'x-auth-token': token } });
+      if (res.data && Array.isArray(res.data)) {
+        setOrders(res.data);
+      }
+    } catch (err) {
+      console.log('Master orders fetch error:', err.message);
+    }
+  };
+
+  // Fetch Dashboard Orders based on dashboard dateRange filter
+  const fetchDashboardOrders = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     setIsFilterLoading(true);
@@ -258,15 +298,48 @@ export default function AdminPanel() {
 
       const res = await axios.get(url, { headers: { 'x-auth-token': token } });
       if (res.data && Array.isArray(res.data)) {
-        setOrders(res.data);
+        setDashboardOrders(res.data);
       }
     } catch (err) {
-      console.log('Orders fetch error:', err.message);
+      console.log('Dashboard orders fetch error:', err.message);
     } finally {
       setTimeout(() => {
         setIsFilterLoading(false);
       }, 350);
     }
+  };
+
+  // Fetch 7-Day Notification History
+  const fetchNotifications = async () => {
+    try {
+      setIsLoadingNotifications(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API}/admin/notifications`, {
+        headers: { 'x-auth-token': token }
+      });
+      if (res.data?.notifications) {
+        setNotifications(res.data.notifications);
+        const readIds = JSON.parse(localStorage.getItem('serviq_read_notifs') || '[]');
+        const unread = res.data.notifications.filter(n => !readIds.includes(n.id)).length;
+        setUnreadNotifsCount(unread);
+      }
+    } catch (e) {
+      console.log('Failed to fetch notifications:', e.message);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  const handleOpenNotifications = () => {
+    setShowNotificationsDrawer(true);
+    fetchNotifications();
+  };
+
+  const handleMarkAllNotifsRead = () => {
+    const allIds = notifications.map(n => n.id);
+    localStorage.setItem('serviq_read_notifs', JSON.stringify(allIds));
+    setUnreadNotifsCount(0);
+    toast.success('All notifications marked as read');
   };
 
   // Real Tables State from Database
@@ -405,17 +478,21 @@ export default function AdminPanel() {
     fetchMenu();
     fetchOrders();
     fetchTables();
+    fetchNotifications();
 
     // Live Sockets
     if (socket) {
       socket.on('newOrder', (newOrder) => {
         setOrders((prev) => [newOrder, ...prev]);
+        setDashboardOrders((prev) => [newOrder, ...prev]);
         toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-4)}`);
         playOrderChime();
         fetchTables();
+        fetchNotifications();
       });
       socket.on('orderUpdate', (updatedOrder) => {
         setOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
+        setDashboardOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
       });
     }
 
@@ -425,7 +502,12 @@ export default function AdminPanel() {
         socket.off('orderUpdate');
       }
     };
-  }, [user, tenantId, socket, dateRange, customStartDate, customEndDate]);
+  }, [user, tenantId, socket]);
+
+  // Dedicated Dashboard Date Filter Hook - updates ONLY dashboardOrders without affecting other tabs
+  useEffect(() => {
+    fetchDashboardOrders();
+  }, [dateRange, customStartDate, customEndDate]);
 
   // Daily Performance Checklist State
   const [checklist, setChecklist] = useState([
@@ -446,13 +528,14 @@ export default function AdminPanel() {
 
   // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
-    const grossSales = orders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
-    const totalOrdersCount = orders.length;
+    const targetOrders = dashboardOrders.length > 0 ? dashboardOrders : orders;
+    const grossSales = targetOrders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
+    const totalOrdersCount = targetOrders.length;
     const avgTicket = totalOrdersCount > 0 ? Math.round(grossSales / totalOrdersCount) : 0;
     const netProfit = Math.round(grossSales * 0.42);
     const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
-    const completedOrders = orders.filter(o => o.status === 'completed');
-    const cancelledOrders = orders.filter(o => o.status === 'cancelled');
+    const completedOrders = targetOrders.filter(o => o.status === 'completed');
+    const cancelledOrders = targetOrders.filter(o => o.status === 'cancelled');
 
     // Dynamic Time Buckets driven directly by global dashboard dateRange filter
     let timeBuckets = [];
@@ -475,7 +558,7 @@ export default function AdminPanel() {
         };
       });
 
-      orders.forEach(o => {
+      targetOrders.forEach(o => {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
         if (b) {
@@ -491,7 +574,7 @@ export default function AdminPanel() {
         { label: 'Week 4 (22-31)', shortLabel: 'W4', startD: 22, endD: 31, revenue: 0, orders: 0 }
       ];
 
-      orders.forEach(o => {
+      targetOrders.forEach(o => {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const dateNum = d.getDate();
         const b = timeBuckets.find(bucket => dateNum >= bucket.startD && dateNum <= bucket.endD) || timeBuckets[timeBuckets.length - 1];
@@ -513,7 +596,7 @@ export default function AdminPanel() {
         };
       });
 
-      orders.forEach(o => {
+      targetOrders.forEach(o => {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const b = timeBuckets.find(bucket => bucket.year === d.getFullYear() && bucket.month === d.getMonth());
         if (b) {
@@ -532,7 +615,7 @@ export default function AdminPanel() {
           { label: '08:00 PM - 11:59 PM', shortLabel: '08:00 PM', startH: 20, endH: 23, revenue: 0, orders: 0 }
         ];
 
-        orders.forEach(o => {
+        targetOrders.forEach(o => {
           const d = o.createdAt ? new Date(o.createdAt) : new Date();
           const hour = d.getHours();
           const amt = Number(o.total || o.totalAmount) || 0;
@@ -561,7 +644,7 @@ export default function AdminPanel() {
             };
           });
 
-          orders.forEach(o => {
+          targetOrders.forEach(o => {
             const d = o.createdAt ? new Date(o.createdAt) : new Date();
             const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
             if (b) {
@@ -577,7 +660,7 @@ export default function AdminPanel() {
             { label: 'Period 4', shortLabel: 'P4', fraction: 1.0, revenue: 0, orders: 0 }
           ];
           const totalSpan = Math.max(1, e.getTime() - s.getTime());
-          orders.forEach(o => {
+          targetOrders.forEach(o => {
             const d = o.createdAt ? new Date(o.createdAt) : new Date();
             const progress = (d.getTime() - s.getTime()) / totalSpan;
             const bIndex = Math.min(3, Math.max(0, Math.floor(progress * 4)));
@@ -597,7 +680,7 @@ export default function AdminPanel() {
         { label: '08:00 PM - 11:59 PM', shortLabel: '08:00 PM', startH: 20, endH: 23, revenue: 0, orders: 0 }
       ];
 
-      orders.forEach(o => {
+      targetOrders.forEach(o => {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const hour = d.getHours();
         const amt = Number(o.total || o.totalAmount) || 0;
@@ -1451,10 +1534,31 @@ export default function AdminPanel() {
             <button
               type="button"
               className={styles.iconCircleBtn}
-              title="Notifications"
-              onClick={() => toast.success(`SERVIQ active • ${metrics.activeOrders.length} live orders in queue`)}
+              title="7-Day Notification History"
+              onClick={handleOpenNotifications}
+              style={{ position: 'relative' }}
             >
               <Bell size={18} />
+              {unreadNotifsCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '10px',
+                  fontWeight: 900,
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)'
+                }}>
+                  {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                </span>
+              )}
             </button>
             <button
               type="button"
@@ -2428,8 +2532,7 @@ export default function AdminPanel() {
                               </span>
                             </div>
                             <div className={styles.ticketBody}>
-                              <span>{tableText} • {itemsCount} items</span>
-                              <span className={styles.ticketPrice}>₹{Math.round(totalAmt).toLocaleString('en-IN')}</span>
+                              <span>{tableText}</span>
                             </div>
                           </div>
                         );
@@ -2660,9 +2763,9 @@ export default function AdminPanel() {
                                     ✓ {elapsedMins} Min
                                   </div>
                                   <span style={{ fontSize: '1rem', fontWeight: 900, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {activeOrder?.customerDetails?.name || activeOrder?.customerName || `Table ${tbl.tableNumber}`}
+                                    {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName, `Table ${tbl.tableNumber}`)}
                                   </span>
-                                  {(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
+                                  {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
                                     <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
                                       Table {tbl.tableNumber}
                                     </span>
@@ -2701,9 +2804,9 @@ export default function AdminPanel() {
                                   ⏱️ {elapsedMins} Min
                                 </div>
                                 <span style={{ fontSize: '1rem', fontWeight: 900, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {activeOrder?.customerDetails?.name || activeOrder?.customerName || `Table ${tbl.tableNumber}`}
+                                  {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName, `Table ${tbl.tableNumber}`)}
                                 </span>
-                                {(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
+                                {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
                                   <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
                                     Table {tbl.tableNumber}
                                   </span>
@@ -4042,6 +4145,284 @@ export default function AdminPanel() {
         onClose={() => setShowSupportModal(false)}
         tenantInfo={tenantInfo}
       />
+
+      {/* 7-DAY NOTIFICATION HISTORY SLIDE-OVER DRAWER */}
+      <AnimatePresence>
+        {showNotificationsDrawer && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.45)',
+              backdropFilter: 'blur(3px)',
+              zIndex: 99999,
+              display: 'flex',
+              justifyContent: 'flex-end'
+            }}
+            onClick={() => setShowNotificationsDrawer(false)}
+          >
+            <motion.div
+              initial={{ x: 400, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 400, opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '420px',
+                height: '100%',
+                backgroundColor: '#ffffff',
+                boxShadow: '-8px 0 30px rgba(0,0,0,0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Drawer Header */}
+              <div style={{
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '10px',
+                    background: '#eff6ff',
+                    color: '#2563eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Bell size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                      Notifications
+                    </h3>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                      Activity log of the last 7 days
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllNotifsRead}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowNotificationsDrawer(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      padding: 4,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Notifications List */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+                {isLoadingNotifications ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+                    <Loader size={24} className={styles.spinIcon} color="#2563eb" style={{ margin: '0 auto 10px auto' }} />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Loading 7-day notifications...</span>
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
+                    <Bell size={36} color="#cbd5e1" style={{ margin: '0 auto 12px auto' }} />
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', color: '#475569', fontWeight: 700 }}>
+                      No notifications in the last 7 days
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+                      New customer orders, KOT status transitions, and table settlements will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {notifications.map((notif) => {
+                      const notifDate = new Date(notif.timestamp);
+                      const isToday = notifDate.toDateString() === new Date().toDateString();
+                      const readIds = JSON.parse(localStorage.getItem('serviq_read_notifs') || '[]');
+                      const isUnread = !readIds.includes(notif.id);
+
+                      let IconComp = Bell;
+                      let iconColor = '#2563eb';
+                      let iconBg = '#eff6ff';
+
+                      if (notif.type === 'new_order') {
+                        IconComp = ShoppingBag;
+                        iconColor = '#4f46e5';
+                        iconBg = '#eef2ff';
+                      } else if (notif.type === 'preparing') {
+                        IconComp = ChefHat;
+                        iconColor = '#d97706';
+                        iconBg = '#fef3c7';
+                      } else if (notif.type === 'ready') {
+                        IconComp = CheckCircle2;
+                        iconColor = '#16a34a';
+                        iconBg = '#dcfce7';
+                      } else if (notif.type === 'completed') {
+                        IconComp = Receipt;
+                        iconColor = '#059669';
+                        iconBg = '#ecfdf5';
+                      }
+
+                      return (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            const updated = Array.from(new Set([...readIds, notif.id]));
+                            localStorage.setItem('serviq_read_notifs', JSON.stringify(updated));
+                            setUnreadNotifsCount(prev => Math.max(0, prev - 1));
+                          }}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: '12px',
+                            border: isUnread ? '1.5px solid #bfdbfe' : '1px solid #e2e8f0',
+                            backgroundColor: isUnread ? '#f8faff' : '#ffffff',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                            display: 'flex',
+                            gap: 12,
+                            alignItems: 'flex-start',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            position: 'relative'
+                          }}
+                        >
+                          <div style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: '10px',
+                            background: iconBg,
+                            color: iconColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: 2
+                          }}>
+                            <IconComp size={17} />
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                              <h4 style={{
+                                margin: 0,
+                                fontSize: '0.85rem',
+                                fontWeight: 800,
+                                color: '#0f172a',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {notif.title}
+                              </h4>
+                              {isUnread && (
+                                <span style={{
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: '50%',
+                                  background: '#2563eb',
+                                  flexShrink: 0,
+                                  marginTop: 4
+                                }} />
+                              )}
+                            </div>
+
+                            <p style={{
+                              margin: '3px 0 6px 0',
+                              fontSize: '0.78rem',
+                              color: '#475569',
+                              lineHeight: 1.4
+                            }}>
+                              {notif.message}
+                            </p>
+
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: '#94a3b8' }}>
+                              <span>
+                                {isToday
+                                  ? `Today at ${notifDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                  : notifDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                              {notif.amount > 0 && (
+                                <strong style={{ color: '#0f172a', fontWeight: 800 }}>
+                                  ₹{notif.amount}
+                                </strong>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Drawer Footer */}
+              <div style={{
+                padding: '0.85rem 1.25rem',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.75rem',
+                color: '#64748b'
+              }}>
+                <span>Total: {notifications.length} events logged</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchNotifications();
+                    toast.success('Notifications refreshed');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
