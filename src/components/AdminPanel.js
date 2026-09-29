@@ -16,6 +16,7 @@ import QRCodeComponent from './QRCodeComponent';
 import TableOperationsHub from './TableOperationsHub';
 import POSTerminal from './petpooja/POSTerminal';
 import KOTMonitor from './petpooja/KOTMonitor';
+import OrdersManagement from './petpooja/OrdersManagement';
 import CRMLoyalty from './petpooja/CRMLoyalty';
 import OnlineAggregators from './petpooja/OnlineAggregators';
 import RestaurantSettings from './RestaurantSettings';
@@ -102,6 +103,7 @@ export default function AdminPanel() {
     { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, permKey: 'access_menu' },
     { id: 'qrcodes', label: 'Table QR Codes', icon: QrCode, permKey: 'access_tables' },
     { id: 'crm', label: 'Customer CRM', icon: Users, permKey: 'access_crm', adminOnly: true },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders' },
     { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true },
     { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports' },
     { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata' },
@@ -120,7 +122,7 @@ export default function AdminPanel() {
     return ALL_TABS_CONFIG.filter(t => {
       if (t.adminOnly) return false;
       if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
-      return Boolean(perms[t.permKey]);
+      return Boolean(perms[t.permKey] || (t.id === 'orders' && perms['access_live_orders']));
     });
   }, [isAdmin, user?.permissions, tenantInfo?.settings, ALL_TABS_CONFIG]);
 
@@ -132,7 +134,7 @@ export default function AdminPanel() {
     }
     const t = tab.toLowerCase();
     if (t === 'live-orders') return 'kds';
-    const validTabs = ['dashboard', 'pos', 'kds', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'khata', 'settings'];
+    const validTabs = ['dashboard', 'pos', 'kds', 'orders', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'khata', 'settings'];
     return validTabs.includes(t) ? t : (isAdmin ? 'dashboard' : (allowedTabs[0]?.id || 'pos'));
   }, [tab, isAdmin, allowedTabs]);
 
@@ -1265,6 +1267,13 @@ export default function AdminPanel() {
               {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
             </button>
             <button
+              className={`${styles.navLink} ${activeTab === 'orders' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('orders')}
+              title="All Orders Directory & Management"
+            >
+              <ShoppingBag size={18} /> {!sidebarCollapsed && <span>Orders</span>}
+            </button>
+            <button
               className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('menu')}
               title="Menu Management"
@@ -1471,7 +1480,7 @@ export default function AdminPanel() {
         </header>
 
         {/* MAIN BODY AREA */}
-        <main className={`${styles.mainContent} ${(activeTab === 'pos' || activeTab === 'kds') ? styles.mainContentFitScreen : ''}`}>
+        <main className={`${styles.mainContent} ${(activeTab === 'pos' || activeTab === 'kds' || activeTab === 'orders' || activeTab === 'crm') ? styles.mainContentFitScreen : ''}`}>
           {!hasAccessToCurrentTab ? (
             <div className={styles.accessRestrictedWrap}>
               <div className={styles.accessRestrictedCard}>
@@ -3127,6 +3136,26 @@ export default function AdminPanel() {
             )}
 
             {/* ========================================================= */}
+            {/* 2.5 ALL ORDERS DIRECTORY & MANAGEMENT                     */}
+            {/* ========================================================= */}
+            {activeTab === 'orders' && (
+              <motion.div
+                key="orders"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+              >
+                <OrdersManagement
+                  orders={orders}
+                  onUpdateStatus={handleUpdateOrderStatus}
+                  onNavigateTab={handleTabChange}
+                />
+              </motion.div>
+            )}
+
+            {/* ========================================================= */}
             {/* 3. MENU MANAGEMENT & CATALOG                              */}
             {/* ========================================================= */}
             {activeTab === 'menu' && (
@@ -3415,6 +3444,7 @@ export default function AdminPanel() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
+                style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
               >
                 <CRMLoyalty orders={orders} />
               </motion.div>

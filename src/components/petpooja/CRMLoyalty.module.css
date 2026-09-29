@@ -1,7 +1,12 @@
 .page {
-  padding: 0.75rem 1.1rem;
-  background-color: #f8fafc;
-  min-height: 100vh;
+  padding: 0.15rem 0.35rem 0;
+  background-color: transparent;
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
   font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif;
   color: #0f172a;
   box-sizing: border-box;
@@ -14,7 +19,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.45rem;
+  flex-shrink: 0;
 }
 
 .titleArea {
@@ -133,8 +139,9 @@
 .compactKpiRibbon {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.6rem;
-  margin-bottom: 0.65rem;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+  flex-shrink: 0;
 }
 
 .miniKpiCard {
@@ -227,11 +234,15 @@
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── Unified Toolbar ── */
 .unifiedToolbar {
-  padding: 0.65rem 0.95rem;
+  padding: 0.55rem 0.95rem;
   background: #ffffff;
   border-bottom: 1px solid #f1f5f9;
   display: flex;
@@ -239,6 +250,7 @@
   gap: 0.6rem;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .toolbarLeft {
@@ -397,8 +409,9 @@
 /* ── Maximized Dense Data Table ── */
 .tableWrapper {
   overflow-x: auto;
-  max-height: calc(100vh - 215px);
-  min-height: 420px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .table {
@@ -548,6 +561,63 @@
   font-weight: 800;
 }
 
+.badgeUnverifiedBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #dc2626;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  padding: 0.18rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.badgeUnverifiedBtn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15);
+}
+
+.badgeVerifyPrompt {
+  background: #dc2626;
+  color: #ffffff;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  margin-left: 0.2rem;
+  letter-spacing: 0.02em;
+}
+
+.drawerVerifiedText {
+  color: #059669;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.drawerVerifyTrigger {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: color 0.15s ease;
+}
+
+.drawerVerifyTrigger:hover {
+  color: #b91c1c;
+}
+
 .visitsPill {
   display: inline-flex;
   align-items: center;
@@ -608,6 +678,8 @@
   font-size: 0.75rem;
   color: #64748b;
   font-weight: 600;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 /* ── Empty State ── */
@@ -1276,6 +1348,75 @@
   color: #64748b;
   line-height: 1.4;
   margin: 0;
+}
+
+/* ── Loading Skeleton & Spinner States ── */
+.loadingStateWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4.5rem 1.5rem;
+  gap: 1rem;
+}
+
+.spinnerPulse {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.15);
+  animation: pulseGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.15); }
+  50% { transform: scale(1.08); box-shadow: 0 8px 24px rgba(5, 150, 105, 0.25); }
+}
+
+.skeletonRow {
+  height: 54px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.skeletonCell {
+  padding: 0.75rem 0.9rem;
+}
+
+.skeletonLine {
+  height: 12px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+.skeletonAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  flex-shrink: 0;
+}
+
+.skeletonPill {
+  height: 22px;
+  width: 65px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes fadeIn {

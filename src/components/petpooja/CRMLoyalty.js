@@ -43,6 +43,17 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [canResend, setCanResend] = useState(false);
   const otpInputsRef = useRef([]);
 
+  // Verify Unverified Customer Modal State
+  const [verifyingCustomer, setVerifyingCustomer] = useState(null);
+  const [verifyOtpMode, setVerifyOtpMode] = useState(false);
+  const [verifyOtpDigits, setVerifyOtpDigits] = useState(['', '', '', '', '', '']);
+  const [isVerifySending, setIsVerifySending] = useState(false);
+  const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+  const [verifyCountdown, setVerifyCountdown] = useState(30);
+  const [verifyCanResend, setVerifyCanResend] = useState(false);
+  const [verifyFormError, setVerifyFormError] = useState('');
+  const verifyOtpInputsRef = useRef([]);
+
   // Notes State per customer
   const [customerNotes, setCustomerNotes] = useState({});
   const [activeNoteText, setActiveNoteText] = useState('');
@@ -74,6 +85,23 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     }
     return () => clearInterval(timer);
   }, [isOtpMode, countdown]);
+
+  // Countdown timer for Verify Customer Modal OTP
+  useEffect(() => {
+    let timer;
+    if (verifyOtpMode && verifyCountdown > 0) {
+      timer = setInterval(() => {
+        setVerifyCountdown((prev) => {
+          if (prev <= 1) {
+            setVerifyCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [verifyOtpMode, verifyCountdown]);
 
   const resetAddModal = () => {
     setNewCustomer({ name: '', phone: '', email: '' });
@@ -142,10 +170,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         }
       });
 
-      const derived = Array.from(custMap.values()).map(c => ({
-        ...c,
-        tier: c.lifetimeSpend >= 2500 || c.totalVisits >= 6 ? 'VIP' : c.totalVisits >= 2 ? 'Regular' : 'New'
-      }));
+      const derived = Array.from(custMap.values());
       setCustomers(derived);
     } else {
       setCustomers([]);
@@ -262,6 +287,149 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     }
   };
 
+  // ── Existing Customer Verification Handlers ──
+  const handleOpenVerifyModal = (cust) => {
+    if (!cust) return;
+    setVerifyingCustomer(cust);
+    setVerifyOtpMode(false);
+    setVerifyOtpDigits(['', '', '', '', '', '']);
+    setVerifyFormError('');
+    setVerifyCountdown(30);
+    setVerifyCanResend(false);
+  };
+
+  const markCustomerAsVerified = (targetCust) => {
+    setCustomers(prev => prev.map(c => {
+      if ((c._id && c._id === targetCust._id) || (c.phone && c.phone === targetCust.phone)) {
+        return { ...c, isPhoneVerified: true };
+      }
+      return c;
+    }));
+    if (selectedCustomer && ((selectedCustomer._id && selectedCustomer._id === targetCust._id) || (selectedCustomer.phone && selectedCustomer.phone === targetCust.phone))) {
+      setSelectedCustomer(prev => ({ ...prev, isPhoneVerified: true }));
+    }
+  };
+
+  const handleSendVerifyCustomerOtp = async () => {
+    if (!verifyingCustomer) return;
+    setVerifyFormError('');
+    const cleanPhone = (verifyingCustomer.phone || '').replace(/[^0-9]/g, '');
+    if (cleanPhone.length < 10) {
+      setVerifyFormError("Invalid mobile number. Must be 10 digits.");
+      return toast.error("Invalid mobile number");
+    }
+    setIsVerifySending(true);
+    try {
+      const res = await axios.post(`${API}/customer/send-otp`, {
+        phone: cleanPhone,
+        name: verifyingCustomer.name || 'Guest'
+      });
+      toast.success(res.data?.message || `OTP sent to +91 ${cleanPhone}`);
+      if (res.data?.devOtp) {
+        toast(`Demo OTP: ${res.data.devOtp}`, { icon: '🔑', duration: 6000 });
+      }
+      setVerifyOtpMode(true);
+      setVerifyCountdown(30);
+      setVerifyCanResend(false);
+      setVerifyOtpDigits(['', '', '', '', '', '']);
+      setTimeout(() => {
+        verifyOtpInputsRef.current[0]?.focus();
+      }, 150);
+    } catch (err) {
+      console.error('Send OTP error:', err);
+      const errMsg = err.response?.data?.error || 'Failed to send OTP code.';
+      setVerifyFormError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setIsVerifySending(false);
+    }
+  };
+
+  const handleVerifyOtpDigitChange = (idx, value) => {
+    setVerifyFormError('');
+    const clean = value.replace(/[^0-9]/g, '');
+    const newOtp = [...verifyOtpDigits];
+
+    if (clean.length > 1) {
+      const digits = clean.slice(0, 6).split('');
+      for (let i = 0; i < 6; i++) {
+        newOtp[i] = digits[i] || '';
+      }
+      setVerifyOtpDigits(newOtp);
+      const nextIdx = Math.min(digits.length, 5);
+      verifyOtpInputsRef.current[nextIdx]?.focus();
+      return;
+    }
+
+    newOtp[idx] = clean;
+    setVerifyOtpDigits(newOtp);
+
+    if (clean && idx < 5) {
+      verifyOtpInputsRef.current[idx + 1]?.focus();
+    }
+  };
+
+  const handleVerifyOtpKeyDown = (idx, e) => {
+    if (e.key === 'Backspace' && !verifyOtpDigits[idx] && idx > 0) {
+      verifyOtpInputsRef.current[idx - 1]?.focus();
+    }
+  };
+
+  const handleConfirmVerifyCustomerOtp = async () => {
+    if (!verifyingCustomer) return;
+    setVerifyFormError('');
+    const fullOtp = verifyOtpDigits.join('');
+    if (fullOtp.length < 6) {
+      setVerifyFormError("Please enter the complete 6-digit OTP code");
+      return toast.error("Please enter the complete 6-digit OTP");
+    }
+
+    setIsVerifyLoading(true);
+    const cleanPhone = (verifyingCustomer.phone || '').replace(/[^0-9]/g, '');
+    try {
+      const res = await axios.post(`${API}/customer/verify-otp`, {
+        phone: cleanPhone,
+        otp: fullOtp,
+        name: verifyingCustomer.name || 'Guest'
+      });
+
+      if (res.data?.verified) {
+        markCustomerAsVerified(verifyingCustomer);
+        toast.success(`+91 ${cleanPhone} verified successfully! ✅`);
+        setVerifyingCustomer(null);
+      }
+    } catch (err) {
+      console.error('OTP Verification Error:', err);
+      const errMsg = err.response?.data?.error || 'Incorrect OTP code. Please check and retry.';
+      setVerifyFormError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setIsVerifyLoading(false);
+    }
+  };
+
+  const handleDirectAdminVerify = async () => {
+    if (!verifyingCustomer) return;
+    setIsVerifyLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (token && verifyingCustomer._id) {
+        try {
+          await axios.put(`${API}/petpooja/customers/${verifyingCustomer._id}`, {
+            isPhoneVerified: true
+          }, { headers: { 'x-auth-token': token } });
+        } catch (e) {
+          console.log('Backend sync fallback:', e.message);
+        }
+      }
+      markCustomerAsVerified(verifyingCustomer);
+      toast.success(`${verifyingCustomer.name || 'Guest'} marked as Verified! ✅`);
+      setVerifyingCustomer(null);
+    } finally {
+      setIsVerifyLoading(false);
+    }
+  };
+
   const handleRegisterCustomer = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -291,7 +459,6 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       totalVisits: 1,
       lifetimeSpend: 0,
       averageOrderValue: 0,
-      tier: 'New',
       orders: []
     };
 
@@ -416,12 +583,11 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   // Export CSV Feature
   const handleExportCSV = () => {
     if (customers.length === 0) return toast.error("No customer records to export");
-    const headers = ["Full Name", "Mobile", "Email", "Tier", "Verified", "Visits", "Lifetime Spend", "AOV", "First Visit", "Last Visit"];
+    const headers = ["Full Name", "Mobile", "Email", "Verified", "Visits", "Lifetime Spend", "AOV", "First Visit", "Last Visit"];
     const rows = customers.map(c => [
       `"${c.name || 'Guest'}"`,
       `"${c.phone || ''}"`,
       `"${c.email || ''}"`,
-      `"${c.tier || 'New'}"`,
       c.isPhoneVerified ? 'Yes' : 'No',
       c.totalVisits || 1,
       Math.round(c.lifetimeSpend || 0),
@@ -465,23 +631,21 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     const now = Date.now();
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-    const vipCount = customers.filter(c => (c.tier || '').toUpperCase() === 'VIP').length;
-    const regularCount = customers.filter(c => (c.tier || '').toUpperCase() === 'REGULAR').length;
-    const newCount = customers.filter(c => !c.tier || (c.tier || '').toUpperCase() === 'NEW').length;
     const inactiveCount = customers.filter(c => new Date(c.lastVisit || 0).getTime() < thirtyDaysAgo).length;
     
     const totalSpend = customers.reduce((sum, c) => sum + (Number(c.lifetimeSpend) || 0), 0);
-    const totalVisitsSum = customers.reduce((s, c) => s + (Number(c.totalVisits) || 1), 0);
-    const overallAov = totalCust > 0 ? Math.round(totalSpend / Math.max(1, totalVisitsSum)) : 0;
+    const totalOrdersCount = customers.reduce((s, c) => s + (Number(c.totalVisits) || (c.orders?.length || 1)), 0);
+    const overallAov = totalOrdersCount > 0 ? Math.round(totalSpend / totalOrdersCount) : 0;
     
     const verifiedCount = customers.filter(c => c.isPhoneVerified).length;
     const verifiedRate = totalCust > 0 ? Math.round((verifiedCount / totalCust) * 100) : 0;
-    const repeatCustCount = customers.filter(c => (Number(c.totalVisits) || 1) >= 2).length;
+    const repeatCustCount = customers.filter(c => (Number(c.totalVisits) || (c.orders?.length || 1)) >= 2).length;
+    const singleVisitCount = totalCust - repeatCustCount;
     const repeatRate = totalCust > 0 ? Math.round((repeatCustCount / totalCust) * 100) : 0;
 
     return {
-      metrics: { totalCust, vipCount, totalSpend, overallAov, verifiedRate, repeatRate },
-      tabCounts: { all: totalCust, vip: vipCount, regular: regularCount, new: newCount, inactive: inactiveCount }
+      metrics: { totalCust, totalOrders: totalOrdersCount, repeatCustCount, totalSpend, overallAov, verifiedRate, repeatRate },
+      tabCounts: { all: totalCust, repeat: repeatCustCount, single: singleVisitCount, verified: verifiedCount, inactive: inactiveCount }
     };
   }, [customers]);
 
@@ -491,10 +655,10 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
     return customers
       .filter(c => {
+        const visits = Number(c.totalVisits) || (c.orders?.length || 1);
         // Tab Segment Filter
-        if (activeTab === 'vip' && (c.tier || '').toUpperCase() !== 'VIP') return false;
-        if (activeTab === 'regular' && (c.tier || '').toUpperCase() !== 'REGULAR') return false;
-        if (activeTab === 'new' && (c.tier || '').toUpperCase() !== 'NEW' && c.tier) return false;
+        if (activeTab === 'repeat' && visits < 2) return false;
+        if (activeTab === 'single' && visits > 1) return false;
         if (activeTab === 'inactive' && new Date(c.lastVisit || 0).getTime() >= thirtyDaysAgo) return false;
 
         const matchesName = (c.name || '').toLowerCase().includes(search.toLowerCase());
@@ -592,7 +756,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       <div className={styles.compactKpiRibbon}>
         <div className={styles.miniKpiCard}>
           <div className={styles.miniKpiInfo}>
-            <span className={styles.miniKpiLabel}>Total Guests</span>
+            <span className={styles.miniKpiLabel}>Total Customer</span>
             <div className={styles.miniKpiValueRow}>
               <span className={styles.miniKpiVal}>{metrics.totalCust}</span>
               <span className={styles.miniKpiSub}>({metrics.verifiedRate}% Verified)</span>
@@ -605,20 +769,20 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
         <div className={styles.miniKpiCard}>
           <div className={styles.miniKpiInfo}>
-            <span className={styles.miniKpiLabel}>VIP Diners</span>
+            <span className={styles.miniKpiLabel}>Total Orders</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{metrics.vipCount}</span>
+              <span className={styles.miniKpiVal}>{metrics.totalOrders}</span>
               <span className={styles.miniKpiSub}>({metrics.repeatRate}% Repeat)</span>
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconAmber}`}>
-            <Crown size={16} />
+            <ShoppingBag size={16} />
           </div>
         </div>
 
         <div className={styles.miniKpiCard}>
           <div className={styles.miniKpiInfo}>
-            <span className={styles.miniKpiLabel}>Total CRM Spend</span>
+            <span className={styles.miniKpiLabel}>Total Spend</span>
             <div className={styles.miniKpiValueRow}>
               <span className={styles.miniKpiVal}>{formatCurrency(metrics.totalSpend)}</span>
             </div>
@@ -630,7 +794,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
         <div className={styles.miniKpiCard}>
           <div className={styles.miniKpiInfo}>
-            <span className={styles.miniKpiLabel}>Average Ticket (AOV)</span>
+            <span className={styles.miniKpiLabel}>Average Order Value (AOV)</span>
             <div className={styles.miniKpiValueRow}>
               <span className={styles.miniKpiVal}>{formatCurrency(metrics.overallAov)}</span>
             </div>
@@ -656,28 +820,19 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
             </button>
 
             <button 
-              className={`${styles.tabPill} ${activeTab === 'vip' ? styles.tabPillActive : ''}`}
-              onClick={() => setActiveTab('vip')}
+              className={`${styles.tabPill} ${activeTab === 'repeat' ? styles.tabPillActive : ''}`}
+              onClick={() => setActiveTab('repeat')}
             >
-              <Star size={11} color={activeTab === 'vip' ? '#fcd34d' : '#d97706'} fill={activeTab === 'vip' ? '#fcd34d' : '#d97706'} />
-              <span>VIP Diners</span>
-              <span className={styles.tabCount}>{tabCounts.vip}</span>
+              <span>Repeat Diners (2+)</span>
+              <span className={styles.tabCount}>{tabCounts.repeat}</span>
             </button>
 
             <button 
-              className={`${styles.tabPill} ${activeTab === 'regular' ? styles.tabPillActive : ''}`}
-              onClick={() => setActiveTab('regular')}
+              className={`${styles.tabPill} ${activeTab === 'single' ? styles.tabPillActive : ''}`}
+              onClick={() => setActiveTab('single')}
             >
-              <span>Regulars (2+)</span>
-              <span className={styles.tabCount}>{tabCounts.regular}</span>
-            </button>
-
-            <button 
-              className={`${styles.tabPill} ${activeTab === 'new' ? styles.tabPillActive : ''}`}
-              onClick={() => setActiveTab('new')}
-            >
-              <span>New</span>
-              <span className={styles.tabCount}>{tabCounts.new}</span>
+              <span>Single Visit</span>
+              <span className={styles.tabCount}>{tabCounts.single}</span>
             </button>
 
             {tabCounts.inactive > 0 && (
@@ -686,7 +841,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 onClick={() => setActiveTab('inactive')}
               >
                 <AlertCircle size={11} color={activeTab === 'inactive' ? '#fca5a5' : '#ef4444'} />
-                <span>Inactive (>30d)</span>
+                <span>Inactive (&gt;30d)</span>
                 <span className={styles.tabCount}>{tabCounts.inactive}</span>
               </button>
             )}
@@ -778,7 +933,45 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 7 }).map((_, sIdx) => (
+                  <tr key={sIdx} className={styles.skeletonRow}>
+                    <td className={styles.skeletonCell}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <div className={styles.skeletonAvatar} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                          <div className={styles.skeletonLine} style={{ width: '65%', height: '13px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '40%', height: '9px' }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '90px', height: '12px' }} />
+                    </td>
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonPill} />
+                    </td>
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '75px', height: '11px' }} />
+                    </td>
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '75px', height: '11px' }} />
+                    </td>
+                    <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                      <div className={styles.skeletonLine} style={{ width: '26px', height: '22px', margin: '0 auto', borderRadius: '7px' }} />
+                    </td>
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '60px', height: '13px' }} />
+                    </td>
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '50px', height: '12px' }} />
+                    </td>
+                    <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                      <div className={styles.skeletonLine} style={{ width: '75px', height: '24px', margin: '0 auto', borderRadius: '7px' }} />
+                    </td>
+                  </tr>
+                ))
+              ) : filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={9}>
                     <div className={styles.emptyState}>
@@ -799,8 +992,6 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   const spend = Number(cust.lifetimeSpend) || 0;
                   const visits = Number(cust.totalVisits) || (cust.orders?.length || 1);
                   const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
-                  const isVip = (cust.tier || '').toUpperCase() === 'VIP';
-                  const isRegular = (cust.tier || '').toUpperCase() === 'REGULAR';
                   const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
 
                   return (
@@ -821,17 +1012,6 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                           <div className={styles.identityText}>
                             <div className={styles.nameRow}>
                               <span>{cust.name || 'Guest Diner'}</span>
-                              {isVip && (
-                                <span className={styles.tierVip}>
-                                  <Star size={9} fill="#92400e" /> VIP
-                                </span>
-                              )}
-                              {isRegular && (
-                                <span className={styles.tierRegular}>Regular</span>
-                              )}
-                              {!isVip && !isRegular && (
-                                <span className={styles.tierNew}>New</span>
-                              )}
                             </div>
                             {cust.email && (
                               <span className={styles.emailText}>{cust.email}</span>
@@ -852,9 +1032,18 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                             <CheckCircle2 size={11} /> Verified
                           </span>
                         ) : (
-                          <span className={styles.badgeUnverified}>
-                            <XCircle size={11} /> Unverified
-                          </span>
+                          <button
+                            type="button"
+                            className={styles.badgeUnverifiedBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenVerifyModal(cust);
+                            }}
+                            title="Click to Verify Customer Mobile via OTP"
+                          >
+                            <XCircle size={11} />
+                            <span>Unverified</span>
+                          </button>
                         )}
                       </td>
 
@@ -912,7 +1101,14 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
         {/* Table Footer */}
         <div className={styles.tableFooter}>
-          <span>Showing <strong>{filteredCustomers.length}</strong> of <strong>{customers.length}</strong> total customer profiles</span>
+          {isLoading ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <RefreshCw size={12} className="animate-spin" color="#059669" />
+              <span>Loading customer directory...</span>
+            </span>
+          ) : (
+            <span>Showing <strong>{filteredCustomers.length}</strong> of <strong>{customers.length}</strong> total customer profiles</span>
+          )}
           <span>Click any row to open full 360° Order Timeline</span>
         </div>
       </div>
@@ -1137,6 +1333,168 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         )}
       </AnimatePresence>
 
+      {/* ── Modal: Verify Customer Mobile via OTP ── */}
+      <AnimatePresence>
+        {verifyingCustomer && (
+          <div 
+            className={styles.modalOverlay}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setVerifyingCustomer(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className={styles.modalContent}
+            >
+              <div className={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                  <ShieldCheck size={20} color="#059669" />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
+                    Verify Customer Mobile
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setVerifyingCustomer(null)} 
+                  className={styles.closeBtn}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Prominent Error Banner */}
+              {verifyFormError && (
+                <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{verifyFormError}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setVerifyFormError('')} 
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Customer Snapshot Card */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                  <div 
+                    className={styles.avatar} 
+                    style={{ background: getAvatarGradient(verifyingCustomer.name), width: '40px', height: '40px', fontSize: '0.95rem' }}
+                  >
+                    {getInitials(verifyingCustomer.name)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
+                      {verifyingCustomer.name || 'Guest Diner'}
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      📱 +91 {verifyingCustomer.phone || 'Not Provided'}
+                    </span>
+                  </div>
+                </div>
+
+                {!verifyOtpMode ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '500', lineHeight: 1.4 }}>
+                      Send a 6-digit verification passcode (OTP) to <strong>+91 {verifyingCustomer.phone}</strong> to authenticate this guest.
+                    </p>
+
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      onClick={handleSendVerifyCustomerOtp}
+                      disabled={isVerifySending}
+                    >
+                      {isVerifySending ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Sending OTP Code...</span>
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound size={15} />
+                          <span>Send 6-Digit OTP to Customer</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', border: '1px solid #cbd5e1' }}
+                      onClick={handleDirectAdminVerify}
+                      disabled={isVerifyLoading}
+                    >
+                      <CheckCircle2 size={15} color="#059669" />
+                      <span>Instant Direct Verify (Counter / Manual)</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.otpSection}>
+                    <div className={styles.otpHeaderRow}>
+                      <div className={styles.otpLabel}>
+                        <KeyRound size={14} color="#059669" />
+                        <span>Enter 6-Digit OTP Code</span>
+                      </div>
+                      <span className={styles.otpPhoneBadge}>+91 {verifyingCustomer.phone}</span>
+                    </div>
+
+                    <div className={styles.otpInputsWrap}>
+                      {verifyOtpDigits.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          ref={el => verifyOtpInputsRef.current[idx] = el}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleVerifyOtpDigitChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleVerifyOtpKeyDown(idx, e)}
+                          className={styles.otpDigitInput}
+                          autoFocus={idx === 0}
+                        />
+                      ))}
+                    </div>
+
+                    <div className={styles.otpActionsRow}>
+                      <div>
+                        {verifyCountdown > 0 ? (
+                          <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Resend in <strong>{verifyCountdown}s</strong></span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!verifyCanResend || isVerifySending}
+                            onClick={handleSendVerifyCustomerOtp}
+                            className={styles.resendBtn}
+                          >
+                            Resend OTP Code
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isVerifyLoading || verifyOtpDigits.join('').length < 6}
+                        onClick={handleConfirmVerifyCustomerOtp}
+                        className={styles.verifyOtpConfirmBtn}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>{isVerifyLoading ? 'Verifying...' : 'Confirm OTP'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Right Slide-Over Side Drawer: Customer 360° Profile & Date-Grouped Timeline ── */}
       <AnimatePresence>
         {selectedCustomer && (
@@ -1165,16 +1523,22 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   <div>
                     <div className={styles.drawerName}>
                       <span>{selectedCustomer.name}</span>
-                      {(selectedCustomer.tier || '').toUpperCase() === 'VIP' && (
-                        <span className={styles.tierVip}>
-                          <Star size={9} fill="#92400e" /> VIP
-                        </span>
-                      )}
                     </div>
                     <div className={styles.drawerContactRow}>
                       <span>📞 {selectedCustomer.phone}</span>
                       <span>•</span>
-                      <span>{selectedCustomer.isPhoneVerified ? '✅ Verified' : '❌ Unverified'}</span>
+                      {selectedCustomer.isPhoneVerified ? (
+                        <span className={styles.drawerVerifiedText}>✅ Verified</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.drawerVerifyTrigger}
+                          onClick={() => handleOpenVerifyModal(selectedCustomer)}
+                          title="Click to Verify Customer Mobile"
+                        >
+                          ❌ Unverified
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1238,81 +1602,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   </div>
                 </div>
 
-                {/* 1. ⭐ Favorite / Most-Ordered Dishes */}
-                {favoriteItems.length > 0 && (
-                  <div className={styles.drawerSectionCard}>
-                    <h5 className={styles.drawerSectionTitle}>
-                      <UtensilsCrossed size={14} color="#d97706" />
-                      <span>Favorite & Most-Ordered Dishes</span>
-                    </h5>
-                    <div className={styles.favTagsWrap}>
-                      {favoriteItems.map((fav, fIdx) => (
-                        <div key={fIdx} className={styles.favTag}>
-                          <span>{fav.name}</span>
-                          <span className={styles.favCountBadge}>×{fav.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. 💬 1-Click WhatsApp Loyalty Promos */}
-                {selectedCustomer.phone && selectedCustomer.phone !== 'Not Provided' && (
-                  <div className={styles.drawerSectionCard}>
-                    <h5 className={styles.drawerSectionTitle}>
-                      <Gift size={14} color="#059669" />
-                      <span>1-Click WhatsApp Loyalty Offers</span>
-                    </h5>
-                    <div className={styles.promoOptionsWrap}>
-                      <a
-                        href={getWhatsAppPromoUrl(selectedCustomer.phone, 'vip10')}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.promoBtn}
-                      >
-                        <span>🎁 Send VIP 10% Off Promo Code</span>
-                        <Send size={12} />
-                      </a>
-                      <a
-                        href={getWhatsAppPromoUrl(selectedCustomer.phone, 'feedback')}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.promoBtn}
-                      >
-                        <span>⭐ Send Thank You & Rating Request</span>
-                        <Send size={12} />
-                      </a>
-                      <a
-                        href={getWhatsAppPromoUrl(selectedCustomer.phone, 'miss_you')}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.promoBtn}
-                      >
-                        <span>☕ Send "We Miss You" Free Beverage Offer</span>
-                        <Send size={12} />
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. 📝 Guest Preferences & Dietary Notes */}
-                <div className={styles.drawerSectionCard}>
-                  <h5 className={styles.drawerSectionTitle}>
-                    <Edit3 size={14} color="#4f46e5" />
-                    <span>Guest Preferences & Dietary Notes</span>
-                  </h5>
-                  <textarea
-                    placeholder="e.g. Prefers window table #4, less spicy food, likes almond milk..."
-                    value={activeNoteText}
-                    onChange={(e) => setActiveNoteText(e.target.value)}
-                    className={styles.notesInput}
-                  />
-                  <button onClick={handleSaveNotes} className={styles.saveNotesBtn}>
-                    Save Notes
-                  </button>
-                </div>
-
-                {/* 4. 📅 Date-Grouped Order History Timeline */}
+                {/* 📅 Date-Grouped Order History Timeline */}
                 <div className={styles.timelineSection}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: '900', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
