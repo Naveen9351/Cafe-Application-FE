@@ -24,24 +24,41 @@ import axios from 'axios';
 import { API_URL } from '../config/api';
 import styles from './ReportsSuite.module.css';
 
-export default function ReportsSuite() {
-  const [orders, setOrders] = useState([]);
+export default function ReportsSuite({ initialOrders = [] }) {
+  const [orders, setOrders] = useState(() => (Array.isArray(initialOrders) && initialOrders.length > 0 ? initialOrders : []));
   const [khataRecords, setKhataRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !(Array.isArray(initialOrders) && initialOrders.length > 0));
   const [timeFilter, setTimeFilter] = useState('all'); // 'today', '7d', '30d', 'all'
   const [orderSearch, setOrderSearch] = useState('');
   const [tableFilter, setTableFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Pagination State
+  const [reportsPage, setReportsPage] = useState(1);
+  const reportsPageSize = 10;
+
   useEffect(() => {
-    fetchReportData();
+    setReportsPage(1);
+  }, [timeFilter, orderSearch, tableFilter]);
+
+  useEffect(() => {
+    if (Array.isArray(initialOrders) && initialOrders.length > 0) {
+      setOrders(initialOrders);
+    }
+  }, [initialOrders]);
+
+  useEffect(() => {
+    fetchReportData(orders.length === 0);
   }, []);
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = { 
+        'x-auth-token': token,
+        Authorization: `Bearer ${token}` 
+      };
 
       const [ordersRes, khataRes] = await Promise.allSettled([
         axios.get(`${API_URL}/orders`, { headers }),
@@ -405,91 +422,130 @@ export default function ReportsSuite() {
                       </td>
                     </tr>
                   ) : (
-                    displayedOrders.slice(0, 50).map((ord, idx) => {
-                      const isVerified = ord.isPhoneVerified || ord.customerDetails?.isPhoneVerified;
-                      const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : `ORD-${idx + 1}`);
-                      const displayAmount = getOrderAmount(ord);
+                    displayedOrders
+                      .slice((reportsPage - 1) * reportsPageSize, reportsPage * reportsPageSize)
+                      .map((ord, idx) => {
+                        const isVerified = ord.isPhoneVerified || ord.customerDetails?.isPhoneVerified;
+                        const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : `ORD-${idx + 1}`);
+                        const displayAmount = getOrderAmount(ord);
 
-                      return (
-                        <tr key={ord._id || idx}>
-                          <td style={{ fontWeight: 800, color: '#4f46e5' }}>
-                            #{orderNum}
-                          </td>
-                          <td style={{ fontWeight: 700, color: '#0f172a' }}>
-                            {ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS'}
-                            <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 500 }}>
-                              {ord.source || (ord.tableNumber ? 'Table QR Code' : 'Staff / Waiter')}
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 700 }}>{ord.customerName || ord.customerDetails?.name || 'Walk-in Guest'}</div>
-                            {(ord.customerPhone || ord.customerDetails?.phone) && (
-                              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                                {ord.customerPhone || ord.customerDetails?.phone}
+                        return (
+                          <tr key={ord._id || idx}>
+                            <td style={{ fontWeight: 800, color: '#4f46e5' }}>
+                              #{orderNum}
+                            </td>
+                            <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                              {ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS'}
+                              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 500 }}>
+                                {ord.source || (ord.tableNumber ? 'Table QR Code' : 'Staff / Waiter')}
                               </div>
-                            )}
-                          </td>
-                          <td>
-                            {isVerified ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#16a34a', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 700 }}>
-                                <CheckCircle2 size={11} /> Verified
-                              </span>
-                            ) : (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 600 }}>
-                                Standard
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {(ord.items || []).map(it => `${it.quantity}x ${it.name || it.item?.name}`).join(', ')}
-                          </td>
-                          <td>
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              background: ord.paymentMethod === 'Cash' ? '#ecfdf5' : '#eff6ff',
-                              color: ord.paymentMethod === 'Cash' ? '#059669' : '#2563eb'
-                            }}>
-                              {ord.paymentMethod || 'Cash'}
-                            </span>
-                          </td>
-                          <td style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            {new Date(ord.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                            ₹{displayAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedOrder(ord)}
-                              style={{
-                                padding: '4px 8px',
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{ord.customerName || ord.customerDetails?.name || 'Walk-in Guest'}</div>
+                              {(ord.customerPhone || ord.customerDetails?.phone) && (
+                                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                  {ord.customerPhone || ord.customerDetails?.phone}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              {isVerified ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#16a34a', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                  <CheckCircle2 size={11} /> Verified
+                                </span>
+                              ) : (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 600 }}>
+                                  Standard
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {(ord.items || []).map(it => `${it.quantity}x ${it.name || it.item?.name}`).join(', ')}
+                            </td>
+                            <td>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
                                 borderRadius: '6px',
-                                border: '1px solid #cbd5e1',
-                                background: '#f8fafc',
-                                color: '#334155',
                                 fontSize: '0.72rem',
                                 fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <Eye size={12} /> View
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
+                                background: ord.paymentMethod === 'Cash' ? '#ecfdf5' : '#eff6ff',
+                                color: ord.paymentMethod === 'Cash' ? '#059669' : '#2563eb'
+                              }}>
+                                {ord.paymentMethod || 'Cash'}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                              {new Date(ord.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                              ₹{displayAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedOrder(ord)}
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #cbd5e1',
+                                  background: '#f8fafc',
+                                  color: '#334155',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Eye size={12} /> View
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                   )}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {Math.ceil(displayedOrders.length / reportsPageSize) > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
+                  Showing {((reportsPage - 1) * reportsPageSize) + 1} - {Math.min(reportsPage * reportsPageSize, displayedOrders.length)} of {displayedOrders.length} orders
+                </span>
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    disabled={reportsPage === 1}
+                    onClick={() => setReportsPage(p => Math.max(1, p - 1))}
+                    style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: reportsPage === 1 ? '#ffffff' : '#ffffff', color: reportsPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '0.75rem', cursor: reportsPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Prev
+                  </button>
+                  {Array.from({ length: Math.ceil(displayedOrders.length / reportsPageSize) }, (_, i) => i + 1).map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setReportsPage(p)}
+                      style={{ minWidth: '26px', height: '26px', padding: '0 4px', borderRadius: '6px', border: 'none', background: reportsPage === p ? '#4f46e5' : '#ffffff', color: reportsPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer', boxShadow: reportsPage === p ? 'none' : '0 1px 2px rgba(0,0,0,0.05)' }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={reportsPage === Math.ceil(displayedOrders.length / reportsPageSize)}
+                    onClick={() => setReportsPage(p => Math.min(Math.ceil(displayedOrders.length / reportsPageSize), p + 1))}
+                    style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: reportsPage === Math.ceil(displayedOrders.length / reportsPageSize) ? '#ffffff' : '#ffffff', color: reportsPage === Math.ceil(displayedOrders.length / reportsPageSize) ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '0.75rem', cursor: reportsPage === Math.ceil(displayedOrders.length / reportsPageSize) ? 'not-allowed' : 'pointer' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Order Details & Bill Reprint Modal */}
             <AnimatePresence>

@@ -23,6 +23,10 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'preparing', 'ready', 'completed', 'cancelled'
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'highest_amount', 'lowest_amount'
 
+  // Pagination State
+  const [ordersPage, setOrdersPage] = useState(1);
+  const ordersPageSize = 10;
+
   // Fetch / Sync All Historical Orders
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -257,6 +261,17 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     return groups;
   }, [filteredOrders]);
 
+  // Reset page when filter changes
+  useEffect(() => {
+    setOrdersPage(1);
+  }, [search, paymentFilter, statusFilter, sortBy]);
+
+  const totalOrdersPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize));
+  const paginatedOrders = useMemo(() => {
+    const start = (ordersPage - 1) * ordersPageSize;
+    return filteredOrders.slice(start, start + ordersPageSize);
+  }, [filteredOrders, ordersPage, ordersPageSize]);
+
   const hasActiveFilters = search || paymentFilter !== 'all' || statusFilter !== 'all';
 
   const resetFilters = () => {
@@ -279,7 +294,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
           <div>
             <h2 className={styles.title}>Orders Directory & Management</h2>
             <p className={styles.subtitle}>
-              Master ledger of all historical dine-in, takeaway, delivery & QR orders grouped by date with itemized billing.
+              Master ledger of all historical dine-in, takeaway, delivery & QR orders with itemized billing.
             </p>
           </div>
         </div>
@@ -526,186 +541,196 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                   </td>
                 </tr>
               ) : (
-                groupedOrdersByDate.map(group => (
-                  <React.Fragment key={group.dateKey}>
-                    {/* Date Section Header */}
-                    <tr className={styles.dateGroupHeaderRow}>
-                      <td colSpan={8} className={styles.dateGroupCell}>
-                        <div className={styles.dateGroupContent}>
-                          <div className={styles.dateGroupBadge}>
-                            <Calendar size={13} color="#475569" />
-                            <span>{group.label}</span>
-                            <span className={styles.dateGroupCount}>
-                              {group.orders.length} {group.orders.length === 1 ? 'Order' : 'Orders'}
+                paginatedOrders.map(ord => {
+                  const custName = ord.customerName || ord.customerDetails?.name || 'Guest Diner';
+                  const custPhone = ord.customerPhone || ord.customerDetails?.phone || 'Not Provided';
+                  const orderNum = ord.orderNumber || ord._id?.slice(-5) || 'ORD';
+                  const total = Number(ord.totalAmount || ord.finalAmount || ord.total || 0);
+                  const itemsCount = ord.items?.reduce((s, it) => s + (Number(it.quantity) || 1), 0) || ord.items?.length || 1;
+                  const firstItem = ord.items?.[0]?.name || ord.items?.[0]?.item?.name || 'Item';
+                  const channel = (ord.orderType || ord.channel || 'dine-in').toLowerCase();
+                  const status = (ord.status || 'pending').toLowerCase();
+                  const payStatus = (ord.paymentStatus || 'unpaid').toLowerCase();
+                  const isSelected = selectedOrder?._id === ord._id;
+
+                  return (
+                    <motion.tr
+                      key={ord._id}
+                      className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
+                      onClick={() => setSelectedOrder(ord)}
+                    >
+                      {/* Order # & Channel Badge */}
+                      <td className={styles.td}>
+                        <div className={styles.orderIdWrap}>
+                          <span className={styles.orderNumberText}>
+                            <span>#{orderNum}</span>
+                            {ord.tokenNumber && (
+                              <span className={styles.tokenBadge}>T#{ord.tokenNumber}</span>
+                            )}
+                          </span>
+                          {channel.includes('dine') ? (
+                            <span className={`${styles.channelPill} ${styles.channelDineIn}`}>
+                              🍽️ Table {ord.tableNumber || ord.table || '1'}
                             </span>
-                          </div>
-                          <div className={styles.dateGroupSales}>
-                            <span>Day's Sales:</span>
-                            <strong>{formatCurrency(group.totalRevenue)}</strong>
+                          ) : channel.includes('takeaway') ? (
+                            <span className={`${styles.channelPill} ${styles.channelTakeaway}`}>
+                              🛍️ Takeaway
+                            </span>
+                          ) : channel.includes('delivery') ? (
+                            <span className={`${styles.channelPill} ${styles.channelDelivery}`}>
+                              🛵 Delivery
+                            </span>
+                          ) : (
+                            <span className={`${styles.channelPill} ${styles.channelQr}`}>
+                              📱 QR Order
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Customer Identity */}
+                      <td className={styles.td}>
+                        <div className={styles.customerIdentity}>
+                          <div className={styles.identityText}>
+                            <span className={styles.nameRow}>{custName}</span>
+                            <span className={styles.phoneText}>{custPhone}</span>
                           </div>
                         </div>
                       </td>
-                    </tr>
 
-                    {/* Orders for this Date */}
-                    {group.orders.map(ord => {
-                      const custName = ord.customerName || ord.customerDetails?.name || 'Guest Diner';
-                      const custPhone = ord.customerPhone || ord.customerDetails?.phone || 'Not Provided';
-                      const orderNum = ord.orderNumber || ord._id?.slice(-5) || 'ORD';
-                      const total = Number(ord.totalAmount || ord.finalAmount || ord.total || 0);
-                      const itemsCount = ord.items?.reduce((s, it) => s + (Number(it.quantity) || 1), 0) || ord.items?.length || 1;
-                      const firstItem = ord.items?.[0]?.name || ord.items?.[0]?.item?.name || 'Item';
-                      const channel = (ord.orderType || ord.channel || 'dine-in').toLowerCase();
-                      const status = (ord.status || 'pending').toLowerCase();
-                      const payStatus = (ord.paymentStatus || 'unpaid').toLowerCase();
-                      const isSelected = selectedOrder?._id === ord._id;
+                      {/* Items Summary */}
+                      <td className={styles.td}>
+                        <div className={styles.itemsPreviewWrap}>
+                          <span className={styles.itemsCountBadge}>
+                            <Utensils size={10} />
+                            <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
+                          </span>
+                          <span className={styles.itemsSummaryText} title={ord.items?.map(i => `${i.quantity || 1}x ${i.name || i.item?.name}`).join(', ')}>
+                            {firstItem} {ord.items?.length > 1 ? `+${ord.items.length - 1} more` : ''}
+                          </span>
+                        </div>
+                      </td>
 
-                      return (
-                        <motion.tr
-                          key={ord._id}
-                          className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
-                          onClick={() => setSelectedOrder(ord)}
+                      {/* Payment Status */}
+                      <td className={styles.td}>
+                        {payStatus === 'paid' ? (
+                          <span className={styles.paymentPaidUpi}>
+                            <CheckCircle2 size={11} />
+                            <span>Paid • {ord.paymentMethod?.toUpperCase() || 'UPI'}</span>
+                          </span>
+                        ) : (
+                          <span className={styles.paymentUnpaid}>
+                            <Clock size={11} />
+                            <span>Unpaid</span>
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Order Status */}
+                      <td className={styles.td}>
+                        {status === 'pending' && (
+                          <span className={styles.statusPending}>
+                            <span className={styles.statusDot} /> Pending
+                          </span>
+                        )}
+                        {status === 'preparing' && (
+                          <span className={styles.statusPreparing}>
+                            <span className={styles.statusDot} /> Preparing
+                          </span>
+                        )}
+                        {status === 'ready' && (
+                          <span className={styles.statusReady}>
+                            <span className={styles.statusDot} /> Ready
+                          </span>
+                        )}
+                        {status === 'completed' && (
+                          <span className={styles.statusCompleted}>
+                            <CheckCircle2 size={11} /> Completed
+                          </span>
+                        )}
+                        {status === 'cancelled' && (
+                          <span className={styles.statusCancelled}>
+                            <AlertCircle size={11} /> Cancelled
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className={styles.td} style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '500' }}>
+                        {formatDateTime(ord.createdAt)}
+                      </td>
+
+                      {/* Total Amount */}
+                      <td className={styles.td}>
+                        <span className={styles.amountText}>{formatCurrency(total)}</span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className={styles.td} style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedOrder(ord);
+                          }}
+                          className={styles.actionBtn}
                         >
-                          {/* Order # & Channel Badge */}
-                          <td className={styles.td}>
-                            <div className={styles.orderIdWrap}>
-                              <span className={styles.orderNumberText}>
-                                <span>#{orderNum}</span>
-                                {ord.tokenNumber && (
-                                  <span className={styles.tokenBadge}>T#{ord.tokenNumber}</span>
-                                )}
-                              </span>
-                              {channel.includes('dine') ? (
-                                <span className={`${styles.channelPill} ${styles.channelDineIn}`}>
-                                  🍽️ Table {ord.tableNumber || ord.table || '1'}
-                                </span>
-                              ) : channel.includes('takeaway') ? (
-                                <span className={`${styles.channelPill} ${styles.channelTakeaway}`}>
-                                  🛍️ Takeaway
-                                </span>
-                              ) : channel.includes('delivery') ? (
-                                <span className={`${styles.channelPill} ${styles.channelDelivery}`}>
-                                  🛵 Delivery
-                                </span>
-                              ) : (
-                                <span className={`${styles.channelPill} ${styles.channelQr}`}>
-                                  📱 QR Order
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Customer Identity without short name avatar */}
-                          <td className={styles.td}>
-                            <div className={styles.customerIdentity}>
-                              <div className={styles.identityText}>
-                                <span className={styles.nameRow}>{custName}</span>
-                                <span className={styles.phoneText}>{custPhone}</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Items Summary */}
-                          <td className={styles.td}>
-                            <div className={styles.itemsPreviewWrap}>
-                              <span className={styles.itemsCountBadge}>
-                                <Utensils size={10} />
-                                <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
-                              </span>
-                              <span className={styles.itemsSummaryText} title={ord.items?.map(i => `${i.quantity || 1}x ${i.name || i.item?.name}`).join(', ')}>
-                                {firstItem} {ord.items?.length > 1 ? `+${ord.items.length - 1} more` : ''}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Payment Status */}
-                          <td className={styles.td}>
-                            {payStatus === 'paid' ? (
-                              <span className={styles.paymentPaidUpi}>
-                                <CheckCircle2 size={11} />
-                                <span>Paid • {ord.paymentMethod?.toUpperCase() || 'UPI'}</span>
-                              </span>
-                            ) : (
-                              <span className={styles.paymentUnpaid}>
-                                <Clock size={11} />
-                                <span>Unpaid</span>
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Order Status */}
-                          <td className={styles.td}>
-                            {status === 'pending' && (
-                              <span className={styles.statusPending}>
-                                <span className={styles.statusDot} /> Pending
-                              </span>
-                            )}
-                            {status === 'preparing' && (
-                              <span className={styles.statusPreparing}>
-                                <span className={styles.statusDot} /> Preparing
-                              </span>
-                            )}
-                            {status === 'ready' && (
-                              <span className={styles.statusReady}>
-                                <span className={styles.statusDot} /> Ready
-                              </span>
-                            )}
-                            {status === 'completed' && (
-                              <span className={styles.statusCompleted}>
-                                <CheckCircle2 size={11} /> Completed
-                              </span>
-                            )}
-                            {status === 'cancelled' && (
-                              <span className={styles.statusCancelled}>
-                                <AlertCircle size={11} /> Cancelled
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Date & Time */}
-                          <td className={styles.td} style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '500' }}>
-                            {formatDateTime(ord.createdAt)}
-                          </td>
-
-                          {/* Total Amount */}
-                          <td className={styles.td}>
-                            <span className={styles.amountText}>{formatCurrency(total)}</span>
-                          </td>
-
-                          {/* Actions */}
-                          <td className={styles.td} style={{ textAlign: 'center' }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedOrder(ord);
-                              }}
-                              className={styles.actionBtn}
-                            >
-                              <Eye size={12} />
-                              <span>View Bill</span>
-                            </button>
-                          </td>
-                        </motion.tr>
-                      );
-                    })}
-                  </React.Fragment>
-                ))
+                          <Eye size={12} />
+                          <span>View Bill</span>
+                        </button>
+                      </td>
+                    </motion.tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pinned Bottom Table Footer */}
-        <div className={styles.tableFooter}>
+        {/* Pinned Bottom Table Footer with Pagination */}
+        <div className={styles.tableFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '12px 18px' }}>
           {isLoading ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RefreshCw size={12} className="animate-spin" color="#059669" />
               <span>Loading orders directory...</span>
             </span>
           ) : (
-            <span>Showing <strong>{filteredOrders.length}</strong> of <strong>{localOrders.length}</strong> total orders</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+              Showing <strong>{filteredOrders.length > 0 ? ((ordersPage - 1) * ordersPageSize) + 1 : 0} - {Math.min(ordersPage * ordersPageSize, filteredOrders.length)}</strong> of <strong>{filteredOrders.length}</strong> orders
+            </span>
           )}
-          <span>Click any row to open full 360° Order Details & Bill Receipt</span>
+
+          {totalOrdersPages > 1 && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                type="button"
+                disabled={ordersPage === 1}
+                onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: ordersPage === 1 ? '#f8fafc' : '#ffffff', color: ordersPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: ordersPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalOrdersPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setOrdersPage(p)}
+                  style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: ordersPage === p ? '#4f46e5' : '#f1f5f9', color: ordersPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={ordersPage === totalOrdersPages}
+                onClick={() => setOrdersPage(p => Math.min(totalOrdersPages, p + 1))}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: ordersPage === totalOrdersPages ? '#f8fafc' : '#ffffff', color: ordersPage === totalOrdersPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: ordersPage === totalOrdersPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Click row to open 360° Order Details</span>
         </div>
       </div>
 

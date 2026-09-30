@@ -93,20 +93,30 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
       if (!isSettled) {
         const raw = String(o.tableNumber || o.table || '').trim();
         const numOnly = raw.replace(/[^0-9]/g, '') || raw;
-        const total = o.totalAmount || o.finalTotal || o.billAmount || (o.items || []).reduce((acc, it) => acc + ((it.price || 0) * (it.quantity || 1)), 0);
+        const total = Number(o.total || o.totalAmount || o.finalTotal || o.billAmount) || (o.items || []).reduce((acc, it) => acc + ((Number(it.price) || 0) * (it.quantity || 1)), 0);
         const itemsCount = (o.items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
         
-        const summary = {
-          orderId: o.orderId || o._id,
-          totalAmount: total,
-          itemCount: itemsCount || (o.items ? o.items.length : 1),
-          status: o.status || 'preparing',
-          placedAt: o.createdAt
+        const applyToKey = (key) => {
+          if (!key) return;
+          if (!lookup[key]) {
+            lookup[key] = {
+              orderId: o.orderId || o._id,
+              totalAmount: total,
+              itemCount: itemsCount || (o.items ? o.items.length : 1),
+              status: o.status || 'preparing',
+              placedAt: o.createdAt,
+              ordersCount: 1
+            };
+          } else {
+            lookup[key].totalAmount += total;
+            lookup[key].itemCount += itemsCount;
+            lookup[key].ordersCount += 1;
+          }
         };
-        
-        if (raw) lookup[raw] = summary;
-        if (numOnly) lookup[numOnly] = summary;
-        lookup[`Table ${numOnly}`] = summary;
+
+        if (raw) applyToKey(raw);
+        if (numOnly && numOnly !== raw) applyToKey(numOnly);
+        if (numOnly) applyToKey(`Table ${numOnly}`);
       }
     });
     return { activeOrdersLookup: lookup };

@@ -45,14 +45,19 @@ const standardCategories = [
   { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino', 'tea'], icon: "Coffee", Component: Coffee },
 ];
 
-const itemMatchesCategory = (item, catId) => {
+const itemMatchesCategory = (item, catId, customCats = []) => {
   if (catId === 'all') return true;
   const itemCat = (item.category || '').toLowerCase().trim();
-  const catObj = standardCategories.find(c => c.id === catId);
-  if (catObj && catObj.aliases) {
-    return catObj.aliases.some(a => itemCat.includes(a) || a.includes(itemCat));
+  const allCats = customCats && customCats.length > 0 ? customCats : standardCategories;
+  const catObj = allCats.find(c => c.id === catId || (c.name && c.name.toLowerCase() === catId.toLowerCase()));
+  if (catObj) {
+    if (catObj.aliases && Array.isArray(catObj.aliases) && catObj.aliases.some(a => itemCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itemCat))) {
+      return true;
+    }
+    if (catObj.name && catObj.name.toLowerCase() === itemCat) return true;
+    if (catObj.id && catObj.id.toLowerCase() === itemCat) return true;
   }
-  return itemCat === catId.toLowerCase();
+  return itemCat === String(catId).toLowerCase();
 };
 
 export const getCustomerFirstName = (customerNameOrObj, fallback = '') => {
@@ -69,6 +74,16 @@ export const getCustomerFirstName = (customerNameOrObj, fallback = '') => {
   }
   const firstName = clean.split(/\s+/)[0];
   return firstName || fallback;
+};
+
+export const getOrderAmount = (ord) => {
+  if (!ord) return 0;
+  const val = Number(ord.settledAmount || ord.finalAmount || ord.total || ord.totalAmount || ord.subTotal);
+  if (!isNaN(val) && val > 0) return val;
+  if (Array.isArray(ord.items) && ord.items.length > 0) {
+    return ord.items.reduce((sum, it) => sum + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
+  }
+  return 0;
 };
 
 export const getValidFoodImage = (item) => {
@@ -176,10 +191,33 @@ export default function AdminPanel() {
   const userInitials = (user?.name || user?.fullName || userEmail.split('@')[0] || 'U').slice(0, 2).toUpperCase();
 
   // Dashboard Date Filter State
-  const [dateRange, setDateRange] = useState('today'); // 'today', 'this_week', 'this_month', 'custom'
+  const [dateRange, setDateRange] = useState('all'); // 'all', 'today', 'this_week', 'this_month', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+
+  // Dynamic Categories State (loaded from localStorage or defaults)
+  const [categories, setCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('serviq_custom_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.log('Error reading custom categories:', e);
+    }
+    return standardCategories;
+  });
+
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [categoryModalMode, setCategoryModalMode] = useState('add'); // 'add' or 'edit'
+  const [editingCategoryData, setEditingCategoryData] = useState(null);
+  const [newCatName, setNewCatName] = useState('');
+
+  // Menu Pagination State
+  const [menuPage, setMenuPage] = useState(1);
+  const menuPageSize = 8;
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -303,9 +341,7 @@ export default function AdminPanel() {
     } catch (err) {
       console.log('Dashboard orders fetch error:', err.message);
     } finally {
-      setTimeout(() => {
-        setIsFilterLoading(false);
-      }, 350);
+      setIsFilterLoading(false);
     }
   };
 
@@ -378,16 +414,23 @@ export default function AdminPanel() {
     }
   };
 
-  const getActiveOrderForTable = useCallback((tbl) => {
-    const rawNum = String(tbl.tableNumber || '').trim().toLowerCase();
+  // Helper: Get ALL active orders for a specific table
+  const getActiveOrdersForTable = useCallback((tbl) => {
+    if (!tbl) return [];
+    const rawNum = String(tbl.tableNumber || tbl.table || '').trim().toLowerCase();
     const numOnly = rawNum.replace(/[^0-9]/g, '');
-    return orders.find(o => {
+    return (orders || []).filter(o => {
       if (o.status === 'completed' || o.status === 'cancelled') return false;
       const orderTbl = String(o.tableNumber || o.table || '').trim().toLowerCase();
       const orderNumOnly = orderTbl.replace(/[^0-9]/g, '');
       return orderTbl === rawNum || (numOnly && orderNumOnly && numOnly === orderNumOnly) || orderTbl === `table ${numOnly}`;
     });
   }, [orders]);
+
+  const getActiveOrderForTable = useCallback((tbl) => {
+    const list = getActiveOrdersForTable(tbl);
+    return list.length > 0 ? list[0] : null;
+  }, [getActiveOrdersForTable]);
 
   const handleSettleTable = async (tableNumber) => {
     if (!tableNumber) return;
@@ -526,16 +569,36 @@ export default function AdminPanel() {
     return () => clearInterval(timer);
   }, []);
 
+  // Real-time live active kitchen orders across the cafe (NEVER filtered by date filter)
+  const liveActiveOrders = useMemo(() => {
+    return (orders || []).filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+  }, [orders]);
+  const liveActiveOrdersCount = liveActiveOrders.length;
+
   // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
-    const targetOrders = dashboardOrders.length > 0 ? dashboardOrders : orders;
-    const grossSales = targetOrders.reduce((sum, o) => sum + (Number(o.total || o.totalAmount) || 0), 0);
-    const totalOrdersCount = targetOrders.length;
-    const avgTicket = totalOrdersCount > 0 ? Math.round(grossSales / totalOrdersCount) : 0;
-    const netProfit = Math.round(grossSales * 0.42);
-    const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+    const targetOrders = dateRange === 'all' ? (orders.length > 0 ? orders : dashboardOrders) : dashboardOrders;
     const completedOrders = targetOrders.filter(o => o.status === 'completed');
+    const activeOrders = targetOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
     const cancelledOrders = targetOrders.filter(o => o.status === 'cancelled');
+
+    // Realized Gross Sales from Settled Orders (matches Reports Suite & Bills)
+    const grossSales = completedOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+    const activePipelineSales = activeOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+    const totalOrdersCount = targetOrders.length;
+    const avgTicket = completedOrders.length > 0 ? Math.round(grossSales / completedOrders.length) : (totalOrdersCount > 0 ? Math.round((grossSales + activePipelineSales) / totalOrdersCount) : 0);
+    const netProfit = Math.round(grossSales * 0.42);
+
+    const occupiedTablesList = tables.filter(t => {
+      const rawNum = String(t.tableNumber || '').trim().toLowerCase();
+      const numOnly = rawNum.replace(/[^0-9]/g, '');
+      return activeOrders.some(o => {
+        const orderTbl = String(o.tableNumber || o.table || '').trim().toLowerCase();
+        const orderNumOnly = orderTbl.replace(/[^0-9]/g, '');
+        return orderTbl === rawNum || (numOnly && orderNumOnly && numOnly === orderNumOnly) || orderTbl === `table ${numOnly}`;
+      });
+    });
+    const occupiedTablesCount = occupiedTablesList.length;
 
     // Dynamic Time Buckets driven directly by global dashboard dateRange filter
     let timeBuckets = [];
@@ -562,8 +625,12 @@ export default function AdminPanel() {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
         if (b) {
-          b.revenue += Number(o.total || o.totalAmount) || 0;
-          b.orders += 1;
+          if (o.status === 'completed') {
+            b.revenue += getOrderAmount(o);
+          }
+          if (o.status !== 'cancelled') {
+            b.orders += 1;
+          }
         }
       });
     } else if (dateRange === 'this_month') {
@@ -578,8 +645,14 @@ export default function AdminPanel() {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const dateNum = d.getDate();
         const b = timeBuckets.find(bucket => dateNum >= bucket.startD && dateNum <= bucket.endD) || timeBuckets[timeBuckets.length - 1];
-        b.revenue += Number(o.total || o.totalAmount) || 0;
-        b.orders += 1;
+        if (b) {
+          if (o.status === 'completed') {
+            b.revenue += getOrderAmount(o);
+          }
+          if (o.status !== 'cancelled') {
+            b.orders += 1;
+          }
+        }
       });
     } else if (dateRange === 'all') {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -600,8 +673,12 @@ export default function AdminPanel() {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const b = timeBuckets.find(bucket => bucket.year === d.getFullYear() && bucket.month === d.getMonth());
         if (b) {
-          b.revenue += Number(o.total || o.totalAmount) || 0;
-          b.orders += 1;
+          if (o.status === 'completed') {
+            b.revenue += getOrderAmount(o);
+          }
+          if (o.status !== 'cancelled') {
+            b.orders += 1;
+          }
         }
       });
     } else if (dateRange === 'custom') {
@@ -811,6 +888,7 @@ export default function AdminPanel() {
       avgTicket,
       netProfit,
       activeOrders,
+      occupiedTablesCount,
       completedOrders,
       cancelledOrders,
       timeBuckets,
@@ -826,7 +904,7 @@ export default function AdminPanel() {
       catList,
       peakInsight
     };
-  }, [orders, items, dateRange, customStartDate, customEndDate]);
+  }, [orders, dashboardOrders, items, tables, dateRange, customStartDate, customEndDate]);
 
   // Drawer Handlers
   const handleOpenAddDrawer = () => {
@@ -1190,7 +1268,7 @@ export default function AdminPanel() {
   // Filtered menu items with multi-dimension filtering and sorting
   const filteredMenuItems = useMemo(() => {
     return items.filter(item => {
-      const matchesCat = itemMatchesCategory(item, selectedCategory);
+      const matchesCat = itemMatchesCategory(item, selectedCategory, categories);
       const searchLower = menuSearchQuery.toLowerCase().trim();
       const matchesSearch = !searchLower ||
         item.name.toLowerCase().includes(searchLower) ||
@@ -1219,7 +1297,134 @@ export default function AdminPanel() {
       if (sortOption === 'name') return a.name.localeCompare(b.name);
       return 0;
     });
-  }, [items, selectedCategory, menuSearchQuery, dietaryFilter, stockFilter, sortOption]);
+  }, [items, selectedCategory, categories, menuSearchQuery, dietaryFilter, stockFilter, sortOption]);
+
+  // Reset menu page when filters change
+  useEffect(() => {
+    setMenuPage(1);
+  }, [selectedCategory, menuSearchQuery, dietaryFilter, stockFilter, sortOption]);
+
+  const totalMenuPages = Math.max(1, Math.ceil(filteredMenuItems.length / menuPageSize));
+  const paginatedMenuItems = useMemo(() => {
+    const startIdx = (menuPage - 1) * menuPageSize;
+    return filteredMenuItems.slice(startIdx, startIdx + menuPageSize);
+  }, [filteredMenuItems, menuPage, menuPageSize]);
+
+  // Category Manager Handlers (Add, Edit, Delete)
+  const handleOpenAddCategoryModal = () => {
+    setCategoryModalMode('add');
+    setEditingCategoryData(null);
+    setNewCatName('');
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategoryModal = (cat, e) => {
+    if (e) e.stopPropagation();
+    setCategoryModalMode('edit');
+    setEditingCategoryData(cat);
+    setNewCatName(cat.name);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = (e) => {
+    e.preventDefault();
+    const cleanName = newCatName.trim();
+    if (!cleanName) {
+      toast.error('Please enter a category name');
+      return;
+    }
+
+    if (categoryModalMode === 'add') {
+      const id = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (categories.some(c => c.id === id || c.name.toLowerCase() === cleanName.toLowerCase())) {
+        toast.error('Category with this name already exists');
+        return;
+      }
+      const newCat = {
+        id,
+        name: cleanName,
+        icon: 'UtensilsCrossed',
+        Component: UtensilsCrossed,
+        aliases: [id, cleanName.toLowerCase()],
+        isCustom: true
+      };
+      const updated = [...categories, newCat];
+      setCategories(updated);
+      localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+      toast.success(`Category "${cleanName}" created!`);
+    } else if (categoryModalMode === 'edit' && editingCategoryData) {
+      const oldId = editingCategoryData.id;
+      const oldName = editingCategoryData.name;
+
+      const updated = categories.map(c => {
+        if (c.id === editingCategoryData.id) {
+          return {
+            ...c,
+            name: cleanName,
+            aliases: Array.from(new Set([...(c.aliases || []), cleanName.toLowerCase(), oldName.toLowerCase(), oldId]))
+          };
+        }
+        return c;
+      });
+      setCategories(updated);
+      localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+
+      // Reassign all dishes in this category to the new category name
+      setItems(prev => prev.map(item => {
+        if (itemMatchesCategory(item, oldId, categories) || item.category === oldId || item.category === oldName) {
+          const updatedItem = { ...item, category: cleanName };
+          if (item._id && !item._id.startsWith('dish_')) {
+            const token = localStorage.getItem('token');
+            axios.put(`${API}/menu/${item._id}`, { category: cleanName }, { headers: { 'x-auth-token': token } }).catch(e => {});
+          }
+          return updatedItem;
+        }
+        return item;
+      }));
+
+      toast.success(`Category renamed to "${cleanName}" and dishes updated!`);
+    }
+    setIsCategoryModalOpen(false);
+    setNewCatName('');
+  };
+
+  const handleDeleteCategory = (catId, e) => {
+    if (e) e.stopPropagation();
+    if (catId === 'all') {
+      toast.error('Cannot delete "All Items" master catalog tab');
+      return;
+    }
+    const catToDelete = categories.find(c => c.id === catId);
+    const catName = catToDelete?.name || catId;
+
+    const affectedDishes = items.filter(i => itemMatchesCategory(i, catId, categories));
+    const confirmMsg = affectedDishes.length > 0
+      ? `Delete category "${catName}"?\n\n${affectedDishes.length} dish(es) in this category will be preserved safely in "All Items" as Uncategorized. You can reassign them to any category anytime.`
+      : `Are you sure you want to delete category "${catName}"?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    // Safely reassign all dishes belonging to this category to 'uncategorized' so they are NEVER lost
+    setItems(prev => prev.map(item => {
+      if (itemMatchesCategory(item, catId, categories) || item.category === catId || item.category === catName) {
+        const updatedItem = { ...item, category: 'uncategorized' };
+        if (item._id && !item._id.startsWith('dish_')) {
+          const token = localStorage.getItem('token');
+          axios.put(`${API}/menu/${item._id}`, { category: 'uncategorized' }, { headers: { 'x-auth-token': token } }).catch(e => {});
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
+
+    const updated = categories.filter(c => c.id !== catId);
+    setCategories(updated);
+    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+    if (selectedCategory === catId) {
+      setSelectedCategory('all');
+    }
+    toast.success(`Category "${catName}" deleted. ${affectedDishes.length} dish(es) preserved in "All Items".`);
+  };
 
   const handleSaveTenantSettings = async (updatedSettings) => {
     const token = localStorage.getItem('token');
@@ -1347,7 +1552,7 @@ export default function AdminPanel() {
               title="Live Orders & KDS"
             >
               <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
-              {!sidebarCollapsed && <span className={styles.navPill}>{metrics.activeOrders.length}</span>}
+              {!sidebarCollapsed && <span className={styles.navPill}>{liveActiveOrdersCount}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'orders' ? styles.activeNavLink : ''}`}
@@ -1507,8 +1712,8 @@ export default function AdminPanel() {
                   >
                     <IconComponent size={15} />
                     <span>{t.label}</span>
-                    {t.badge && metrics.activeOrders.length > 0 && (
-                      <span className={styles.staffTabBadge}>{metrics.activeOrders.length}</span>
+                    {t.badge && liveActiveOrdersCount > 0 && (
+                      <span className={styles.staffTabBadge}>{liveActiveOrdersCount}</span>
                     )}
                   </button>
                 );
@@ -2033,12 +2238,14 @@ export default function AdminPanel() {
                       <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
                         <ShoppingBag size={22} />
                       </div>
-                      <span className={`${styles.kpiPillBadge} ${metrics.activeOrders.length > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
-                        {metrics.activeOrders.length} In Queue
+                      <span className={`${styles.kpiPillBadge} ${liveActiveOrdersCount > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`} title="Active orders in kitchen & dining floor">
+                        {liveActiveOrdersCount} In Kitchen Queue
                       </span>
                     </div>
                     <div className={styles.kpiTitleGroup}>
-                      <span className={styles.kpiCardTag}>Total Orders</span>
+                      <span className={styles.kpiCardTag}>
+                        Total Orders ({dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})
+                      </span>
                       <div className={styles.kpiBigNum}>
                         {isFilterLoading ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
@@ -2051,7 +2258,7 @@ export default function AdminPanel() {
                       </div>
                     </div>
                     <div className={styles.kpiFooterMeta}>
-                      <span>{isFilterLoading ? 'Updating count...' : `${metrics.completedOrders?.length || 0} completed orders`}</span>
+                      <span>{isFilterLoading ? 'Updating count...' : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`}</span>
                       {isFilterLoading ? (
                         <div style={{
                           display: 'inline-flex',
@@ -2478,14 +2685,14 @@ export default function AdminPanel() {
                         </span>
                       </div>
                       <div className={styles.summaryStatItem}>
-                        <span className={styles.summaryStatLabel}>Rush Intensity</span>
-                        <span className={styles.summaryStatVal} style={{ color: metrics.activeOrders.length > 0 ? '#b45309' : '#059669' }}>
+                        <span className={styles.summaryStatLabel}>Occupied Floor</span>
+                        <span className={styles.summaryStatVal} style={{ color: (metrics.occupiedTablesCount || 0) > 0 ? '#b45309' : '#059669' }}>
                           {isFilterLoading ? (
                             <Loader size={14} className={styles.spinIcon} color="#059669" />
-                          ) : metrics.activeOrders.length > 0 ? (
-                            `${metrics.activeOrders.length} Active Table(s)`
+                          ) : (metrics.occupiedTablesCount || 0) > 0 ? (
+                            `${metrics.occupiedTablesCount}/${tables.length || 4} Tables Busy`
                           ) : (
-                            'Optimal'
+                            'All Tables Free'
                           )}
                         </span>
                       </div>
@@ -2498,7 +2705,7 @@ export default function AdminPanel() {
                       <div className={styles.liveTitleBlock}>
                         <h3>Live Orders Queue</h3>
                         <span className={styles.liveCountPill}>
-                          ● {metrics.activeOrders.length} Active
+                          ● {liveActiveOrdersCount} Active
                         </span>
                       </div>
                       <button
@@ -2512,7 +2719,7 @@ export default function AdminPanel() {
                     </div>
 
                     <div className={styles.liveCardsStream}>
-                      {orders.slice(0, 5).map((order) => {
+                      {liveActiveOrders.slice(0, 5).map((order) => {
                         const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-5) || 'ORD'}`;
                         const totalAmt = Number(order.total || order.totalAmount) || 0;
                         const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
@@ -2538,7 +2745,7 @@ export default function AdminPanel() {
                         );
                       })}
 
-                      {orders.length === 0 && (
+                      {liveActiveOrders.length === 0 && (
                         <div className={styles.emptyLiveRadar}>
                           <div className={styles.radarPulseCircle}>
                             <Coffee size={24} />
@@ -2553,11 +2760,11 @@ export default function AdminPanel() {
 
                 {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX */}
                 {(() => {
-                  const occupiedTables = tables.filter(t => !!getActiveOrderForTable(t));
-                  const availableTables = tables.filter(t => !getActiveOrderForTable(t));
+                  const occupiedTables = tables.filter(t => getActiveOrdersForTable(t).length > 0);
+                  const availableTables = tables.filter(t => getActiveOrdersForTable(t).length === 0);
                   const billReadyTables = tables.filter(t => {
-                    const o = getActiveOrderForTable(t);
-                    return o && (o.status === 'ready' || o.status === 'served');
+                    const tableOrds = getActiveOrdersForTable(t);
+                    return tableOrds.length > 0 && tableOrds.every(o => o.paymentStatus === 'paid' || o.status === 'served');
                   });
 
                   let displayTables = tables;
@@ -2690,14 +2897,17 @@ export default function AdminPanel() {
                       ) : (
                         <div className={styles.tableGridContainer}>
                           {previewTables.map((tbl) => {
-                            const activeOrder = getActiveOrderForTable(tbl);
-                            const isOccupied = !!activeOrder;
-                            const isServed = isOccupied && (activeOrder.status === 'ready' || activeOrder.status === 'served');
-                            const elapsedMins = activeOrder?.createdAt
-                              ? Math.max(1, Math.round((new Date() - new Date(activeOrder.createdAt)) / 60000))
+                            const tableOrders = getActiveOrdersForTable(tbl);
+                            const isOccupied = tableOrders.length > 0;
+                            const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+                            const firstOrder = tableOrders[0];
+                            const elapsedMins = firstOrder?.createdAt
+                              ? Math.max(1, Math.round((new Date() - new Date(firstOrder.createdAt)) / 60000))
                               : 5;
 
-                            const orderTotal = Math.round(activeOrder?.total || activeOrder?.totalAmount || 0);
+                            const totalSum = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+                            const orderTotal = Math.round(totalSum * 100) / 100;
+                            const rawCustName = firstOrder?.customerDetails?.name || firstOrder?.customerName || '';
 
                             // 1. FREE / EMPTY CARD
                             if (!isOccupied) {
@@ -2757,20 +2967,20 @@ export default function AdminPanel() {
                                     textAlign: 'center',
                                     boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
                                   }}
-                                  title={`Table ${tbl.tableNumber} - Served/Billed. Click to open POS.`}
+                                  title={`Table ${tbl.tableNumber} - All Orders Served/Paid. Click to open POS.`}
                                 >
                                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
                                     ✓ {elapsedMins} Min
                                   </div>
                                   <span style={{ fontSize: '1rem', fontWeight: 900, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName, `Table ${tbl.tableNumber}`)}
+                                    {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
                                   </span>
-                                  {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
+                                  {getCustomerFirstName(rawCustName) && (
                                     <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
                                       Table {tbl.tableNumber}
                                     </span>
                                   )}
-                                  <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal}</strong>
+                                  <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
                                 </div>
                               );
                             }
@@ -2798,20 +3008,20 @@ export default function AdminPanel() {
                                   textAlign: 'center',
                                   boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
                                 }}
-                                title={`Table ${tbl.tableNumber} - Active Order ₹${orderTotal}. Click to open POS.`}
+                                title={`Table ${tbl.tableNumber} - Running Order ₹${orderTotal}. Click to open POS.`}
                               >
                                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
                                   ⏱️ {elapsedMins} Min
                                 </div>
                                 <span style={{ fontSize: '1rem', fontWeight: 900, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName, `Table ${tbl.tableNumber}`)}
+                                  {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
                                 </span>
-                                {getCustomerFirstName(activeOrder?.customerDetails?.name || activeOrder?.customerName) && (
+                                {getCustomerFirstName(rawCustName) && (
                                   <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
                                     Table {tbl.tableNumber}
                                   </span>
                                 )}
-                                <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal}</strong>
+                                <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
                               </div>
                             );
                           })}
@@ -3298,31 +3508,94 @@ export default function AdminPanel() {
 
                 {/* Categories Bar */}
                 <div className={styles.categoriesPillRow}>
-                  {standardCategories.map((cat) => {
-                    const IconComp = cat.Component;
+                  {categories.map((cat) => {
+                    const IconComp = cat.Component || UtensilsCrossed;
                     const isActive = selectedCategory === cat.id;
                     const count = cat.id === 'all'
                       ? items.length
-                      : items.filter(i => itemMatchesCategory(i, cat.id)).length;
+                      : items.filter(i => itemMatchesCategory(i, cat.id, categories)).length;
 
                     return (
-                      <button
+                      <div
                         key={cat.id}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className={`${styles.categoryPill} ${isActive ? styles.activeCategoryPill : ''}`}
+                        style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}
                       >
-                        <IconComp size={15} />
-                        <span>{cat.name}</span>
-                        <span className={styles.catCountBadge}>{count}</span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategory(cat.id)}
+                          className={`${styles.categoryPill} ${isActive ? styles.activeCategoryPill : ''}`}
+                        >
+                          <IconComp size={15} />
+                          <span>{cat.name}</span>
+                          <span className={styles.catCountBadge}>{count}</span>
+                        </button>
+                        {cat.id !== 'all' && (
+                          <div style={{ display: 'inline-flex', gap: 2, marginLeft: 2 }}>
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenEditCategoryModal(cat, e)}
+                              title="Edit Category Name"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#94a3b8',
+                                cursor: 'pointer',
+                                padding: '2px 4px',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Edit3 size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteCategory(cat.id, e)}
+                              title="Delete Category"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#f87171',
+                                cursor: 'pointer',
+                                padding: '2px 4px',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
+                  <button
+                    type="button"
+                    onClick={handleOpenAddCategoryModal}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '7px 14px',
+                      borderRadius: '100px',
+                      border: '1px dashed #4f46e5',
+                      background: '#eef2ff',
+                      color: '#4f46e5',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0
+                    }}
+                  >
+                    <Plus size={14} /> Add Category
+                  </button>
                 </div>
 
                 {/* Items Grid */}
                 <div className={styles.menuItemsGrid}>
-                  {filteredMenuItems.map((item) => {
+                  {paginatedMenuItems.map((item) => {
                     const isSelected = selectedItemIds.includes(item._id);
                     const discount = item.discount || {};
                     const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -3397,13 +3670,18 @@ export default function AdminPanel() {
                               )}
                             </div>
                           </div>
-                          {item.variants && item.variants.length > 0 && (
-                            <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {item.category === 'uncategorized' && (
+                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                ⚠️ Uncategorized
+                              </span>
+                            )}
+                            {item.variants && item.variants.length > 0 && (
                               <span style={{ fontSize: '10px', fontWeight: 800, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
                                 {item.variants.length} Sizes/Options
                               </span>
-                            </div>
-                          )}
+                            )}
+                          </div>
                           <p className={styles.dishDescription}>{item.description}</p>
 
                           {/* Stock Toggle & Quick Actions */}
@@ -3432,9 +3710,6 @@ export default function AdminPanel() {
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                                 }} />
                               </div>
-                              {/* <span style={{ fontSize: '11px', fontWeight: 700, color: item.available ? '#059669' : '#64748b' }}>
-                                {item.available ? 'Available' : 'Out of Stock'}
-                              </span> */}
                             </div>
 
                             <div style={{ display: 'flex', gap: 6 }}>
@@ -3483,6 +3758,43 @@ export default function AdminPanel() {
                     );
                   })}
                 </div>
+
+                {/* Menu Pagination Controls */}
+                {totalMenuPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '12px 18px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                      Showing {((menuPage - 1) * menuPageSize) + 1} - {Math.min(menuPage * menuPageSize, filteredMenuItems.length)} of {filteredMenuItems.length} dishes
+                    </span>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        disabled={menuPage === 1}
+                        onClick={() => setMenuPage(p => Math.max(1, p - 1))}
+                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === 1 ? '#f8fafc' : '#ffffff', color: menuPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === 1 ? 'not-allowed' : 'pointer' }}
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: totalMenuPages }, (_, i) => i + 1).map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setMenuPage(p)}
+                          style={{ minWidth: '32px', height: '32px', padding: '0 6px', borderRadius: '8px', border: 'none', background: menuPage === p ? '#4f46e5' : '#f1f5f9', color: menuPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        disabled={menuPage === totalMenuPages}
+                        onClick={() => setMenuPage(p => Math.min(totalMenuPages, p + 1))}
+                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === totalMenuPages ? '#f8fafc' : '#ffffff', color: menuPage === totalMenuPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === totalMenuPages ? 'not-allowed' : 'pointer' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {filteredMenuItems.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
@@ -3612,7 +3924,7 @@ export default function AdminPanel() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <ReportsSuite />
+                <ReportsSuite initialOrders={orders} />
               </motion.div>
             )}
 
@@ -3703,11 +4015,12 @@ export default function AdminPanel() {
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Category</label>
                   <select
-                    value={drawerForm.category}
+                    value={drawerForm.category || 'uncategorized'}
                     onChange={(e) => setDrawerForm({ ...drawerForm, category: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
                   >
-                    {standardCategories.filter(c => c.id !== 'all').map(c => (
+                    <option value="uncategorized">-- Uncategorized (Assign Later) --</option>
+                    {categories.filter(c => c.id !== 'all').map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -4419,6 +4732,76 @@ export default function AdminPanel() {
                   <RefreshCw size={12} /> Refresh
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Category Manager Modal (Add / Rename Category) */}
+      <AnimatePresence>
+        {isCategoryModalOpen && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCategoryModalOpen(false)}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)' }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              style={{ position: 'relative', width: '92%', maxWidth: '440px', background: '#ffffff', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', zIndex: 10 }}
+            >
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                  {categoryModalMode === 'add' ? 'Add New Category' : 'Rename Category'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  style={{ border: 'none', background: '#f1f5f9', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveCategory} style={{ padding: '20px 24px' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    placeholder="e.g. Starters, Milkshakes, Combos"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '14px', outline: 'none', fontWeight: 600 }}
+                  />
+                  <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+                    This category will appear across your Menu Catalog, POS Terminal, and Table QR Menus.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(false)}
+                    style={{ padding: '9px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{ padding: '9px 20px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }}
+                  >
+                    {categoryModalMode === 'add' ? 'Create Category' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

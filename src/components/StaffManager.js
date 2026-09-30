@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Shield, Check, X, Edit, Trash2, Key, UserCheck, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
 import styles from './StaffManager.module.css';
 
@@ -92,6 +93,7 @@ export default function StaffManager() {
   const [phone, setPhone] = useState('');
   const [selectedRole, setSelectedRole] = useState('cashier');
   const [permissions, setPermissions] = useState(ROLE_PRESETS.cashier.permissions);
+  const [formIsActive, setFormIsActive] = useState(true);
   const [showPass, setShowPass] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -129,6 +131,7 @@ export default function StaffManager() {
     setPhone('');
     setSelectedRole('Cashier');
     setPermissions(ROLE_PRESETS.cashier.permissions);
+    setFormIsActive(true);
     setShowModal(true);
   };
 
@@ -140,6 +143,7 @@ export default function StaffManager() {
     setPhone(staff.phone || '');
     setSelectedRole(staff.role || 'Staff');
     setPermissions(staff.permissions || ROLE_PRESETS.custom.permissions);
+    setFormIsActive(staff.isActive !== undefined ? staff.isActive : (staff.status === 'active'));
     setShowModal(true);
   };
 
@@ -172,6 +176,8 @@ export default function StaffManager() {
         phone: phone.trim(),
         role: selectedRole.trim().toLowerCase(),
         designation: selectedRole.trim(),
+        status: formIsActive ? 'active' : 'inactive',
+        isActive: formIsActive,
         permissions
       };
       if (password) payload.password = password;
@@ -183,9 +189,10 @@ export default function StaffManager() {
             'x-auth-token': token
           }
         });
+        toast.success(`Staff member "${payload.fullName}" updated!`);
       } else {
         if (!password) {
-          alert('Please enter an initial password for this staff member.');
+          toast.error('Please enter an initial password for this staff member.');
           setSubmitting(false);
           return;
         }
@@ -195,12 +202,13 @@ export default function StaffManager() {
             'x-auth-token': token
           }
         });
+        toast.success(`Staff member "${payload.fullName}" created!`);
       }
 
       setShowModal(false);
       fetchStaff();
     } catch (err) {
-      alert(err.response?.data?.error || err.response?.data?.message || 'Error saving staff member.');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Error saving staff member.');
     } finally {
       setSubmitting(false);
     }
@@ -208,7 +216,7 @@ export default function StaffManager() {
 
   const handleDeleteStaff = async (id, name, role) => {
     if (role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'super_admin') {
-      alert('Admin accounts cannot be deleted.');
+      toast.error('Admin accounts cannot be deleted.');
       return;
     }
     if (!window.confirm(`Are you sure you want to remove staff member "${name}"?`)) return;
@@ -220,28 +228,37 @@ export default function StaffManager() {
           'x-auth-token': token
         }
       });
-      fetchStaff();
+      setStaffList(prev => prev.filter(s => s._id !== id));
+      toast.success(`Staff member "${name}" removed`);
     } catch (err) {
-      alert(err.response?.data?.error || err.response?.data?.message || 'Failed to remove staff member.');
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to remove staff member.');
     }
   };
 
   const handleToggleStatus = async (staff) => {
+    const currentActive = staff.isActive !== undefined ? Boolean(staff.isActive) : (staff.status === 'active');
+    const nextActive = !currentActive;
+    const nextStatus = nextActive ? 'active' : 'inactive';
+
+    // Instant Optimistic Update
+    setStaffList(prev => prev.map(s => s._id === staff._id ? { ...s, isActive: nextActive, status: nextStatus } : s));
+    toast.success(`"${staff.fullName || staff.name}" marked ${nextActive ? 'Active' : 'Inactive'}`);
+
     try {
       const token = localStorage.getItem('token');
-      const newStatus = staff.status === 'active' || staff.isActive ? 'inactive' : 'active';
       await axios.put(`${API_URL}/staff/${staff._id}`, {
-        status: newStatus,
-        isActive: newStatus === 'active'
+        status: nextStatus,
+        isActive: nextActive
       }, {
         headers: {
           Authorization: `Bearer ${token}`,
           'x-auth-token': token
         }
       });
-      fetchStaff();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update status.');
+      // Revert on failure
+      setStaffList(prev => prev.map(s => s._id === staff._id ? { ...s, isActive: currentActive, status: staff.status } : s));
+      toast.error(err.response?.data?.error || 'Failed to update status.');
     }
   };
 
@@ -333,15 +350,49 @@ export default function StaffManager() {
                       </div>
                     </td>
                     <td>
-                      <button
-                        type="button"
+                      <div
                         onClick={() => handleToggleStatus(staff)}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
-                        className={`${styles.statusPill} ${staff.isActive ? styles.statusActive : styles.statusInactive}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          transition: 'background 0.15s ease'
+                        }}
+                        title={`Click to mark ${staff.isActive ? 'Inactive' : 'Active'}`}
                       >
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: staff.isActive ? '#16a34a' : '#94a3b8' }} />
-                        {staff.isActive ? 'Active' : 'Inactive'}
-                      </button>
+                        <div style={{
+                          width: 38,
+                          height: 20,
+                          borderRadius: 100,
+                          background: staff.isActive ? '#10b981' : '#cbd5e1',
+                          position: 'relative',
+                          transition: 'background 0.2s ease',
+                          flexShrink: 0
+                        }}>
+                          <div style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: '50%',
+                            background: '#ffffff',
+                            position: 'absolute',
+                            top: 3,
+                            left: staff.isActive ? 21 : 3,
+                            transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.25)'
+                          }} />
+                        </div>
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          color: staff.isActive ? '#16a34a' : '#64748b'
+                        }}>
+                          {staff.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
                     </td>
                     <td>
                       <div className={styles.actionBtns} style={{ justifyContent: 'flex-end' }}>
@@ -439,6 +490,54 @@ export default function StaffManager() {
                     onChange={(e) => setPhone(e.target.value)}
                     className={styles.inputField}
                   />
+                </div>
+              </div>
+
+              {/* Account Status Switch in Modal */}
+              <div style={{
+                margin: '12px 0 16px 0',
+                padding: '12px 16px',
+                background: '#f8fafc',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Account Status</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    {formIsActive ? 'Staff can sign in and perform assigned tasks' : 'Staff access is temporarily blocked'}
+                  </div>
+                </div>
+                <div
+                  onClick={() => setFormIsActive(!formIsActive)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <div style={{
+                    width: 40,
+                    height: 22,
+                    borderRadius: 100,
+                    background: formIsActive ? '#10b981' : '#cbd5e1',
+                    position: 'relative',
+                    transition: 'background 0.2s ease',
+                    flexShrink: 0
+                  }}>
+                    <div style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      background: '#ffffff',
+                      position: 'absolute',
+                      top: 3,
+                      left: formIsActive ? 21 : 3,
+                      transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.25)'
+                    }} />
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: formIsActive ? '#16a34a' : '#64748b' }}>
+                    {formIsActive ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
               </div>
 

@@ -18,14 +18,17 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Segment Tab ('all', 'vip', 'regular', 'new', 'inactive')
+  // Segment Dropdown Tab ('all', 'repeat', 'single', 'inactive')
   const [activeTab, setActiveTab] = useState('all');
 
-  // Search & Detailed Filters
-  const [search, setSearch] = useState('');
-  const [phoneSearch, setPhoneSearch] = useState('');
+  // Unified Search & Detailed Filters
+  const [searchQuery, setSearchQuery] = useState('');
   const [verificationFilter, setVerificationFilter] = useState('all'); // 'all', 'verified', 'unverified'
   const [sortBy, setSortBy] = useState('highest_spend'); // 'highest_spend', 'highest_aov', 'recent_visit', 'total_visits'
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   
   // Side Drawer & Add Modal State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -656,19 +659,25 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     return customers
       .filter(c => {
         const visits = Number(c.totalVisits) || (c.orders?.length || 1);
-        // Tab Segment Filter
+        // Segment Dropdown Filter
         if (activeTab === 'repeat' && visits < 2) return false;
         if (activeTab === 'single' && visits > 1) return false;
         if (activeTab === 'inactive' && new Date(c.lastVisit || 0).getTime() >= thirtyDaysAgo) return false;
 
-        const matchesName = (c.name || '').toLowerCase().includes(search.toLowerCase());
-        const matchesPhone = phoneSearch ? (c.phone || '').includes(phoneSearch) : true;
+        // Unified Search (Name, Phone, Email)
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase().trim();
+          const matchesName = (c.name || '').toLowerCase().includes(q);
+          const matchesPhone = String(c.phone || '').toLowerCase().includes(q);
+          const matchesEmail = (c.email || '').toLowerCase().includes(q);
+          if (!matchesName && !matchesPhone && !matchesEmail) return false;
+        }
         
         let matchesVerification = true;
         if (verificationFilter === 'verified') matchesVerification = Boolean(c.isPhoneVerified);
         if (verificationFilter === 'unverified') matchesVerification = !Boolean(c.isPhoneVerified);
 
-        return matchesName && matchesPhone && matchesVerification;
+        return matchesVerification;
       })
       .sort((a, b) => {
         const aSpend = Number(a.lifetimeSpend || 0);
@@ -684,14 +693,24 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         if (sortBy === 'total_visits') return bVisits - aVisits;
         return 0;
       });
-  }, [customers, activeTab, search, phoneSearch, verificationFilter, sortBy]);
+  }, [customers, activeTab, searchQuery, verificationFilter, sortBy]);
 
-  const hasActiveFilters = search || phoneSearch || verificationFilter !== 'all' || activeTab !== 'all';
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, verificationFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
+  const paginatedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCustomers.slice(start, start + pageSize);
+  }, [filteredCustomers, currentPage, pageSize]);
+
+  const hasActiveFilters = searchQuery || verificationFilter !== 'all' || activeTab !== 'all';
 
   const resetFilters = () => {
     setActiveTab('all');
-    setSearch('');
-    setPhoneSearch('');
+    setSearchQuery('');
     setVerificationFilter('all');
     setSortBy('highest_spend');
   };
@@ -809,75 +828,37 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       <div className={styles.fullWidthCard}>
         {/* Unified Toolbar */}
         <div className={styles.unifiedToolbar}>
-          {/* Segment Tabs */}
+          {/* Segment Dropdown */}
           <div className={styles.toolbarLeft}>
-            <button 
-              className={`${styles.tabPill} ${activeTab === 'all' ? styles.tabPillActive : ''}`}
-              onClick={() => setActiveTab('all')}
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className={styles.selectField}
+              style={{ fontWeight: 700, minWidth: '180px', background: '#f8fafc' }}
             >
-              <span>All Guests</span>
-              <span className={styles.tabCount}>{tabCounts.all}</span>
-            </button>
-
-            <button 
-              className={`${styles.tabPill} ${activeTab === 'repeat' ? styles.tabPillActive : ''}`}
-              onClick={() => setActiveTab('repeat')}
-            >
-              <span>Repeat Diners (2+)</span>
-              <span className={styles.tabCount}>{tabCounts.repeat}</span>
-            </button>
-
-            <button 
-              className={`${styles.tabPill} ${activeTab === 'single' ? styles.tabPillActive : ''}`}
-              onClick={() => setActiveTab('single')}
-            >
-              <span>Single Visit</span>
-              <span className={styles.tabCount}>{tabCounts.single}</span>
-            </button>
-
-            {tabCounts.inactive > 0 && (
-              <button 
-                className={`${styles.tabPill} ${activeTab === 'inactive' ? styles.tabPillActive : ''}`}
-                onClick={() => setActiveTab('inactive')}
-              >
-                <AlertCircle size={11} color={activeTab === 'inactive' ? '#fca5a5' : '#ef4444'} />
-                <span>Inactive (&gt;30d)</span>
-                <span className={styles.tabCount}>{tabCounts.inactive}</span>
-              </button>
-            )}
+              <option value="all">All Guests ({tabCounts.all})</option>
+              <option value="repeat">Repeat Diners (2+) ({tabCounts.repeat})</option>
+              <option value="single">Single Visit ({tabCounts.single})</option>
+              {tabCounts.inactive > 0 && (
+                <option value="inactive">Inactive (&gt;30d) ({tabCounts.inactive})</option>
+              )}
+            </select>
           </div>
 
-          {/* Search & Filters */}
+          {/* Unified Search & Filters */}
           <div className={styles.toolbarRight}>
-            {/* Name Search */}
-            <div className={styles.searchField}>
+            {/* Single Unified Search Field (Name or Phone) */}
+            <div className={styles.searchField} style={{ minWidth: '260px' }}>
               <Search size={13} className={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or mobile number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className={styles.inputField}
               />
-              {search && (
-                <button className={styles.clearBtn} onClick={() => setSearch('')}>
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            {/* Mobile Search */}
-            <div className={styles.searchField}>
-              <PhoneCall size={13} className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search mobile..."
-                value={phoneSearch}
-                onChange={(e) => setPhoneSearch(e.target.value)}
-                className={styles.inputField}
-              />
-              {phoneSearch && (
-                <button className={styles.clearBtn} onClick={() => setPhoneSearch('')}>
+              {searchQuery && (
+                <button className={styles.clearBtn} onClick={() => setSearchQuery('')}>
                   <X size={12} />
                 </button>
               )}
@@ -988,7 +969,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map(cust => {
+                paginatedCustomers.map(cust => {
                   const spend = Number(cust.lifetimeSpend) || 0;
                   const visits = Number(cust.totalVisits) || (cust.orders?.length || 1);
                   const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
@@ -1099,17 +1080,51 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
           </table>
         </div>
 
-        {/* Table Footer */}
-        <div className={styles.tableFooter}>
+        {/* Table Footer with Pagination */}
+        <div className={styles.tableFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '12px 18px' }}>
           {isLoading ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RefreshCw size={12} className="animate-spin" color="#059669" />
               <span>Loading customer directory...</span>
             </span>
           ) : (
-            <span>Showing <strong>{filteredCustomers.length}</strong> of <strong>{customers.length}</strong> total customer profiles</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+              Showing <strong>{filteredCustomers.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} - {Math.min(currentPage * pageSize, filteredCustomers.length)}</strong> of <strong>{filteredCustomers.length}</strong> guests
+            </span>
           )}
-          <span>Click any row to open full 360° Order Timeline</span>
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : '#ffffff', color: currentPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setCurrentPage(p)}
+                  style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: currentPage === p ? '#4f46e5' : '#f1f5f9', color: currentPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : '#ffffff', color: currentPage === totalPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Click row to open 360° Profile</span>
         </div>
       </div>
 

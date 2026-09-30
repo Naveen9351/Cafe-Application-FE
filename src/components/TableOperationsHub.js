@@ -45,11 +45,12 @@ export default function TableOperationsHub({
   const [sendWhatsapp, setSendWhatsapp] = useState(false);
   const [showDishesExpanded, setShowDishesExpanded] = useState(true);
 
-  // Helper to match active order with table
-  const getActiveOrderForTable = (tbl) => {
-    const rawNum = String(tbl.tableNumber || '').trim().toLowerCase();
+  // Helper to match active orders with table
+  const getActiveOrdersForTable = (tbl) => {
+    if (!tbl) return [];
+    const rawNum = String(tbl.tableNumber || tbl.table || '').trim().toLowerCase();
     const numOnly = rawNum.replace(/[^0-9]/g, '');
-    return orders.find(o => {
+    return (orders || []).filter(o => {
       if (o.status === 'completed' || o.status === 'cancelled') return false;
       const orderTbl = String(o.tableNumber || o.table || '').trim().toLowerCase();
       const orderNumOnly = orderTbl.replace(/[^0-9]/g, '');
@@ -57,17 +58,23 @@ export default function TableOperationsHub({
     });
   };
 
+  const getActiveOrderForTable = (tbl) => {
+    const list = getActiveOrdersForTable(tbl);
+    return list.length > 0 ? list[0] : null;
+  };
+
   // Metric aggregates
-  const occupiedTables = useMemo(() => tables.filter(t => !!getActiveOrderForTable(t)), [tables, orders]);
-  const availableTables = useMemo(() => tables.filter(t => !getActiveOrderForTable(t)), [tables, orders]);
+  const occupiedTables = useMemo(() => tables.filter(t => getActiveOrdersForTable(t).length > 0), [tables, orders]);
+  const availableTables = useMemo(() => tables.filter(t => getActiveOrdersForTable(t).length === 0), [tables, orders]);
   const totalSeats = useMemo(() => tables.reduce((sum, t) => sum + (Number(t.seatingCapacity) || 4), 0), [tables]);
   
   const totalUnsettledRevenue = useMemo(() => {
     return occupiedTables.reduce((sum, t) => {
-      const order = getActiveOrderForTable(t);
-      return sum + (Number(order?.total || order?.totalAmount) || 0);
+      const tableOrds = getActiveOrdersForTable(t);
+      const tableSum = tableOrds.reduce((acc, o) => acc + (Number(o.total || o.totalAmount) || 0), 0);
+      return sum + tableSum;
     }, 0);
-  }, [occupiedTables]);
+  }, [occupiedTables, orders]);
 
   const activeGuestsCount = useMemo(() => {
     return occupiedTables.reduce((sum, t) => sum + (Number(t.seatingCapacity) || 2), 0);
@@ -76,18 +83,19 @@ export default function TableOperationsHub({
   // Filtered tables with natural numeric serial sorting (1, 2, 3, ... 10, 11)
   const filteredTables = useMemo(() => {
     const list = tables.filter(t => {
-      const order = getActiveOrderForTable(t);
-      const isOccupied = !!order;
+      const tableOrders = getActiveOrdersForTable(t);
+      const isOccupied = tableOrders.length > 0;
       const matchSearch = String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (order?.orderNumber && String(order.orderNumber).includes(searchQuery)) ||
-        (order?.customer?.name && order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        tableOrders.some(o => (o.orderNumber && String(o.orderNumber).includes(searchQuery)) ||
+        (o.customer?.name && o.customer.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (o.customerDetails?.name && o.customerDetails.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
       if (!matchSearch) return false;
 
       if (filterTab === 'occupied') return isOccupied;
       if (filterTab === 'available') return !isOccupied;
-      if (filterTab === 'preparing') return isOccupied && (order.status === 'pending' || order.status === 'preparing');
-      if (filterTab === 'ready') return isOccupied && (order.status === 'ready' || order.status === 'served');
+      if (filterTab === 'preparing') return isOccupied && tableOrders.some(o => o.status === 'pending' || o.status === 'preparing');
+      if (filterTab === 'ready') return isOccupied && tableOrders.every(o => o.status === 'ready' || o.status === 'served');
       return true;
     });
 
@@ -406,13 +414,16 @@ export default function TableOperationsHub({
         gap: '0.75rem'
       }}>
         {filteredTables.map((tbl) => {
-          const activeOrder = getActiveOrderForTable(tbl);
-          const isOccupied = !!activeOrder;
-          const isServed = isOccupied && (activeOrder.status === 'ready' || activeOrder.status === 'served');
-          const elapsedMins = activeOrder?.createdAt
-            ? Math.max(1, Math.round((new Date() - new Date(activeOrder.createdAt)) / 60000))
+          const tableOrders = getActiveOrdersForTable(tbl);
+          const isOccupied = tableOrders.length > 0;
+          const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+          const firstOrder = tableOrders[0];
+          const activeOrder = firstOrder || {};
+          const elapsedMins = firstOrder?.createdAt
+            ? Math.max(1, Math.round((new Date() - new Date(firstOrder.createdAt)) / 60000))
             : 5;
-          const orderTotal = Math.round(activeOrder?.total || activeOrder?.totalAmount || 0);
+          const totalSum = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+          const orderTotal = Math.round(totalSum * 100) / 100;
 
           return (
             <motion.div
