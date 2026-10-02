@@ -45,6 +45,31 @@ const standardCategories = [
   { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino', 'tea'], icon: "Coffee", Component: Coffee },
 ];
 
+const CATEGORY_ICON_MAP = {
+  UtensilsCrossed,
+  Sparkles,
+  Cookie,
+  Cake,
+  GlassWater,
+  Sandwich,
+  Pizza,
+  Coffee,
+  Soup,
+  Martini,
+  IceCream,
+  Grid
+};
+
+export const getCategoryIconComponent = (cat) => {
+  if (cat && typeof cat.Component === 'function') {
+    return cat.Component;
+  }
+  if (cat && cat.icon && typeof cat.icon === 'string' && CATEGORY_ICON_MAP[cat.icon]) {
+    return CATEGORY_ICON_MAP[cat.icon];
+  }
+  return UtensilsCrossed;
+};
+
 const itemMatchesCategory = (item, catId, customCats = []) => {
   if (catId === 'all') return true;
   const itemCat = (item.category || '').toLowerCase().trim();
@@ -3509,7 +3534,7 @@ export default function AdminPanel() {
                 {/* Categories Bar */}
                 <div className={styles.categoriesPillRow}>
                   {categories.map((cat) => {
-                    const IconComp = cat.Component || UtensilsCrossed;
+                    const IconComp = getCategoryIconComponent(cat);
                     const isActive = selectedCategory === cat.id;
                     const count = cat.id === 'all'
                       ? items.length

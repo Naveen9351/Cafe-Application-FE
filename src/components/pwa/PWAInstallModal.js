@@ -7,10 +7,10 @@ import {
   Apple,
   CheckCircle2,
   Share,
-  FileDown,
   Sparkles,
   ExternalLink,
-  Laptop
+  Laptop,
+  AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './PWAInstallModal.module.css';
@@ -43,32 +43,13 @@ export default function PWAInstallModal({
     link.click();
     document.body.removeChild(link);
     
-    toast.success(`Downloading Windows ${type === 'portable' ? 'Portable' : 'Installer'} (.exe)... Check browser downloads.`);
+    toast.success(`Downloading ${type === 'portable' ? 'Portable' : 'Installer'} (.exe)...`);
   };
 
   const handleDownloadMacDmg = () => {
     const macUrl = 'https://github.com/Naveen9351/Cafe-Desktop/releases';
     window.open(macUrl, '_blank');
-    toast.success('Opening macOS releases download page...');
-  };
-
-  const downloadShortcutFile = () => {
-    try {
-      const origin = window.location.origin || 'http://localhost:3000';
-      const shortcutContent = `[InternetShortcut]\r\nURL=${origin}/admin/dashboard\r\nIconIndex=0\r\nIconFile=${origin}/favicon.ico\r\n`;
-      const blob = new Blob([shortcutContent], { type: 'application/octet-stream' });
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = 'SERVIQ Admin.url';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-      toast.success('Shortcut file downloaded! Drag it onto your desktop.');
-    } catch (err) {
-      console.log('Download error:', err);
-    }
+    toast.success('Opening macOS download page on GitHub Releases...');
   };
 
   const handleNativeInstall = async () => {
@@ -86,7 +67,6 @@ export default function PWAInstallModal({
         setIsInstalling(false);
       }
     } else {
-      downloadShortcutFile();
       onClose();
     }
   };
@@ -102,9 +82,9 @@ export default function PWAInstallModal({
               <img src="/icon-192.png" alt="SERVIQ App Icon" className={styles.appIconImg} />
             </div>
             <div className={styles.titleArea}>
-              <h3>Download Staff & POS Terminal</h3>
+              <h3>Staff Terminal Downloads</h3>
               <div className={styles.badgeRow}>
-                <span className={styles.badgePWA}>Desktop & Mobile</span>
+                <span className={styles.badgePWA}>Desktop & POS</span>
                 <span className={styles.versionTag}>v1.0 Pro</span>
               </div>
             </div>
@@ -116,117 +96,85 @@ export default function PWAInstallModal({
             onClick={onClose}
             title="Close"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Modal Body */}
         <div className={styles.modalBody}>
           
-          {/* OS Guide Tabs */}
+          {/* OS Switcher Tabs */}
           <div className={styles.tabsNav}>
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'windows' ? styles.tabBtnActive : ''}`}
               onClick={() => setActiveTab('windows')}
             >
-              <Monitor size={13} /> Windows (.exe)
+              <Monitor size={14} /> Windows
             </button>
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'mac' ? styles.tabBtnActive : ''}`}
               onClick={() => setActiveTab('mac')}
             >
-              <Apple size={13} /> macOS (.dmg)
+              <Apple size={14} /> macOS
             </button>
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'android' ? styles.tabBtnActive : ''}`}
               onClick={() => setActiveTab('android')}
             >
-              <Smartphone size={13} /> Android / PWA
+              <Smartphone size={14} /> Android
             </button>
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'ios' ? styles.tabBtnActive : ''}`}
               onClick={() => setActiveTab('ios')}
             >
-              <Share size={13} /> iOS / Safari
+              <Share size={14} /> iOS
             </button>
           </div>
 
-          {/* Instructions Box */}
+          {/* Instructions / Actions Box */}
           <div className={styles.instructionsBox}>
             {/* WINDOWS TAB */}
             {activeTab === 'windows' && (
               <div>
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(59,130,246,0.03) 100%)',
-                  border: '1px solid rgba(59,130,246,0.2)',
-                  borderRadius: 10,
-                  padding: '12px',
-                  marginBottom: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#1e3a8a', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Sparkles size={15} color="#2563eb" /> Dedicated Windows Desktop App
+                <div className={styles.cardSection}>
+                  <div className={styles.cardTitle}>
+                    <Sparkles size={16} style={{ color: '#60a5fa' }} />
+                    <span>Windows Staff & POS Desktop Terminal</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 10 }}>
-                    Silent receipt printing, F11 kiosk mode, and direct live server sync.
+                  <div className={styles.cardSubtitle}>
+                    Silent thermal printing, F11 kiosk mode & instant cloud sync.
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className={styles.actionButtonGroup}>
                     <button
                       type="button"
                       onClick={() => handleDownloadWindowsExe('setup')}
-                      style={{
-                        width: '100%',
-                        background: '#2563eb',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '9px 14px',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        boxShadow: '0 2px 8px rgba(37,99,235,0.25)'
-                      }}
+                      className={styles.btnPrimaryDownload}
                     >
-                      <Download size={15} />
+                      <Download size={16} />
                       <span>Download Windows Installer (.exe)</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleDownloadWindowsExe('portable')}
-                      style={{
-                        width: '100%',
-                        background: '#f8fafc',
-                        color: '#334155',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: 8,
-                        padding: '7px 12px',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6
-                      }}
+                      className={styles.btnSecondaryDownload}
                     >
-                      <Laptop size={13} />
+                      <Laptop size={14} />
                       <span>Download Portable Single-File (.exe)</span>
                     </button>
                   </div>
                 </div>
 
-                <div className={styles.chromeTip}>
-                  💡 <em>Installation:</em> Double click the downloaded <strong>.exe</strong> file to install or launch immediately.
+                <div className={styles.defenderAlert}>
+                  <AlertCircle size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+                  <div className={styles.defenderAlertText}>
+                    <strong>First-time Windows launch:</strong> If Windows SmartScreen appears, simply click <u>More info</u> → <u>Run anyway</u>.
+                  </div>
                 </div>
               </div>
             )}
@@ -234,49 +182,25 @@ export default function PWAInstallModal({
             {/* MAC TAB */}
             {activeTab === 'mac' && (
               <div>
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(15,23,42,0.05) 0%, rgba(30,41,59,0.02) 100%)',
-                  border: '1px solid rgba(148,163,184,0.25)',
-                  borderRadius: 10,
-                  padding: '12px',
-                  marginBottom: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Apple size={15} /> macOS Staff Terminal (.dmg)
+                <div className={styles.cardSection}>
+                  <div className={styles.cardTitle}>
+                    <Apple size={16} />
+                    <span>macOS Staff Terminal (.dmg)</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 10 }}>
-                    Compatible with Apple Silicon (M1/M2/M3/M4) & Intel Macs.
+                  <div className={styles.cardSubtitle}>
+                    Supports Apple Silicon (M1/M2/M3/M4) & Intel Macs.
                   </div>
 
                   <button
                     type="button"
                     onClick={handleDownloadMacDmg}
-                    style={{
-                      width: '100%',
-                      background: '#0f172a',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '9px 14px',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxShadow: '0 2px 8px rgba(15,23,42,0.2)'
-                    }}
+                    className={styles.btnPrimaryDownload}
+                    style={{ background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)' }}
                   >
-                    <Download size={15} />
+                    <Download size={16} />
                     <span>Download macOS Installer (.dmg)</span>
-                    <ExternalLink size={13} />
+                    <ExternalLink size={14} />
                   </button>
-                </div>
-
-                <div className={styles.chromeTip}>
-                  💡 <em>Mac Tip:</em> Open the <code>.dmg</code> file and drag <strong>ServiQ</strong> to your Applications folder.
                 </div>
               </div>
             )}
@@ -287,13 +211,13 @@ export default function PWAInstallModal({
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>1</span>
                   <p className={styles.stepDesc}>
-                    Tap <span className={styles.highlightTag}>⋮ (Menu)</span> at the top right of Chrome.
+                    Tap <span className={styles.highlightTag}>⋮ (Menu)</span> in Chrome browser.
                   </p>
                 </div>
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>2</span>
                   <p className={styles.stepDesc}>
-                    Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.
+                    Select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.
                   </p>
                 </div>
               </div>
@@ -305,7 +229,13 @@ export default function PWAInstallModal({
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>1</span>
                   <p className={styles.stepDesc}>
-                    In Safari, tap <Share size={12} style={{ display: 'inline', verticalAlign: 'middle', color: '#38bdf8' }} /> <strong>Share</strong> → <strong>"Add to Home Screen"</strong>.
+                    In Safari, tap <Share size={13} style={{ display: 'inline', verticalAlign: 'middle', color: '#60a5fa' }} /> <strong>Share</strong> icon.
+                  </p>
+                </div>
+                <div className={styles.stepItem}>
+                  <span className={styles.stepNumber}>2</span>
+                  <p className={styles.stepDesc}>
+                    Scroll and tap <strong>"Add to Home Screen"</strong>.
                   </p>
                 </div>
               </div>
@@ -318,9 +248,10 @@ export default function PWAInstallModal({
           {deferredPrompt && (
             <button
               type="button"
-              className={styles.primaryInstallBtn}
+              className={styles.btnSecondaryDownload}
               onClick={handleNativeInstall}
               disabled={isInstalling}
+              style={{ width: 'auto', padding: '8px 16px' }}
             >
               <Download size={14} />
               <span>{isInstalling ? 'Installing PWA...' : 'Quick Install PWA'}</span>
@@ -329,12 +260,11 @@ export default function PWAInstallModal({
 
           <button
             type="button"
-            className={styles.primaryInstallBtn}
+            className={styles.doneBtn}
             onClick={onClose}
-            style={deferredPrompt ? { background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' } : {}}
           >
-            <CheckCircle2 size={14} />
-            <span>Done</span>
+            <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+            <span>Close</span>
           </button>
         </div>
 
