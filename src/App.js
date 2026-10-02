@@ -41,6 +41,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Helper to detect if app is running in Electron Desktop App
+export const isDesktopApp = () => {
+  return (
+    (typeof window !== 'undefined' && Boolean(window.electronAPI?.isElectron)) ||
+    (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron'))
+  );
+};
+
 // Helper to detect if user is accessing via admin subdomain (e.g., admin.serviq.app, admin.domain.com)
 const isAdminSubdomain = () => {
   const host = window.location.hostname.toLowerCase();
@@ -48,7 +56,7 @@ const isAdminSubdomain = () => {
 };
 
 // Home Route: Auto-redirect logged-in users directly to their Dashboard
-// If on admin subdomain, redirect directly to Login if not logged in
+// If on desktop application or admin subdomain, redirect directly to Login if not logged in
 const HomeRoute = () => {
   const { user, loading } = useAuth();
 
@@ -63,8 +71,8 @@ const HomeRoute = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
-  // If user is accessing via admin subdomain, direct to login immediately
-  if (isAdminSubdomain()) {
+  // If user is on Desktop App or admin subdomain, direct to staff login immediately
+  if (isDesktopApp() || isAdminSubdomain()) {
     return <Navigate to="/login" replace />;
   }
 

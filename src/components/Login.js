@@ -125,12 +125,31 @@ const Login = () => {
                     </div>
                 </div>
 
-                {/* Right Side: Compact Login Form */}
-                <div className={styles.formSide}>
-                    <div className={styles.header}>
-                        <h2>Welcome Back</h2>
-                        <p>Sign in to your restaurant dashboard</p>
-                    </div>
+                    {/* Right Side: Compact Login Form */}
+                    <div className={styles.formSide}>
+                        {typeof window !== 'undefined' && (window.electronAPI?.isElectron || navigator.userAgent.toLowerCase().includes('electron')) && (
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 10px',
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                border: '1px solid rgba(59, 130, 246, 0.25)',
+                                borderRadius: '20px',
+                                color: '#3b82f6',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                marginBottom: '0.75rem',
+                                alignSelf: 'flex-start'
+                            }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+                                <span>Desktop POS & Staff Terminal</span>
+                            </div>
+                        )}
+                        <div className={styles.header}>
+                            <h2>{typeof window !== 'undefined' && (window.electronAPI?.isElectron || navigator.userAgent.toLowerCase().includes('electron')) ? 'Staff Terminal Login' : 'Welcome Back'}</h2>
+                            <p>{typeof window !== 'undefined' && (window.electronAPI?.isElectron || navigator.userAgent.toLowerCase().includes('electron')) ? 'Sign in with your staff account credentials' : 'Sign in to your restaurant dashboard'}</p>
+                        </div>
 
                     {generalError && (
                         <div className={styles.errorBanner}>
