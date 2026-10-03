@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { X, Info, CheckCircle2, Phone, Mail, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { X, Info, CheckCircle2, Phone, Mail, ShieldCheck, AlertCircle } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 import styles from './CustomerVerificationModal.module.css';
 import { API_URL as API } from '../config/api';
 
@@ -13,8 +13,23 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const otpInputsRef = useRef([]);
+
+  // Reset to input step and clear OTP whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStep('input');
+      setOtp(['', '', '', '', '', '']);
+      setErrorMessage('');
+      setIsLoading(false);
+      const storedName = initialName || localStorage.getItem('customer_name') || '';
+      const storedPhone = localStorage.getItem('customer_phone') || '';
+      if (storedName) setName(storedName);
+      if (storedPhone) setPhone(storedPhone);
+    }
+  }, [isOpen, initialName]);
 
   useEffect(() => {
     let timer;
@@ -79,6 +94,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
       setCountdown(30);
       setCanResend(false);
       setOtp(['', '', '', '', '', '']);
+      setErrorMessage('');
 
       setTimeout(() => {
         otpInputsRef.current[0]?.focus();
@@ -95,6 +111,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
     // Only accept numeric input
     const clean = value.replace(/[^0-9]/g, '');
     const newOtp = [...otp];
+    if (errorMessage) setErrorMessage('');
 
     if (clean.length > 1) {
       // Pasted full 6-digit code
@@ -118,14 +135,17 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
   };
 
   const handleOtpKeyDown = (idx, e) => {
+    if (errorMessage) setErrorMessage('');
     if (e.key === 'Backspace' && !otp[idx] && idx > 0) {
       otpInputsRef.current[idx - 1]?.focus();
     }
   };
 
   const handleConfirmOtp = async () => {
+    setErrorMessage('');
     const fullOtp = otp.join('');
     if (fullOtp.length < 6) {
+      setErrorMessage('Please enter the complete 6-digit OTP code');
       toast.error('Please enter the complete 6-digit OTP code');
       return;
     }
@@ -153,7 +173,9 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
       }
     } catch (err) {
       console.error('OTP Verification Error:', err);
-      toast.error(err.response?.data?.error || 'Incorrect OTP code. Please try again.');
+      const errMsg = err.response?.data?.error || 'Incorrect OTP code. Please try again.';
+      setErrorMessage(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -256,6 +278,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
+      <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={styles.modalHeader}>
@@ -385,17 +408,24 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
                     value={digit}
                     onChange={(e) => handleOtpChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className={styles.otpBox}
+                    className={`${styles.otpBox} ${errorMessage ? styles.otpBoxError : ''}`}
                   />
                 ))}
               </div>
             </div>
 
-            {/* OTP Sent Banner */}
-            <div className={styles.otpSentBanner}>
-              <Info size={16} />
-              <span>OTP has been sent to your mobile number</span>
-            </div>
+            {/* Error Banner or OTP Sent Info Banner */}
+            {errorMessage ? (
+              <div className={styles.otpErrorBanner}>
+                <AlertCircle size={16} />
+                <span>{errorMessage}</span>
+              </div>
+            ) : (
+              <div className={styles.otpSentBanner}>
+                <Info size={16} />
+                <span>OTP has been sent to your mobile number</span>
+              </div>
+            )}
 
             {/* Bottom Actions: Resend Timer & Confirm Button */}
             <div className={styles.otpBottomRow}>
