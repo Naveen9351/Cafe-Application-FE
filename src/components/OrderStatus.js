@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { encodeTableToken } from "../utils/tableToken";
 import { API_URL as API } from "../config/api";
 import RestaurantCafeLottieLoader from "./RestaurantCafeLottieLoader";
+import TableBadge from "./common/TableBadge";
 
 const OrderStatus = () => {
   const { id } = useParams();
@@ -95,51 +96,36 @@ const OrderStatus = () => {
     let interval;
     const fetchOrder = async () => {
       try {
-        const res = await axios.get(`${API}/orders/status/${id}`);
-        const currentOrder = res.data;
-
-        // Track and persist session order IDs in localStorage
         let sessionIds = [];
         try {
-          sessionIds = JSON.parse(localStorage.getItem('serviq_session_orders') || '[]');
+          const raw = localStorage.getItem('serviq_session_orders');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) sessionIds = parsed;
+          }
           if (!sessionIds.includes(id)) {
             sessionIds.push(id);
-            localStorage.setItem('serviq_session_orders', JSON.stringify(sessionIds));
           }
         } catch (e) {}
 
+        const res = await axios.get(`${API}/orders/status/${id}`, {
+          params: sessionIds.length > 0 ? { sessionIds: sessionIds.join(',') } : {}
+        });
+        const currentOrder = res.data;
+
         let allOrders = currentOrder.sessionOrders && currentOrder.sessionOrders.length > 0
           ? [...currentOrder.sessionOrders]
-          : [];
+          : [currentOrder];
 
-        // If backend did not return multi-order sessionOrders, fetch all known session orders in parallel
-        if (allOrders.length <= 1 && sessionIds.length > 1) {
-          try {
-            const promises = sessionIds.map(oid =>
-              oid === id ? Promise.resolve({ data: currentOrder }) : axios.get(`${API}/orders/status/${oid}`)
-            );
-            const results = await Promise.allSettled(promises);
-            const fetchedOrders = results
-              .filter(r => r.status === 'fulfilled' && r.value?.data?._id)
-              .map(r => r.value.data)
-              .filter(o => o.status !== 'cancelled');
-
-            // Ensure they belong to the same table or tenant
-            const matchingOrders = fetchedOrders.filter(o => {
-              if (currentOrder.tableNumber && o.tableNumber) {
-                return String(o.tableNumber) === String(currentOrder.tableNumber);
-              }
-              return true;
-            });
-
-            if (matchingOrders.length > 0) {
-              matchingOrders.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-              allOrders = matchingOrders;
-            }
-          } catch (fetchErr) {
-            console.warn("Failed to fetch session orders:", fetchErr);
+        // Ensure session orders only include the tracked session rounds
+        if (sessionIds.length > 0) {
+          const sessionFiltered = allOrders.filter(o => sessionIds.includes(o._id));
+          if (sessionFiltered.length > 0) {
+            allOrders = sessionFiltered;
           }
         }
+
+        allOrders.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
         const mergedOrder = {
           ...currentOrder,
@@ -266,16 +252,7 @@ const OrderStatus = () => {
           </div>
 
           <div className={styles.topRightGroup}>
-            <div
-              className={styles.tableBadge}
-              style={{
-                backgroundColor: `${theme.accent}15`,
-                color: theme.accent,
-                borderColor: `${theme.accent}30`
-              }}
-            >
-              <span>{order.tableNumber ? `Table #${order.tableNumber}` : 'Takeaway'}</span>
-            </div>
+            <TableBadge tableNumber={order?.tableNumber || 'Takeaway'} isDarkMode={isDarkMode} />
 
             <button
               type="button"

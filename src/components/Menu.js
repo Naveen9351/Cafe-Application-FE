@@ -5,7 +5,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Minus, Sun, Moon, Sparkles, Heart, Check, Clock, X, FileText, Utensils, Zap
+  ShoppingBag, ChevronRight, Sliders, Star, ChevronLeft, Menu as MenuIcon, Search, Plus, Minus, Sun, Moon, Sparkles, Heart, Check, Clock, X, FileText, Utensils, UtensilsCrossed, Zap
 } from "lucide-react";
 import { getValidFoodImage } from "./AdminPanel";
 import { decodeTableToken, encodeTableToken } from "../utils/tableToken";
@@ -13,6 +13,111 @@ import styles from "./Menu.module.css";
 import { API_URL as API } from "../config/api";
 import RestaurantCafeLottieLoader from "./RestaurantCafeLottieLoader";
 import DishDetailsModal from "./DishDetailsModal";
+import TableBadge from "./common/TableBadge";
+import TrackOrderBadge from "./common/TrackOrderBadge";
+import CustomerBottomNav from "./common/CustomerBottomNav";
+
+// Track whether initial full-screen culinary loader has already been displayed in the current page session
+let hasShownInitialAppLoader = false;
+
+// Sleek Shimmer Skeleton for Categories and Menu Items Grid
+function MenuSkeletonShimmer({ isDarkMode, theme }) {
+  const shimmerClass = `${styles.shimmerBox} ${!isDarkMode ? styles.shimmerLight : ''}`;
+  const cardBg = isDarkMode ? '#18130e' : '#ffffff';
+  const elementBg = isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0';
+  const borderCol = isDarkMode ? 'rgba(255, 255, 255, 0.07)' : '#e2e8f0';
+
+  return (
+    <div style={{ width: '100%', boxSizing: 'border-box' }}>
+      {/* Category Pills Skeleton Bar */}
+      <div style={{
+        display: 'flex',
+        gap: '0.6rem',
+        padding: '0.75rem 1rem',
+        overflowX: 'hidden',
+        borderBottom: `1px solid ${borderCol}`,
+        backgroundColor: isDarkMode ? 'rgba(20, 16, 12, 0.94)' : 'rgba(255, 255, 255, 0.96)'
+      }}>
+        {[85, 115, 95, 125, 90].map((width, idx) => (
+          <div
+            key={idx}
+            className={shimmerClass}
+            style={{
+              width: `${width}px`,
+              height: '36px',
+              borderRadius: '100px',
+              backgroundColor: elementBg,
+              flexShrink: 0
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Dishes Cards Skeleton Grid */}
+      <main style={{ padding: '0.65rem 1rem 1.25rem', width: '100%', boxSizing: 'border-box' }}>
+        <div className={styles.grid}>
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
+            <div
+              key={idx}
+              className={styles.dishCard}
+              style={{
+                backgroundColor: cardBg,
+                border: `1px solid ${borderCol}`,
+                padding: '0.45rem 0.45rem 0.5rem',
+                borderRadius: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.4rem',
+                boxSizing: 'border-box'
+              }}
+            >
+              {/* Image box shimmer */}
+              <div
+                className={shimmerClass}
+                style={{
+                  width: '100%',
+                  height: '86px',
+                  borderRadius: '10px',
+                  backgroundColor: elementBg
+                }}
+              />
+
+              {/* Title and Badge Line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                <div
+                  className={shimmerClass}
+                  style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: elementBg }}
+                />
+                <div
+                  className={shimmerClass}
+                  style={{ flex: 1, height: '14px', borderRadius: '4px', backgroundColor: elementBg }}
+                />
+              </div>
+
+              {/* Description Subtitle */}
+              <div
+                className={shimmerClass}
+                style={{ width: '65%', height: '10px', borderRadius: '3px', backgroundColor: elementBg }}
+              />
+
+              {/* Price & Add Button Row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                <div
+                  className={shimmerClass}
+                  style={{ width: '42px', height: '16px', borderRadius: '4px', backgroundColor: elementBg }}
+                />
+                <div
+                  className={shimmerClass}
+                  style={{ width: '25px', height: '25px', borderRadius: '50%', backgroundColor: elementBg }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export default function Menu() {
   const navigate = useNavigate();
@@ -21,7 +126,8 @@ export default function Menu() {
   const [tableNumber, setTableNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [tenantId, setTenantId] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!hasShownInitialAppLoader);
+  const [isFetchingMenu, setIsFetchingMenu] = useState(false);
   const [tenantInfo, setTenantInfo] = useState(() => {
     let name = "SERVIQ Gourmet Bistro";
     let logo = null;
@@ -258,7 +364,14 @@ export default function Menu() {
     }
 
     const currentTenantId = urlTenant || localStorage.getItem("tenantId");
-    setIsLoading(true);
+    
+    // Only show full-screen blocking loader on initial app load / page refresh
+    const shouldShowLoader = !hasShownInitialAppLoader;
+    if (shouldShowLoader) {
+      setIsLoading(true);
+    } else {
+      setIsFetchingMenu(true);
+    }
     const fetchStart = Date.now();
 
     axios
@@ -275,11 +388,15 @@ export default function Menu() {
         setItems(defaultGourmetItemsFallback);
       })
       .finally(() => {
-        const elapsed = Date.now() - fetchStart;
-        const delay = Math.max(0, 2500 - elapsed);
-        setTimeout(() => {
-          setIsLoading(false);
-        }, delay);
+        setIsFetchingMenu(false);
+        if (shouldShowLoader) {
+          const elapsed = Date.now() - fetchStart;
+          const delay = Math.max(0, 1800 - elapsed);
+          setTimeout(() => {
+            setIsLoading(false);
+            hasShownInitialAppLoader = true;
+          }, delay);
+        }
       });
   }, [searchParams]);
 
@@ -508,8 +625,62 @@ export default function Menu() {
     return matching.reduce((sum, ci) => sum + (ci.quantity || 0), 0);
   };
 
+  // Trigger flying dish particle animation directly from clicked button into BottomBar Cart
+  const triggerFlyToCart = (item, event) => {
+    let startX = window.innerWidth / 2;
+    let startY = window.innerHeight / 2;
+
+    if (event) {
+      const el = event.currentTarget || event.target;
+      if (el && typeof el.getBoundingClientRect === 'function') {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          startX = rect.left + rect.width / 2;
+          startY = rect.top + rect.height / 2;
+        } else if (typeof event.clientX === 'number' && typeof event.clientY === 'number' && (event.clientX > 0 || event.clientY > 0)) {
+          startX = event.clientX;
+          startY = event.clientY;
+        }
+      } else if (typeof event.clientX === 'number' && typeof event.clientY === 'number' && (event.clientX > 0 || event.clientY > 0)) {
+        startX = event.clientX;
+        startY = event.clientY;
+      } else if (event.touches && event.touches[0]) {
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+      }
+    }
+
+    let targetX = window.innerWidth * 0.375;
+    let targetY = window.innerHeight - 35;
+
+    // Accurately locate BottomBar Cart button center
+    const bottomCartBtn = document.getElementById('bottom-nav-cart-btn') || document.querySelector('[data-bottom-tab="cart"]');
+    if (bottomCartBtn) {
+      const cartRect = bottomCartBtn.getBoundingClientRect();
+      targetX = cartRect.left + cartRect.width / 2;
+      targetY = cartRect.top + cartRect.height / 2;
+    }
+
+    const particleId = Date.now() + Math.random();
+    setFlyingParticles((prev) => [
+      ...prev,
+      {
+        id: particleId,
+        startX,
+        startY,
+        targetX,
+        targetY,
+        image: getValidFoodImage(item),
+      },
+    ]);
+  };
+
   const handleIncrement = (item, event) => {
     if (event && event.stopPropagation) event.stopPropagation();
+
+    // Trigger visual flight to cart wherever + is tapped
+    triggerFlyToCart(item, event);
+
     const matching = cartItems.filter(ci => 
       ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
     );
@@ -607,41 +778,7 @@ export default function Menu() {
     });
 
     // Spawn Flying Particle Animation to Cart
-    if (event && event.currentTarget) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const startX = rect.left + rect.width / 2;
-      const startY = rect.top + rect.height / 2;
-
-      let targetX = window.innerWidth - 45;
-      let targetY = 40;
-
-      // Prefer top header cart icon if available, else bottom floating cart
-      if (cartIconRef.current) {
-        const cartRect = cartIconRef.current.getBoundingClientRect();
-        targetX = cartRect.left + cartRect.width / 2;
-        targetY = cartRect.top + cartRect.height / 2;
-      } else if (bottomCartRef.current) {
-        const cartRect = bottomCartRef.current.getBoundingClientRect();
-        targetX = cartRect.left + cartRect.width / 2;
-        targetY = cartRect.top + cartRect.height / 2;
-      }
-
-      const particleId = Date.now() + Math.random();
-      setFlyingParticles((prev) => [
-        ...prev,
-        {
-          id: particleId,
-          startX,
-          startY,
-          targetX,
-          targetY,
-          image: getValidFoodImage(item),
-        },
-      ]);
-    } else {
-      setIsCartBouncing(true);
-      setTimeout(() => setIsCartBouncing(false), 400);
-    }
+    triggerFlyToCart(item, event);
 
     toast.success(`Added ${item.name} to cart!`, {
       icon: '🍽️',
@@ -665,253 +802,65 @@ export default function Menu() {
     <div className={styles.page} style={{ backgroundColor: theme.bgPage, color: theme.textMain, transition: 'background-color 0.3s' }}>
       <Toaster position="top-center" />
 
-      {/* FLYING CART PARTICLES OVERLAY */}
-      {flyingParticles.map((p) => (
-        <motion.div
-          key={p.id}
-          initial={{ x: p.startX - 18, y: p.startY - 18, scale: 1, opacity: 1 }}
-          animate={{
-            x: [
-              p.startX - 18,
-              (p.startX + p.targetX) / 2 + (p.startX < p.targetX ? -40 : 40),
-              p.targetX - 18,
-            ],
-            y: [
-              p.startY - 18,
-              Math.min(p.startY, p.targetY) - 70,
-              p.targetY - 18,
-            ],
-            scale: [1, 1.25, 0.35],
-            opacity: [1, 1, 0.8],
-          }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          onAnimationComplete={() => {
-            setFlyingParticles((prev) => prev.filter((it) => it.id !== p.id));
-            setIsCartBouncing(true);
-            setTimeout(() => setIsCartBouncing(false), 450);
-          }}
-          style={{
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            zIndex: 9999,
-            pointerEvents: 'none',
-            border: '2px solid #ffffff',
-            boxShadow: `0 8px 25px ${theme.accentGlow}`,
-          }}
-        >
-          <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </motion.div>
-      ))}
+      {/* FLYING CART PARTICLES OVERLAY (Butter-Smooth Parabolic Flight directly into Bottom Cart) */}
+      {flyingParticles.map((p) => {
+        const midY = Math.min(p.startY - 35, (p.startY + p.targetY) / 2 - 20);
+        return (
+          <motion.div
+            key={p.id}
+            initial={{
+              x: p.startX - 22,
+              y: p.startY - 22,
+              scale: 0.95,
+              rotate: 0,
+              opacity: 1
+            }}
+            animate={{
+              x: [p.startX - 22, (p.startX + p.targetX) / 2, p.targetX - 22],
+              y: [p.startY - 22, midY, p.targetY - 22],
+              scale: [0.95, 1.25, 0.85, 0.2],
+              rotate: [0, -12, 10, 0],
+              opacity: [1, 1, 1, 0]
+            }}
+            transition={{
+              duration: 0.65,
+              ease: "easeInOut",
+              x: { duration: 0.65, times: [0, 0.45, 1], ease: "easeInOut" },
+              y: { duration: 0.65, times: [0, 0.35, 1], ease: [0.4, 0, 0.2, 1] },
+              scale: { duration: 0.65, times: [0, 0.25, 0.85, 1], ease: "easeInOut" },
+              rotate: { duration: 0.65, times: [0, 0.3, 0.7, 1], ease: "easeInOut" },
+              opacity: { duration: 0.65, times: [0, 0.85, 0.96, 1], ease: "easeOut" }
+            }}
+            onAnimationComplete={() => {
+              setFlyingParticles((prev) => prev.filter((it) => it.id !== p.id));
+              setIsCartBouncing(true);
+              setTimeout(() => setIsCartBouncing(false), 500);
+            }}
+            style={{
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              zIndex: 99999,
+              pointerEvents: 'none',
+              border: '2.5px solid #ffffff',
+              boxShadow: `0 10px 25px rgba(234, 88, 12, 0.7), 0 2px 10px rgba(0,0,0,0.3)`,
+              willChange: 'transform, opacity',
+              transform: 'translateZ(0)'
+            }}
+          >
+            <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </motion.div>
+        );
+      })}
 
       <div className={styles.appContainer} style={{ backgroundColor: theme.bgPage, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}`, boxShadow: isDarkMode ? '0 20px 80px rgba(0, 0, 0, 0.8)' : '0 10px 40px rgba(0, 0, 0, 0.05)', transition: 'background-color 0.3s, border-color 0.3s' }}>
 
         {/* SCREEN 1: Home Menu Browsing (Always rendered) */}
         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}>
-          {/* Top Header */}
-          <div style={{ backgroundColor: theme.bgHeader, padding: '1.25rem 1rem 1rem', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                {cafeLogo ? (
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    border: `1.5px solid ${theme.border}`,
-                    boxShadow: `0 3px 10px ${theme.accentGlow}`,
-                    flexShrink: 0,
-                    backgroundColor: theme.bgInner,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <img
-                      src={cafeLogo}
-                      alt={cafeName}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        if (e.currentTarget.parentElement) {
-                          e.currentTarget.parentElement.innerHTML = `<span style="font-size:13px;font-weight:800;color:${theme.textMain};">${cafeInitials}</span>`;
-                        }
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '12px',
-                    background: `linear-gradient(135deg, ${theme.accent}, #b91c1c)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: `0 4px 15px ${theme.accentGlow}`,
-                    flexShrink: 0,
-                    color: '#ffffff',
-                    fontWeight: '800',
-                    fontSize: '0.9rem',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {cafeInitials}
-                  </div>
-                )}
-                <div style={{ overflow: 'hidden' }}>
-                  <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.8px', color: theme.textMuted, fontWeight: '700', display: 'block' }}>Table #{tableNumber}</span>
-                  <h2 style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cafeName}</h2>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                {/* Theme Toggle Button */}
-                <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                >
-                  {isDarkMode ? <Sun size={19} color="#fbbe21" /> : <Moon size={19} color="#475569" />}
-                </button>
-
-                {/* Cart Header Icon */}
-                <Link to={`/cart?table=${tableNumber}`} ref={cartIconRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                  <motion.div
-                    animate={isCartBouncing ? { scale: [1, 1.35, 0.9, 1.15, 1], rotate: [0, -10, 10, 0] } : { scale: 1 }}
-                    transition={{ duration: 0.45 }}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <ShoppingBag size={21} color={theme.textMain} />
-                    {cartTotalItems > 0 && (
-                      <span style={{ position: 'absolute', top: '-5px', right: '-7px', backgroundColor: theme.accent, color: '#ffffff', fontSize: '0.6rem', fontWeight: '900', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${theme.accentGlow}` }}>
-                        {cartTotalItems}
-                      </span>
-                    )}
-                  </motion.div>
-                </Link>
-              </div>
-            </div>
-
-            {/* Search Box - Only show after initial loading */}
-            {!isLoading && (
-              <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <Search size={16} color={theme.textMuted} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
-                    type="text"
-                    placeholder="Would you like to eat something?..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '14px', padding: '0.65rem 0.85rem 0.65rem 2.5rem', color: theme.inputText, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Live Active Order Banner (Customer Dashboard) - Only show after initial loading */}
-            {!isLoading && activeRunningOrder && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  const tbl = activeRunningOrder.tableNumber || tableNumber;
-                  const token = tbl ? encodeTableToken(tbl) : '';
-                  navigate(`/order/status/${activeRunningOrder._id}${token ? `?t=${encodeURIComponent(token)}` : ''}`);
-                }}
-                style={{
-                  marginTop: '0.75rem',
-                  marginBottom: '0.2rem',
-                  padding: '11px 14px',
-                  background: isDarkMode
-                    ? 'linear-gradient(135deg, rgba(234, 88, 12, 0.22), rgba(234, 88, 12, 0.08))'
-                    : 'linear-gradient(135deg, #fff7ed, #ffedd5)',
-                  border: `1.5px solid ${isDarkMode ? 'rgba(234, 88, 12, 0.5)' : '#fb923c'}`,
-                  borderRadius: '16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  boxShadow: '0 4px 16px rgba(234, 88, 12, 0.15)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '12px',
-                    background: '#ea580c',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.35)'
-                  }}>
-                    <Utensils size={18} />
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 850, color: isDarkMode ? '#ffedd5' : '#9a3412', letterSpacing: '-0.01em' }}>
-                        Order #{activeRunningOrder.orderNumber || activeRunningOrder._id?.slice(-5).toUpperCase()}
-                      </span>
-                      {activeRunningOrder.sessionOrders?.length > 1 && (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 800,
-                          backgroundColor: '#ea580c',
-                          color: '#ffffff',
-                          padding: '1px 6px',
-                          borderRadius: '100px'
-                        }}>
-                          {activeRunningOrder.sessionOrders.length} Rounds
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11.5px', color: isDarkMode ? '#fdba74' : '#c2410c', fontWeight: 600, marginTop: 2 }}>
-                      <span style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        backgroundColor: activeRunningOrder.status === 'ready' ? '#16a34a' : '#ea580c',
-                        boxShadow: `0 0 0 2.5px ${activeRunningOrder.status === 'ready' ? 'rgba(22, 163, 74, 0.25)' : 'rgba(234, 88, 12, 0.25)'}`
-                      }} />
-                      <span style={{ textTransform: 'capitalize' }}>
-                        {activeRunningOrder.status === 'preparing'
-                          ? '👨‍🍳 Cooking in Kitchen'
-                          : activeRunningOrder.status === 'ready'
-                          ? '🎉 Ready to Serve'
-                          : '⏳ Order Placed'}
-                      </span>
-                      <span>•</span>
-                      <span>{activeRunningOrder.items?.length || 0} items</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#ea580c',
-                  color: '#ffffff',
-                  borderRadius: '100px',
-                  fontSize: '11.5px',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(234, 88, 12, 0.3)'
-                }}>
-                  <span>Track</span>
-                  <ChevronRight size={13} />
-                </div>
-              </motion.div>
-            )}
-          </div>
-
           {/* Restaurant & Cafe Animated Culinary Loader */}
           {isLoading ? (
             <RestaurantCafeLottieLoader
@@ -923,50 +872,310 @@ export default function Menu() {
             />
           ) : (
             <>
-              {/* Categories Navigation */}
-              {allCategories.length > 0 && (
-                <section className={styles.categoryBar} style={{ backgroundColor: isDarkMode ? 'rgba(20, 16, 12, 0.94)' : 'rgba(255, 255, 255, 0.96)', borderBottom: `1px solid ${theme.border}` }}>
-                  {allCategories.map((c) => {
-                    const isSelected = (selectedCategory === "all" && c.id === "all") || (selectedCategory.toLowerCase() === c.id.toLowerCase());
-                    return (
+              {/* STICKY PINNED TOP SECTION (Header + Search + Active Order Banner + Categories) */}
+              <div className={styles.stickyTopWrapper} style={{ backgroundColor: theme.bgPage }}>
+                {/* Top Header Card */}
+                <div style={{ backgroundColor: theme.bgHeader, padding: '1rem 1rem 0.75rem', borderBottomLeftRadius: '20px', borderBottomRightRadius: '20px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      {cafeLogo ? (
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          border: `1.5px solid ${theme.border}`,
+                          boxShadow: `0 3px 10px ${theme.accentGlow}`,
+                          flexShrink: 0,
+                          backgroundColor: theme.bgInner,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <img
+                            src={cafeLogo}
+                            alt={cafeName}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              if (e.currentTarget.parentElement) {
+                                e.currentTarget.parentElement.innerHTML = `<span style="font-size:13px;font-weight:800;color:${theme.textMain};">${cafeInitials}</span>`;
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '12px',
+                          background: `linear-gradient(135deg, ${theme.accent}, #b91c1c)`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 4px 15px ${theme.accentGlow}`,
+                          flexShrink: 0,
+                          color: '#ffffff',
+                          fontWeight: '800',
+                          fontSize: '0.9rem',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {cafeInitials}
+                        </div>
+                      )}
+                      <div style={{ overflow: 'hidden' }}>
+                        <h2 style={{ fontSize: '1.05rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cafeName}</h2>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                      {/* Order Track Badge (Animated) */}
+                      <TrackOrderBadge
+                        activeRunningOrder={activeRunningOrder}
+                        tableNumber={tableNumber}
+                        isDarkMode={isDarkMode}
+                      />
+
+                      {/* Table Number Badge */}
+                      <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} />
+
+                      {/* Theme Toggle Button */}
                       <button
-                        key={c.id}
-                        onClick={() => setSelectedCategory(c.id)}
-                        className={styles.categoryPill}
+                        onClick={() => setIsDarkMode(!isDarkMode)}
                         style={{
-                          background: isSelected ? `linear-gradient(135deg, ${theme.accent}, #b91c1c)` : (isDarkMode ? '#1e1812' : '#f8fafc'),
-                          color: isSelected ? '#ffffff' : theme.catText,
-                          border: isSelected ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                          boxShadow: isSelected ? `0 4px 14px ${theme.accentGlow}` : 'none'
+                          background: isDarkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '50%',
+                          padding: 0
                         }}
+                        title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                       >
-                        <span style={{ fontSize: '14px', lineHeight: 1 }}>{c.icon}</span>
-                        <span style={{ fontWeight: isSelected ? '800' : '600' }}>{c.name}</span>
-                        {c.count > 0 && (
-                          <span
-                            className={styles.categoryCount}
+                        {isDarkMode ? <Sun size={18} color="#fbbe21" /> : <Moon size={18} color="#475569" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Search Box */}
+                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <Search size={16} color={theme.textMuted} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        placeholder="Would you like to eat something?..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '14px', padding: '0.65rem 0.85rem 0.65rem 2.5rem', color: theme.inputText, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Categories Navigation (or Skeleton) */}
+                {isFetchingMenu && items.length === 0 ? null : (
+                  allCategories.length > 0 && (
+                    <section className={styles.categoryBar} style={{ backgroundColor: isDarkMode ? 'rgba(20, 16, 12, 0.94)' : 'rgba(255, 255, 255, 0.96)', borderBottom: `1px solid ${theme.border}` }}>
+                      {allCategories.map((c) => {
+                        const isSelected = (selectedCategory === "all" && c.id === "all") || (selectedCategory.toLowerCase() === c.id.toLowerCase());
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => setSelectedCategory(c.id)}
+                            className={styles.categoryPill}
                             style={{
-                              backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : (isDarkMode ? '#2c221a' : '#e2e8f0'),
-                              color: isSelected ? '#ffffff' : theme.textMuted,
+                              background: isSelected ? `linear-gradient(135deg, ${theme.accent}, #b91c1c)` : (isDarkMode ? '#1e1812' : '#f8fafc'),
+                              color: isSelected ? '#ffffff' : theme.catText,
+                              border: isSelected ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                              boxShadow: isSelected ? `0 4px 14px ${theme.accentGlow}` : 'none'
                             }}
                           >
-                            {c.count}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </section>
-              )}
+                            <span style={{ fontSize: '14px', lineHeight: 1 }}>{c.icon}</span>
+                            <span style={{ fontWeight: isSelected ? '800' : '600' }}>{c.name}</span>
+                            {c.count > 0 && (
+                              <span
+                                className={styles.categoryCount}
+                                style={{
+                                  backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : (isDarkMode ? '#2c221a' : '#e2e8f0'),
+                                  color: isSelected ? '#ffffff' : theme.textMuted,
+                                }}
+                              >
+                                {c.count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </section>
+                  )
+                )}
+              </div>
 
-              {/* Dishes Grid */}
-              <main style={{ padding: '0.75rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }}>
-                {filteredItems.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3rem 1rem', color: theme.textMuted }}>
-                    <p>No dishes found. Try searching for something else!</p>
-                  </div>
-                ) : (
-                  <div className={styles.grid}>
+              {/* Shimmer Skeleton or Real Dishes Grid */}
+              {isFetchingMenu && items.length === 0 ? (
+                <MenuSkeletonShimmer isDarkMode={isDarkMode} theme={theme} />
+              ) : (
+                <>
+                  {/* Dishes Grid */}
+                  <main style={{ padding: '0.75rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }}>
+                    {filteredItems.length === 0 ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.35 }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '2.5rem 1rem 2rem',
+                          textAlign: 'center',
+                          boxSizing: 'border-box',
+                          width: '100%'
+                        }}
+                      >
+                        {/* Floating Soft-Glow Icon Container */}
+                        <motion.div
+                          animate={{ y: [0, -6, 0] }}
+                          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                          style={{
+                            width: '76px',
+                            height: '76px',
+                            borderRadius: '22px',
+                            background: isDarkMode
+                              ? 'linear-gradient(135deg, rgba(224, 92, 92, 0.16), rgba(249, 115, 22, 0.08))'
+                              : 'linear-gradient(135deg, #fff7ed, #ffedd5)',
+                            border: `1.5px solid ${isDarkMode ? 'rgba(224, 92, 92, 0.25)' : 'rgba(249, 115, 22, 0.3)'}`,
+                            boxShadow: `0 10px 25px ${theme.accentGlow}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative',
+                            marginBottom: '1rem'
+                          }}
+                        >
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <UtensilsCrossed size={32} color={theme.accent} strokeWidth={2.2} />
+                            <motion.div
+                              animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.1, 1] }}
+                              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                              style={{
+                                position: 'absolute',
+                                top: '-8px',
+                                right: '-8px',
+                                background: theme.accent,
+                                borderRadius: '50%',
+                                padding: '3px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Search size={11} color="#ffffff" strokeWidth={3} />
+                            </motion.div>
+                          </div>
+                        </motion.div>
+
+                        {/* Heading & Subtitle */}
+                        <h3 style={{ fontSize: '0.98rem', fontWeight: '800', color: theme.textMain, margin: '0 0 0.35rem 0', letterSpacing: '-0.01em' }}>
+                          {searchQuery ? `No results for "${searchQuery}"` : "No Dishes Available"}
+                        </h3>
+                        <p style={{ fontSize: '0.74rem', color: theme.textMuted, margin: '0 0 1.1rem 0', maxWidth: '270px', lineHeight: 1.45 }}>
+                          {searchQuery
+                            ? "We couldn't find any dishes matching your search. Try checking your spelling or explore other items."
+                            : "No dishes found in this section right now. Explore other categories!"}
+                        </p>
+
+                        {/* Quick Action Button */}
+                        <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          {searchQuery && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.94 }}
+                              onClick={() => setSearchQuery('')}
+                              style={{
+                                backgroundColor: theme.accent,
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '0.45rem 1rem',
+                                borderRadius: '100px',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                cursor: 'pointer',
+                                boxShadow: `0 4px 12px ${theme.accentGlow}`
+                              }}
+                            >
+                              <X size={13} strokeWidth={3} />
+                              Clear Search
+                            </motion.button>
+                          )}
+
+                          {selectedCategory !== 'all' && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.94 }}
+                              onClick={() => { setSelectedCategory('all'); setSearchQuery(''); }}
+                              style={{
+                                backgroundColor: isDarkMode ? '#1e1812' : '#f1f5f9',
+                                color: theme.textMain,
+                                border: `1px solid ${theme.border}`,
+                                padding: '0.45rem 1rem',
+                                borderRadius: '100px',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              View All Dishes
+                            </motion.button>
+                          )}
+                        </div>
+
+                        {/* Suggested Quick Category Pills */}
+                        {allCategories.length > 1 && (
+                          <div style={{ marginTop: '1.4rem', width: '100%' }}>
+                            <span style={{ fontSize: '0.66rem', fontWeight: '700', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '0.45rem' }}>
+                              Explore Categories
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                              {allCategories.filter(c => c.id !== 'all').slice(0, 4).map((c) => (
+                                <motion.button
+                                  key={c.id}
+                                  whileTap={{ scale: 0.92 }}
+                                  onClick={() => { setSelectedCategory(c.id); setSearchQuery(''); }}
+                                  style={{
+                                    background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                                    border: `1px solid ${theme.border}`,
+                                    color: theme.textMain,
+                                    padding: '0.3rem 0.65rem',
+                                    borderRadius: '100px',
+                                    fontSize: '0.68rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    boxShadow: isDarkMode ? 'none' : '0 1px 4px rgba(0,0,0,0.04)'
+                                  }}
+                                >
+                                  <span>{c.icon}</span>
+                                  <span>{c.name}</span>
+                                </motion.button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <div className={styles.grid}>
                     {filteredItems.map((item) => {
                       const discount = item.discount || {};
                       const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -1070,7 +1279,7 @@ export default function Menu() {
                                         className={styles.stepperBtn}
                                         title="Decrease quantity"
                                       >
-                                        <Minus size={13} strokeWidth={3.5} />
+                                        <Minus size={11} strokeWidth={3.5} />
                                       </motion.button>
                                       <span className={styles.stepperVal}>
                                         {qty}
@@ -1081,7 +1290,7 @@ export default function Menu() {
                                         className={styles.stepperBtn}
                                         title="Increase quantity"
                                       >
-                                        <Plus size={13} strokeWidth={3.5} />
+                                        <Plus size={11} strokeWidth={3.5} />
                                       </motion.button>
                                     </div>
                                   );
@@ -1106,7 +1315,7 @@ export default function Menu() {
                                     }}
                                     title="Add dish"
                                   >
-                                    <Plus size={16} strokeWidth={3.5} />
+                                    <Plus size={13} strokeWidth={3.5} />
                                   </motion.button>
                                 );
                               })()}
@@ -1195,6 +1404,8 @@ export default function Menu() {
                   </div>
                 );
               })()}
+                </>
+              )}
             </>
           )}
         </div>
@@ -1642,6 +1853,18 @@ export default function Menu() {
           }}
           isDarkMode={isDarkMode}
         />
+
+        {/* Customer Bottom Navigation Bar (Menu, Cart, History, Profile) */}
+        {!isLoading && (
+          <CustomerBottomNav
+            tableNumber={tableNumber}
+            tenantId={tenantId}
+            tenantInfo={tenantInfo}
+            isDarkMode={isDarkMode}
+            isCartBouncing={isCartBouncing}
+            onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+          />
+        )}
 
       </div>
     </div>

@@ -191,8 +191,7 @@ export default function TableOperationsHub({
   };
 
   const getQRScanUrl = (tableNum) => {
-    const base = 'https://cafe-application-fe.vercel.app';
-    return buildTableMenuUrl(base, tableNum, tenantId);
+    return buildTableMenuUrl(null, tableNum, tenantId);
   };
 
   return (

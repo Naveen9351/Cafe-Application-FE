@@ -16,7 +16,7 @@
 
 .appContainer {
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   min-height: 100vh;
   min-height: 100dvh;
   background-color: #ffffff;
@@ -26,7 +26,8 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
   border-left: 1px solid #e2e8f0;
   border-right: 1px solid #e2e8f0;
-  padding: 1.25rem 1.15rem;
+  padding: 0;
+  padding-bottom: 6rem;
   box-sizing: border-box;
 }
 
@@ -34,7 +35,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
 }
 
 .backBtn {
