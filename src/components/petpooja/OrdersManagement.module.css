@@ -50,9 +50,9 @@
 
 .title {
   font-size: 1.35rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #0f172a;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.15;
 }
@@ -61,7 +61,7 @@
   font-size: 0.78rem;
   color: #64748b;
   margin: 0.1rem 0 0;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .headerActions {
@@ -80,7 +80,7 @@
   border: none;
   color: #ffffff;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
@@ -101,7 +101,7 @@
   border: 1px solid #e2e8f0;
   color: #334155;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
@@ -123,7 +123,7 @@
   border: 1px solid #a7f3d0;
   color: #059669;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .liveDot {
@@ -281,7 +281,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
 }
 
@@ -291,7 +291,7 @@
   padding: 1px 7px;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .toolbarRight {
@@ -349,7 +349,7 @@
   font-size: 0.78rem;
   color: #0f172a;
   outline: none;
-  font-weight: 600;
+  font-weight: 400;
   transition: all 0.15s ease;
 }
 
@@ -367,7 +367,7 @@
   font-size: 0.76rem;
   color: #0f172a;
   outline: none;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -387,7 +387,7 @@
   border: 1px solid #cbd5e1;
   color: #475569;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -396,6 +396,256 @@
   background: #fee2e2;
   color: #dc2626;
   border-color: #fca5a5;
+}
+
+/* ── Filter Trigger & Popover ── */
+.filterWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filterIconButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.filterIconButton:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.filterIconButtonActive,
+.filterIconButtonOpen {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  border-color: #c7d2fe !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+}
+
+.filterBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: #4f46e5;
+  color: #ffffff;
+  border-radius: 9999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.35);
+  border: 1.5px solid #ffffff;
+}
+
+.filterPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px -4px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.06);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.filterPopoverHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafbfc;
+}
+
+.filterPopoverTitleWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.filterHeaderIcon {
+  color: #4f46e5;
+}
+
+.filterPopoverTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.filterActiveCountTag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.filterCloseBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+}
+
+.filterCloseBtn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.filterPopoverBody {
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.filterGroupLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.filterChipGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.32rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.filterChip:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.filterChipActive {
+  background: #4f46e5 !important;
+  border-color: #4338ca !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+}
+
+.filterCheckIcon {
+  stroke-width: 3;
+  color: #ffffff;
+}
+
+.filterPopoverFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.95rem;
+  border-top: 1px solid #f1f5f9;
+  background: #fafbfc;
+  gap: 0.5rem;
+}
+
+.filterResetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.42rem 0.65rem;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterResetBtn:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.filterResetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.filterApplyBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.44rem 0.85rem;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterApplyBtn:hover {
+  background: #1e293b;
 }
 
 /* ── Maximized Dense Data Table ── */
@@ -421,8 +671,8 @@
   color: #475569;
   font-size: 0.7rem;
   text-transform: uppercase;
-  font-weight: 800;
-  letter-spacing: 0.05em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   border-bottom: 1.5px solid #e2e8f0;
   white-space: nowrap;
 }
@@ -452,7 +702,7 @@
   align-items: center;
   gap: 0.45rem;
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.01em;
 }
@@ -463,14 +713,14 @@
   background: #e2e8f0;
   color: #475569;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 500;
   padding: 1.5px 6px;
   border-radius: 9999px;
 }
 
 .dateGroupSales {
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 500;
   color: #64748b;
   display: inline-flex;
   align-items: center;
@@ -479,7 +729,7 @@
 
 .dateGroupSales strong {
   color: #059669;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .td {
@@ -511,9 +761,9 @@
 }
 
 .orderNumberText {
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -526,7 +776,7 @@
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 500;
   background: #e2e8f0;
   color: #334155;
 }
@@ -538,7 +788,7 @@
   padding: 0.12rem 0.45rem;
   border-radius: 6px;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 500;
   width: fit-content;
 }
 
@@ -580,7 +830,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
+  font-weight: 600;
   font-size: 0.78rem;
   color: #ffffff;
   flex-shrink: 0;
@@ -594,7 +844,7 @@
 }
 
 .nameRow {
-  font-weight: 800;
+  font-weight: 500;
   color: #0f172a;
   font-size: 0.84rem;
 }
@@ -602,7 +852,7 @@
 .phoneText {
   font-size: 0.72rem;
   color: #64748b;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 /* Items Preview Cell */
@@ -622,14 +872,14 @@
   background: #f1f5f9;
   color: #475569;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 500;
   width: fit-content;
 }
 
 .itemsSummaryText {
   font-size: 0.76rem;
   color: #334155;
-  font-weight: 600;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -646,7 +896,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .paymentPaidCash {
@@ -659,7 +909,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .paymentPaidCard {
@@ -672,7 +922,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .paymentUnpaid {
@@ -685,7 +935,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 /* Order Status Badges */
@@ -699,7 +949,7 @@
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .statusPreparing {
@@ -712,7 +962,7 @@
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .statusReady {
@@ -725,7 +975,7 @@
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .statusCompleted {
@@ -738,7 +988,7 @@
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .statusCancelled {
@@ -751,7 +1001,7 @@
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .statusDot {
@@ -763,7 +1013,7 @@
 
 /* Amount & Action Button */
 .amountText {
-  font-weight: 900;
+  font-weight: 600;
   color: #059669;
   font-size: 0.88rem;
   letter-spacing: -0.01em;
@@ -779,7 +1029,7 @@
   border: 1px solid #e2e8f0;
   color: #334155;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1198,3 +1448,62 @@
   background: #15803d;
   transform: translateY(-1px);
 }
+
+/* ── Inline Single-line Order ID & Table Badge ── */
+.orderIdSingleLine {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+}
+
+/* ── Compact Inline Toolbar Metrics ── */
+.inlineMetricItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.74rem;
+}
+
+.inlineMetricLabel {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.inlineMetricVal {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+/* ── Read-Only Status Stepper Pills ── */
+.readOnlyStatusPill {
+  padding: 0.4rem 0.25rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: center;
+  user-select: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.readOnlyStatusPillActive {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border-color: #4f46e5 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+

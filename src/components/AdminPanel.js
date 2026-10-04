@@ -24,6 +24,7 @@ import StaffManager from './StaffManager';
 import ReportsSuite from './ReportsSuite';
 import KhataLedger from './KhataLedger';
 import SupportModal from './SupportModal';
+import CafeAICopilotChatbot from './CafeAICopilotChatbot';
 import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton } from './common/SkeletonLoader';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
@@ -45,6 +46,24 @@ const standardCategories = [
   { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino', 'tea'], icon: "Coffee", Component: Coffee },
 ];
 
+export const AVAILABLE_CATEGORY_ICONS = [
+  { id: 'UtensilsCrossed', label: 'Mains', Component: UtensilsCrossed },
+  { id: 'Pizza', label: 'Pizza', Component: Pizza },
+  { id: 'Sandwich', label: 'Burgers & Wraps', Component: Sandwich },
+  { id: 'Coffee', label: 'Coffee & Tea', Component: Coffee },
+  { id: 'Cake', label: 'Desserts', Component: Cake },
+  { id: 'GlassWater', label: 'Beverages', Component: GlassWater },
+  { id: 'Martini', label: 'Cocktails/Bar', Component: Martini },
+  { id: 'Cookie', label: 'Appetizers', Component: Cookie },
+  { id: 'Soup', label: 'Soups', Component: Soup },
+  { id: 'IceCream', label: 'Ice Cream', Component: IceCream },
+  { id: 'Sparkles', label: 'Specials', Component: Sparkles },
+  { id: 'Flame', label: 'Grill & Spicy', Component: Flame },
+  { id: 'ChefHat', label: 'Chef Specials', Component: ChefHat },
+  { id: 'Layers', label: 'Combos', Component: Layers },
+  { id: 'Star', label: 'Popular', Component: Star }
+];
+
 const CATEGORY_ICON_MAP = {
   UtensilsCrossed,
   Sparkles,
@@ -57,7 +76,11 @@ const CATEGORY_ICON_MAP = {
   Soup,
   Martini,
   IceCream,
-  Grid
+  Grid,
+  Flame,
+  ChefHat,
+  Layers,
+  Star
 };
 
 export const getCategoryIconComponent = (cat) => {
@@ -239,10 +262,8 @@ export default function AdminPanel() {
   const [categoryModalMode, setCategoryModalMode] = useState('add'); // 'add' or 'edit'
   const [editingCategoryData, setEditingCategoryData] = useState(null);
   const [newCatName, setNewCatName] = useState('');
-
-  // Menu Pagination State
-  const [menuPage, setMenuPage] = useState(1);
-  const menuPageSize = 8;
+  const [newCatIcon, setNewCatIcon] = useState('UtensilsCrossed');
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -1324,22 +1345,12 @@ export default function AdminPanel() {
     });
   }, [items, selectedCategory, categories, menuSearchQuery, dietaryFilter, stockFilter, sortOption]);
 
-  // Reset menu page when filters change
-  useEffect(() => {
-    setMenuPage(1);
-  }, [selectedCategory, menuSearchQuery, dietaryFilter, stockFilter, sortOption]);
-
-  const totalMenuPages = Math.max(1, Math.ceil(filteredMenuItems.length / menuPageSize));
-  const paginatedMenuItems = useMemo(() => {
-    const startIdx = (menuPage - 1) * menuPageSize;
-    return filteredMenuItems.slice(startIdx, startIdx + menuPageSize);
-  }, [filteredMenuItems, menuPage, menuPageSize]);
-
   // Category Manager Handlers (Add, Edit, Delete)
   const handleOpenAddCategoryModal = () => {
     setCategoryModalMode('add');
     setEditingCategoryData(null);
     setNewCatName('');
+    setNewCatIcon('UtensilsCrossed');
     setIsCategoryModalOpen(true);
   };
 
@@ -1348,7 +1359,47 @@ export default function AdminPanel() {
     setCategoryModalMode('edit');
     setEditingCategoryData(cat);
     setNewCatName(cat.name);
+    setNewCatIcon(cat.icon || 'UtensilsCrossed');
     setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenDeleteCategoryModal = (cat, e) => {
+    if (e) e.stopPropagation();
+    if (cat.id === 'all') {
+      toast.error('Cannot delete "All Items" master catalog tab');
+      return;
+    }
+    setCategoryToDelete(cat);
+  };
+
+  const handleExecuteDeleteCategory = () => {
+    if (!categoryToDelete) return;
+    const catId = categoryToDelete.id;
+    const catName = categoryToDelete.name || catId;
+
+    const affectedDishes = items.filter(i => itemMatchesCategory(i, catId, categories));
+
+    // Safely reassign all dishes belonging to this category to 'uncategorized' so they are NEVER lost
+    setItems(prev => prev.map(item => {
+      if (itemMatchesCategory(item, catId, categories) || item.category === catId || item.category === catName) {
+        const updatedItem = { ...item, category: 'uncategorized' };
+        if (item._id && !item._id.startsWith('dish_')) {
+          const token = localStorage.getItem('token');
+          axios.put(`${API}/menu/${item._id}`, { category: 'uncategorized' }, { headers: { 'x-auth-token': token } }).catch(e => {});
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
+
+    const updated = categories.filter(c => c.id !== catId);
+    setCategories(updated);
+    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+    if (selectedCategory === catId) {
+      setSelectedCategory('all');
+    }
+    setCategoryToDelete(null);
+    toast.success(`Category "${catName}" deleted. ${affectedDishes.length} dish(es) preserved in "All Items".`);
   };
 
   const handleSaveCategory = (e) => {
@@ -1359,6 +1410,8 @@ export default function AdminPanel() {
       return;
     }
 
+    const selectedIconComp = CATEGORY_ICON_MAP[newCatIcon] || UtensilsCrossed;
+
     if (categoryModalMode === 'add') {
       const id = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       if (categories.some(c => c.id === id || c.name.toLowerCase() === cleanName.toLowerCase())) {
@@ -1368,14 +1421,15 @@ export default function AdminPanel() {
       const newCat = {
         id,
         name: cleanName,
-        icon: 'UtensilsCrossed',
-        Component: UtensilsCrossed,
+        icon: newCatIcon,
+        Component: selectedIconComp,
         aliases: [id, cleanName.toLowerCase()],
         isCustom: true
       };
       const updated = [...categories, newCat];
       setCategories(updated);
       localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+      setSelectedCategory(id);
       toast.success(`Category "${cleanName}" created!`);
     } else if (categoryModalMode === 'edit' && editingCategoryData) {
       const oldId = editingCategoryData.id;
@@ -1386,6 +1440,8 @@ export default function AdminPanel() {
           return {
             ...c,
             name: cleanName,
+            icon: newCatIcon,
+            Component: selectedIconComp,
             aliases: Array.from(new Set([...(c.aliases || []), cleanName.toLowerCase(), oldName.toLowerCase(), oldId]))
           };
         }
@@ -1411,44 +1467,6 @@ export default function AdminPanel() {
     }
     setIsCategoryModalOpen(false);
     setNewCatName('');
-  };
-
-  const handleDeleteCategory = (catId, e) => {
-    if (e) e.stopPropagation();
-    if (catId === 'all') {
-      toast.error('Cannot delete "All Items" master catalog tab');
-      return;
-    }
-    const catToDelete = categories.find(c => c.id === catId);
-    const catName = catToDelete?.name || catId;
-
-    const affectedDishes = items.filter(i => itemMatchesCategory(i, catId, categories));
-    const confirmMsg = affectedDishes.length > 0
-      ? `Delete category "${catName}"?\n\n${affectedDishes.length} dish(es) in this category will be preserved safely in "All Items" as Uncategorized. You can reassign them to any category anytime.`
-      : `Are you sure you want to delete category "${catName}"?`;
-
-    if (!window.confirm(confirmMsg)) return;
-
-    // Safely reassign all dishes belonging to this category to 'uncategorized' so they are NEVER lost
-    setItems(prev => prev.map(item => {
-      if (itemMatchesCategory(item, catId, categories) || item.category === catId || item.category === catName) {
-        const updatedItem = { ...item, category: 'uncategorized' };
-        if (item._id && !item._id.startsWith('dish_')) {
-          const token = localStorage.getItem('token');
-          axios.put(`${API}/menu/${item._id}`, { category: 'uncategorized' }, { headers: { 'x-auth-token': token } }).catch(e => {});
-        }
-        return updatedItem;
-      }
-      return item;
-    }));
-
-    const updated = categories.filter(c => c.id !== catId);
-    setCategories(updated);
-    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
-    if (selectedCategory === catId) {
-      setSelectedCategory('all');
-    }
-    toast.success(`Category "${catName}" deleted. ${affectedDishes.length} dish(es) preserved in "All Items".`);
   };
 
   const handleSaveTenantSettings = async (updatedSettings) => {
@@ -3543,50 +3561,28 @@ export default function AdminPanel() {
                     return (
                       <div
                         key={cat.id}
-                        style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}
+                        className={`${styles.categoryPill} ${isActive ? styles.activeCategoryPill : ''}`}
+                        onClick={() => setSelectedCategory(cat.id)}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCategory(cat.id)}
-                          className={`${styles.categoryPill} ${isActive ? styles.activeCategoryPill : ''}`}
-                        >
-                          <IconComp size={15} />
-                          <span>{cat.name}</span>
-                          <span className={styles.catCountBadge}>{count}</span>
-                        </button>
+                        <IconComp size={15} />
+                        <span>{cat.name}</span>
+                        <span className={styles.catCountBadge}>{count}</span>
+
                         {cat.id !== 'all' && (
-                          <div style={{ display: 'inline-flex', gap: 2, marginLeft: 2 }}>
+                          <div className={styles.categoryPillActions}>
                             <button
                               type="button"
                               onClick={(e) => handleOpenEditCategoryModal(cat, e)}
-                              title="Edit Category Name"
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                color: '#94a3b8',
-                                cursor: 'pointer',
-                                padding: '2px 4px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
+                              title={`Edit "${cat.name}" category`}
+                              className={styles.catActionBtn}
                             >
                               <Edit3 size={11} />
                             </button>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteCategory(cat.id, e)}
-                              title="Delete Category"
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                color: '#f87171',
-                                cursor: 'pointer',
-                                padding: '2px 4px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
+                              onClick={(e) => handleOpenDeleteCategoryModal(cat, e)}
+                              title={`Delete "${cat.name}" category`}
+                              className={`${styles.catActionBtn} ${styles.catDeleteBtn}`}
                             >
                               <Trash2 size={11} />
                             </button>
@@ -3598,21 +3594,7 @@ export default function AdminPanel() {
                   <button
                     type="button"
                     onClick={handleOpenAddCategoryModal}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '7px 14px',
-                      borderRadius: '100px',
-                      border: '1px dashed #4f46e5',
-                      background: '#eef2ff',
-                      color: '#4f46e5',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      flexShrink: 0
-                    }}
+                    className={styles.addCategoryBtn}
                   >
                     <Plus size={14} /> Add Category
                   </button>
@@ -3620,7 +3602,7 @@ export default function AdminPanel() {
 
                 {/* Items Grid */}
                 <div className={styles.menuItemsGrid}>
-                  {paginatedMenuItems.map((item) => {
+                  {filteredMenuItems.map((item) => {
                     const isSelected = selectedItemIds.includes(item._id);
                     const discount = item.discount || {};
                     const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -3637,7 +3619,7 @@ export default function AdminPanel() {
                     return (
                       <motion.div
                         key={item._id}
-                        whileHover={{ y: -4 }}
+                        whileHover={{ y: -3 }}
                         className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
                       >
                         <div className={styles.dishImageWrap}>
@@ -3653,7 +3635,7 @@ export default function AdminPanel() {
                               onClick={() => handleToggleSelectItem(item._id)}
                               className={styles.selectCheckboxBtn}
                             >
-                              {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
+                              {isSelected ? <CheckSquare size={16} color="#4f46e5" /> : <Square size={16} color="#ffffff" />}
                             </button>
                             <div className={styles.dishBadges}>
                               <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
@@ -3663,11 +3645,11 @@ export default function AdminPanel() {
                                 <span style={{
                                   background: '#ef4444',
                                   color: '#ffffff',
-                                  fontSize: '10px',
-                                  fontWeight: 800,
-                                  padding: '3px 8px',
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
                                   borderRadius: '100px',
-                                  letterSpacing: '0.04em'
+                                  letterSpacing: '0.03em'
                                 }}>
                                   {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
                                 </span>
@@ -3685,8 +3667,8 @@ export default function AdminPanel() {
                             <div style={{ textAlign: 'right' }}>
                               {hasDiscount ? (
                                 <div>
-                                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a' }}>₹{discountedPrice}</span>
-                                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '6px' }}>₹{item.price}</span>
+                                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a' }}>₹{discountedPrice}</span>
+                                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '4px' }}>₹{item.price}</span>
                                 </div>
                               ) : (
                                 <div className={styles.dishPrice}>
@@ -3695,14 +3677,14 @@ export default function AdminPanel() {
                               )}
                             </div>
                           </div>
-                          <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <div style={{ marginTop: '1px', marginBottom: '1px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                             {item.category === 'uncategorized' && (
-                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                              <span style={{ fontSize: '9px', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '1px 5px', borderRadius: '4px', border: '1px solid #fde68a' }}>
                                 ⚠️ Uncategorized
                               </span>
                             )}
                             {item.variants && item.variants.length > 0 && (
-                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
+                              <span style={{ fontSize: '9px', fontWeight: 700, color: '#4f46e5', background: '#eef2ff', padding: '1px 5px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
                                 {item.variants.length} Sizes/Options
                               </span>
                             )}
@@ -3710,71 +3692,72 @@ export default function AdminPanel() {
                           <p className={styles.dishDescription}>{item.description}</p>
 
                           {/* Stock Toggle & Quick Actions */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
                             <div
                               onClick={() => handleToggleItemAvailability(item)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+                              title={item.available ? "In Stock (Click to turn off)" : "Out of Stock (Click to turn on)"}
                             >
                               <div style={{
-                                width: 34,
-                                height: 18,
+                                width: 28,
+                                height: 16,
                                 borderRadius: 100,
                                 background: item.available ? '#10b981' : '#cbd5e1',
                                 position: 'relative',
                                 transition: 'background 0.2s ease'
                               }}>
                                 <div style={{
-                                  width: 14,
-                                  height: 14,
+                                  width: 12,
+                                  height: 12,
                                   borderRadius: '50%',
                                   background: '#ffffff',
                                   position: 'absolute',
                                   top: 2,
-                                  left: item.available ? 18 : 2,
+                                  left: item.available ? 14 : 2,
                                   transition: 'left 0.2s ease',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
                                 }} />
                               </div>
                             </div>
 
-                            <div style={{ display: 'flex', gap: 6 }}>
+                            <div style={{ display: 'flex', gap: 4 }}>
                               <button
                                 type="button"
                                 onClick={() => handleOpenEditDrawer(item)}
                                 style={{
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
+                                  padding: '4px 8px',
+                                  borderRadius: '5px',
                                   border: '1px solid #e2e8f0',
                                   background: '#ffffff',
                                   color: '#334155',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
+                                  fontSize: '10.5px',
+                                  fontWeight: 600,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 4,
+                                  gap: 3,
                                   cursor: 'pointer'
                                 }}
                               >
-                                <Edit3 size={12} /> Edit
+                                <Edit3 size={11} /> Edit
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setDeleteConfirmItem(item)}
                                 style={{
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
+                                  padding: '4px 8px',
+                                  borderRadius: '5px',
                                   border: '1px solid #fee2e2',
                                   background: '#fef2f2',
                                   color: '#ef4444',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
+                                  fontSize: '10.5px',
+                                  fontWeight: 600,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 4,
+                                  gap: 3,
                                   cursor: 'pointer'
                                 }}
                               >
-                                <Trash2 size={12} /> Delete
+                                <Trash2 size={11} /> Delete
                               </button>
                             </div>
                           </div>
@@ -3783,43 +3766,6 @@ export default function AdminPanel() {
                     );
                   })}
                 </div>
-
-                {/* Menu Pagination Controls */}
-                {totalMenuPages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '12px 18px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      Showing {((menuPage - 1) * menuPageSize) + 1} - {Math.min(menuPage * menuPageSize, filteredMenuItems.length)} of {filteredMenuItems.length} dishes
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        disabled={menuPage === 1}
-                        onClick={() => setMenuPage(p => Math.max(1, p - 1))}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === 1 ? '#f8fafc' : '#ffffff', color: menuPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === 1 ? 'not-allowed' : 'pointer' }}
-                      >
-                        Previous
-                      </button>
-                      {Array.from({ length: totalMenuPages }, (_, i) => i + 1).map(p => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setMenuPage(p)}
-                          style={{ minWidth: '32px', height: '32px', padding: '0 6px', borderRadius: '8px', border: 'none', background: menuPage === p ? '#4f46e5' : '#f1f5f9', color: menuPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        disabled={menuPage === totalMenuPages}
-                        onClick={() => setMenuPage(p => Math.min(totalMenuPages, p + 1))}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === totalMenuPages ? '#f8fafc' : '#ffffff', color: menuPage === totalMenuPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === totalMenuPages ? 'not-allowed' : 'pointer' }}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {filteredMenuItems.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
@@ -4762,7 +4708,7 @@ export default function AdminPanel() {
         )}
       </AnimatePresence>
 
-      {/* Category Manager Modal (Add / Rename Category) */}
+      {/* Category Manager Modal (Add / Edit Category) */}
       <AnimatePresence>
         {isCategoryModalOpen && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -4777,12 +4723,17 @@ export default function AdminPanel() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              style={{ position: 'relative', width: '92%', maxWidth: '440px', background: '#ffffff', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', zIndex: 10 }}
+              style={{ position: 'relative', width: '92%', maxWidth: '480px', background: '#ffffff', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', zIndex: 10 }}
             >
               <div style={{ padding: '18px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
-                  {categoryModalMode === 'add' ? 'Add New Category' : 'Rename Category'}
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {categoryModalMode === 'add' ? <Plus size={18} /> : <Edit3 size={18} />}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                    {categoryModalMode === 'add' ? 'Add New Category' : `Edit Category: ${editingCategoryData?.name || ''}`}
+                  </h3>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(false)}
@@ -4801,17 +4752,57 @@ export default function AdminPanel() {
                     type="text"
                     required
                     autoFocus
-                    placeholder="e.g. Starters, Milkshakes, Combos"
+                    placeholder="e.g. Starters, Milkshakes, Coolers, Breads"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '14px', outline: 'none', fontWeight: 600 }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '14px', outline: 'none', fontWeight: 600, color: '#0f172a' }}
                   />
                   <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#64748b' }}>
-                    This category will appear across your Menu Catalog, POS Terminal, and Table QR Menus.
+                    {categoryModalMode === 'edit'
+                      ? 'Renaming will automatically update all existing dishes linked to this category.'
+                      : 'This category will appear across your Menu Catalog, POS Terminal, and Table QR Menus.'}
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                    Select Category Icon
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                    {AVAILABLE_CATEGORY_ICONS.map((iconItem) => {
+                      const IconComponent = iconItem.Component;
+                      const isSelected = newCatIcon === iconItem.id;
+                      return (
+                        <button
+                          key={iconItem.id}
+                          type="button"
+                          onClick={() => setNewCatIcon(iconItem.id)}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                            padding: '8px 4px',
+                            borderRadius: '10px',
+                            border: isSelected ? '2px solid #4f46e5' : '1px solid #e2e8f0',
+                            background: isSelected ? '#eef2ff' : '#f8fafc',
+                            color: isSelected ? '#4f46e5' : '#64748b',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <IconComponent size={18} />
+                          <span style={{ fontSize: '10px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                            {iconItem.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
                   <button
                     type="button"
                     onClick={() => setIsCategoryModalOpen(false)}
@@ -4821,8 +4812,9 @@ export default function AdminPanel() {
                   </button>
                   <button
                     type="submit"
-                    style={{ padding: '9px 20px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }}
+                    style={{ padding: '9px 22px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)', display: 'flex', alignItems: 'center', gap: 6 }}
                   >
+                    {categoryModalMode === 'add' ? <Plus size={14} /> : <Check size={14} />}
                     {categoryModalMode === 'add' ? 'Create Category' : 'Save Changes'}
                   </button>
                 </div>
@@ -4831,6 +4823,75 @@ export default function AdminPanel() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Category Delete Confirmation Modal */}
+      <AnimatePresence>
+        {categoryToDelete && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCategoryToDelete(null)}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)' }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              style={{ position: 'relative', width: '92%', maxWidth: '440px', background: '#ffffff', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', zIndex: 10, padding: '24px' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Delete Category?
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                    Category: <strong style={{ color: '#0f172a' }}>{categoryToDelete.name}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: '12px 16px', border: '1px solid #e2e8f0', marginBottom: '1.25rem', fontSize: '12px', color: '#475569', lineHeight: 1.5 }}>
+                {(() => {
+                  const affectedCount = items.filter(i => itemMatchesCategory(i, categoryToDelete.id, categories)).length;
+                  if (affectedCount > 0) {
+                    return (
+                      <div>
+                        ⚠️ <strong>{affectedCount} dish(es)</strong> in this category will be preserved safely in <strong>"All Items"</strong> as Uncategorized. You can reassign them anytime.
+                      </div>
+                    );
+                  }
+                  return <div>This category has 0 dishes and will be safely removed from your menu.</div>;
+                })()}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setCategoryToDelete(null)}
+                  style={{ padding: '9px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#475569', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteDeleteCategory}
+                  style={{ padding: '9px 20px', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#ffffff', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                >
+                  <Trash2 size={14} /> Delete Category
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating 105B AI Copilot & Real-Time Issue Desk */}
+      <CafeAICopilotChatbot tenantInfo={tenantInfo} />
 
     </div>
   );

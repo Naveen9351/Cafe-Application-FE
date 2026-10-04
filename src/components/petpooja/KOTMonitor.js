@@ -9,6 +9,23 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './KOTMonitor.module.css';
 
+// Pipeline stage order for directional validation
+const STAGE_ORDER = {
+  pending: 0,
+  confirmed: 0,
+  preparing: 1,
+  ready: 2,
+  completed: 3,
+  served: 3
+};
+
+const STAGE_LABELS = {
+  pending: 'New Orders',
+  preparing: 'In Kitchen',
+  ready: 'Ready for Pass',
+  completed: 'Served (Completed)'
+};
+
 export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder, enableEstimatedPrepTime = false }) {
   const [viewMode, setViewMode] = useState('card'); // 'card' | 'table'
   const [tableStatusTab, setTableStatusTab] = useState('all'); // 'all', 'pending', 'preparing', 'ready', 'completed', 'cancelled'
@@ -21,6 +38,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const [prepTimeMinutes, setPrepTimeMinutes] = useState(20);
   const [orderToEdit, setOrderToEdit] = useState(null);
   const [editTimeMinutes, setEditTimeMinutes] = useState(20);
+
+  // Drag & Drop State
+  const [draggedOrder, setDraggedOrder] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [revertConfirmModal, setRevertConfirmModal] = useState(null);
 
   // Live Timer ticker: updates every second with proper lifecycle cleanup
   useEffect(() => {
@@ -78,6 +100,71 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
       ...(estimatedTime ? { estimatedTime } : {})
     } : o));
     if (onUpdateStatus) onUpdateStatus(orderId, newStatus, estimatedTime);
+  };
+
+  // Drag & Drop Handlers
+  const handleDragStart = (e, order) => {
+    setDraggedOrder(order);
+    e.dataTransfer.setData('text/plain', order._id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    setDraggedOrder(null);
+    setDragOverCol(null);
+  };
+
+  const handleDragOver = (e, colKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCol !== colKey) {
+      setDragOverCol(colKey);
+    }
+  };
+
+  const handleDragLeave = (e, colKey) => {
+    if (dragOverCol === colKey) {
+      setDragOverCol(null);
+    }
+  };
+
+  const handleDrop = (e, targetStatus) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    if (!draggedOrder) return;
+
+    const currentStatus = (draggedOrder.status || 'pending').toLowerCase();
+    const curStageIdx = STAGE_ORDER[currentStatus] ?? 0;
+    const tgtStageIdx = STAGE_ORDER[targetStatus] ?? 0;
+
+    if (currentStatus === targetStatus || (curStageIdx === tgtStageIdx && (currentStatus === 'completed' || currentStatus === 'served'))) {
+      setDraggedOrder(null);
+      return;
+    }
+
+    if (tgtStageIdx > curStageIdx) {
+      // Forward drag -> directly update status!
+      handleUpdateStage(draggedOrder._id, targetStatus);
+      toast.success(`Order #${draggedOrder.orderNumber} moved to ${STAGE_LABELS[targetStatus]}`);
+    } else {
+      // Backward drag -> prompt with confirmation modal!
+      setRevertConfirmModal({
+        order: draggedOrder,
+        targetStatus,
+        sourceStatus: currentStatus,
+        sourceLabel: STAGE_LABELS[currentStatus] || currentStatus,
+        targetLabel: STAGE_LABELS[targetStatus] || targetStatus
+      });
+    }
+    setDraggedOrder(null);
+  };
+
+  const handleConfirmRevert = () => {
+    if (!revertConfirmModal) return;
+    const { order, targetStatus, targetLabel } = revertConfirmModal;
+    handleUpdateStage(order._id, targetStatus);
+    toast.success(`Order #${order.orderNumber} reverted back to ${targetLabel}`);
+    setRevertConfirmModal(null);
   };
 
   const handleConfirmPrep = () => {
@@ -211,11 +298,16 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
           </div>
 
           {viewMode === 'card' ? (
-            /* 4-STAGE KANBAN COLUMNS */
+            /* 4-STAGE KANBAN COLUMNS WITH DRAG & DROP */
             <div className={styles.kanbanGrid}>
             
             {/* COLUMN 1: NEW ORDERS */}
-            <div className={styles.kanbanCol}>
+            <div 
+              className={`${styles.kanbanCol} ${dragOverCol === 'pending' ? styles.kanbanColDragOver : ''}`}
+              onDragOver={(e) => handleDragOver(e, 'pending')}
+              onDragLeave={(e) => handleDragLeave(e, 'pending')}
+              onDrop={(e) => handleDrop(e, 'pending')}
+            >
               <div className={`${styles.colHeader} ${styles.colBlue}`}>
                 <div className={styles.colTitleWrap}>
                   <span className={styles.colBullet}></span>
@@ -228,9 +320,17 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                 {newOrders.map(order => {
                   const elapsedMins = getElapsedMinutes(order.createdAt);
                   const isLate = elapsedMins >= 15;
+                  const isDraggingThis = draggedOrder?._id === order._id;
 
                   return (
-                    <div key={order._id} className={`${styles.ticketCard} ${styles.cardNew}`}>
+                    <div 
+                      key={order._id} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, order)}
+                      onDragEnd={handleDragEnd}
+                      className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardNew}`}
+                      title="Drag and drop to move between stages"
+                    >
                       <div className={styles.cardHeader}>
                         <div>
                           <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
@@ -242,7 +342,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           </span>
                           <button 
                             type="button"
-                            onClick={() => setOrderToDelete(order)}
+                            onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
                             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
                             title="Delete Order"
                           >
@@ -275,7 +375,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button 
                             type="button"
-                            onClick={() => handleUpdateStage(order._id, 'cancelled')}
+                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'cancelled'); }}
                             style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                             title="Cancel Order"
                           >
@@ -284,7 +384,8 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           <button 
                             type="button" 
                             className={styles.acceptPrepBtn}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (enableEstimatedPrepTime) {
                                 setOrderToPrep(order);
                                 setPrepTimeMinutes(order.estimatedTime || 20);
@@ -310,7 +411,12 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             </div>
 
             {/* COLUMN 2: IN KITCHEN (PREPARING) */}
-            <div className={styles.kanbanCol}>
+            <div 
+              className={`${styles.kanbanCol} ${dragOverCol === 'preparing' ? styles.kanbanColDragOver : ''}`}
+              onDragOver={(e) => handleDragOver(e, 'preparing')}
+              onDragLeave={(e) => handleDragLeave(e, 'preparing')}
+              onDrop={(e) => handleDrop(e, 'preparing')}
+            >
               <div className={`${styles.colHeader} ${styles.colAmber}`}>
                 <div className={styles.colTitleWrap}>
                   <span className={styles.colBullet}></span>
@@ -324,10 +430,17 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                   const targetMins = order.estimatedTime || 20;
                   const elapsedMins = getElapsedMinutes(order.createdAt);
                   const isLate = elapsedMins >= targetMins;
-                  const progressPct = Math.min(100, Math.round((elapsedMins / targetMins) * 100));
+                  const isDraggingThis = draggedOrder?._id === order._id;
 
                   return (
-                    <div key={order._id} className={`${styles.ticketCard} ${styles.cardPreparing}`}>
+                    <div 
+                      key={order._id} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, order)}
+                      onDragEnd={handleDragEnd}
+                      className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardPreparing}`}
+                      title="Drag and drop to move between stages"
+                    >
                       <div className={styles.cardHeader}>
                         <div>
                           <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
@@ -337,7 +450,8 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <span 
                               className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`} 
                               title="Click to edit cooking target time"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setOrderToEdit(order);
                                 setEditTimeMinutes(order.estimatedTime || 20);
                               }}
@@ -351,7 +465,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           )}
                           <button 
                             type="button"
-                            onClick={() => handleDelete(order._id)}
+                            onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
                             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
                             title="Delete Order"
                           >
@@ -384,7 +498,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button 
                             type="button"
-                            onClick={() => handleUpdateStage(order._id, 'cancelled')}
+                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'cancelled'); }}
                             style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                             title="Cancel Order"
                           >
@@ -393,7 +507,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           <button 
                             type="button" 
                             className={styles.markReadyBtn}
-                            onClick={() => handleUpdateStage(order._id, 'ready')}
+                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'ready'); }}
                           >
                             Mark Ready ✔
                           </button>
@@ -411,7 +525,12 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             </div>
 
             {/* COLUMN 3: READY FOR PICKUP */}
-            <div className={styles.kanbanCol}>
+            <div 
+              className={`${styles.kanbanCol} ${dragOverCol === 'ready' ? styles.kanbanColDragOver : ''}`}
+              onDragOver={(e) => handleDragOver(e, 'ready')}
+              onDragLeave={(e) => handleDragLeave(e, 'ready')}
+              onDrop={(e) => handleDrop(e, 'ready')}
+            >
               <div className={`${styles.colHeader} ${styles.colGreen}`}>
                 <div className={styles.colTitleWrap}>
                   <span className={styles.colBullet}></span>
@@ -421,52 +540,62 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
               </div>
 
               <div className={styles.ticketsList}>
-                {readyOrders.map(order => (
-                  <div key={order._id} className={`${styles.ticketCard} ${styles.cardReady}`}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                        <div className={styles.stationTag}>{order.channel} • Ready to Serve</div>
+                {readyOrders.map(order => {
+                  const isDraggingThis = draggedOrder?._id === order._id;
+                  return (
+                    <div 
+                      key={order._id} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, order)}
+                      onDragEnd={handleDragEnd}
+                      className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardReady}`}
+                      title="Drag and drop to move between stages"
+                    >
+                      <div className={styles.cardHeader}>
+                        <div>
+                          <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                          <div className={styles.stationTag}>{order.channel} • Ready to Serve</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={`${styles.timerBadge} ${styles.timerReady}`}>
+                            <Check size={12} /> Plated
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                            title="Delete Order"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className={`${styles.timerBadge} ${styles.timerReady}`}>
-                          <Check size={12} /> Plated
-                        </span>
+
+                      <div className={styles.orderItems}>
+                        {order.items.map((it, i) => (
+                          <div key={i} className={styles.itemRow}>
+                            <div className={styles.itemMain}>
+                              <span className={styles.itemName}>{it.name}</span>
+                              {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                            </div>
+                            <span className={styles.itemQty}>x{it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className={styles.cardFooter}>
+                        <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
                         <button 
-                          type="button"
-                          onClick={() => setOrderToDelete(order)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                          title="Delete Order"
+                          type="button" 
+                          className={styles.completeOrderBtn}
+                          onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'completed'); }}
                         >
-                          <Trash2 size={15} />
+                          Served to Guest ✓
                         </button>
                       </div>
                     </div>
-
-                    <div className={styles.orderItems}>
-                      {order.items.map((it, i) => (
-                        <div key={i} className={styles.itemRow}>
-                          <div className={styles.itemMain}>
-                            <span className={styles.itemName}>{it.name}</span>
-                            {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
-                          </div>
-                          <span className={styles.itemQty}>x{it.quantity}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
-                      <button 
-                        type="button" 
-                        className={styles.completeOrderBtn}
-                        onClick={() => handleUpdateStage(order._id, 'completed')}
-                      >
-                        Served to Guest ✓
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {readyOrders.length === 0 && (
                   <div className={styles.emptyCol}>
                     <p>No dishes waiting on expo counter</p>
@@ -476,7 +605,12 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             </div>
 
             {/* COLUMN 4: SERVED / COMPLETED */}
-            <div className={styles.kanbanCol}>
+            <div 
+              className={`${styles.kanbanCol} ${dragOverCol === 'completed' ? styles.kanbanColDragOver : ''}`}
+              onDragOver={(e) => handleDragOver(e, 'completed')}
+              onDragLeave={(e) => handleDragLeave(e, 'completed')}
+              onDrop={(e) => handleDrop(e, 'completed')}
+            >
               <div className={`${styles.colHeader} ${styles.colGray}`}>
                 <div className={styles.colTitleWrap}>
                   <span className={styles.colBullet}></span>
@@ -486,42 +620,52 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
               </div>
 
               <div className={styles.ticketsList}>
-                {servedOrders.slice(0, 10).map(order => (
-                  <div key={order._id} className={`${styles.ticketCard} ${styles.cardServed}`}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                        <div className={styles.stationTag}>{order.channel} • Completed</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className={styles.completedPill}>Delivered</span>
-                        <button 
-                          type="button"
-                          onClick={() => setOrderToDelete(order)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2 }}
-                          title="Delete Order"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className={styles.orderItems}>
-                      {order.items.map((it, i) => (
-                        <div key={i} className={styles.itemRow}>
-                          <div className={styles.itemMain}>
-                            <span className={styles.itemName}>{it.name}</span>
-                          </div>
-                          <span className={styles.itemQty}>x{it.quantity}</span>
+                {servedOrders.map(order => {
+                  const isDraggingThis = draggedOrder?._id === order._id;
+                  return (
+                    <div 
+                      key={order._id} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, order)}
+                      onDragEnd={handleDragEnd}
+                      className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardServed}`}
+                      title="Drag backwards if this was served by mistake"
+                    >
+                      <div className={styles.cardHeader}>
+                        <div>
+                          <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                          <div className={styles.stationTag}>{order.channel} • Completed</div>
                         </div>
-                      ))}
-                    </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={styles.completedPill}>Delivered</span>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2 }}
+                            title="Delete Order"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
 
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                      <div className={styles.orderItems}>
+                        {order.items.map((it, i) => (
+                          <div key={i} className={styles.itemRow}>
+                            <div className={styles.itemMain}>
+                              <span className={styles.itemName}>{it.name}</span>
+                            </div>
+                            <span className={styles.itemQty}>x{it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className={styles.cardFooter}>
+                        <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {servedOrders.length === 0 && (
                   <div className={styles.emptyCol}>
                     <p>Completed orders will appear here</p>
@@ -616,7 +760,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                       <th>Table / Channel</th>
                       <th>Customer</th>
                       <th>Items & Modifiers</th>
-                      <th>Placed & Elapsed</th>
+                      <th>Date & Time</th>
                       <th>Total</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
@@ -681,13 +825,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                               </div>
                             </td>
                             <td>
-                              <div style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 600 }}>
-                                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <div style={{ fontSize: '0.78rem', color: '#0f172a', fontWeight: 700 }}>
+                                {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                               </div>
-                              <div style={{ marginTop: '2px' }}>
-                                <span className={`${styles.timerBadge} ${isLate && !isDone ? styles.timerLate : ''}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
-                                  <Clock size={10} /> {formatElapsedTime(order.createdAt)}
-                                </span>
+                              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, marginTop: '1px' }}>
+                                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </div>
                             </td>
                             <td>
@@ -1231,6 +1373,61 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
           </div>
         )}
       </AnimatePresence>
+
+      {/* REVERT / BACKWARD DRAG CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {revertConfirmModal && (
+          <div 
+            className={styles.revertModalOverlay} 
+            onClick={() => setRevertConfirmModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className={styles.revertModalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.revertModalHeader}>
+                <div className={styles.revertModalIcon}>
+                  <RotateCcw size={22} />
+                </div>
+                <div>
+                  <h3 className={styles.revertModalTitle}>Revert Order Stage?</h3>
+                  <span className={styles.revertModalSubtitle}>
+                    Order #{revertConfirmModal.order.orderNumber} • Table {revertConfirmModal.order.tableNumber}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.revertModalBody}>
+                You are dragging this order backward from <strong>{revertConfirmModal.sourceLabel}</strong> back to <strong>{revertConfirmModal.targetLabel}</strong>.
+                <br /><br />
+                Do you really want to drag back this order?
+              </div>
+
+              <div className={styles.revertModalActions}>
+                <button
+                  type="button"
+                  className={styles.revertCancelBtn}
+                  onClick={() => setRevertConfirmModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.revertConfirmBtn}
+                  onClick={handleConfirmRevert}
+                >
+                  <RotateCcw size={14} /> Yes, Revert Stage
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

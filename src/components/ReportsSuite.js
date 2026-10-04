@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import styles from './ReportsSuite.module.css';
+import ExecutiveReportModal from './ExecutiveReportModal';
 
 export default function ReportsSuite({ initialOrders = [] }) {
   const [orders, setOrders] = useState(() => (Array.isArray(initialOrders) && initialOrders.length > 0 ? initialOrders : []));
@@ -32,6 +33,8 @@ export default function ReportsSuite({ initialOrders = [] }) {
   const [orderSearch, setOrderSearch] = useState('');
   const [tableFilter, setTableFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isExecutiveReportOpen, setIsExecutiveReportOpen] = useState(false);
+  const [tenantInfo, setTenantInfo] = useState(null);
 
   // Pagination State
   const [reportsPage, setReportsPage] = useState(1);
@@ -163,7 +166,7 @@ export default function ReportsSuite({ initialOrders = [] }) {
     .slice(0, 5);
 
   const handlePrint = () => {
-    window.print();
+    setIsExecutiveReportOpen(true);
   };
 
   return (
@@ -190,9 +193,19 @@ export default function ReportsSuite({ initialOrders = [] }) {
             </button>
           ))}
 
-          <button type="button" className={styles.printBtn} onClick={handlePrint}>
+          <button
+            type="button"
+            className={styles.printBtn}
+            onClick={() => setIsExecutiveReportOpen(true)}
+            style={{
+              backgroundColor: '#eff6ff',
+              borderColor: '#bfdbfe',
+              color: '#1d4ed8',
+              fontWeight: 800
+            }}
+          >
             <Printer size={15} />
-            Print Report
+            Executive PDF Report
           </button>
         </div>
       </div>
@@ -727,6 +740,25 @@ export default function ReportsSuite({ initialOrders = [] }) {
           </div>
         );
       })()}
+
+      {/* Executive PDF & 105B AI Report Modal */}
+      <ExecutiveReportModal
+        isOpen={isExecutiveReportOpen}
+        onClose={() => setIsExecutiveReportOpen(false)}
+        timeFilter={timeFilter}
+        initialData={{
+          metrics: {
+            totalGrossRevenue,
+            totalOrders: totalOrdersCount,
+            avgTicketSize,
+            outstandingKhata,
+            paymentBreakdown,
+            topDishes
+          },
+          completedOrders,
+          businessName: tenantInfo?.businessName || tenantInfo?.name || 'SERVIQ Partner Cafe'
+        }}
+      />
     </div>
   );
 }
