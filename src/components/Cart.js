@@ -24,6 +24,9 @@ import {
   ArrowRight,
   FileText
 } from "lucide-react";
+import TableBadge from "./common/TableBadge";
+import TrackOrderBadge from "./common/TrackOrderBadge";
+import CustomerBottomNav from "./common/CustomerBottomNav";
 import { motion, AnimatePresence } from "framer-motion";
 import CustomerVerificationModal from "./CustomerVerificationModal";
 import { FssaiDietaryBadge } from "./DishDetailsModal";
@@ -226,6 +229,10 @@ export default function Cart() {
           prevSession.push(data._id);
         }
         localStorage.setItem('serviq_session_orders', JSON.stringify(prevSession));
+
+        const prevHistory = JSON.parse(localStorage.getItem('serviq_order_history') || '[]');
+        const updatedHistory = [data, ...prevHistory.filter(o => o && o._id !== data._id)];
+        localStorage.setItem('serviq_order_history', JSON.stringify(updatedHistory));
       } catch (e) {}
 
       setItems([]);
@@ -247,101 +254,132 @@ export default function Cart() {
     <div className={styles.page} style={{ backgroundColor: theme.bgPage, color: theme.textMain }}>
       <Toaster position="top-center" />
 
-      <div className={styles.appContainer} style={{ backgroundColor: theme.bgContainer, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}` }}>
-        {/* Top Nav */}
-        <div className={styles.topNavBar}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.92 }}
-            onClick={() => step === 1 ? navigate(-1) : setStep(1)}
-            className={styles.backBtn}
-            style={{ color: theme.textMain, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9' }}
-          >
-            <ChevronLeft size={18} strokeWidth={2.5} />
-            <span>{step === 1 ? "Back to Menu" : "Review Cart"}</span>
-          </motion.button>
+      <div
+        className={styles.appContainer}
+        style={{
+          width: '100%',
+          maxWidth: '520px',
+          backgroundColor: theme.bgContainer,
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          paddingBottom: '6rem',
+          boxSizing: 'border-box',
+          borderLeft: `1px solid ${theme.border}`,
+          borderRight: `1px solid ${theme.border}`
+        }}
+      >
+        {/* Top Sticky Header */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 900,
+            backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(16px)',
+            borderBottom: `1px solid ${theme.border}`,
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}
+        >
+          {/* Screen Title & Icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {step === 2 && (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setStep(1)}
+                style={{
+                  background: isDarkMode ? 'rgba(255,255,255,0.08)' : '#f1f5f9',
+                  border: 'none',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: theme.textMain,
+                  marginRight: '-2px'
+                }}
+                title="Back to Cart Items"
+              >
+                <ChevronLeft size={18} strokeWidth={2.5} />
+              </motion.button>
+            )}
+            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {step === 1 ? <ShoppingBag size={18} /> : <Utensils size={18} />}
+            </div>
+            <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.2px' }}>
+              {step === 1 ? "Your Cart" : "Confirm Order"}
+            </h1>
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {tableNumber && (
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: '800',
-                padding: '4px 10px',
-                borderRadius: '100px',
-                backgroundColor: `${theme.accent}14`,
-                color: theme.accent,
-                border: `1px solid ${theme.accent}33`
-              }}>
-                Table #{tableNumber}
-              </span>
-            )}
+            <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} />
 
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               style={{
-                background: isDarkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9',
+                background: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
                 border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '34px',
-                height: '34px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%'
               }}
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              {isDarkMode ? <Sun size={17} color="#fbbe21" /> : <Moon size={17} color="#475569" />}
+              {isDarkMode ? <Sun size={16} color="#fbbe21" /> : <Moon size={16} color="#475569" />}
             </button>
           </div>
         </div>
 
-        {/* Page Title */}
-        <header className={styles.header}>
-          <h1 className={styles.title} style={{ color: theme.textMain }}>
-            {step === 1 ? "Your Cart" : "Confirm Order"}
-          </h1>
-          <p className={styles.subtitle} style={{ color: theme.textMuted }}>
-            {step === 1 ? `Review your delicious selection (${cartTotalItems} items)` : "Review details & confirm your dining order"}
-          </p>
-        </header>
+        {/* Cart Content Body */}
+        <div style={{ padding: '16px 18px 0 18px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
+          {/* Sleek Steps Progress Indicator - Only shown when items exist */}
+          {items.length > 0 && (
+            <div className={styles.stepsContainer} style={{ margin: 0, padding: 0 }}>
+              <div
+                className={styles.stepPill}
+                onClick={() => setStep(1)}
+                style={{
+                  backgroundColor: step === 1 ? theme.accent : (isDarkMode ? '#241e18' : '#f1f5f9'),
+                  color: step === 1 ? '#ffffff' : theme.textMuted,
+                  boxShadow: step === 1 ? `0 4px 14px ${theme.accentGlow}` : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <ShoppingBag size={14} />
+                <span>1. Cart Items</span>
+              </div>
 
-        {/* Sleek Steps Progress Indicator */}
-        <div className={styles.stepsContainer}>
-          <div
-            className={styles.stepPill}
-            onClick={() => setStep(1)}
-            style={{
-              backgroundColor: step === 1 ? theme.accent : (isDarkMode ? '#241e18' : '#f1f5f9'),
-              color: step === 1 ? '#ffffff' : theme.textMuted,
-              boxShadow: step === 1 ? `0 4px 14px ${theme.accentGlow}` : 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <ShoppingBag size={14} />
-            <span>1. Cart Items</span>
-          </div>
+              <div className={styles.stepLine} style={{ backgroundColor: step === 2 ? theme.accent : theme.border }} />
 
-          <div className={styles.stepLine} style={{ backgroundColor: step === 2 ? theme.accent : theme.border }} />
-
-          <div
-            className={styles.stepPill}
-            onClick={() => {
-              if (items.length > 0) {
-                handleProceedToCheckout();
-              }
-            }}
-            style={{
-              backgroundColor: step === 2 ? theme.accent : (isDarkMode ? '#241e18' : '#f1f5f9'),
-              color: step === 2 ? '#ffffff' : theme.textMuted,
-              boxShadow: step === 2 ? `0 4px 14px ${theme.accentGlow}` : 'none',
-              cursor: items.length > 0 ? 'pointer' : 'default'
-            }}
-          >
-            <Utensils size={14} />
-            <span>2. Confirm Order</span>
-          </div>
-        </div>
+              <div
+                className={styles.stepPill}
+                onClick={() => {
+                  if (items.length > 0) {
+                    handleProceedToCheckout();
+                  }
+                }}
+                style={{
+                  backgroundColor: step === 2 ? theme.accent : (isDarkMode ? '#241e18' : '#f1f5f9'),
+                  color: step === 2 ? '#ffffff' : theme.textMuted,
+                  boxShadow: step === 2 ? `0 4px 14px ${theme.accentGlow}` : 'none',
+                  cursor: items.length > 0 ? 'pointer' : 'default'
+                }}
+              >
+                <Utensils size={14} />
+                <span>2. Confirm Order</span>
+              </div>
+            </div>
+          )}
 
         <AnimatePresence
           mode="wait"
@@ -356,6 +394,15 @@ export default function Cart() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={styles.empty}
+              style={{
+                flex: 1,
+                minHeight: 'calc(100vh - 180px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 'auto 0'
+              }}
             >
               <ShoppingBag size={64} className={styles.emptyIcon} color={theme.accent} />
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: theme.textMain, margin: '0 0 6px' }}>Your cart is empty</h3>
@@ -716,6 +763,7 @@ export default function Cart() {
             Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
           </p>
         </footer>
+        </div>
       </div>
 
       {/* Online Payment Animation Modal */}
@@ -754,6 +802,15 @@ export default function Cart() {
         onClose={() => setIsVerificationOpen(false)}
         onVerified={handleVerificationSuccess}
         initialName={customer?.name || ''}
+      />
+
+      {/* Customer Bottom Navigation Bar */}
+      <CustomerBottomNav
+        tableNumber={tableNumber}
+        tenantId={tenantInfo?.tenantId || ''}
+        tenantInfo={tenantInfo}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
     </div>
   );

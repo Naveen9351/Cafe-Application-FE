@@ -7,7 +7,10 @@ export default function RestaurantCafeLottieLoader({
   tableNumber = "1",
   cafeLogo = null,
   cafeInitials = "CA",
-  isDarkMode = false
+  isDarkMode = false,
+  compact = false,
+  title = "",
+  subtitle = ""
 }) {
   const accent = '#ea580c'; // Vibrant warm culinary orange
   const textMain = isDarkMode ? '#f8fafc' : '#0f172a';
@@ -21,9 +24,9 @@ export default function RestaurantCafeLottieLoader({
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 'calc(100vh - 140px)',
+      minHeight: compact ? '240px' : 'calc(100vh - 140px)',
       width: '100%',
-      padding: '2rem 1.5rem',
+      padding: compact ? '1.5rem 1rem' : '2rem 1.5rem',
       boxSizing: 'border-box',
       position: 'relative',
       overflow: 'hidden'
@@ -37,8 +40,8 @@ export default function RestaurantCafeLottieLoader({
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         style={{
           position: 'absolute',
-          width: '280px',
-          height: '280px',
+          width: compact ? '180px' : '280px',
+          height: compact ? '180px' : '280px',
           borderRadius: '50%',
           background: `radial-gradient(circle, rgba(234, 88, 12, 0.22) 0%, rgba(245, 158, 11, 0.08) 50%, transparent 70%)`,
           pointerEvents: 'none',
@@ -49,12 +52,12 @@ export default function RestaurantCafeLottieLoader({
       {/* Main Animated Culinary Illustration Card */}
       <div style={{
         position: 'relative',
-        width: 170,
-        height: 170,
+        width: compact ? 130 : 170,
+        height: compact ? 130 : 170,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: '1.75rem',
+        marginBottom: compact ? '1rem' : '1.75rem',
         zIndex: 1
       }}>
         {/* Floating Steam Waves */}
