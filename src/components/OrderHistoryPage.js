@@ -187,12 +187,20 @@ export default function OrderHistoryPage() {
     fetchHistory();
   }, [phone, tableNumber, tenantId]);
 
-  // Filtered orders
+  const isOrderActive = (ord) => {
+    const s = String(ord?.status || 'pending').toLowerCase();
+    return ['pending', 'confirmed', 'preparing', 'ready'].includes(s);
+  };
+
+  const activeCount = useMemo(() => {
+    return orders.filter(isOrderActive).length;
+  }, [orders]);
+
+  // Filtered orders (All Orders vs Active Orders)
   const filteredOrders = useMemo(() => {
     return orders.filter(ord => {
-      const isActive = ['pending', 'confirmed', 'preparing', 'ready'].includes(ord.status) && ord.paymentStatus !== 'paid';
+      const isActive = isOrderActive(ord);
       if (filter === 'active' && !isActive) return false;
-      if (filter === 'completed' && isActive) return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -286,10 +294,12 @@ export default function OrderHistoryPage() {
           backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
           backdropFilter: 'blur(16px)',
           borderBottom: `1px solid ${theme.border}`,
-          padding: '12px 16px',
+          padding: '0.75rem 1rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '10px'
+          gap: '10px',
+          boxSizing: 'border-box',
+          width: '100%'
         }}>
           {/* Top Bar Row */}
           <div style={{
@@ -299,16 +309,16 @@ export default function OrderHistoryPage() {
             width: '100%'
           }}>
             {/* Screen Title & Icon */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Receipt size={18} />
               </div>
-              <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.2px' }}>
-                Order History
+              <h1 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: theme.textMain, letterSpacing: '-0.2px', lineHeight: 1.2 }}>
+                Orders
               </h1>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={fetchHistory}
@@ -323,13 +333,14 @@ export default function OrderHistoryPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: theme.textMuted
+                  color: theme.textMuted,
+                  padding: 0
                 }}
               >
                 <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
               </motion.button>
 
-              <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} />
+              <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} style={{ padding: '4px 9px', fontSize: '0.8rem' }} />
 
               <button
                 onClick={() => setIsDarkMode(!isDarkMode)}
@@ -342,7 +353,8 @@ export default function OrderHistoryPage() {
                   justifyContent: 'center',
                   width: '32px',
                   height: '32px',
-                  borderRadius: '50%'
+                  borderRadius: '50%',
+                  padding: 0
                 }}
                 title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               >
@@ -353,34 +365,120 @@ export default function OrderHistoryPage() {
 
           {/* Filter & Search Bar Section - Only rendered when data exists, full width underneath */}
           {!loading && orders.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', paddingTop: '4px' }}>
-              {/* Filter Tabs */}
-              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '2px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', paddingTop: '2px' }}>
+              {/* Unmistakable Mobile Tab Navigation Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  width: 'calc(100% + 2rem)',
+                  margin: '0 -1rem',
+                  borderBottom: `2px solid ${theme.border}`,
+                  backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+                  position: 'relative',
+                  boxSizing: 'border-box'
+                }}
+              >
                 {[
-                  { key: 'all', label: 'All Orders' },
-                  { key: 'active', label: 'Active / Cooking' },
-                  { key: 'completed', label: 'Completed' }
-                ].map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setFilter(tab.key)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: '100px',
-                      fontSize: '0.76rem',
-                      fontWeight: 850,
-                      border: 'none',
-                      cursor: 'pointer',
-                      backgroundColor: filter === tab.key ? theme.accent : (isDarkMode ? '#241c14' : '#f1f5f9'),
-                      color: filter === tab.key ? '#ffffff' : theme.textMuted,
-                      boxShadow: filter === tab.key ? '0 3px 10px rgba(234, 88, 12, 0.28)' : 'none',
-                      transition: 'all 0.2s ease',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                  {
+                    key: 'all',
+                    label: 'All Orders',
+                    count: orders.length,
+                    icon: Receipt
+                  },
+                  {
+                    key: 'active',
+                    label: 'Active Orders',
+                    count: activeCount,
+                    icon: Flame
+                  }
+                ].map(tab => {
+                  const isActive = filter === tab.key;
+                  const Icon = tab.icon;
+
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setFilter(tab.key)}
+                      style={{
+                        flex: 1,
+                        padding: '12px 14px 14px 14px',
+                        background: isActive ? (isDarkMode ? 'rgba(234, 88, 12, 0.08)' : 'rgba(234, 88, 12, 0.04)') : 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontSize: '0.88rem',
+                        fontWeight: isActive ? 850 : 600,
+                        color: isActive ? theme.accent : theme.textMuted,
+                        transition: 'all 0.2s ease',
+                        outline: 'none',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <Icon
+                        size={17}
+                        strokeWidth={isActive ? 2.6 : 2}
+                        color={isActive ? (tab.key === 'active' && activeCount > 0 ? '#16a34a' : theme.accent) : theme.textMuted}
+                      />
+                      <span style={{ letterSpacing: '-0.2px' }}>{tab.label}</span>
+
+                      {/* Count Badge */}
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '2px 7px',
+                          borderRadius: '10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: isActive
+                            ? (tab.key === 'active' && activeCount > 0 ? '#16a34a' : `${theme.accent}18`)
+                            : (isDarkMode ? 'rgba(255,255,255,0.08)' : '#f1f5f9'),
+                          color: isActive
+                            ? (tab.key === 'active' && activeCount > 0 ? '#ffffff' : theme.accent)
+                            : theme.textMuted,
+                          border: `1px solid ${isActive ? (tab.key === 'active' && activeCount > 0 ? '#16a34a' : `${theme.accent}30`) : theme.border}`
+                        }}
+                      >
+                        {tab.key === 'active' && activeCount > 0 && (
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isActive ? '#ffffff' : '#16a34a',
+                              display: 'inline-block'
+                            }}
+                          />
+                        )}
+                        {tab.count}
+                      </span>
+
+                      {/* Prominent Sliding Active Tab Indicator Underline */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeOrderTabUnderline"
+                          transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                          style={{
+                            position: 'absolute',
+                            bottom: '-2px',
+                            left: '12%',
+                            right: '12%',
+                            height: '3.5px',
+                            borderRadius: '4px 4px 0 0',
+                            backgroundColor: theme.accent,
+                            boxShadow: `0 -1px 10px ${theme.accentGlow}`
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Search Box */}
@@ -440,11 +538,17 @@ export default function OrderHistoryPage() {
                 <Utensils size={28} />
               </div>
               <h3 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 850, color: theme.textMain }}>
-                {searchQuery ? "No matching orders found" : "No Orders Found"}
+                {searchQuery
+                  ? "No matching orders found"
+                  : filter === 'active'
+                  ? "No Active Orders"
+                  : "No Orders Found"}
               </h3>
               <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.5 }}>
                 {searchQuery
                   ? "Try checking your query or filter tab."
+                  : filter === 'active'
+                  ? "You have no active orders in kitchen right now. Check 'All Orders' for past history."
                   : "No past orders found for this session or mobile number. Explore the menu and place your first delicious dish!"}
               </p>
             </div>

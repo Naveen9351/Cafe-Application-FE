@@ -8,20 +8,11 @@ import {
   Minus,
   Trash2,
   ShoppingBag,
-  ChevronLeft,
   ChevronRight,
-  CreditCard,
-  Store,
-  Lock,
   Sun,
   Moon,
-  UserCheck,
   Receipt,
-  Sparkles,
-  ShieldCheck,
   Utensils,
-  MapPin,
-  ArrowRight,
   FileText
 } from "lucide-react";
 import TableBadge from "./common/TableBadge";
@@ -48,10 +39,7 @@ export default function Cart() {
 
   const [tableNumber, setTableNumber] = useState(localStorage.getItem("tableNumber") || "");
   const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
-  const [step, setStep] = useState(1); // 1: Review, 2: Details/Payment
   const [isPlacing, setIsPlacing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("counter"); // counter or online
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
 
   // Customer verification profile
@@ -103,23 +91,10 @@ export default function Cart() {
     inputText: '#0f172a'
   };
 
-  // Ensure scroll is immediately reset to top on mount and step change
+  // Ensure scroll is immediately reset to top on mount
   useEffect(() => {
-    const scrollToTop = () => {
-      window.scrollTo(0, 0);
-      if (document.documentElement) document.documentElement.scrollTop = 0;
-      if (document.body) document.body.scrollTop = 0;
-    };
-    scrollToTop();
-    const raf = requestAnimationFrame(scrollToTop);
-    const t1 = setTimeout(scrollToTop, 40);
-    const t2 = setTimeout(scrollToTop, 120);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [step]);
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     const tokenParam = searchParams.get("t") || searchParams.get("code") || searchParams.get("token");
@@ -144,32 +119,15 @@ export default function Cart() {
     }
   }, [searchParams]);
 
-  const handleProceedToCheckout = () => {
-    if (!customer?.verified) {
-      setIsVerificationOpen(true);
-    } else {
-      setStep(2);
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }
-  };
-
-  const handleVerificationSuccess = (verifiedUser) => {
-    setCustomer(verifiedUser);
-    setIsVerificationOpen(false);
-    setStep(2);
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    toast.success(`Welcome, ${verifiedUser.name}!`);
-  };
-
-  const handlePlaceOrder = async () => {
+  const executeOrderPlacement = async (activeCustomer = customer) => {
     // 1. Validate Customer Verification
-    if (!customer?.verified) {
+    if (!activeCustomer?.verified) {
       setIsVerificationOpen(true);
       return;
     }
 
     // 2. Validate Table
-    if (!tableNumber && paymentMethod === "counter") {
+    if (!tableNumber) {
       toast.error("Please enter a table number");
       return;
     }
@@ -179,13 +137,6 @@ export default function Cart() {
     if (!tenantId) {
       toast.error("Invalid Cafe session. Please rescan QR code.");
       return;
-    }
-
-    if (paymentMethod === "online") {
-      setIsProcessingPayment(true);
-      await new Promise(r => setTimeout(r, 2200));
-      setIsProcessingPayment(false);
-      toast.success("Payment Received!");
     }
 
     setIsPlacing(true);
@@ -210,12 +161,12 @@ export default function Cart() {
         tenantId,
         tableNumber: tableNumber || "Online Order",
         status: "pending",
-        paymentStatus: paymentMethod === "online" ? "paid" : "pending",
+        paymentStatus: "pending",
         customerDetails: {
-          name: customer?.name || "Guest",
-          phone: customer?.phone || "",
-          email: customer?.email || "",
-          isPhoneVerified: Boolean(customer?.verified)
+          name: activeCustomer?.name || "Guest",
+          phone: activeCustomer?.phone || "",
+          email: activeCustomer?.email || "",
+          isPhoneVerified: Boolean(activeCustomer?.verified)
         }
       };
 
@@ -245,6 +196,21 @@ export default function Cart() {
     } finally {
       setIsPlacing(false);
     }
+  };
+
+  const handlePlaceOrder = () => {
+    if (!customer?.verified) {
+      setIsVerificationOpen(true);
+      return;
+    }
+    executeOrderPlacement(customer);
+  };
+
+  const handleVerificationSuccess = (verifiedUser) => {
+    setCustomer(verifiedUser);
+    setIsVerificationOpen(false);
+    toast.success(`Welcome, ${verifiedUser.name}!`);
+    executeOrderPlacement(verifiedUser);
   };
 
   const total = getCartTotal();
@@ -279,46 +245,26 @@ export default function Cart() {
             backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
             backdropFilter: 'blur(16px)',
             borderBottom: `1px solid ${theme.border}`,
-            padding: '12px 16px',
+            padding: '0.75rem 1rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            boxSizing: 'border-box',
+            width: '100%'
           }}
         >
           {/* Screen Title & Icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {step === 2 && (
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setStep(1)}
-                style={{
-                  background: isDarkMode ? 'rgba(255,255,255,0.08)' : '#f1f5f9',
-                  border: 'none',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: theme.textMain,
-                  marginRight: '-2px'
-                }}
-                title="Back to Cart Items"
-              >
-                <ChevronLeft size={18} strokeWidth={2.5} />
-              </motion.button>
-            )}
-            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {step === 1 ? <ShoppingBag size={18} /> : <Utensils size={18} />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ShoppingBag size={18} />
             </div>
-            <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.2px' }}>
-              {step === 1 ? "Your Cart" : "Confirm Order"}
+            <h1 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: theme.textMain, letterSpacing: '-0.2px', lineHeight: 1.2 }}>
+              Your Cart
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} style={{ padding: '4px 9px', fontSize: '0.8rem' }} />
 
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
@@ -331,7 +277,8 @@ export default function Cart() {
                 justifyContent: 'center',
                 width: '32px',
                 height: '32px',
-                borderRadius: '50%'
+                borderRadius: '50%',
+                padding: 0
               }}
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
@@ -342,44 +289,6 @@ export default function Cart() {
 
         {/* Cart Content Body */}
         <div style={{ padding: '16px 18px 0 18px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-          {/* Sleek Steps Progress Indicator - Only shown when items exist */}
-          {items.length > 0 && (
-            <div className={styles.stepsContainer} style={{ margin: 0, padding: 0 }}>
-              <div
-                className={styles.stepPill}
-                onClick={() => setStep(1)}
-                style={{
-                  backgroundColor: step === 1 ? theme.accent : (isDarkMode ? '#241e18' : '#f1f5f9'),
-                  color: step === 1 ? '#ffffff' : theme.textMuted,
-                  boxShadow: step === 1 ? `0 4px 14px ${theme.accentGlow}` : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <ShoppingBag size={14} />
-                <span>1. Cart Items</span>
-              </div>
-
-              <div className={styles.stepLine} style={{ backgroundColor: step === 2 ? theme.accent : theme.border }} />
-
-              <div
-                className={styles.stepPill}
-                onClick={() => {
-                  if (items.length > 0) {
-                    handleProceedToCheckout();
-                  }
-                }}
-                style={{
-                  backgroundColor: step === 2 ? theme.accent : (isDarkMode ? '#241e18' : '#f1f5f9'),
-                  color: step === 2 ? '#ffffff' : theme.textMuted,
-                  boxShadow: step === 2 ? `0 4px 14px ${theme.accentGlow}` : 'none',
-                  cursor: items.length > 0 ? 'pointer' : 'default'
-                }}
-              >
-                <Utensils size={14} />
-                <span>2. Confirm Order</span>
-              </div>
-            </div>
-          )}
 
         <AnimatePresence
           mode="wait"
@@ -416,12 +325,11 @@ export default function Cart() {
                 <span>Explore Delicious Menu</span>
               </Link>
             </motion.div>
-          ) : step === 1 ? (
+          ) : (
             <motion.div
               key="cart-review"
-              initial={{ x: -15, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 15, opacity: 0 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
             >
               {/* Cart Items List */}
@@ -582,162 +490,6 @@ export default function Cart() {
                 </div>
 
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={handleProceedToCheckout}
-                  className={styles.checkoutBtn}
-                  style={{
-                    background: `linear-gradient(135deg, ${theme.accent}, #c2410c)`,
-                    boxShadow: `0 4px 18px ${theme.accentGlow}`
-                  }}
-                >
-                  <span>Proceed to Confirm</span>
-                  <ArrowRight size={17} strokeWidth={2.5} />
-                </motion.button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="checkout-details"
-              initial={{ x: 15, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -15, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className={styles.formSection}>
-                {/* Verified Customer Card */}
-                {customer?.verified && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: '16px',
-                    backgroundColor: isDarkMode ? 'rgba(34, 197, 94, 0.1)' : '#f0fdf4',
-                    border: `1px solid ${isDarkMode ? 'rgba(34, 197, 94, 0.25)' : '#bbf7d0'}`,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        backgroundColor: '#16a34a',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        flexShrink: 0
-                      }}>
-                        <UserCheck size={18} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: theme.textMain }}>
-                          {customer.name} <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 700 }}>● Verified</span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: theme.textMuted }}>
-                          {customer.phone ? `+91 ${customer.phone}` : (customer.email || 'Verified Guest')}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsVerificationOpen(true)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: theme.accent,
-                        fontSize: '12px',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        padding: '4px 8px'
-                      }}
-                    >
-                      Change
-                    </button>
-                  </div>
-                )}
-
-                {/* Table Details - Hidden for now as requested */}
-                {/* 
-                <div className={styles.formGroup}>
-                  <label className={styles.label} style={{ color: theme.textMain }}>
-                    <MapPin size={16} color={theme.accent} />
-                    <span>Dining Table</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Table Number (Optional if scanned QR)"
-                    className={styles.input}
-                    style={{ backgroundColor: theme.inputBg, color: theme.inputText, border: `1.5px solid ${theme.border}` }}
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
-                  />
-
-                  <div className={styles.tablePillsGrid}>
-                    {["1", "2", "3", "4", "5", "6", "Takeaway"].map((t) => (
-                      <span
-                        key={t}
-                        onClick={() => setTableNumber(t === "Takeaway" ? "Takeaway" : t)}
-                        className={styles.tablePill}
-                        style={{
-                          backgroundColor: tableNumber === t ? `${theme.accent}18` : theme.inputBg,
-                          borderColor: tableNumber === t ? theme.accent : theme.border,
-                          color: tableNumber === t ? theme.accent : theme.textMuted
-                        }}
-                      >
-                        {t === "Takeaway" ? "📦 Takeaway" : `Table #${t}`}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                */}
-
-                {/* Payment & Order Mode Selection */}
-                <div className={styles.formGroup}>
-                  <label className={styles.label} style={{ color: theme.textMain }}>
-                    <CreditCard size={16} color={theme.accent} />
-                    <span>Order Confirmation Mode</span>
-                  </label>
-                  <div className={styles.paymentTabs}>
-                    <div
-                      className={styles.payTab}
-                      style={{
-                        backgroundColor: paymentMethod === "counter" ? `${theme.accent}12` : theme.inputBg,
-                        border: paymentMethod === "counter" ? `2px solid ${theme.accent}` : `1.5px solid ${theme.border}`,
-                        color: paymentMethod === "counter" ? theme.textMain : theme.textMuted,
-                        boxShadow: paymentMethod === "counter" ? `0 2px 10px ${theme.accentGlow}` : 'none'
-                      }}
-                      onClick={() => setPaymentMethod("counter")}
-                    >
-                      <Store size={22} color={paymentMethod === "counter" ? theme.accent : theme.textMuted} />
-                      <div>
-                        <div style={{ fontSize: '0.86rem', fontWeight: 800 }}>Pay at Counter / Table</div>
-                        <span style={{ fontSize: '0.72rem', color: theme.textMuted, fontWeight: 600 }}>Pay after dining</span>
-                      </div>
-                    </div>
-
-                    <div
-                      className={styles.payTab}
-                      style={{
-                        backgroundColor: paymentMethod === "online" ? `${theme.accent}12` : theme.inputBg,
-                        border: paymentMethod === "online" ? `2px solid ${theme.accent}` : `1.5px solid ${theme.border}`,
-                        color: paymentMethod === "online" ? theme.textMain : theme.textMuted,
-                        boxShadow: paymentMethod === "online" ? `0 2px 10px ${theme.accentGlow}` : 'none'
-                      }}
-                      onClick={() => setPaymentMethod("online")}
-                    >
-                      <CreditCard size={22} color={paymentMethod === "online" ? theme.accent : theme.textMuted} />
-                      <div>
-                        <div style={{ fontSize: '0.86rem', fontWeight: 800 }}>Pay Online</div>
-                        <span style={{ fontSize: '0.72rem', color: theme.textMuted, fontWeight: 600 }}>Instant UPI / Cards</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Confirm & Place Order CTA */}
-                <motion.button
                   whileHover={!isPlacing ? { scale: 1.02 } : {}}
                   whileTap={!isPlacing ? { scale: 0.96 } : {}}
                   disabled={isPlacing}
@@ -746,7 +498,7 @@ export default function Cart() {
                   style={{
                     background: `linear-gradient(135deg, ${theme.accent}, #c2410c)`,
                     boxShadow: `0 4px 18px ${theme.accentGlow}`,
-                    marginTop: '0.5rem'
+                    cursor: isPlacing ? 'not-allowed' : 'pointer'
                   }}
                 >
                   <Utensils size={18} />
@@ -765,36 +517,6 @@ export default function Cart() {
         </footer>
         </div>
       </div>
-
-      {/* Online Payment Animation Modal */}
-      <AnimatePresence>
-        {isProcessingPayment && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={styles.modal}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={styles.modalContent}
-            >
-              <div className={styles.paymentHeader}>
-                <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.9 }}>Paying to {tenantInfo.name}</p>
-                <div className={styles.paymentAmount}>₹{Math.round(total)}</div>
-              </div>
-              <div className={styles.paymentBody}>
-                <div className={styles.loadingSpinner}></div>
-                <p style={{ textAlign: "center", fontWeight: "700", color: "#0f172a", margin: '0 0 4px' }}>Securing payment connection...</p>
-                <p style={{ textAlign: "center", fontStyle: "italic", fontSize: "0.8rem", color: "#64748b", margin: 0 }}>
-                  Please do not refresh or close this window
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Customer Verification Modal */}
       <CustomerVerificationModal

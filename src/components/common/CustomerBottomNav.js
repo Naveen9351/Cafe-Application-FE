@@ -46,7 +46,7 @@ export default function CustomerBottomNav({
   const navItems = [
     { key: 'menu', label: 'Menu', icon: Utensils },
     { key: 'cart', label: 'Cart', icon: ShoppingBag, badge: cartTotalItems },
-    { key: 'history', label: 'History', icon: Receipt },
+    { key: 'history', label: 'Orders', icon: Receipt },
     { key: 'profile', label: 'Profile', icon: User }
   ];
 
