@@ -264,6 +264,8 @@ export default function AdminPanel() {
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('UtensilsCrossed');
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [isQuickAddCatOpen, setIsQuickAddCatOpen] = useState(false);
+  const [quickCatName, setQuickCatName] = useState('');
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -559,6 +561,10 @@ export default function AdminPanel() {
               logo: fetchedLogo || null
             });
             if (fetchedLogo) localStorage.setItem('restaurant_logo', fetchedLogo);
+            if (res.data.settings?.categories && Array.isArray(res.data.settings.categories) && res.data.settings.categories.length > 0) {
+              setCategories(res.data.settings.categories);
+              localStorage.setItem('serviq_custom_categories', JSON.stringify(res.data.settings.categories));
+            }
           }
         })
         .catch((err) => console.log('Tenant info fetch error:', err));
@@ -1394,12 +1400,70 @@ export default function AdminPanel() {
 
     const updated = categories.filter(c => c.id !== catId);
     setCategories(updated);
-    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+    persistCategories(updated);
     if (selectedCategory === catId) {
       setSelectedCategory('all');
     }
     setCategoryToDelete(null);
     toast.success(`Category "${catName}" deleted. ${affectedDishes.length} dish(es) preserved in "All Items".`);
+  };
+
+  const persistCategories = async (updated) => {
+    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+    try {
+      const token = localStorage.getItem('token');
+      const tid = tenantId || user?.tenantId || tenantInfo?._id;
+      const serializableCats = updated.map(({ Component, ...rest }) => rest);
+      if (token) {
+        await axios.put(`${API}/tenants/settings`, { categories: serializableCats }, {
+          headers: { 'x-auth-token': token }
+        }).catch(() => {});
+        if (tid) {
+          await axios.put(`${API}/tenants/${tid}`, {
+            settings: { ...tenantInfo?.settings, categories: serializableCats }
+          }, {
+            headers: { 'x-auth-token': token }
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.log('Persist categories warning:', e.message);
+    }
+  };
+
+  const handleQuickCreateCategory = async () => {
+    const clean = quickCatName.trim();
+    if (!clean) {
+      toast.error('Please enter a category name');
+      return;
+    }
+    const id = clean.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const existing = categories.find(c => c.id === id || c.name.toLowerCase() === clean.toLowerCase());
+    if (existing) {
+      setDrawerForm(prev => ({ ...prev, category: existing.id }));
+      setIsQuickAddCatOpen(false);
+      setQuickCatName('');
+      toast.success(`Selected existing "${existing.name}" category`);
+      return;
+    }
+
+    const selectedIconComp = CATEGORY_ICON_MAP['UtensilsCrossed'] || UtensilsCrossed;
+    const newCat = {
+      id,
+      name: clean,
+      icon: 'UtensilsCrossed',
+      Component: selectedIconComp,
+      aliases: [id, clean.toLowerCase()],
+      isCustom: true
+    };
+
+    const updated = [...categories, newCat];
+    setCategories(updated);
+    await persistCategories(updated);
+    setDrawerForm(prev => ({ ...prev, category: id }));
+    setIsQuickAddCatOpen(false);
+    setQuickCatName('');
+    toast.success(`Category "${clean}" created & added to your prelist!`);
   };
 
   const handleSaveCategory = (e) => {
@@ -1428,7 +1492,7 @@ export default function AdminPanel() {
       };
       const updated = [...categories, newCat];
       setCategories(updated);
-      localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+      persistCategories(updated);
       setSelectedCategory(id);
       toast.success(`Category "${cleanName}" created!`);
     } else if (categoryModalMode === 'edit' && editingCategoryData) {
@@ -1448,7 +1512,7 @@ export default function AdminPanel() {
         return c;
       });
       setCategories(updated);
-      localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+      persistCategories(updated);
 
       // Reassign all dishes in this category to the new category name
       setItems(prev => prev.map(item => {
@@ -3984,16 +4048,98 @@ export default function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Category</label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Category</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsQuickAddCatOpen(prev => !prev)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#ea580c',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}
+                    >
+                      <Plus size={12} strokeWidth={3} />
+                      {isQuickAddCatOpen ? 'Cancel' : '+ New Category'}
+                    </button>
+                  </div>
+
+                  {isQuickAddCatOpen && (
+                    <div style={{
+                      display: 'flex',
+                      gap: 6,
+                      background: '#fff7ed',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid #fed7aa',
+                      marginBottom: '6px'
+                    }}>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="e.g. Mocktails, Thali..."
+                        value={quickCatName}
+                        onChange={(e) => setQuickCatName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleQuickCreateCategory();
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #fdba74',
+                          fontSize: '12px',
+                          outline: 'none',
+                          background: '#ffffff'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleQuickCreateCategory}
+                        disabled={!quickCatName.trim()}
+                        style={{
+                          backgroundColor: '#ea580c',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0 12px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: quickCatName.trim() ? 'pointer' : 'not-allowed',
+                          opacity: quickCatName.trim() ? 1 : 0.6
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
+
                   <select
                     value={drawerForm.category || 'uncategorized'}
-                    onChange={(e) => setDrawerForm({ ...drawerForm, category: e.target.value })}
+                    onChange={(e) => {
+                      if (e.target.value === '__CREATE_NEW__') {
+                        setIsQuickAddCatOpen(true);
+                      } else {
+                        setDrawerForm({ ...drawerForm, category: e.target.value });
+                      }
+                    }}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
                   >
                     <option value="uncategorized">-- Uncategorized (Assign Later) --</option>
                     {categories.filter(c => c.id !== 'all').map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
+                    <option value="__CREATE_NEW__" style={{ color: '#ea580c', fontWeight: 700 }}>+ Create New Category...</option>
                   </select>
                 </div>
               </div>

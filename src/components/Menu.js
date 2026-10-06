@@ -20,36 +20,95 @@ import CustomerBottomNav from "./common/CustomerBottomNav";
 // Track whether initial full-screen culinary loader has already been displayed in the current page session
 let hasShownInitialAppLoader = false;
 
+// Curated high-res plate food photos for category badges (Burgers, Pizzas, Cakes, Rolls, Thali, Chai, Coffee, etc.)
+export const getCategoryPlateImage = (catName = '', catId = '') => {
+  const lower = `${catName} ${catId}`.toLowerCase();
+
+  if (lower.includes('all')) {
+    return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('burger')) {
+    return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('pizza')) {
+    return 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('cake') || lower.includes('pastry') || lower.includes('dessert') || lower.includes('sweet') || lower.includes('bakery')) {
+    return 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('roll') || lower.includes('wrap') || lower.includes('kathi') || lower.includes('burrito')) {
+    return 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('thali') || lower.includes('meal') || lower.includes('lunch') || lower.includes('dinner')) {
+    return 'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('chai') || lower.includes('tea')) {
+    return 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('cold coffee') || lower.includes('shake') || lower.includes('cooler') || lower.includes('beverage') || lower.includes('mocktail') || lower.includes('drink') || lower.includes('juice')) {
+    return 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('coffee') || lower.includes('latte') || lower.includes('cappuccino') || lower.includes('espresso')) {
+    return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('sandwich') || lower.includes('toast') || lower.includes('panini')) {
+    return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('pasta') || lower.includes('noodle') || lower.includes('maggi') || lower.includes('spaghetti')) {
+    return 'https://images.unsplash.com/photo-1621996346565-e3d5d6281724?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('snack') || lower.includes('fries') || lower.includes('starter') || lower.includes('appetizer') || lower.includes('nachos') || lower.includes('momo') || lower.includes('garlic bread')) {
+    return 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('biryani') || lower.includes('rice') || lower.includes('pulao') || lower.includes('curry')) {
+    return 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=240&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('combo') || lower.includes('special') || lower.includes('offer')) {
+    return 'https://images.unsplash.com/photo-1544025162-d76694265947?w=240&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=240&auto=format&fit=crop&q=80';
+};
+
 // Sleek Shimmer Skeleton for Categories and Menu Items Grid
 function MenuSkeletonShimmer({ isDarkMode, theme }) {
   const shimmerClass = `${styles.shimmerBox} ${!isDarkMode ? styles.shimmerLight : ''}`;
-  const cardBg = isDarkMode ? '#18130e' : '#ffffff';
   const elementBg = isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0';
   const borderCol = isDarkMode ? 'rgba(255, 255, 255, 0.07)' : '#e2e8f0';
+  const cardBg = theme?.cardBg || theme?.bgCard || (isDarkMode ? '#1e1610' : '#ffffff');
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }}>
-      {/* Category Pills Skeleton Bar */}
+      {/* Category Circular Plates Skeleton Bar */}
       <div style={{
         display: 'flex',
-        gap: '0.6rem',
-        padding: '0.75rem 1rem',
+        gap: '0.75rem',
+        padding: '0.35rem 0.85rem 0.25rem',
         overflowX: 'hidden',
         borderBottom: `1px solid ${borderCol}`,
         backgroundColor: isDarkMode ? 'rgba(20, 16, 12, 0.94)' : 'rgba(255, 255, 255, 0.96)'
       }}>
-        {[85, 115, 95, 125, 90].map((width, idx) => (
-          <div
-            key={idx}
-            className={shimmerClass}
-            style={{
-              width: `${width}px`,
-              height: '36px',
-              borderRadius: '100px',
-              backgroundColor: elementBg,
-              flexShrink: 0
-            }}
-          />
+        {[1, 2, 3, 4, 5, 6].map((idx) => (
+          <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minWidth: '52px' }}>
+            <div
+              className={shimmerClass}
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                backgroundColor: elementBg,
+                flexShrink: 0
+              }}
+            />
+            <div
+              className={shimmerClass}
+              style={{
+                width: '36px',
+                height: '8px',
+                borderRadius: '4px',
+                backgroundColor: elementBg
+              }}
+            />
+          </div>
         ))}
       </div>
 
@@ -122,7 +181,7 @@ function MenuSkeletonShimmer({ isDarkMode, theme }) {
 export default function Menu() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [tableNumber, setTableNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -197,6 +256,10 @@ export default function Menu() {
   const [isCartBouncing, setIsCartBouncing] = useState(false);
   const cartIconRef = useRef(null);
   const bottomCartRef = useRef(null);
+  const categoryBarRef = useRef(null);
+  const stickyWrapperRef = useRef(null);
+  const isProgrammaticScroll = useRef(false);
+  const userSelectedManually = useRef(false);
 
   // Auto-set initial selected variant whenever selectedItem changes
   useEffect(() => {
@@ -476,7 +539,6 @@ export default function Menu() {
 
   const allCategories = useMemo(() => {
     const map = new Map();
-    map.set("all", { id: "all", name: "All Items", icon: "🍽️", count: items.length });
 
     const getCategoryEmoji = (str = '') => {
       if (!str) return '🍽️';
@@ -501,12 +563,12 @@ export default function Menu() {
     if (Array.isArray(categories) && categories.length > 0) {
       categories.forEach(c => {
         const id = c.id || c.name?.toLowerCase().replace(/\s+/g, '-');
-        if (id && id !== 'all' && c.name?.toLowerCase() !== 'all' && c.name?.toLowerCase() !== 'all items') {
+        if (id && id !== 'all' && c.name?.toLowerCase() !== 'all' && c.name?.toLowerCase() !== 'all items' && c.name?.toLowerCase() !== 'all categories') {
           // Never use string icon name directly; map to emoji
           const emoji = (c.icon && /\p{Extended_Pictographic}/u.test(c.icon) && c.icon.length <= 4)
             ? c.icon
             : getCategoryEmoji(c.name || c.icon || id);
-          map.set(id, { id, name: c.name, icon: emoji, aliases: c.aliases || [], count: 0 });
+          map.set(id, { id, name: c.name, icon: emoji, aliases: c.aliases || [], count: 0, image: c.image || c.imageUrl || null });
         }
       });
     }
@@ -515,17 +577,14 @@ export default function Menu() {
       if (it.category) {
         const rawCat = String(it.category).trim();
         const id = rawCat.toLowerCase().replace(/\s+/g, '-');
-        if (!map.has(id) && !map.has(rawCat) && id !== 'all') {
+        if (!map.has(id) && !map.has(rawCat) && id !== 'all' && rawCat.toLowerCase() !== 'all') {
           const displayName = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).replace(/[-_]/g, ' ');
-          map.set(id, { id, name: displayName, icon: getCategoryEmoji(displayName), count: 0 });
+          map.set(id, { id, name: displayName, icon: getCategoryEmoji(displayName), count: 0, image: it.image || null });
         }
       }
     });
 
     const list = Array.from(map.values()).map(cat => {
-      if (cat.id === "all") {
-        return { ...cat, count: items.length };
-      }
       const count = items.filter(it => {
         const itCat = String(it.category || '').toLowerCase().trim();
         const itCatNorm = itCat.replace(/\s+/g, '-');
@@ -537,34 +596,182 @@ export default function Menu() {
       return { ...cat, count };
     });
 
-    // Only return categories that have items in the current menu
-    return list.filter(cat => cat.id === 'all' || cat.count > 0);
+    // Only return real categories that have items in the menu (no 'all')
+    return list.filter(cat => cat.count > 0);
   }, [categories, items]);
 
-  const filteredItems = items.filter((item) => {
+  // Retrieve optimal food plate photo for each category badge
+  const getCategoryImageUrl = (cat) => {
+    if (cat.image) return cat.image;
+    if (cat.imageUrl) return cat.imageUrl;
+    if (cat.id !== 'all') {
+      const itWithImg = items.find(it => {
+        const itCat = String(it.category || '').toLowerCase().trim();
+        const itCatNorm = itCat.replace(/\s+/g, '-');
+        const targetId = cat.id.toLowerCase();
+        const targetName = cat.name.toLowerCase();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
+        const belongs = itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        return belongs && it.image;
+      });
+      if (itWithImg && itWithImg.image) return itWithImg.image;
+    }
+    return getCategoryPlateImage(cat.name, cat.id);
+  };
+
+  // Default selectedCategory to the first real category as soon as allCategories is available
+  useEffect(() => {
+    if (allCategories.length > 0) {
+      const isNearTop = (typeof window !== 'undefined' ? window.scrollY : 0) < 80;
+      if (!userSelectedManually.current && isNearTop) {
+        setSelectedCategory(allCategories[0].id);
+      } else {
+        const exists = allCategories.some(c => c.id.toLowerCase() === (selectedCategory || '').toLowerCase());
+        if (!exists) {
+          setSelectedCategory(allCategories[0].id);
+        }
+      }
+    }
+  }, [allCategories]);
+
+  // Group items by parent category for clear category-wise display
+  const categorizedGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const matchesSearch = !q ||
-      item.name.toLowerCase().includes(q) ||
-      (item.description && item.description.toLowerCase().includes(q)) ||
-      (item.category && item.category.toLowerCase().includes(q));
+    const groups = [];
 
-    if (!matchesSearch) return false;
-    if (selectedCategory === "all") return true;
+    allCategories.forEach(cat => {
+      const catItems = items.filter(it => {
+        const itCat = String(it.category || '').toLowerCase().trim();
+        const itCatNorm = itCat.replace(/\s+/g, '-');
+        const targetId = cat.id.toLowerCase();
+        const targetName = cat.name.toLowerCase();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
+        const belongsToCat = itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
 
-    const selectedCatObj = allCategories.find(c => c.id.toLowerCase() === selectedCategory.toLowerCase());
-    const itemCat = String(item.category || '').toLowerCase().trim();
-    const itemCatNorm = itemCat.replace(/\s+/g, '-');
-    const selectedCatNorm = selectedCategory.toLowerCase().replace(/\s+/g, '-');
+        if (!belongsToCat) return false;
 
-    const matchesAlias = selectedCatObj?.aliases && Array.isArray(selectedCatObj.aliases) && selectedCatObj.aliases.some(a => itemCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itemCat));
+        if (q) {
+          return it.name.toLowerCase().includes(q) ||
+            (it.description && it.description.toLowerCase().includes(q)) ||
+            (it.category && it.category.toLowerCase().includes(q));
+        }
+        return true;
+      });
 
-    return (
-      itemCatNorm === selectedCatNorm ||
-      itemCat === selectedCategory.toLowerCase() ||
-      (selectedCatObj && (itemCat === selectedCatObj.name.toLowerCase() || itemCatNorm === selectedCatObj.name.toLowerCase().replace(/\s+/g, '-'))) ||
-      matchesAlias
-    );
-  });
+      if (catItems.length > 0) {
+        groups.push({
+          category: cat,
+          items: catItems
+        });
+      }
+    });
+
+    // Account for any remaining items not caught by mapped categories
+    const accountedIds = new Set(groups.flatMap(g => g.items.map(i => i._id)));
+    const remaining = items.filter(it => {
+      if (accountedIds.has(it._id)) return false;
+      if (q) {
+        return it.name.toLowerCase().includes(q) ||
+          (it.description && it.description.toLowerCase().includes(q)) ||
+          (it.category && it.category.toLowerCase().includes(q));
+      }
+      return true;
+    });
+
+    if (remaining.length > 0) {
+      groups.push({
+        category: { id: 'other', name: 'Other Delights', icon: '✨', count: remaining.length },
+        items: remaining
+      });
+    }
+
+    return groups;
+  }, [allCategories, items, searchQuery]);
+
+  const totalFilteredCount = useMemo(() => {
+    return categorizedGroups.reduce((acc, g) => acc + g.items.length, 0);
+  }, [categorizedGroups]);
+
+  // Smooth bidirectional Scroll: Click category pill -> Scroll page to category section
+  const handleCategoryClick = (categoryId) => {
+    userSelectedManually.current = true;
+    setSelectedCategory(categoryId);
+    isProgrammaticScroll.current = true;
+
+    // Keep active category pill visible in top horizontal bar
+    const activePill = categoryBarRef.current?.querySelector(`[data-cat-pill="${categoryId}"]`);
+    if (activePill) {
+      activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+
+    const targetSection = document.getElementById(`category-section-${categoryId}`);
+    if (targetSection) {
+      const stickyHeight = stickyWrapperRef.current?.offsetHeight || 135;
+      const elementPosition = targetSection.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = elementPosition - stickyHeight - 10;
+
+      window.scrollTo({
+        top: Math.max(0, offsetPosition),
+        behavior: 'smooth'
+      });
+    }
+
+    setTimeout(() => {
+      isProgrammaticScroll.current = false;
+    }, 750);
+  };
+
+  // Bidirectional ScrollSpy: As user scrolls down page, highlight active category & auto-scroll top bar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isProgrammaticScroll.current) return;
+
+      const scrollY = window.scrollY;
+      if (scrollY < 80) {
+        userSelectedManually.current = false;
+        if (allCategories.length > 0 && selectedCategory !== allCategories[0].id) {
+          setSelectedCategory(allCategories[0].id);
+          const firstPill = categoryBarRef.current?.querySelector(`[data-cat-pill="${allCategories[0].id}"]`);
+          if (firstPill) {
+            firstPill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+        }
+        return;
+      }
+
+      const stickyHeight = stickyWrapperRef.current?.offsetHeight || 135;
+      const threshold = stickyHeight + 40;
+
+      const sections = document.querySelectorAll('[data-category-id]');
+      let currentActiveId = null;
+
+      sections.forEach((sec) => {
+        const rect = sec.getBoundingClientRect();
+        if (rect.top <= threshold && rect.bottom > threshold) {
+          currentActiveId = sec.getAttribute('data-category-id');
+        }
+      });
+
+      // Bottom of page detection: activate last category if at bottom
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 70) {
+        if (sections.length > 0) {
+          currentActiveId = sections[sections.length - 1].getAttribute('data-category-id');
+        }
+      }
+
+      if (currentActiveId && currentActiveId !== selectedCategory) {
+        userSelectedManually.current = true;
+        setSelectedCategory(currentActiveId);
+        const activePill = categoryBarRef.current?.querySelector(`[data-cat-pill="${currentActiveId}"]`);
+        if (activePill) {
+          activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [selectedCategory, categorizedGroups, allCategories]);
 
   const FssaiDietaryBadge = ({ isVeg }) => {
     if (isVeg !== false) {
@@ -653,12 +860,18 @@ export default function Menu() {
     let targetX = window.innerWidth * 0.375;
     let targetY = window.innerHeight - 35;
 
-    // Accurately locate BottomBar Cart button center
-    const bottomCartBtn = document.getElementById('bottom-nav-cart-btn') || document.querySelector('[data-bottom-tab="cart"]');
-    if (bottomCartBtn) {
-      const cartRect = bottomCartBtn.getBoundingClientRect();
+    // Accurately locate Floating Capsule Cart or BottomBar Cart button center
+    if (bottomCartRef.current) {
+      const cartRect = bottomCartRef.current.getBoundingClientRect();
       targetX = cartRect.left + cartRect.width / 2;
       targetY = cartRect.top + cartRect.height / 2;
+    } else {
+      const bottomCartBtn = document.getElementById('bottom-nav-cart-btn') || document.querySelector('[data-bottom-tab="cart"]');
+      if (bottomCartBtn) {
+        const cartRect = bottomCartBtn.getBoundingClientRect();
+        targetX = cartRect.left + cartRect.width / 2;
+        targetY = cartRect.top + cartRect.height / 2;
+      }
     }
 
     const particleId = Date.now() + Math.random();
@@ -873,19 +1086,19 @@ export default function Menu() {
           ) : (
             <>
               {/* STICKY PINNED TOP SECTION (Header + Search + Active Order Banner + Categories) */}
-              <div className={styles.stickyTopWrapper} style={{ backgroundColor: theme.bgPage }}>
+              <div ref={stickyWrapperRef} className={styles.stickyTopWrapper} style={{ backgroundColor: theme.bgPage }}>
                 {/* Top Header Card */}
-                <div style={{ backgroundColor: theme.bgHeader, padding: '1rem 1rem 0.75rem', borderBottomLeftRadius: '20px', borderBottomRightRadius: '20px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ backgroundColor: theme.bgHeader, padding: '0.75rem 1rem 0.6rem', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', borderBottom: `1px solid ${theme.border}`, transition: 'background-color 0.3s', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.55rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                       {cafeLogo ? (
                         <div style={{
-                          width: '38px',
-                          height: '38px',
-                          borderRadius: '12px',
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '10px',
                           overflow: 'hidden',
                           border: `1.5px solid ${theme.border}`,
-                          boxShadow: `0 3px 10px ${theme.accentGlow}`,
+                          boxShadow: `0 2px 8px ${theme.accentGlow}`,
                           flexShrink: 0,
                           backgroundColor: theme.bgInner,
                           display: 'flex',
@@ -899,36 +1112,36 @@ export default function Menu() {
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                               if (e.currentTarget.parentElement) {
-                                e.currentTarget.parentElement.innerHTML = `<span style="font-size:13px;font-weight:800;color:${theme.textMain};">${cafeInitials}</span>`;
+                                e.currentTarget.parentElement.innerHTML = `<span style="font-size:12px;font-weight:800;color:${theme.textMain};">${cafeInitials}</span>`;
                               }
                             }}
                           />
                         </div>
                       ) : (
                         <div style={{
-                          width: '38px',
-                          height: '38px',
-                          borderRadius: '12px',
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '10px',
                           background: `linear-gradient(135deg, ${theme.accent}, #b91c1c)`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow: `0 4px 15px ${theme.accentGlow}`,
+                          boxShadow: `0 3px 10px ${theme.accentGlow}`,
                           flexShrink: 0,
                           color: '#ffffff',
                           fontWeight: '800',
-                          fontSize: '0.9rem',
-                          letterSpacing: '0.5px'
+                          fontSize: '0.84rem',
+                          letterSpacing: '0.3px'
                         }}>
                           {cafeInitials}
                         </div>
                       )}
                       <div style={{ overflow: 'hidden' }}>
-                        <h2 style={{ fontSize: '1.05rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cafeName}</h2>
+                        <h2 style={{ fontSize: '1.02rem', fontWeight: '800', color: theme.textMain, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 }}>{cafeName}</h2>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       {/* Order Track Badge (Animated) */}
                       <TrackOrderBadge
                         activeRunningOrder={activeRunningOrder}
@@ -937,7 +1150,7 @@ export default function Menu() {
                       />
 
                       {/* Table Number Badge */}
-                      <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} />
+                      <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} style={{ padding: '4px 9px', fontSize: '0.8rem' }} />
 
                       {/* Theme Toggle Button */}
                       <button
@@ -949,28 +1162,28 @@ export default function Menu() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          width: '34px',
-                          height: '34px',
+                          width: '32px',
+                          height: '32px',
                           borderRadius: '50%',
                           padding: 0
                         }}
                         title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                       >
-                        {isDarkMode ? <Sun size={18} color="#fbbe21" /> : <Moon size={18} color="#475569" />}
+                        {isDarkMode ? <Sun size={16} color="#fbbe21" /> : <Moon size={16} color="#475569" />}
                       </button>
                     </div>
                   </div>
 
                   {/* Search Box */}
-                  <div style={{ display: 'flex', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', gap: '0.45rem', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
-                      <Search size={16} color={theme.textMuted} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)' }} />
+                      <Search size={15} color={theme.textMuted} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)' }} />
                       <input
                         type="text"
                         placeholder="Would you like to eat something?..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '14px', padding: '0.65rem 0.85rem 0.65rem 2.5rem', color: theme.inputText, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                        style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '0.48rem 0.85rem 0.48rem 2.35rem', color: theme.inputText, fontSize: '0.84rem', outline: 'none', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
@@ -979,33 +1192,74 @@ export default function Menu() {
                 {/* Categories Navigation (or Skeleton) */}
                 {isFetchingMenu && items.length === 0 ? null : (
                   allCategories.length > 0 && (
-                    <section className={styles.categoryBar} style={{ backgroundColor: isDarkMode ? 'rgba(20, 16, 12, 0.94)' : 'rgba(255, 255, 255, 0.96)', borderBottom: `1px solid ${theme.border}` }}>
+                    <section
+                      ref={categoryBarRef}
+                      className={styles.categoryBar}
+                      style={{
+                        backgroundColor: isDarkMode ? 'rgba(20, 16, 12, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+                        borderBottom: `1px solid ${theme.border}`,
+                        padding: '0.35rem 0.85rem 0.25rem',
+                      }}
+                    >
                       {allCategories.map((c) => {
-                        const isSelected = (selectedCategory === "all" && c.id === "all") || (selectedCategory.toLowerCase() === c.id.toLowerCase());
+                        const isSelected = Boolean(selectedCategory && c.id && selectedCategory.toLowerCase() === c.id.toLowerCase());
+                        const imgUrl = getCategoryImageUrl(c);
                         return (
                           <button
                             key={c.id}
-                            onClick={() => setSelectedCategory(c.id)}
+                            data-cat-pill={c.id}
+                            onClick={() => handleCategoryClick(c.id)}
                             className={styles.categoryPill}
                             style={{
-                              background: isSelected ? `linear-gradient(135deg, ${theme.accent}, #b91c1c)` : (isDarkMode ? '#1e1812' : '#f8fafc'),
-                              color: isSelected ? '#ffffff' : theme.catText,
-                              border: isSelected ? `1.5px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                              boxShadow: isSelected ? `0 4px 14px ${theme.accentGlow}` : 'none'
+                              outline: 'none',
                             }}
                           >
-                            <span style={{ fontSize: '14px', lineHeight: 1 }}>{c.icon}</span>
-                            <span style={{ fontWeight: isSelected ? '800' : '600' }}>{c.name}</span>
-                            {c.count > 0 && (
-                              <span
-                                className={styles.categoryCount}
-                                style={{
-                                  backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : (isDarkMode ? '#2c221a' : '#e2e8f0'),
-                                  color: isSelected ? '#ffffff' : theme.textMuted,
+                            <div
+                              className={styles.categoryCircleImgWrap}
+                              style={{
+                                border: isSelected
+                                   ? `2.5px solid ${theme.accent}`
+                                   : `1.5px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)'}`,
+                                boxShadow: isSelected
+                                  ? `0 0 0 2px ${isDarkMode ? 'rgba(224, 92, 92, 0.35)' : 'rgba(224, 92, 92, 0.22)'}, 0 4px 12px ${theme.accentGlow}`
+                                  : (isDarkMode ? '0 2px 6px rgba(0,0,0,0.3)' : '0 2px 6px rgba(0,0,0,0.06)'),
+                                transform: isSelected ? 'scale(1.06)' : 'scale(1)',
+                                background: isDarkMode ? '#1e1812' : '#ffffff',
+                              }}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt={c.name}
+                                className={styles.categoryCircleImg}
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = getCategoryPlateImage(c.name, c.id);
                                 }}
-                              >
-                                {c.count}
-                              </span>
+                              />
+                            </div>
+                            <span
+                              className={styles.categoryLabel}
+                              style={{
+                                color: isSelected
+                                  ? theme.accent
+                                  : (isDarkMode ? '#cbd5e1' : '#334155'),
+                                fontWeight: isSelected ? '900' : '600',
+                                transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                              }}
+                            >
+                              {c.name}
+                            </span>
+                            {isSelected ? (
+                              <div
+                                className={styles.categoryActiveDot}
+                                style={{
+                                  backgroundColor: theme.accent,
+                                  boxShadow: `0 2px 8px ${theme.accentGlow}`,
+                                }}
+                              />
+                            ) : (
+                              <div style={{ height: 3, width: 36, marginTop: 2, visibility: 'hidden' }} />
                             )}
                           </button>
                         );
@@ -1022,7 +1276,7 @@ export default function Menu() {
                 <>
                   {/* Dishes Grid */}
                   <main style={{ padding: '0.75rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }}>
-                    {filteredItems.length === 0 ? (
+                    {totalFilteredCount === 0 ? (
                       <motion.div
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1118,11 +1372,11 @@ export default function Menu() {
                             </motion.button>
                           )}
 
-                          {selectedCategory !== 'all' && (
+                          {allCategories.length > 0 && selectedCategory !== allCategories[0].id && (
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.94 }}
-                              onClick={() => { setSelectedCategory('all'); setSearchQuery(''); }}
+                              onClick={() => { handleCategoryClick(allCategories[0].id); setSearchQuery(''); }}
                               style={{
                                 backgroundColor: isDarkMode ? '#1e1812' : '#f1f5f9',
                                 color: theme.textMain,
@@ -1134,7 +1388,7 @@ export default function Menu() {
                                 cursor: 'pointer'
                               }}
                             >
-                              View All Dishes
+                              Back to {allCategories[0].name}
                             </motion.button>
                           )}
                         </div>
@@ -1150,7 +1404,7 @@ export default function Menu() {
                                 <motion.button
                                   key={c.id}
                                   whileTap={{ scale: 0.92 }}
-                                  onClick={() => { setSelectedCategory(c.id); setSearchQuery(''); }}
+                                  onClick={() => { handleCategoryClick(c.id); setSearchQuery(''); }}
                                   style={{
                                     background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
                                     border: `1px solid ${theme.border}`,
@@ -1175,158 +1429,205 @@ export default function Menu() {
                         )}
                       </motion.div>
                     ) : (
-                      <div className={styles.grid}>
-                    {filteredItems.map((item) => {
-                      const discount = item.discount || {};
-                      const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
-                      let discountedPrice = item.price;
-                      if (hasDiscount) {
-                        if (discount.type === 'percentage') {
-                          discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
-                        } else {
-                          discountedPrice = Math.max(0, item.price - discount.value);
-                        }
-                      }
-                      const isOutOfStock = item.available === false || item.isAvailable === false;
-                      const vars = item.variants || item.sizes || item.portionSizes || [];
-                      const addons = item.addons || [];
-                      const isCustomizable = vars.length > 0 || addons.length > 0;
-
-                      return (
-                        <motion.div
-                          key={item._id}
-                          className={styles.dishCard}
-                          style={{
-                            backgroundColor: theme.bgCard,
-                            border: `1px solid ${theme.cardBorder}`,
-                            boxShadow: isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.45)' : '0 4px 18px rgba(15, 23, 42, 0.05)',
-                            cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                            opacity: isOutOfStock ? 0.65 : 1
-                          }}
-                          whileHover={!isOutOfStock ? { y: -3, borderColor: theme.accent } : {}}
-                          whileTap={!isOutOfStock ? { scale: 0.98 } : {}}
-                          onClick={() => !isOutOfStock && setViewingDishDetails(item)}
-                        >
-                          {/* Image container */}
-                          <div className={styles.dishImageWrap}>
-                            <img
-                              src={getValidFoodImage(item)}
-                              alt={item.name}
-                              className={styles.dishImg}
-                              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
-                            />
-                            <div className={styles.ratingPill}>
-                              <Star size={10} color="#fbbe21" fill="#fbbe21" />
-                              <span style={{ fontSize: '9.5px', color: '#ffffff', fontWeight: 800 }}>{item.rating || '4.8'}</span>
-                            </div>
-
-                            {hasDiscount && (
-                              <span className={styles.discountBadge}>
-                                {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
-                              </span>
-                            )}
-                            {isOutOfStock && (
-                              <div className={styles.outOfStockOverlay}>
-                                OUT OF STOCK
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Content Area */}
-                          <div className={styles.dishContent}>
-                            <div className={styles.dishTitleRow}>
-                              <FssaiDietaryBadge isVeg={item.isVeg !== false} />
-                              <h3 className={styles.dishTitle} style={{ color: theme.textMain }}>
-                                {item.name}
-                              </h3>
-                            </div>
-                            <p className={styles.dishDesc} style={{ color: theme.textMuted }}>
-                              {item.description || "Prepared fresh to order"}
-                            </p>
-                          </div>
-
-                          {/* Footer: Price & Uniform Action Button */}
-                          <div className={styles.dishFooter}>
-                            <div className={styles.priceCol}>
-                              <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                                <span className={styles.priceCurrent} style={{ color: hasDiscount ? '#16a34a' : theme.textMain }}>
-                                  ₹{discountedPrice}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', width: '100%' }}>
+                        {categorizedGroups.map((group) => (
+                          <section
+                            key={group.category.id}
+                            id={`category-section-${group.category.id}`}
+                            data-category-id={group.category.id}
+                            className={styles.categorySection}
+                          >
+                            {/* Category Section Header */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.45rem 0.2rem 0.65rem',
+                              marginBottom: '0.85rem',
+                              borderBottom: `1.5px solid ${theme.border}`,
+                              position: 'relative'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                                <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>{group.category.icon}</span>
+                                <h2 style={{
+                                  fontSize: '1.08rem',
+                                  fontWeight: '800',
+                                  color: theme.textMain,
+                                  margin: 0,
+                                  letterSpacing: '-0.02em'
+                                }}>
+                                  {group.category.name}
+                                </h2>
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: '800',
+                                  backgroundColor: isDarkMode ? '#2c221a' : '#f1f5f9',
+                                  color: theme.accent,
+                                  padding: '2px 7.5px',
+                                  borderRadius: '100px',
+                                  border: `1px solid ${theme.border}`
+                                }}>
+                                  {group.items.length}
                                 </span>
-                                {hasDiscount && (
-                                  <span className={styles.priceOriginal} style={{ color: theme.textMuted }}>
-                                    ₹{item.price}
-                                  </span>
-                                )}
                               </div>
                             </div>
 
-                            {/* Action Button: Stepper if in cart and single variant, else circular Plus button */}
-                            <div className={styles.btnActionWrapper} onClick={(e) => e.stopPropagation()}>
-                              {(() => {
-                                const qty = getItemQuantity(item);
-                                if (qty > 0 && !isCustomizable) {
-                                  return (
-                                    <div
-                                      className={styles.qtyStepper}
-                                      style={{
-                                        backgroundColor: theme.accent,
-                                        boxShadow: `0 3px 10px ${theme.accentGlow}`
-                                      }}
-                                    >
-                                      <motion.button
-                                        whileTap={{ scale: 0.8 }}
-                                        onClick={(e) => handleDecrement(item, e)}
-                                        className={styles.stepperBtn}
-                                        title="Decrease quantity"
-                                      >
-                                        <Minus size={11} strokeWidth={3.5} />
-                                      </motion.button>
-                                      <span className={styles.stepperVal}>
-                                        {qty}
-                                      </span>
-                                      <motion.button
-                                        whileTap={{ scale: 0.8 }}
-                                        onClick={(e) => handleIncrement(item, e)}
-                                        className={styles.stepperBtn}
-                                        title="Increase quantity"
-                                      >
-                                        <Plus size={11} strokeWidth={3.5} />
-                                      </motion.button>
-                                    </div>
-                                  );
+                            {/* Dishes Grid */}
+                            <div className={styles.grid}>
+                              {group.items.map((item) => {
+                                const discount = item.discount || {};
+                                const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
+                                let discountedPrice = item.price;
+                                if (hasDiscount) {
+                                  if (discount.type === 'percentage') {
+                                    discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+                                  } else {
+                                    discountedPrice = Math.max(0, item.price - discount.value);
+                                  }
                                 }
+                                const isOutOfStock = item.available === false || item.isAvailable === false;
+                                const vars = item.variants || item.sizes || item.portionSizes || [];
+                                const addons = item.addons || [];
+                                const isCustomizable = vars.length > 0 || addons.length > 0;
 
                                 return (
-                                  <motion.button
-                                    whileHover={!isOutOfStock ? { scale: 1.1 } : {}}
-                                    whileTap={!isOutOfStock ? { scale: 0.88 } : {}}
-                                    disabled={isOutOfStock}
-                                    onClick={(e) => {
-                                      if (isCustomizable) {
-                                        openItemDetails(item);
-                                      } else {
-                                        handleAdd(item, e);
-                                      }
-                                    }}
-                                    className={styles.addPlusOnlyBtn}
+                                  <motion.div
+                                    key={item._id}
+                                    className={styles.dishCard}
                                     style={{
-                                      backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
-                                      boxShadow: isOutOfStock ? 'none' : `0 4px 12px ${theme.accentGlow}`
+                                      backgroundColor: theme.bgCard,
+                                      border: `1px solid ${theme.cardBorder}`,
+                                      boxShadow: isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.45)' : '0 4px 18px rgba(15, 23, 42, 0.05)',
+                                      cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                                      opacity: isOutOfStock ? 0.65 : 1
                                     }}
-                                    title="Add dish"
+                                    whileHover={!isOutOfStock ? { y: -3, borderColor: theme.accent } : {}}
+                                    whileTap={!isOutOfStock ? { scale: 0.98 } : {}}
+                                    onClick={() => !isOutOfStock && setViewingDishDetails(item)}
                                   >
-                                    <Plus size={13} strokeWidth={3.5} />
-                                  </motion.button>
+                                    {/* Image container */}
+                                    <div className={styles.dishImageWrap}>
+                                      <img
+                                        src={getValidFoodImage(item)}
+                                        alt={item.name}
+                                        className={styles.dishImg}
+                                        onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
+                                      />
+                                      <div className={styles.ratingPill}>
+                                        <Star size={10} color="#fbbe21" fill="#fbbe21" />
+                                        <span style={{ fontSize: '9.5px', color: '#ffffff', fontWeight: 800 }}>{item.rating || '4.8'}</span>
+                                      </div>
+
+                                      {hasDiscount && (
+                                        <span className={styles.discountBadge}>
+                                          {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                                        </span>
+                                      )}
+                                      {isOutOfStock && (
+                                        <div className={styles.outOfStockOverlay}>
+                                          OUT OF STOCK
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Content Area */}
+                                    <div className={styles.dishContent}>
+                                      <div className={styles.dishTitleRow}>
+                                        <FssaiDietaryBadge isVeg={item.isVeg !== false} />
+                                        <h3 className={styles.dishTitle} style={{ color: theme.textMain }}>
+                                          {item.name}
+                                        </h3>
+                                      </div>
+                                      <p className={styles.dishDesc} style={{ color: theme.textMuted }}>
+                                        {item.description || "Prepared fresh to order"}
+                                      </p>
+                                    </div>
+
+                                    {/* Footer: Price & Uniform Action Button */}
+                                    <div className={styles.dishFooter}>
+                                      <div className={styles.priceCol}>
+                                        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                                          <span className={styles.priceCurrent} style={{ color: hasDiscount ? '#16a34a' : theme.textMain }}>
+                                            ₹{discountedPrice}
+                                          </span>
+                                          {hasDiscount && (
+                                            <span className={styles.priceOriginal} style={{ color: theme.textMuted }}>
+                                              ₹{item.price}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Action Button: Stepper if in cart and single variant, else circular Plus button */}
+                                      <div className={styles.btnActionWrapper} onClick={(e) => e.stopPropagation()}>
+                                        {(() => {
+                                          const qty = getItemQuantity(item);
+                                          if (qty > 0 && !isCustomizable) {
+                                            return (
+                                              <div
+                                                className={styles.qtyStepper}
+                                                style={{
+                                                  backgroundColor: theme.accent,
+                                                  boxShadow: `0 3px 10px ${theme.accentGlow}`
+                                                }}
+                                              >
+                                                <motion.button
+                                                  whileTap={{ scale: 0.8 }}
+                                                  onClick={(e) => handleDecrement(item, e)}
+                                                  className={styles.stepperBtn}
+                                                  title="Decrease quantity"
+                                                >
+                                                  <Minus size={11} strokeWidth={3.5} />
+                                                </motion.button>
+                                                <span className={styles.stepperVal}>
+                                                  {qty}
+                                                </span>
+                                                <motion.button
+                                                  whileTap={{ scale: 0.8 }}
+                                                  onClick={(e) => handleIncrement(item, e)}
+                                                  className={styles.stepperBtn}
+                                                  title="Increase quantity"
+                                                >
+                                                  <Plus size={11} strokeWidth={3.5} />
+                                                </motion.button>
+                                              </div>
+                                            );
+                                          }
+
+                                          return (
+                                            <motion.button
+                                              whileHover={!isOutOfStock ? { scale: 1.1 } : {}}
+                                              whileTap={!isOutOfStock ? { scale: 0.88 } : {}}
+                                              disabled={isOutOfStock}
+                                              onClick={(e) => {
+                                                if (isCustomizable) {
+                                                  openItemDetails(item);
+                                                } else {
+                                                  handleAdd(item, e);
+                                                }
+                                              }}
+                                              className={styles.addPlusOnlyBtn}
+                                              style={{
+                                                backgroundColor: isOutOfStock ? '#64748b' : theme.accent,
+                                                boxShadow: isOutOfStock ? 'none' : `0 4px 12px ${theme.accentGlow}`
+                                              }}
+                                              title="Add dish"
+                                            >
+                                              <Plus size={13} strokeWidth={3.5} />
+                                            </motion.button>
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
+                                  </motion.div>
                                 );
-                              })()}
+                              })}
                             </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
-              </main>
+                          </section>
+                        ))}
+                      </div>
+                    )}
+                  </main>
 
               {/* Dynamic Combos & Special Offers */}
               {(() => {
@@ -1775,69 +2076,62 @@ export default function Menu() {
           )}
         </AnimatePresence>
 
-        {/* Floating Bottom Center Overlapping Dishes Cart - Only show when NOT loading */}
+        {/* Floating Capsule Cart (Ultra-Premium Gourmet Gradient & Perfectly Horizontally Centered) */}
         <AnimatePresence>
           {!isLoading && cartTotalItems > 0 && !selectedItem && (
-            <motion.div
-              ref={bottomCartRef}
-              initial={{ y: 100, scale: 0.8, opacity: 0 }}
-              animate={{ y: 0, scale: 1, opacity: 1 }}
-              exit={{ y: 100, scale: 0.8, opacity: 0 }}
-              whileTap={{ scale: 0.92 }}
-              className={styles.floatingCenterCart}
-            >
-              <Link to={`/cart?table=${tableNumber}`} className={styles.cartCircleLink}>
-                <motion.div
-                  animate={isCartBouncing ? { scale: [1, 1.3, 0.9, 1.15, 1] } : { scale: 1 }}
-                  transition={{ duration: 0.4 }}
-                  className={styles.circularStackContainer}
-                >
-                  {/* Left Dish Image (if 3+ items) */}
-                  {cartItems.length >= 3 && (
-                    <img
-                      src={cartItems[2]?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
-                      alt={cartItems[2]?.name || "Dish"}
-                      className={`${styles.dishCircle} ${styles.dishCircleLeft}`}
-                      style={{ borderColor: theme.bgPage }}
-                      onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
-                    />
-                  )}
+            <div className={styles.floatingCapsuleCartWrap}>
+              <motion.div
+                ref={bottomCartRef}
+                initial={{ y: 80, scale: 0.9, opacity: 0 }}
+                animate={{ y: 0, scale: 1, opacity: 1 }}
+                exit={{ y: 80, scale: 0.9, opacity: 0 }}
+                className={styles.floatingCapsuleCart}
+              >
+                <Link to={`/cart?table=${tableNumber}`} className={styles.capsuleCartLink}>
+                  {/* Left: Overlapping Circular Item Images (Avatar Stack) */}
+                  <motion.div
+                    className={styles.capsuleImgStack}
+                    animate={isCartBouncing ? { scale: [1, 1.15, 0.95, 1.08, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.35 }}
+                  >
+                    {cartItems.slice(0, 3).map((ci, idx) => (
+                      <div
+                        key={ci.id || idx}
+                        className={styles.capsuleImgWrap}
+                        style={{
+                          zIndex: idx + 1,
+                          marginLeft: idx === 0 ? 0 : -14,
+                        }}
+                      >
+                        <img
+                          src={ci.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=240"}
+                          alt={ci.name || "Dish"}
+                          className={styles.capsuleImg}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=240";
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </motion.div>
 
-                  {/* Right Dish Image (if 2+ items) */}
-                  {cartItems.length >= 2 && (
-                    <img
-                      src={cartItems[1]?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
-                      alt={cartItems[1]?.name || "Dish"}
-                      className={`${styles.dishCircle} ${styles.dishCircleRight}`}
-                      style={{ borderColor: theme.bgPage }}
-                      onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
-                    />
-                  )}
-
-                  {/* Center Main Dish Image (Latest or 1st item) */}
-                  <div className={styles.centerDishWrapper}>
-                    <img
-                      src={cartItems[0]?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
-                      alt={cartItems[0]?.name || "Dish"}
-                      className={`${styles.dishCircle} ${styles.dishCircleCenter}`}
-                      style={{ borderColor: theme.bgPage }}
-                      onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
-                    />
-
-                    {/* Total Item Count Badge */}
-                    <span className={styles.floatingBadge} style={{ backgroundColor: theme.accent, borderColor: theme.bgPage }}>
-                      {cartTotalItems}
+                  {/* Center: View Cart Text & Item Count / Total */}
+                  <div className={styles.capsuleTextCol}>
+                    <span className={styles.capsuleTitle}>View cart</span>
+                    <span className={styles.capsuleSubtitle}>
+                      {cartTotalItems} {cartTotalItems === 1 ? 'item' : 'items'}
+                      {getCartTotal() > 0 ? ` • ₹${Math.round(getCartTotal())}` : ''}
                     </span>
                   </div>
-                </motion.div>
 
-                {/* Sleek Bottom Price Label */}
-                <div className={styles.cartPillLabel} style={{ backgroundColor: isDarkMode ? '#1e1812' : '#ffffff', color: theme.textMain, borderColor: theme.border }}>
-                  <span>₹{Math.round(getCartTotal())}</span>
-                  <ChevronRight size={14} color={theme.accent} />
-                </div>
-              </Link>
-            </motion.div>
+                  {/* Right: Premium Frosted Disc with Chevron Arrow */}
+                  <div className={styles.capsuleArrowCircle}>
+                    <ChevronRight size={18} strokeWidth={2.8} color="#ffffff" />
+                  </div>
+                </Link>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 

@@ -37,13 +37,13 @@ export default function TableBadge({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '7px',
-        padding: '5px 11px',
-        borderRadius: '10px',
+        gap: '6px',
+        padding: '4px 9px',
+        borderRadius: '9px',
         backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
         border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.07)'}`,
         color: isDarkMode ? '#f8fafc' : '#0f172a',
-        fontSize: '0.85rem',
+        fontSize: '0.8rem',
         fontWeight: '700',
         lineHeight: 1,
         userSelect: 'none',
@@ -52,7 +52,7 @@ export default function TableBadge({
       }}
       title={`Table ${cleanTableNumber}`}
     >
-      <TableIcon size={16} />
+      <TableIcon size={15} />
       <span>{cleanTableNumber}</span>
     </div>
   );

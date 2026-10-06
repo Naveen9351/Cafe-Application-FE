@@ -260,22 +260,24 @@ export default function CustomerProfilePage() {
           backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
           backdropFilter: 'blur(16px)',
           borderBottom: `1px solid ${theme.border}`,
-          padding: '12px 16px',
+          padding: '0.75rem 1rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          boxSizing: 'border-box',
+          width: '100%'
         }}>
           {/* Screen Title & Icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <User size={18} />
             </div>
-            <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.2px' }}>
+            <h1 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: theme.textMain, letterSpacing: '-0.2px', lineHeight: 1.2 }}>
               Profile
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               style={{
@@ -287,7 +289,8 @@ export default function CustomerProfilePage() {
                 justifyContent: 'center',
                 width: '32px',
                 height: '32px',
-                borderRadius: '50%'
+                borderRadius: '50%',
+                padding: 0
               }}
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
