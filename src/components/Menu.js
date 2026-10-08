@@ -232,7 +232,152 @@ export default function Menu() {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
+  // ── Favorites / Wishlist ──────────────────────────────────────────────────
+  // Key is PER-USER: serviq_favorites_<tenantId>_<phone>
+  // This ensures User A's wishlist is never visible to User B on the same device/restaurant.
+  const getFavKey = useCallback(() => {
+    const tid = tenantId || localStorage.getItem('tenantId') || 'default';
+    const phone = localStorage.getItem('customer_phone')
+      || localStorage.getItem('verified_customer_phone')
+      || 'guest';
+    return `serviq_favorites_${tid}_${phone}`;
+  }, [tenantId]);
+
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const tid = localStorage.getItem('tenantId') || 'default';
+      const phone = localStorage.getItem('customer_phone')
+        || localStorage.getItem('verified_customer_phone')
+        || 'guest';
+      const key = `serviq_favorites_${tid}_${phone}`;
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  // Persist favorites to localStorage under the user-scoped key
+  useEffect(() => {
+    const key = getFavKey();
+    localStorage.setItem(key, JSON.stringify(favorites));
+    // Notify Profile page (same tab) with the key so it re-reads the right bucket
+    window.dispatchEvent(new CustomEvent('serviq_favorites_updated', { detail: { key } }));
+  }, [favorites, getFavKey]);
+
+  const isFavorited = useCallback((itemId) => {
+    return favorites.some(f => f._id === itemId || f.id === itemId);
+  }, [favorites]);
+
+  const toggleFavorite = useCallback((item, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const id = item._id || item.id;
+    const alreadyIn = favorites.some(f => (f._id || f.id) === id);
+
+    if (alreadyIn) {
+      setFavorites(prev => prev.filter(f => (f._id || f.id) !== id));
+      toast('Removed from wishlist', {
+        id: 'wishlist-toast-action',
+        icon: '🗑️',
+        style: { background: '#1e293b', color: '#f8fafc', fontSize: '13px' },
+        duration: 1500
+      });
+    } else {
+      setFavorites(prev => [
+        ...prev,
+        {
+          _id: id,
+          id: id,
+          name: item.name,
+          price: item.price,
+          image: item.image || item.imageUrl || item.img || null,
+          category: item.category || '',
+          isVeg: item.isVeg !== false,
+          description: item.description || '',
+          rating: item.rating || null
+        }
+      ]);
+      toast('Added to wishlist ❤️', {
+        id: 'wishlist-toast-action',
+        style: { background: '#1e293b', color: '#f8fafc', fontSize: '13px' },
+        duration: 1500
+      });
+    }
+  }, [favorites]);
+
+
+  // ── Pure Veg Mode (Per-User) ──────────────────────────────────────────────
+  // Key is PER-USER: serviq_veg_only_<tenantId>_<phone>
+  // Prevents one customer's veg mode from affecting other diners at the restaurant
+  const getVegKey = useCallback(() => {
+    const tid = tenantId || localStorage.getItem('tenantId') || 'default';
+    const phone = localStorage.getItem('customer_phone')
+      || localStorage.getItem('verified_customer_phone')
+      || 'guest';
+    return `serviq_veg_only_${tid}_${phone}`;
+  }, [tenantId]);
+
+  const [isVegOnly, setIsVegOnly] = useState(() => {
+    try {
+      const tid = localStorage.getItem('tenantId') || 'default';
+      const phone = localStorage.getItem('customer_phone')
+        || localStorage.getItem('verified_customer_phone')
+        || 'guest';
+      const key = `serviq_veg_only_${tid}_${phone}`;
+      const saved = localStorage.getItem(key);
+      if (saved !== null) return JSON.parse(saved);
+      const legacy = localStorage.getItem('serviq_veg_only');
+      return legacy ? JSON.parse(legacy) : false;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  // Listen for changes from Profile page (same-tab CustomEvent & cross-tab storage)
+  useEffect(() => {
+    const syncVegFromProfile = (e) => {
+      const key = (e && e.detail && e.detail.key) ? e.detail.key : getVegKey();
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) setIsVegOnly(JSON.parse(raw));
+      } catch (err) {}
+    };
+
+    window.addEventListener('serviq_veg_only_updated', syncVegFromProfile);
+
+    const storageSync = (e) => {
+      if (e.key === getVegKey()) syncVegFromProfile(null);
+    };
+    window.addEventListener('storage', storageSync);
+
+    return () => {
+      window.removeEventListener('serviq_veg_only_updated', syncVegFromProfile);
+      window.removeEventListener('storage', storageSync);
+    };
+  }, [getVegKey]);
+
+  const handleToggleVegOnly = useCallback(() => {
+    setIsVegOnly(prev => {
+      const nextVal = !prev;
+      const key = getVegKey();
+      localStorage.setItem(key, JSON.stringify(nextVal));
+      localStorage.setItem('serviq_veg_only', JSON.stringify(nextVal));
+      window.dispatchEvent(new CustomEvent('serviq_veg_only_updated', { detail: { key, isVegOnly: nextVal } }));
+      toast(nextVal ? '🟢 Pure Veg mode activated' : 'Showing all items (Veg & Non-Veg)', {
+        style: { background: '#1e293b', color: '#f8fafc', fontSize: '13px' },
+        duration: 1500
+      });
+      return nextVal;
+    });
+  }, [getVegKey]);
+
   // Item Details Modal State Handlers
+
   const openItemDetails = (item) => {
     if (!item) return;
     setSelectedItem(item);
@@ -537,6 +682,12 @@ export default function Menu() {
     }
   };
 
+  // Filter items by Pure Veg preference if active for this customer
+  const displayItems = useMemo(() => {
+    if (!isVegOnly) return items;
+    return items.filter(it => it.isVeg !== false);
+  }, [items, isVegOnly]);
+
   const allCategories = useMemo(() => {
     const map = new Map();
 
@@ -573,7 +724,7 @@ export default function Menu() {
       });
     }
 
-    items.forEach(it => {
+    displayItems.forEach(it => {
       if (it.category) {
         const rawCat = String(it.category).trim();
         const id = rawCat.toLowerCase().replace(/\s+/g, '-');
@@ -585,7 +736,7 @@ export default function Menu() {
     });
 
     const list = Array.from(map.values()).map(cat => {
-      const count = items.filter(it => {
+      const count = displayItems.filter(it => {
         const itCat = String(it.category || '').toLowerCase().trim();
         const itCatNorm = itCat.replace(/\s+/g, '-');
         const targetId = cat.id.toLowerCase();
@@ -598,7 +749,7 @@ export default function Menu() {
 
     // Only return real categories that have items in the menu (no 'all')
     return list.filter(cat => cat.count > 0);
-  }, [categories, items]);
+  }, [categories, displayItems]);
 
   // Retrieve optimal food plate photo for each category badge
   const getCategoryImageUrl = (cat) => {
@@ -640,7 +791,7 @@ export default function Menu() {
     const groups = [];
 
     allCategories.forEach(cat => {
-      const catItems = items.filter(it => {
+      const catItems = displayItems.filter(it => {
         const itCat = String(it.category || '').toLowerCase().trim();
         const itCatNorm = itCat.replace(/\s+/g, '-');
         const targetId = cat.id.toLowerCase();
@@ -668,7 +819,7 @@ export default function Menu() {
 
     // Account for any remaining items not caught by mapped categories
     const accountedIds = new Set(groups.flatMap(g => g.items.map(i => i._id)));
-    const remaining = items.filter(it => {
+    const remaining = displayItems.filter(it => {
       if (accountedIds.has(it._id)) return false;
       if (q) {
         return it.name.toLowerCase().includes(q) ||
@@ -686,7 +837,7 @@ export default function Menu() {
     }
 
     return groups;
-  }, [allCategories, items, searchQuery]);
+  }, [allCategories, displayItems, searchQuery]);
 
   const totalFilteredCount = useMemo(() => {
     return categorizedGroups.reduce((acc, g) => acc + g.items.length, 0);
@@ -1174,8 +1325,8 @@ export default function Menu() {
                     </div>
                   </div>
 
-                  {/* Search Box */}
-                  <div style={{ display: 'flex', gap: '0.45rem', width: '100%', boxSizing: 'border-box' }}>
+                  {/* Search Box & Pure Veg Toggle */}
+                  <div style={{ display: 'flex', gap: '0.45rem', width: '100%', boxSizing: 'border-box', alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                       <Search size={15} color={theme.textMuted} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)' }} />
                       <input
@@ -1186,6 +1337,40 @@ export default function Menu() {
                         style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '0.48rem 0.85rem 0.48rem 2.35rem', color: theme.inputText, fontSize: '0.84rem', outline: 'none', boxSizing: 'border-box' }}
                       />
                     </div>
+
+                    {/* Quick Veg Filter Toggle */}
+                    <motion.button
+                      whileTap={{ scale: 0.92 }}
+                      onClick={handleToggleVegOnly}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '0 10px',
+                        borderRadius: '12px',
+                        border: isVegOnly ? '1.5px solid #16a34a' : `1px solid ${theme.border}`,
+                        backgroundColor: isVegOnly ? (isDarkMode ? 'rgba(22, 163, 74, 0.22)' : '#ecfdf5') : theme.inputBg,
+                        color: isVegOnly ? '#16a34a' : theme.textMuted,
+                        fontSize: '0.78rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        height: '38px',
+                        boxSizing: 'border-box',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isVegOnly ? '0 2px 8px rgba(22, 163, 74, 0.25)' : 'none'
+                      }}
+                      title={isVegOnly ? "Pure Veg Mode Active — Tap to show all" : "Tap to show Vegetarian only"}
+                    >
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: isVegOnly ? '#16a34a' : '#94a3b8',
+                        transition: 'background-color 0.2s ease'
+                      }} />
+                      <span>VEG</span>
+                    </motion.button>
                   </div>
                 </div>
 
@@ -1513,6 +1698,24 @@ export default function Menu() {
                                         className={styles.dishImg}
                                         onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"; }}
                                       />
+
+                                      {/* ❤️ Wishlist Heart Button */}
+                                      <motion.button
+                                        className={styles.heartBtn}
+                                        onClick={(e) => toggleFavorite(item, e)}
+                                        whileTap={{ scale: 0.75 }}
+                                        whileHover={{ scale: 1.15 }}
+                                        title={isFavorited(item._id) ? 'Remove from wishlist' : 'Add to wishlist'}
+                                        aria-label="Toggle wishlist"
+                                      >
+                                        <Heart
+                                          size={13}
+                                          fill={isFavorited(item._id) ? '#ef4444' : 'transparent'}
+                                          color={isFavorited(item._id) ? '#ef4444' : 'rgba(255,255,255,0.85)'}
+                                          strokeWidth={2.5}
+                                        />
+                                      </motion.button>
+
                                       <div className={styles.ratingPill}>
                                         <Star size={10} color="#fbbe21" fill="#fbbe21" />
                                         <span style={{ fontSize: '9.5px', color: '#ffffff', fontWeight: 800 }}>{item.rating || '4.8'}</span>
@@ -1631,7 +1834,7 @@ export default function Menu() {
 
               {/* Dynamic Combos & Special Offers */}
               {(() => {
-                const comboItems = items.filter(it => {
+                const comboItems = displayItems.filter(it => {
                   const cat = (it.category || '').toLowerCase();
                   return cat.includes('combo') || cat.includes('offer') || it.isCombo || it.isOffer;
                 });
@@ -2146,6 +2349,8 @@ export default function Menu() {
             openItemDetails(dish);
           }}
           isDarkMode={isDarkMode}
+          isFavorite={Boolean(viewingDishDetails && favorites.some(f => (f._id || f.id) === (viewingDishDetails._id || viewingDishDetails.id)))}
+          onToggleFavorite={(dish, e) => toggleFavorite(dish, e)}
         />
 
         {/* Customer Bottom Navigation Bar (Menu, Cart, History, Profile) */}

@@ -249,20 +249,48 @@
 
 .ratingPill {
   position: absolute;
-  top: 4px;
+  bottom: 4px;
   right: 4px;
   background: rgba(15, 23, 42, 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  padding: 1.5px 4.5px;
+  padding: 1.5px 5px;
   border-radius: 100px;
   display: flex;
   align-items: center;
   gap: 2.5px;
   border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 2;
+}
+
+/* ── Wishlist Heart Button on Dish Card ───────────────────────────────── */
+.heartBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  z-index: 3;
+}
+
+.heartBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
 }
 
 .discountBadge {
+
   position: absolute;
   top: 4px;
   left: 4px;

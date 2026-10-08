@@ -3,16 +3,18 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
-  User, Phone, ShieldCheck, Moon, Sun, Bell,
-  Utensils, Edit3, Check, Heart, Sparkles,
-  Wifi, Star, Award, Receipt, CreditCard, Droplets,
-  Trash2, Copy, CheckCircle2, ChevronRight, X,
-  Clock, MapPin, Smile, RefreshCw, Smartphone
+  User, ChevronLeft, ChevronRight, Moon, Sun,
+  ShoppingBag, Wallet, Bell, Wifi, Trash2, Edit3,
+  Check, X, Leaf, Smartphone, Heart, Gift,
+  LogOut, Plus, AlertCircle, ShoppingCart,
+  Sparkles, ShieldCheck, Zap
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { decodeTableToken } from '../utils/tableToken';
+import styles from './CustomerProfilePage.module.css';
+import { decodeTableToken, encodeTableToken } from '../utils/tableToken';
 import { API_URL as API } from '../config/api';
 import CustomerBottomNav from './common/CustomerBottomNav';
+import TableBadge from './common/TableBadge';
 
 export default function CustomerProfilePage() {
   const navigate = useNavigate();
@@ -20,8 +22,11 @@ export default function CustomerProfilePage() {
 
   // Table & Tenant resolution
   const tableParam = searchParams.get('table') || searchParams.get('t') || searchParams.get('code');
-  const tableNumber = tableParam ? decodeTableToken(tableParam) : (localStorage.getItem('tableNumber') || '');
+  const tableNumber = tableParam ? decodeTableToken(tableParam) : (localStorage.getItem('tableNumber') || '1');
   const tenantId = searchParams.get('tenantId') || localStorage.getItem('tenantId') || '';
+
+  const tableToken = tableNumber ? encodeTableToken(tableNumber) : '';
+  const tableTarget = tableToken ? `?t=${encodeURIComponent(tableToken)}` : '';
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -34,24 +39,85 @@ export default function CustomerProfilePage() {
   });
 
   const [customerName, setCustomerName] = useState(() => localStorage.getItem('customer_name') || 'Guest Diner');
-  const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem('customer_phone') || '');
+  const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem('customer_phone') || localStorage.getItem('verified_customer_phone') || '');
+  const [customerBirthday, setCustomerBirthday] = useState(() => localStorage.getItem('customer_birthday') || '');
+  const [customerAnniversary, setCustomerAnniversary] = useState(() => localStorage.getItem('customer_anniversary') || '');
   
-  // Edit Profile Modal State
+  // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isBirthdayModalOpen, setIsBirthdayModalOpen] = useState(false);
+  const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+
+  // Form states
   const [nameInput, setNameInput] = useState(customerName);
   const [phoneInput, setPhoneInput] = useState(customerPhone);
+  const [birthdayInput, setBirthdayInput] = useState(customerBirthday);
+  const [anniversaryInput, setAnniversaryInput] = useState(customerAnniversary);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Orders count & Favorites calculation
-  const [ordersCount, setOrdersCount] = useState(0);
-  const [favCount, setFavCount] = useState(0);
+  // Wishlist items state — PER USER: key = serviq_favorites_<tenantId>_<phone>
+  // This prevents User A's liked dishes from showing in User B's profile.
+  const getFavKey = () => {
+    const tid = tenantId || localStorage.getItem('tenantId') || 'default';
+    const phone = localStorage.getItem('customer_phone')
+      || localStorage.getItem('verified_customer_phone')
+      || 'guest';
+    return `serviq_favorites_${tid}_${phone}`;
+  };
 
-  // Review & Rating State
-  const [selectedRating, setSelectedRating] = useState(5);
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  const [isRequestingBill, setIsRequestingBill] = useState(false);
-  const [billPaymentMethod, setBillPaymentMethod] = useState('UPI / Online');
+  const [wishlistItems, setWishlistItems] = useState(() => {
+    try {
+      const tid = localStorage.getItem('tenantId') || 'default';
+      const phone = localStorage.getItem('customer_phone')
+        || localStorage.getItem('verified_customer_phone')
+        || 'guest';
+      const key = `serviq_favorites_${tid}_${phone}`;
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const getVegKey = () => {
+    const tid = tenantId || localStorage.getItem('tenantId') || 'default';
+    const phone = localStorage.getItem('customer_phone')
+      || localStorage.getItem('verified_customer_phone')
+      || 'guest';
+    return `serviq_veg_only_${tid}_${phone}`;
+  };
+
+  // Pure Veg Mode switch — PER USER: key = serviq_veg_only_<tenantId>_<phone>
+  const [isVegOnly, setIsVegOnly] = useState(() => {
+    try {
+      const tid = localStorage.getItem('tenantId') || 'default';
+      const phone = localStorage.getItem('customer_phone')
+        || localStorage.getItem('verified_customer_phone')
+        || 'guest';
+      const key = `serviq_veg_only_${tid}_${phone}`;
+      const saved = localStorage.getItem(key);
+      if (saved !== null) return JSON.parse(saved);
+      const legacy = localStorage.getItem('serviq_veg_only');
+      return legacy ? JSON.parse(legacy) : false;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  // Table Service cooldown countdowns
+  const [serviceTimers, setServiceTimers] = useState({
+    waiter: 0,
+    bill: 0
+  });
+
+  // Live session bill total
+  const [liveBill, setLiveBill] = useState({ total: 0, itemsCount: 0, roundsCount: 1 });
+  const [billPaymentMethod, setBillPaymentMethod] = useState('UPI / QR at Table');
+  const [wifiCopied, setWifiCopied] = useState(false);
 
   const tenantInfo = {
     name: localStorage.getItem('restaurant_name') || "SERVIQ Gourmet Bistro",
@@ -64,34 +130,129 @@ export default function CustomerProfilePage() {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
+  // Save wishlist to the per-user scoped key whenever it changes
   useEffect(() => {
-    // Calculate total recorded orders
-    let total = 0;
+    const key = getFavKey();
+    localStorage.setItem(key, JSON.stringify(wishlistItems));
+  }, [wishlistItems]);
+
+  // Real-time sync: re-read favorites when Menu.js updates them (same-tab CustomEvent)
+  useEffect(() => {
+    const syncFromMenu = (e) => {
+      // Menu.js sends { detail: { key } } — use that exact key
+      const key = (e && e.detail && e.detail.key) ? e.detail.key : getFavKey();
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) setWishlistItems(parsed);
+        } else {
+          setWishlistItems([]);
+        }
+      } catch (err) {}
+    };
+
+    // Same-tab: Menu.js fires this CustomEvent after every heart toggle
+    window.addEventListener('serviq_favorites_updated', syncFromMenu);
+
+    // Cross-tab: standard storage event — key will be the namespaced one
+    const storageSync = (e) => {
+      const myKey = getFavKey();
+      if (e.key === myKey) syncFromMenu(null);
+    };
+    window.addEventListener('storage', storageSync);
+
+    return () => {
+      window.removeEventListener('serviq_favorites_updated', syncFromMenu);
+      window.removeEventListener('storage', storageSync);
+    };
+  }, []);
+
+  // Real-time sync: re-read Pure Veg mode if updated from Menu or another tab
+  useEffect(() => {
+    const syncVeg = (e) => {
+      const key = (e && e.detail && e.detail.key) ? e.detail.key : getVegKey();
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) setIsVegOnly(JSON.parse(raw));
+      } catch (err) {}
+    };
+
+    window.addEventListener('serviq_veg_only_updated', syncVeg);
+
+    const storageSync = (e) => {
+      if (e.key === getVegKey()) syncVeg(null);
+    };
+    window.addEventListener('storage', storageSync);
+
+    return () => {
+      window.removeEventListener('serviq_veg_only_updated', syncVeg);
+      window.removeEventListener('storage', storageSync);
+    };
+  }, []);
+
+
+
+  // Decrement cooldown timers
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setServiceTimers(prev => {
+        let changed = false;
+        const next = { ...prev };
+        Object.keys(next).forEach(k => {
+          if (next[k] > 0) {
+            next[k] -= 1;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Sync live orders & active bill
+  useEffect(() => {
+    let billTotal = 0;
+    let itemsCount = 0;
+    let sessionIds = [];
+
     try {
       const rawHist = localStorage.getItem('serviq_order_history');
       if (rawHist) {
         const parsed = JSON.parse(rawHist);
-        if (Array.isArray(parsed)) total = parsed.length;
-      }
-      if (total === 0) {
-        const rawSess = localStorage.getItem('serviq_session_orders');
-        if (rawSess) {
-          const parsed = JSON.parse(rawSess);
-          if (Array.isArray(parsed)) total = parsed.length;
+        if (Array.isArray(parsed)) {
+          parsed.forEach(ord => {
+            if (ord.paymentStatus !== 'paid' && ord.status !== 'cancelled') {
+              billTotal += (ord.totalAmount || ord.total || 0);
+              ord.items?.forEach(it => { itemsCount += (it.quantity || 1); });
+            }
+          });
         }
       }
-    } catch (e) {}
-    setOrdersCount(total);
-
-    // Calculate favorites
-    try {
-      const rawFav = localStorage.getItem('serviq_favorites');
-      if (rawFav) {
-        const parsed = JSON.parse(rawFav);
-        if (Array.isArray(parsed)) setFavCount(parsed.length);
+      const rawSess = localStorage.getItem('serviq_session_orders');
+      if (rawSess) {
+        const parsed = JSON.parse(rawSess);
+        if (Array.isArray(parsed)) sessionIds = parsed;
       }
     } catch (e) {}
-  }, []);
+
+    setLiveBill({
+      total: billTotal,
+      itemsCount: itemsCount,
+      roundsCount: sessionIds.length > 0 ? sessionIds.length : (billTotal > 0 ? 1 : 0)
+    });
+  }, [tableNumber]);
+
+  const handleToggleVegOnly = () => {
+    const nextVal = !isVegOnly;
+    setIsVegOnly(nextVal);
+    const key = getVegKey();
+    localStorage.setItem(key, JSON.stringify(nextVal));
+    localStorage.setItem('serviq_veg_only', JSON.stringify(nextVal));
+    window.dispatchEvent(new CustomEvent('serviq_veg_only_updated', { detail: { key, isVegOnly: nextVal } }));
+    toast.success(nextVal ? '🟢 Pure Veg mode activated!' : 'Pure Veg mode turned off');
+  };
 
   const openEditModal = () => {
     setNameInput(customerName);
@@ -129,14 +290,11 @@ export default function CustomerProfilePage() {
         }
       } catch (e) {}
 
-      // Synchronize customer name with backend orders & KDS
       let sessionIds = [];
       try {
         const raw = localStorage.getItem('serviq_session_orders');
         if (raw) sessionIds = JSON.parse(raw);
       } catch (e) {}
-      const lastOrd = localStorage.getItem('serviq_last_order_id');
-      if (lastOrd && !sessionIds.includes(lastOrd)) sessionIds.push(lastOrd);
 
       await axios.post(`${API}/customer/update-profile`, {
         name: newName,
@@ -146,770 +304,521 @@ export default function CustomerProfilePage() {
         tableNumber
       });
 
-      toast.success('Profile updated & synchronized with KDS!', { icon: '✨' });
+      toast.success('Profile updated successfully!');
       setIsEditModalOpen(false);
-    } catch (apiErr) {
-      console.warn('Sync customer name with KDS:', apiErr);
-      toast.success('Profile name updated locally!');
+    } catch (err) {
+      toast.success('Profile updated locally!');
       setIsEditModalOpen(false);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleCallWaiter = () => {
-    toast.success(`🛎️ Waiter notified! Staff is heading to your table.`, {
+  const handleSaveBirthdayAndPerks = async (e) => {
+    if (e) e.preventDefault();
+    setCustomerBirthday(birthdayInput);
+    setCustomerAnniversary(anniversaryInput);
+    localStorage.setItem('customer_birthday', birthdayInput);
+    localStorage.setItem('customer_anniversary', anniversaryInput);
+
+    try {
+      await axios.post(`${API}/customer/update-profile`, {
+        name: customerName,
+        phone: customerPhone,
+        birthday: birthdayInput,
+        anniversary: anniversaryInput,
+        tenantId,
+        tableNumber
+      });
+    } catch (err) {}
+
+    setIsBirthdayModalOpen(false);
+    toast.success('🎉 Birthday & special dates saved! 20% birthday perk unlocked.', {
       duration: 4000,
-      icon: '🛎️'
+      icon: '🎂'
     });
   };
 
-  const handleRequestWater = () => {
-    toast.success(`💧 Fresh water & napkins requested!`, {
-      duration: 3500,
-      icon: '💧'
-    });
+  const handleRemoveFavorite = (dishId) => {
+    setWishlistItems(prev => prev.filter(it => (it.id || it._id) !== dishId));
+    toast.success('Removed from wishlist');
   };
 
-  const handleRequestCleanTable = () => {
-    toast.success(`✨ Housekeeping notified to clean table!`, {
-      duration: 3500,
-      icon: '✨'
-    });
+  const handleAddToCartFromWishlist = (dish) => {
+    try {
+      const rawCart = localStorage.getItem('cart');
+      let currentCart = rawCart ? JSON.parse(rawCart) : [];
+      if (!Array.isArray(currentCart)) currentCart = [];
+
+      const existingIndex = currentCart.findIndex(it => (it.id || it._id) === (dish.id || dish._id));
+      if (existingIndex > -1) {
+        currentCart[existingIndex].quantity = (currentCart[existingIndex].quantity || 1) + 1;
+      } else {
+        currentCart.push({
+          id: dish.id || dish._id,
+          name: dish.name,
+          price: dish.price,
+          quantity: 1,
+          isVeg: dish.isVeg !== undefined ? dish.isVeg : true
+        });
+      }
+
+      localStorage.setItem('cart', JSON.stringify(currentCart));
+      window.dispatchEvent(new Event('cartUpdated'));
+      toast.success(`Added ${dish.name} to Cart! 🛒`, { icon: '🛒' });
+    } catch (e) {
+      toast.success(`Added ${dish.name} to Cart!`);
+    }
   };
 
-  const handleConfirmBillRequest = () => {
-    setIsRequestingBill(false);
-    toast.success(`💳 Bill requested with ${billPaymentMethod}! Staff is on the way.`, {
-      duration: 4500,
-      icon: '🧾'
-    });
+  const handleCallWaiter = async () => {
+    if (serviceTimers.waiter > 0) {
+      toast.error(`Staff already alerted for Table ${tableNumber}! Arriving in ${serviceTimers.waiter}s.`);
+      return;
+    }
+
+    setServiceTimers(p => ({ ...p, waiter: 60 }));
+
+    try {
+      const res = await axios.post(`${API}/tables/service-request`, {
+        tableNumber,
+        tenantId,
+        customerName,
+        customerPhone,
+        type: 'call_waiter'
+      });
+
+      if (res.data?.alreadyActive) {
+        toast('Staff has already been alerted! Arriving shortly.', { icon: '🛎️' });
+      } else {
+        toast.success(`🛎️ Staff alerted for Table ${tableNumber}! Heading over.`, { duration: 3500 });
+      }
+    } catch (err) {
+      // Fallback: timer is set and local confirmation shown
+      toast.success(`🛎️ Staff called for Table ${tableNumber}! Heading over.`, { duration: 3500 });
+    }
+  };
+
+  const handleConfirmBill = async () => {
+    setIsBillModalOpen(false);
+    setServiceTimers(p => ({ ...p, bill: 90 }));
+
+    try {
+      await axios.post(`${API}/tables/service-request`, {
+        tableNumber,
+        tenantId,
+        customerName,
+        customerPhone,
+        type: 'request_bill',
+        paymentMethod: billPaymentMethod,
+        amount: liveBill.total
+      });
+      toast.success(`💳 Bill requested with ${billPaymentMethod}! Staff is on the way.`, { duration: 4000 });
+    } catch (err) {
+      toast.success(`💳 Bill requested with ${billPaymentMethod}! Staff is on the way.`, { duration: 4000 });
+    }
   };
 
   const handleCopyWiFi = () => {
     navigator.clipboard?.writeText(tenantInfo.wifiPass);
-    toast.success(`📶 WiFi Password "${tenantInfo.wifiPass}" copied!`, {
-      duration: 3000,
-      icon: '📋'
-    });
+    setWifiCopied(true);
+    toast.success(`WiFi password "${tenantInfo.wifiPass}" copied!`, { duration: 2500 });
+    setTimeout(() => setWifiCopied(false), 2000);
   };
 
-  const handleSubmitFeedback = () => {
-    if (selectedRating === 0) return;
-    setFeedbackSubmitted(true);
-    toast.success('🎉 Thank you! Your feedback helps us serve you better.', {
-      duration: 4000,
-      icon: '🌟'
-    });
+  // Complete Production Logout Flow
+  const handlePerformLogout = () => {
+    // 1. Clear session and user identification
+    localStorage.removeItem('customer_name');
+    localStorage.removeItem('customer_phone');
+    localStorage.removeItem('serviq_customer');
+    localStorage.removeItem('serviq_dietary_pref');
+    localStorage.removeItem('serviq_veg_only');
+    try {
+      localStorage.removeItem(getVegKey());
+    } catch (e) {}
+    localStorage.removeItem('customer_birthday');
+    localStorage.removeItem('customer_anniversary');
+    localStorage.removeItem('serviq_session_orders');
+    localStorage.removeItem('serviq_last_order_id');
+
+    // 2. Reset in-memory state
+    setCustomerName('Guest Diner');
+    setCustomerPhone('');
+    setCustomerBirthday('');
+    setCustomerAnniversary('');
+    setIsVegOnly(false);
+    setIsLogoutModalOpen(false);
+
+    toast.success('👋 Logged out successfully! Browsing as Guest Diner.');
+    
+    // 3. Navigate back to menu with table token preserved
+    navigate(`/menu${tableTarget}`, { replace: true });
   };
 
-  const handleClearSession = () => {
-    if (window.confirm("Are you sure you want to clear your dining profile session on this device?")) {
-      localStorage.removeItem('customer_name');
-      localStorage.removeItem('customer_phone');
-      localStorage.removeItem('serviq_customer');
-      setCustomerName('Guest Diner');
-      setCustomerPhone('');
-      toast.success('Profile session reset!');
-    }
-  };
-
-  const getDinerBadge = () => {
-    if (ordersCount >= 5) return { title: 'Gold VIP Gourmet', color: '#eab308', bg: 'rgba(234, 179, 8, 0.15)', icon: '👑' };
-    if (ordersCount >= 2) return { title: 'Silver Foodie', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)', icon: '✨' };
-    return { title: 'Gourmet Member', color: '#ea580c', bg: 'rgba(234, 88, 12, 0.15)', icon: '🌟' };
-  };
-
-  const badge = getDinerBadge();
-
+  // Blinkit Theme Tokens
   const theme = {
-    bgPage: isDarkMode ? '#120d09' : '#f8fafc',
-    bgContainer: isDarkMode ? '#1a130e' : '#ffffff',
-    cardBg: isDarkMode ? '#241c14' : '#ffffff',
-    border: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
-    textMain: isDarkMode ? '#f8fafc' : '#0f172a',
+    bgPage: isDarkMode ? '#0e1015' : '#f4f5f8',
+    bgHeaderGlow: isDarkMode 
+      ? 'radial-gradient(ellipse 100% 60% at 50% -10%, rgba(180, 83, 9, 0.42) 0%, rgba(14, 16, 21, 0) 100%)' 
+      : 'radial-gradient(ellipse 100% 60% at 50% -10%, rgba(254, 215, 170, 0.5) 0%, rgba(244, 245, 248, 0) 100%)',
+    bgCard: isDarkMode ? '#1a1d24' : '#ffffff',
+    bgBanner: isDarkMode 
+      ? 'linear-gradient(90deg, #1e1b18 0%, #2e2417 100%)' 
+      : 'linear-gradient(90deg, #fff7ed 0%, #ffedd5 100%)',
+    border: isDarkMode ? 'rgba(255, 255, 255, 0.07)' : '#e2e8f0',
+    borderBanner: isDarkMode ? '#78350f' : '#fed7aa',
+    textMain: isDarkMode ? '#ffffff' : '#0f172a',
     textMuted: isDarkMode ? '#94a3b8' : '#64748b',
     accent: '#ea580c',
-    accentGlow: 'rgba(234, 88, 12, 0.25)',
-    inputBg: isDarkMode ? '#221911' : '#f1f5f9'
+    inputBg: isDarkMode ? '#13161c' : '#f8fafc'
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: theme.bgPage, color: theme.textMain, display: 'flex', justifyContent: 'center' }}>
+    <div className={styles.pageContainer} style={{ backgroundColor: theme.bgPage, color: theme.textMain }}>
       <Toaster position="top-center" />
 
-      {/* Main Container */}
-      <div style={{
-        width: '100%',
-        maxWidth: '520px',
-        backgroundColor: theme.bgContainer,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        paddingBottom: '6rem',
-        boxSizing: 'border-box',
-        borderLeft: `1px solid ${theme.border}`,
-        borderRight: `1px solid ${theme.border}`
-      }}>
-        {/* Top Sticky Header */}
-        <div style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 900,
-          backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: `1px solid ${theme.border}`,
-          padding: '0.75rem 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxSizing: 'border-box',
-          width: '100%'
-        }}>
-          {/* Screen Title & Icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <User size={18} />
-            </div>
-            <h1 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: theme.textMain, letterSpacing: '-0.2px', lineHeight: 1.2 }}>
-              Profile
-            </h1>
+      <div
+        className={styles.contentWrapper}
+        style={{
+          background: `${theme.bgHeaderGlow}, ${theme.bgPage}`
+        }}
+      >
+        {/* 1. Top Navigation Bar */}
+        <div className={styles.topNav}>
+          <button
+            type="button"
+            onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
+            className={styles.backCircleBtn}
+            style={{
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0',
+              color: theme.textMain
+            }}
+          >
+            <ChevronLeft size={22} />
+          </button>
+
+          <TableBadge
+            tableNumber={tableNumber}
+            isDarkMode={isDarkMode}
+            style={{ padding: '4px 9px', fontSize: '0.8rem' }}
+          />
+        </div>
+
+        {/* 2. Hero Center Profile (Blinkit Style) */}
+        <div className={styles.heroProfileSection}>
+          <div className={styles.largeAvatarCircle} onClick={openEditModal}>
+            <User size={46} strokeWidth={2.4} />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              style={{
-                background: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                padding: 0
-              }}
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? <Sun size={16} color="#fbbe21" /> : <Moon size={16} color="#475569" />}
-            </button>
+          <h1 className={styles.heroTitle} style={{ color: theme.textMain }}>
+            <span>{customerName === 'Guest Diner' ? 'Your account' : customerName}</span>
+            <Edit3 size={15} color={theme.accent} style={{ cursor: 'pointer' }} onClick={openEditModal} />
+          </h1>
+
+          <p className={styles.heroSubtitle} style={{ color: theme.textMuted }}>
+            {customerPhone ? customerPhone : '+ Add Mobile Number'}
+          </p>
+        </div>
+
+        {/* 3. Birthday / Loyalty Promo Banner (Interactive & Functional) */}
+        <div
+          className={styles.promoBannerCard}
+          onClick={() => setIsBirthdayModalOpen(true)}
+          style={{
+            background: theme.bgBanner,
+            borderColor: theme.borderBanner
+          }}
+        >
+          <div className={styles.promoTextCol}>
+            <h3 className={styles.promoTitle} style={{ color: theme.textMain }}>
+              {customerBirthday ? `Birthday: ${customerBirthday}` : 'Add your birthday'}
+            </h3>
+            <span className={styles.promoLink} style={{ color: '#22c55e' }}>
+              <span>{customerBirthday ? 'Perks Active • Edit date' : 'Enter details ▸'}</span>
+              <ChevronRight size={14} strokeWidth={3} />
+            </span>
+          </div>
+
+          <div className={styles.promoGraphic}>
+            🎂
           </div>
         </div>
 
-        {/* Profile Content Body */}
-        <div style={{ padding: '16px 18px 0 18px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-
-          {/* 1. VIP Customer Identity Card */}
-          <div style={{
-            backgroundColor: theme.cardBg,
-            border: `1px solid ${theme.border}`,
-            borderRadius: '24px',
-            padding: '20px',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: isDarkMode ? '0 10px 30px rgba(0,0,0,0.35)' : '0 10px 30px rgba(15,23,42,0.04)'
-          }}>
-            {/* Subtle background glow effect */}
-            <div style={{
-              position: 'absolute',
-              top: '-40px',
-              right: '-40px',
-              width: '140px',
-              height: '140px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(234, 88, 12, 0.22) 0%, rgba(234, 88, 12, 0) 70%)',
-              pointerEvents: 'none'
-            }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative', zIndex: 1 }}>
-              {/* Avatar with Glow Ring */}
-              <div style={{ position: 'relative' }}>
-                <div style={{
-                  width: '68px',
-                  height: '68px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ea580c 0%, #b91c1c 100%)',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.75rem',
-                  fontWeight: '900',
-                  boxShadow: '0 6px 20px rgba(234, 88, 12, 0.4)',
-                  flexShrink: 0
-                }}>
-                  {customerName ? customerName.charAt(0).toUpperCase() : 'G'}
-                </div>
-                <div style={{
-                  position: 'absolute',
-                  bottom: -1,
-                  right: -1,
-                  backgroundColor: '#16a34a',
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  border: `2.5px solid ${theme.cardBg}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
-                </div>
-              </div>
-
-              {/* Customer Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <h2 style={{
-                    margin: 0,
-                    fontSize: '1.25rem',
-                    fontWeight: 900,
-                    color: theme.textMain,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '-0.3px'
-                  }}>
-                    {customerName}
-                  </h2>
-                  <button
-                    onClick={openEditModal}
-                    style={{
-                      background: isDarkMode ? 'rgba(255,255,255,0.08)' : '#f1f5f9',
-                      border: `1px solid ${theme.border}`,
-                      color: theme.accent,
-                      cursor: 'pointer',
-                      padding: '5px 10px',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      fontSize: '0.74rem',
-                      fontWeight: 800,
-                      flexShrink: 0
-                    }}
-                    title="Edit Profile"
-                  >
-                    <Edit3 size={12} />
-                    <span>Edit</span>
-                  </button>
-                </div>
-
-                {customerPhone ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem', color: '#16a34a', fontWeight: 700, marginTop: '3px' }}>
-                    <ShieldCheck size={14} />
-                    <span>+91 {customerPhone} • Verified</span>
-                  </div>
-                ) : (
-                  <span style={{ fontSize: '0.78rem', color: theme.textMuted, display: 'block', marginTop: '2px', fontWeight: 600 }}>
-                    Direct Dining Guest • QR Order
-                  </span>
-                )}
-
-                {/* Diner Status Badge */}
-                <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: badge.bg, color: badge.color, padding: '3px 10px', borderRadius: '100px', fontSize: '0.72rem', fontWeight: 850 }}>
-                  <span>{badge.icon}</span>
-                  <span>{badge.title}</span>
-                </div>
-              </div>
+        {/* 4. Three Core Bento Action Cards */}
+        <div className={styles.bentoGrid}>
+          {/* Bento 1: Your orders */}
+          <div
+            className={styles.bentoCard}
+            onClick={() => navigate(`/history${tableTarget}`)}
+            style={{
+              backgroundColor: theme.bgCard,
+              borderColor: theme.border
+            }}
+          >
+            <div className={styles.bentoIconBox} style={{ color: theme.textMain }}>
+              <ShoppingBag size={24} strokeWidth={2.2} />
             </div>
-
-            {/* Live Customer Metrics Strip (No Table Number) */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '10px',
-              marginTop: '18px',
-              paddingTop: '16px',
-              borderTop: `1px solid ${theme.border}`
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: theme.textMuted, fontWeight: 700, display: 'block', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Orders</span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 900, color: theme.textMain, marginTop: '2px', display: 'block' }}>
-                  {ordersCount}
-                </span>
-              </div>
-              <div style={{ textAlign: 'center', borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}` }}>
-                <span style={{ fontSize: '0.72rem', color: theme.textMuted, fontWeight: 700, display: 'block', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Favorites</span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 900, color: theme.accent, marginTop: '2px', display: 'block' }}>
-                  {favCount} dishes
-                </span>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: theme.textMuted, fontWeight: 700, display: 'block', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Tier</span>
-                <span style={{ fontSize: '0.88rem', fontWeight: 900, color: badge.color, marginTop: '5px', display: 'block' }}>
-                  {badge.icon} {badge.title.split(' ')[0]}
-                </span>
-              </div>
-            </div>
+            <span className={styles.bentoLabel} style={{ color: theme.textMain }}>
+              Your orders
+            </span>
           </div>
 
-          {/* 2. Instant Table Service Hub (2x2 Bento Grid) */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', padding: '0 2px' }}>
-              <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 900, color: theme.textMain, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                🛎️ Table Service Hub
-              </h3>
-              <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 700, backgroundColor: 'rgba(22, 163, 74, 0.1)', padding: '2px 8px', borderRadius: '100px' }}>
-                Live Staff Assistance
-              </span>
+          {/* Bento 2: Pay & Bill */}
+          <div
+            className={styles.bentoCard}
+            onClick={() => setIsBillModalOpen(true)}
+            style={{
+              backgroundColor: theme.bgCard,
+              borderColor: theme.border
+            }}
+          >
+            <div className={styles.bentoIconBox} style={{ color: theme.textMain }}>
+              <Wallet size={24} strokeWidth={2.2} />
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {/* Action 1: Call Waiter */}
-              <motion.div
-                whileTap={{ scale: 0.96 }}
-                onClick={handleCallWaiter}
-                style={{
-                  backgroundColor: theme.cardBg,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: '18px',
-                  padding: '14px 16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                }}
-              >
-                <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Bell size={20} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 850, color: theme.textMain, display: 'block' }}>Call Waiter</span>
-                  <span style={{ fontSize: '0.72rem', color: theme.textMuted }}>Request staff at table</span>
-                </div>
-              </motion.div>
-
-              {/* Action 2: Water & Napkins */}
-              <motion.div
-                whileTap={{ scale: 0.96 }}
-                onClick={handleRequestWater}
-                style={{
-                  backgroundColor: theme.cardBg,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: '18px',
-                  padding: '14px 16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                }}
-              >
-                <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Droplets size={20} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 850, color: theme.textMain, display: 'block' }}>Water & Napkins</span>
-                  <span style={{ fontSize: '0.72rem', color: theme.textMuted }}>Quick refill dispatched</span>
-                </div>
-              </motion.div>
-
-              {/* Action 3: Request Bill */}
-              <motion.div
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setIsRequestingBill(true)}
-                style={{
-                  backgroundColor: theme.cardBg,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: '18px',
-                  padding: '14px 16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                }}
-              >
-                <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Receipt size={20} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 850, color: theme.textMain, display: 'block' }}>Request Bill</span>
-                  <span style={{ fontSize: '0.72rem', color: theme.textMuted }}>Cash / UPI / Machine</span>
-                </div>
-              </motion.div>
-
-              {/* Action 4: Clean Table */}
-              <motion.div
-                whileTap={{ scale: 0.96 }}
-                onClick={handleRequestCleanTable}
-                style={{
-                  backgroundColor: theme.cardBg,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: '18px',
-                  padding: '14px 16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                }}
-              >
-                <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Sparkles size={20} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 850, color: theme.textMain, display: 'block' }}>Clean Table</span>
-                  <span style={{ fontSize: '0.72rem', color: theme.textMuted }}>Housekeeping alert</span>
-                </div>
-              </motion.div>
-            </div>
+            <span className={styles.bentoLabel} style={{ color: theme.textMain }}>
+              Pay & Bill
+            </span>
           </div>
 
-          {/* 3. Cafe High-Speed WiFi & Location Info */}
-          <div style={{
-            backgroundColor: theme.cardBg,
-            border: `1px solid ${theme.border}`,
-            borderRadius: '20px',
-            padding: '16px 18px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Wifi size={20} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 850, color: theme.textMain, display: 'block' }}>Guest High-Speed WiFi</span>
-                  <span style={{ fontSize: '0.74rem', color: theme.textMuted }}>SSID: <strong>{tenantInfo.wifiSSID}</strong></span>
-                </div>
-              </div>
-
-              <motion.button
-                whileTap={{ scale: 0.92 }}
-                onClick={handleCopyWiFi}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: isDarkMode ? '#2f241a' : '#f1f5f9',
-                  border: `1px solid ${theme.border}`,
-                  padding: '7px 12px',
-                  borderRadius: '10px',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  color: theme.textMain,
-                  cursor: 'pointer'
-                }}
-              >
-                <Copy size={13} />
-                <span>Copy Key</span>
-              </motion.button>
+          {/* Bento 3: Call Staff */}
+          <div
+            className={styles.bentoCard}
+            onClick={handleCallWaiter}
+            style={{
+              backgroundColor: theme.bgCard,
+              borderColor: serviceTimers.waiter > 0 ? theme.accent : theme.border
+            }}
+          >
+            <div className={styles.bentoIconBox} style={{ color: serviceTimers.waiter > 0 ? theme.accent : theme.textMain }}>
+              <Bell size={24} strokeWidth={2.2} />
             </div>
+            <span className={styles.bentoLabel} style={{ color: serviceTimers.waiter > 0 ? theme.accent : theme.textMain }}>
+              {serviceTimers.waiter > 0 ? `${serviceTimers.waiter}s...` : 'Call Staff'}
+            </span>
           </div>
-
-          {/* 4. Live Dining Feedback & Rating Widget */}
-          <div style={{
-            backgroundColor: theme.cardBg,
-            border: `1px solid ${theme.border}`,
-            borderRadius: '20px',
-            padding: '18px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 850, color: theme.textMain }}>
-                  ⭐ Rate Today's Dining Experience
-                </h3>
-                <span style={{ fontSize: '0.74rem', color: theme.textMuted }}>Direct feedback to executive chef & manager</span>
-              </div>
-            </div>
-
-            {feedbackSubmitted ? (
-              <div style={{ textAlign: 'center', padding: '16px 0', color: '#16a34a' }}>
-                <CheckCircle2 size={36} style={{ margin: '0 auto 8px' }} />
-                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 850 }}>Thank you for your rating!</h4>
-                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: theme.textMuted }}>We hope you enjoy every bite at {tenantInfo.name}.</p>
-              </div>
-            ) : (
-              <div>
-                {/* 5 Stars Bar */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', margin: '12px 0 16px' }}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <motion.button
-                      key={star}
-                      whileTap={{ scale: 0.85 }}
-                      onClick={() => setSelectedRating(star)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '4px'
-                      }}
-                    >
-                      <Star
-                        size={28}
-                        fill={star <= selectedRating ? '#f59e0b' : 'transparent'}
-                        color={star <= selectedRating ? '#f59e0b' : theme.textMuted}
-                      />
-                    </motion.button>
-                  ))}
-                </div>
-
-                {/* Quick Compliment Chips */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px', justifyContent: 'center' }}>
-                  {[
-                    '🍕 Delicious Food',
-                    '⚡ Super Fast Service',
-                    '🌿 Lovely Ambience',
-                    '✨ Friendly Staff',
-                    '☕ Best Coffee'
-                  ].map((tag) => {
-                    const isSelected = selectedTags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedTags(selectedTags.filter(t => t !== tag));
-                          } else {
-                            setSelectedTags([...selectedTags, tag]);
-                          }
-                        }}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '100px',
-                          fontSize: '0.74rem',
-                          fontWeight: 750,
-                          border: `1px solid ${isSelected ? theme.accent : theme.border}`,
-                          backgroundColor: isSelected ? 'rgba(234, 88, 12, 0.1)' : 'transparent',
-                          color: isSelected ? theme.accent : theme.textMuted,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {tag}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSubmitFeedback}
-                  style={{
-                    width: '100%',
-                    backgroundColor: theme.accent,
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '10px',
-                    borderRadius: '12px',
-                    fontSize: '0.84rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    boxShadow: `0 4px 14px ${theme.accentGlow}`
-                  }}
-                >
-                  Submit Dining Feedback
-                </motion.button>
-              </div>
-            )}
-          </div>
-
-          {/* 5. Settings & Reset Options */}
-          <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.border}`, borderRadius: '20px', overflow: 'hidden' }}>
-            {/* Theme Row */}
-            <div
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              style={{
-                padding: '14px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                borderBottom: `1px solid ${theme.border}`
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: isDarkMode ? 'rgba(251, 190, 33, 0.15)' : 'rgba(100, 116, 139, 0.15)', color: isDarkMode ? '#fbbe21' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: theme.textMain, display: 'block' }}>Display Theme</span>
-                  <span style={{ fontSize: '0.72rem', color: theme.textMuted }}>Toggle dark / light appearance</span>
-                </div>
-              </div>
-              <span style={{ fontSize: '0.78rem', color: theme.textMuted, fontWeight: 700 }}>
-                {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-              </span>
-            </div>
-
-            {/* Clear Session Row */}
-            <div
-              onClick={handleClearSession}
-              style={{
-                padding: '14px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Trash2 size={17} />
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ef4444', display: 'block' }}>Reset Dining Session</span>
-                  <span style={{ fontSize: '0.72rem', color: theme.textMuted }}>Clear local device cache & name</span>
-                </div>
-              </div>
-              <ChevronRight size={16} color={theme.textMuted} />
-            </div>
-          </div>
-
-          {/* Brand Footer */}
-          <footer style={{ marginTop: 'auto', paddingTop: '1.5rem', paddingBottom: '0.5rem', textAlign: 'center' }}>
-            <p style={{ fontSize: '0.78rem', color: theme.textMuted, fontWeight: '700', margin: 0 }}>
-              Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
-            </p>
-          </footer>
         </div>
 
-        {/* Dedicated Edit Profile Modal */}
+        {/* 5. Preferences & Display Options */}
+        <div
+          className={styles.sectionGroup}
+          style={{
+            backgroundColor: theme.bgCard,
+            borderColor: theme.border
+          }}
+        >
+          {/* Appearance Row */}
+          <div
+            className={styles.groupRow}
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            style={{ borderColor: theme.border }}
+          >
+            <div className={styles.groupRowLeft}>
+              {isDarkMode ? <Moon size={20} color={theme.textMain} /> : <Sun size={20} color={theme.textMain} />}
+              <span className={styles.groupRowTitle} style={{ color: theme.textMain }}>
+                Appearance
+              </span>
+            </div>
+
+            <span style={{ fontSize: '0.78rem', fontWeight: 850, color: theme.textMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>{isDarkMode ? 'DARK' : 'LIGHT'}</span>
+              <ChevronRight size={14} />
+            </span>
+          </div>
+
+          {/* Pure Veg Mode Toggle */}
+          <div
+            className={styles.groupRow}
+            onClick={handleToggleVegOnly}
+            style={{ borderColor: theme.border }}
+          >
+            <div className={styles.groupRowLeft}>
+              <Leaf size={20} color={isVegOnly ? '#16a34a' : theme.textMuted} />
+              <div>
+                <h4 className={styles.groupRowTitle} style={{ color: theme.textMain }}>
+                  Pure Veg Mode
+                </h4>
+                <p className={styles.groupRowSub} style={{ color: theme.textMuted }}>
+                  Only vegetarian dishes will be shown on menu
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={styles.toggleSwitch}
+              style={{
+                backgroundColor: isVegOnly ? '#16a34a' : (isDarkMode ? 'rgba(255,255,255,0.15)' : '#cbd5e1')
+              }}
+            >
+              <div
+                className={styles.toggleCircle}
+                style={{
+                  transform: isVegOnly ? 'translateX(20px)' : 'translateX(0)'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 6. Your Information & Features Group */}
+        <h2 className={styles.groupSectionHeading} style={{ color: theme.textMain }}>
+          Your information
+        </h2>
+
+        <div
+          className={styles.sectionGroup}
+          style={{
+            backgroundColor: theme.bgCard,
+            borderColor: theme.border
+          }}
+        >
+          {/* 1. Wishlist & Favorites (Fully Interactive Modal) */}
+          <div
+            className={styles.groupRow}
+            onClick={() => setIsWishlistModalOpen(true)}
+            style={{ borderColor: theme.border }}
+          >
+            <div className={styles.groupRowLeft}>
+              <Heart size={20} color="#f43f5e" />
+              <div>
+                <h4 className={styles.groupRowTitle} style={{ color: theme.textMain }}>
+                  Your wishlist & favorites
+                </h4>
+                <p className={styles.groupRowSub} style={{ color: theme.textMuted }}>
+                  {wishlistItems.length} saved dish{wishlistItems.length === 1 ? '' : 'es'} • Tap to view
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={17} color={theme.textMuted} />
+          </div>
+
+          {/* 2. Guest WiFi Password */}
+          <div
+            className={styles.groupRow}
+            onClick={handleCopyWiFi}
+            style={{ borderColor: theme.border }}
+          >
+            <div className={styles.groupRowLeft}>
+              <Wifi size={20} color={theme.textMuted} />
+              <div>
+                <h4 className={styles.groupRowTitle} style={{ color: theme.textMain }}>
+                  Guest Wi-Fi Password
+                </h4>
+                <p className={styles.groupRowSub} style={{ color: theme.textMuted }}>
+                  {wifiCopied ? '✓ Copied to clipboard!' : `SSID: ${tenantInfo.wifiSSID} • Tap to copy`}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={17} color={theme.textMuted} />
+          </div>
+
+          {/* 3. Log out / Switch Table */}
+          <div
+            className={styles.groupRow}
+            onClick={() => setIsLogoutModalOpen(true)}
+          >
+            <div className={styles.groupRowLeft}>
+              <LogOut size={20} color="#ef4444" />
+              <div>
+                <h4 className={styles.groupRowTitle} style={{ color: '#ef4444' }}>
+                  Log out session
+                </h4>
+                <p className={styles.groupRowSub} style={{ color: theme.textMuted }}>
+                  Clear profile & table dining session
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={17} color={theme.textMuted} />
+          </div>
+        </div>
+
+        {/* 7. SERVIQ Brand Simple One-Liner Footer */}
+        <div className={styles.brandOneLiner}>
+          <p className={styles.brandOneLinerText} style={{ color: theme.textMuted }}>
+            POWERED BY <strong style={{ color: theme.textMain, letterSpacing: '0.05em' }}>SERVIQ</strong> • Autonomous Dining OS
+          </p>
+        </div>
+
+
+        {/* Edit Profile Modal */}
         <AnimatePresence>
           {isEditModalOpen && (
-            <div style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.65)',
-              backdropFilter: 'blur(6px)',
-              zIndex: 1000,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '16px'
-            }}>
+            <div className={styles.modalBackdrop}>
               <motion.div
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                initial={{ scale: 0.94, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                className={styles.modalContent}
                 style={{
-                  width: '100%',
-                  maxWidth: '400px',
-                  backgroundColor: theme.bgContainer,
-                  borderRadius: '24px',
-                  padding: '24px',
-                  border: `1px solid ${theme.border}`,
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
+                  backgroundColor: theme.bgCard,
+                  borderColor: theme.border
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Edit3 size={20} />
-                    </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: theme.textMain }}>Edit Profile</h3>
-                      <span style={{ fontSize: '0.74rem', color: theme.textMuted }}>Update details for kitchen & orders</span>
-                    </div>
-                  </div>
+                <div className={styles.modalHeader}>
+                  <h3 className={styles.modalTitle} style={{ color: theme.textMain }}>Your Profile</h3>
                   <button
+                    type="button"
                     onClick={() => setIsEditModalOpen(false)}
                     style={{ background: 'none', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: 4 }}
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </button>
                 </div>
 
                 <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: theme.textMuted, marginBottom: '6px' }}>
-                      Customer Full Name *
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: theme.textMuted }}>
+                      Full Name
                     </label>
-                    <div style={{ position: 'relative' }}>
-                      <User size={16} color={theme.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input
-                        type="text"
-                        value={nameInput}
-                        onChange={(e) => setNameInput(e.target.value)}
-                        placeholder="Enter your full name"
-                        style={{
-                          width: '100%',
-                          backgroundColor: theme.inputBg,
-                          border: `1.5px solid ${theme.accent}`,
-                          borderRadius: '12px',
-                          padding: '10px 14px 10px 38px',
-                          color: theme.textMain,
-                          fontSize: '0.95rem',
-                          fontWeight: 700,
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                        autoFocus
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="e.g. Deepak"
+                      className={styles.modalInput}
+                      style={{
+                        backgroundColor: theme.inputBg,
+                        color: theme.textMain,
+                        borderColor: theme.border
+                      }}
+                      autoFocus
+                    />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: theme.textMuted, marginBottom: '6px' }}>
-                      Phone Number (Mobile)
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: theme.textMuted }}>
+                      Mobile Number
                     </label>
-                    <div style={{ position: 'relative' }}>
-                      <Smartphone size={16} color={theme.textMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input
-                        type="tel"
-                        value={phoneInput}
-                        onChange={(e) => setPhoneInput(e.target.value)}
-                        placeholder="Enter 10-digit mobile number"
-                        style={{
-                          width: '100%',
-                          backgroundColor: theme.inputBg,
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: '12px',
-                          padding: '10px 14px 10px 38px',
-                          color: theme.textMain,
-                          fontSize: '0.92rem',
-                          fontWeight: 600,
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                      />
-                    </div>
+                    <input
+                      type="tel"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="e.g. 9166131551"
+                      className={styles.modalInput}
+                      style={{
+                        backgroundColor: theme.inputBg,
+                        color: theme.textMain,
+                        borderColor: theme.border
+                      }}
+                    />
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                     <button
                       type="button"
                       onClick={() => setIsEditModalOpen(false)}
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        borderRadius: '12px',
-                        border: `1px solid ${theme.border}`,
-                        backgroundColor: 'transparent',
-                        color: theme.textMuted,
-                        fontWeight: 800,
-                        cursor: 'pointer'
-                      }}
+                      className={styles.cancelBtn}
+                      style={{ borderColor: theme.border, color: theme.textMuted }}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isUpdating}
-                      style={{
-                        flex: 1.5,
-                        padding: '12px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        backgroundColor: theme.accent,
-                        color: '#ffffff',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        boxShadow: `0 4px 14px ${theme.accentGlow}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
-                      }}
+                      className={styles.primaryBtn}
+                      style={{ flex: 1.5 }}
                     >
-                      {isUpdating ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
-                      <span>{isUpdating ? 'Saving...' : 'Save Changes'}</span>
+                      {isUpdating ? 'Saving...' : 'Save Details'}
                     </button>
                   </div>
                 </form>
@@ -918,102 +827,306 @@ export default function CustomerProfilePage() {
           )}
         </AnimatePresence>
 
-        {/* Request Bill Modal */}
+        {/* Birthday & Anniversary Perks Modal */}
         <AnimatePresence>
-          {isRequestingBill && (
-            <div style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.65)',
-              backdropFilter: 'blur(6px)',
-              zIndex: 1000,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '16px'
-            }}>
+          {isBirthdayModalOpen && (
+            <div className={styles.modalBackdrop}>
               <motion.div
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                initial={{ scale: 0.94, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                className={styles.modalContent}
                 style={{
-                  width: '100%',
-                  maxWidth: '400px',
-                  backgroundColor: theme.bgContainer,
-                  borderRadius: '24px',
-                  padding: '24px',
-                  border: `1px solid ${theme.border}`,
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
+                  backgroundColor: theme.bgCard,
+                  borderColor: theme.border
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Receipt size={22} />
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: theme.textMain }}>Request Final Bill</h3>
-                    <span style={{ fontSize: '0.76rem', color: theme.textMuted }}>Table Service</span>
-                  </div>
+                <div className={styles.modalHeader}>
+                  <h3 className={styles.modalTitle} style={{ color: theme.textMain }}>🎂 Birthday & Rewards</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsBirthdayModalOpen(false)}
+                    style={{ background: 'none', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: 4 }}
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
 
-                <p style={{ fontSize: '0.84rem', color: theme.textMuted, margin: '0 0 16px 0' }}>
-                  How would you like to settle your bill with the waiter?
+                <p style={{ fontSize: '0.82rem', color: theme.textMuted, margin: '0 0 14px 0' }}>
+                  Celebrate special occasions with us! You will receive <strong>20% discount perks & complimentary dessert</strong>.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                  {['UPI / Online', 'Card (Swipe Machine)', 'Cash'].map((method) => (
-                    <div
-                      key={method}
-                      onClick={() => setBillPaymentMethod(method)}
+                <form onSubmit={handleSaveBirthdayAndPerks} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: theme.textMuted }}>
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={birthdayInput}
+                      onChange={(e) => setBirthdayInput(e.target.value)}
+                      className={styles.modalInput}
                       style={{
-                        padding: '12px 16px',
-                        borderRadius: '14px',
-                        border: `1.5px solid ${billPaymentMethod === method ? theme.accent : theme.border}`,
-                        backgroundColor: billPaymentMethod === method ? 'rgba(234, 88, 12, 0.1)' : theme.cardBg,
-                        color: billPaymentMethod === method ? theme.accent : theme.textMain,
+                        backgroundColor: theme.inputBg,
+                        color: theme.textMain,
+                        borderColor: theme.border
+                      }}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: theme.textMuted }}>
+                      Anniversary Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={anniversaryInput}
+                      onChange={(e) => setAnniversaryInput(e.target.value)}
+                      className={styles.modalInput}
+                      style={{
+                        backgroundColor: theme.inputBg,
+                        color: theme.textMain,
+                        borderColor: theme.border
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsBirthdayModalOpen(false)}
+                      className={styles.cancelBtn}
+                      style={{ borderColor: theme.border, color: theme.textMuted }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className={styles.primaryBtn}
+                      style={{ flex: 1.5 }}
+                    >
+                      Save Perks
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Wishlist & Favorites Modal */}
+        <AnimatePresence>
+          {isWishlistModalOpen && (
+            <div className={styles.modalBackdrop}>
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                className={styles.modalContent}
+                style={{
+                  backgroundColor: theme.bgCard,
+                  borderColor: theme.border
+                }}
+              >
+                <div className={styles.modalHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Heart size={20} color="#f43f5e" fill="#f43f5e" />
+                    <h3 className={styles.modalTitle} style={{ color: theme.textMain }}>
+                      Your Wishlist ({wishlistItems.length})
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsWishlistModalOpen(false)}
+                    style={{ background: 'none', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: 4 }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {wishlistItems.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '28px 16px' }}>
+                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: isDarkMode ? 'rgba(244, 63, 94, 0.12)' : '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                      <Heart size={28} color="#f43f5e" />
+                    </div>
+                    <h4 style={{ fontSize: '0.96rem', fontWeight: 850, color: theme.textMain, margin: '0 0 4px' }}>
+                      No Saved Dishes Yet
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: theme.textMuted, margin: '0 0 16px', lineHeight: 1.4 }}>
+                      Tap the ❤️ icon on any dish in the Menu to save your favorites here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className={styles.wishlistContainer}>
+                    {wishlistItems.map((dish) => (
+                      <div
+                        key={dish.id || dish._id}
+                        className={styles.wishlistItemCard}
+                        style={{
+                          backgroundColor: isDarkMode ? '#13161c' : '#f8fafc',
+                          borderColor: theme.border
+                        }}
+                      >
+                        <div className={styles.wishlistLeft}>
+                          <div className={styles.dishThumb}>
+                            {dish.image ? (
+                              <img
+                                src={dish.image}
+                                alt={dish.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }}
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            ) : (
+                              dish.emoji || '🍽️'
+                            )}
+                          </div>
+                          <div className={styles.dishInfo}>
+                            <h5 className={styles.dishName} style={{ color: theme.textMain }}>
+                              {dish.name}
+                            </h5>
+                            <p className={styles.dishPrice} style={{ color: theme.accent }}>
+                              ₹{dish.price}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCartFromWishlist(dish)}
+                            className={styles.addDishBtn}
+                            title="Add to Cart"
+                          >
+                            <ShoppingCart size={13} />
+                            <span>Add</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFavorite(dish.id || dish._id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              padding: '6px'
+                            }}
+                            title="Remove from favorites"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWishlistModalOpen(false);
+                      navigate(`/menu${tableTarget}`);
+                    }}
+                    className={styles.primaryBtn}
+                  >
+                    Browse Full Menu
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Bill Modal */}
+        <AnimatePresence>
+          {isBillModalOpen && (
+            <div className={styles.modalBackdrop}>
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                className={styles.modalContent}
+                style={{
+                  backgroundColor: theme.bgCard,
+                  borderColor: theme.border
+                }}
+              >
+                <div className={styles.modalHeader}>
+                  <h3 className={styles.modalTitle} style={{ color: theme.textMain }}>Table Bill & Payment</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsBillModalOpen(false)}
+                    style={{ background: 'none', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: 4 }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: isDarkMode ? 'rgba(234, 88, 12, 0.12)' : '#fff7ed',
+                    border: `1.5px solid ${theme.accent}`,
+                    borderRadius: '14px',
+                    padding: '14px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span style={{ fontSize: '0.84rem', color: theme.textMuted, fontWeight: 800 }}>
+                    Table {tableNumber} Total
+                  </span>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, color: theme.accent }}>
+                    ₹{liveBill.total}
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: theme.textMuted, margin: '0 0 10px 0' }}>
+                  Select settlement method:
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
+                  {['UPI / QR at Table', 'Card (Swipe Machine)', 'Cash to Waiter'].map(m => (
+                    <div
+                      key={m}
+                      onClick={() => setBillPaymentMethod(m)}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        border: `1.5px solid ${billPaymentMethod === m ? theme.accent : theme.border}`,
+                        backgroundColor: billPaymentMethod === m ? (isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed') : theme.inputBg,
+                        color: billPaymentMethod === m ? theme.accent : theme.textMain,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         fontWeight: 800,
-                        fontSize: '0.88rem'
+                        fontSize: '0.86rem'
                       }}
                     >
-                      <span>{method}</span>
-                      {billPaymentMethod === method && <Check size={16} strokeWidth={3} />}
+                      <span>{m}</span>
+                      {billPaymentMethod === m && <Check size={16} strokeWidth={3} />}
                     </div>
                   ))}
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
-                    onClick={() => setIsRequestingBill(false)}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: '12px',
-                      border: `1px solid ${theme.border}`,
-                      backgroundColor: 'transparent',
-                      color: theme.textMuted,
-                      fontWeight: 800,
-                      cursor: 'pointer'
-                    }}
+                    type="button"
+                    onClick={() => setIsBillModalOpen(false)}
+                    className={styles.cancelBtn}
+                    style={{ borderColor: theme.border, color: theme.textMuted }}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleConfirmBillRequest}
-                    style={{
-                      flex: 1.5,
-                      padding: '12px',
-                      borderRadius: '12px',
-                      border: 'none',
-                      backgroundColor: theme.accent,
-                      color: '#ffffff',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      boxShadow: `0 4px 14px ${theme.accentGlow}`
-                    }}
+                    type="button"
+                    onClick={handleConfirmBill}
+                    className={styles.primaryBtn}
+                    style={{ flex: 1.5 }}
                   >
                     Notify Staff
                   </button>
@@ -1023,7 +1136,62 @@ export default function CustomerProfilePage() {
           )}
         </AnimatePresence>
 
-        {/* Global Customer Bottom Navigation */}
+        {/* Logout Confirmation Modal */}
+        <AnimatePresence>
+          {isLogoutModalOpen && (
+            <div className={styles.modalBackdrop}>
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                className={styles.modalContent}
+                style={{
+                  backgroundColor: theme.bgCard,
+                  borderColor: theme.border
+                }}
+              >
+                <div className={styles.modalHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertCircle size={22} color="#ef4444" />
+                    <h3 className={styles.modalTitle} style={{ color: theme.textMain }}>Log Out Session?</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsLogoutModalOpen(false)}
+                    style={{ background: 'none', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: 4 }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <p style={{ fontSize: '0.84rem', color: theme.textMuted, margin: '0 0 16px 0', lineHeight: 1.4 }}>
+                  Are you sure you want to log out? Your name and local dining preferences on this device will be cleared.
+                </p>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsLogoutModalOpen(false)}
+                    className={styles.cancelBtn}
+                    style={{ borderColor: theme.border, color: theme.textMuted }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePerformLogout}
+                    className={styles.dangerBtn}
+                    style={{ flex: 1.5 }}
+                  >
+                    Yes, Log Out
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Customer Bottom Nav */}
         <CustomerBottomNav
           tableNumber={tableNumber}
           tenantId={tenantId}

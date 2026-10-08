@@ -18,11 +18,18 @@ export default function CustomerBottomNav({
   const cartTotalItems = cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   // Determine active tab from URL pathname
-  let activeTab = 'menu';
-  if (location.pathname.includes('/history')) activeTab = 'history';
-  else if (location.pathname.includes('/profile')) activeTab = 'profile';
-  else if (location.pathname.includes('/cart')) activeTab = 'cart';
-  else if (location.pathname === '/' || location.pathname.includes('/menu')) activeTab = 'menu';
+  let activeTab = null;
+  if (location.pathname.includes('/order')) {
+    activeTab = null; // No tab selected when tracking a specific order status
+  } else if (location.pathname.includes('/history')) {
+    activeTab = 'history';
+  } else if (location.pathname.includes('/profile')) {
+    activeTab = 'profile';
+  } else if (location.pathname.includes('/cart')) {
+    activeTab = 'cart';
+  } else if (location.pathname === '/' || location.pathname.includes('/menu')) {
+    activeTab = 'menu';
+  }
 
   const handleTabClick = (tabKey) => {
     const token = tableNumber ? encodeTableToken(tableNumber) : '';
