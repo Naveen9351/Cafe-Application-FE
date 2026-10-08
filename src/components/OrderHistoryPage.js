@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Receipt, Clock, Calendar, Utensils, RefreshCw,
   Search, ChevronRight, Sun, Moon, ArrowRight, ShieldCheck, CheckCircle2,
-  Phone, ChefHat, Sparkles, Check, AlertCircle, Edit2, Flame, MapPin
+  Phone, ChefHat, Sparkles, Check, AlertCircle, Edit2, Flame, MapPin, ShoppingBag, Wallet
 } from 'lucide-react';
 import axios from 'axios';
 import { API_URL as API } from '../config/api';
@@ -238,24 +238,53 @@ export default function OrderHistoryPage() {
     return groups;
   }, [filteredOrders]);
 
-  // Stage helper info
+  // Stage helper info (3 Distinct Customer Steps: Placed (Blue) -> Preparing (Orange) -> Completed (Green))
   const getOrderStageInfo = (order) => {
     const s = (order.status || 'pending').toLowerCase();
 
     if (s === 'cancelled') {
-      return { step: 0, total: 4, label: 'Cancelled', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.12)', icon: AlertCircle };
-    }
-    if (s === 'ready') {
-      return { step: 3, total: 4, label: 'Ready to Serve', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.15)', icon: CheckCircle2 };
-    }
-    if (s === 'preparing') {
-      return { step: 2, total: 4, label: 'Chef Cooking', color: '#ea580c', bg: 'rgba(234, 88, 12, 0.15)', icon: Flame };
+      return {
+        step: 0,
+        total: 3,
+        label: 'Cancelled',
+        color: '#dc2626',
+        bg: isDarkMode ? 'rgba(220, 38, 38, 0.15)' : '#fef2f2',
+        border: isDarkMode ? 'rgba(220, 38, 38, 0.3)' : '#fecaca',
+        icon: AlertCircle
+      };
     }
     if (s === 'completed') {
-      return { step: 4, total: 4, label: 'Served', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', icon: Check };
+      return {
+        step: 3,
+        total: 3,
+        label: 'Served',
+        color: '#059669',
+        bg: isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+        border: isDarkMode ? 'rgba(16, 185, 129, 0.3)' : '#a7f3d0',
+        icon: Check
+      };
+    }
+    if (s === 'preparing' || s === 'ready') {
+      return {
+        step: 2,
+        total: 3,
+        label: 'In Preparation',
+        color: '#ea580c',
+        bg: isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
+        border: isDarkMode ? 'rgba(234, 88, 12, 0.3)' : '#fed7aa',
+        icon: ChefHat
+      };
     }
     // pending / confirmed
-    return { step: 1, total: 4, label: 'Order Received', color: '#d97706', bg: 'rgba(217, 119, 6, 0.15)', icon: ChefHat };
+    return {
+      step: 1,
+      total: 3,
+      label: 'Order Placed',
+      color: '#ea580c',
+      bg: isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
+      border: isDarkMode ? 'rgba(234, 88, 12, 0.3)' : '#fed7aa',
+      icon: ShoppingBag
+    };
   };
 
   const theme = {
@@ -422,7 +451,7 @@ export default function OrderHistoryPage() {
                       <Icon
                         size={17}
                         strokeWidth={isActive ? 2.6 : 2}
-                        color={isActive ? (tab.key === 'active' && activeCount > 0 ? '#16a34a' : theme.accent) : theme.textMuted}
+                        color={isActive ? theme.accent : theme.textMuted}
                       />
                       <span style={{ letterSpacing: '-0.2px' }}>{tab.label}</span>
 
@@ -435,27 +464,16 @@ export default function OrderHistoryPage() {
                           borderRadius: '10px',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px',
+                          justifyContent: 'center',
                           backgroundColor: isActive
-                            ? (tab.key === 'active' && activeCount > 0 ? '#16a34a' : `${theme.accent}18`)
+                            ? `${theme.accent}18`
                             : (isDarkMode ? 'rgba(255,255,255,0.08)' : '#f1f5f9'),
                           color: isActive
-                            ? (tab.key === 'active' && activeCount > 0 ? '#ffffff' : theme.accent)
+                            ? theme.accent
                             : theme.textMuted,
-                          border: `1px solid ${isActive ? (tab.key === 'active' && activeCount > 0 ? '#16a34a' : `${theme.accent}30`) : theme.border}`
+                          border: `1px solid ${isActive ? `${theme.accent}30` : theme.border}`
                         }}
                       >
-                        {tab.key === 'active' && activeCount > 0 && (
-                          <span
-                            style={{
-                              width: '5px',
-                              height: '5px',
-                              borderRadius: '50%',
-                              backgroundColor: isActive ? '#ffffff' : '#16a34a',
-                              display: 'inline-block'
-                            }}
-                          />
-                        )}
                         {tab.count}
                       </span>
 
@@ -595,17 +613,19 @@ export default function OrderHistoryPage() {
                         }}
                         style={{
                           backgroundColor: theme.cardBg,
-                          border: `1px solid ${isActive ? 'rgba(234, 88, 12, 0.45)' : theme.border}`,
-                          borderRadius: '20px',
+                          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'}`,
+                          borderRadius: '18px',
                           padding: '16px',
-                          boxShadow: isActive ? `0 8px 24px ${theme.accentGlow}` : (isDarkMode ? '0 4px 16px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.04)'),
+                          boxShadow: isActive
+                            ? (isDarkMode ? '0 6px 20px rgba(0,0,0,0.45)' : '0 4px 18px rgba(15, 23, 42, 0.06)')
+                            : (isDarkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 1px 4px rgba(15, 23, 42, 0.04)'),
                           cursor: isActive ? 'pointer' : 'default',
                           position: 'relative',
                           overflow: 'hidden',
                           transition: 'all 0.2s ease'
                         }}
                       >
-                        {/* Active Glowing Indicator strip on top */}
+                        {/* Active Indicator strip on top matching actual stage color */}
                         {isActive && (
                           <div style={{
                             position: 'absolute',
@@ -613,7 +633,7 @@ export default function OrderHistoryPage() {
                             left: 0,
                             right: 0,
                             height: '3px',
-                            background: 'linear-gradient(90deg, #ea580c, #f59e0b, #ea580c)'
+                            backgroundColor: stageInfo.color
                           }} />
                         )}
 
@@ -657,7 +677,7 @@ export default function OrderHistoryPage() {
                             gap: '5px',
                             backgroundColor: stageInfo.bg,
                             color: stageInfo.color,
-                            border: `1px solid ${stageInfo.color}30`
+                            border: `1px solid ${stageInfo.border}`
                           }}>
                             {isActive && (
                               <motion.span
@@ -675,47 +695,54 @@ export default function OrderHistoryPage() {
                         {isActive && (
                           <div style={{
                             margin: '10px 0 12px 0',
-                            padding: '8px 10px',
+                            padding: '9px 12px',
                             borderRadius: '12px',
-                            backgroundColor: theme.innerBg,
-                            border: `1px solid ${theme.border}`
+                            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc',
+                            border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0'}`
                           }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: theme.accent, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.71rem', fontWeight: 800, color: stageInfo.color, display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <Flame size={12} /> Live Kitchen Tracking
                               </span>
-                              <span style={{ fontSize: '0.66rem', color: theme.textMuted, fontWeight: 600 }}>Tap card to view</span>
+                              <span style={{ fontSize: '0.67rem', color: theme.textMuted, fontWeight: 600 }}>Tap card to track &rarr;</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              {['Received', 'Cooking', 'Ready', 'Served'].map((stName, idx) => {
-                                const stepNum = idx + 1;
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {[
+                                { key: 'placed', label: 'Placed', color: '#16a34a', step: 1 },
+                                { key: 'preparing', label: 'Preparing', color: '#ea580c', step: 2 },
+                                { key: 'completed', label: 'Completed', color: '#059669', step: 3 }
+                              ].map((stepObj) => {
+                                const stepNum = stepObj.step;
                                 const isCurrent = stepNum === stageInfo.step;
                                 const isDone = stepNum < stageInfo.step;
+                                const stepColor = stepObj.color;
+
                                 return (
-                                  <React.Fragment key={stName}>
-                                    <div style={{
+                                  <div
+                                    key={stepObj.key}
+                                    style={{
                                       flex: 1,
                                       display: 'flex',
                                       flexDirection: 'column',
                                       alignItems: 'center',
-                                      gap: '3px'
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <div style={{
+                                      width: '100%',
+                                      height: '4px',
+                                      borderRadius: '2px',
+                                      backgroundColor: isDone || isCurrent ? stepColor : (isDarkMode ? 'rgba(255,255,255,0.08)' : '#e2e8f0'),
+                                      boxShadow: isCurrent ? `0 0 8px ${stepColor}80` : 'none'
+                                    }} />
+                                    <span style={{
+                                      fontSize: '0.66rem',
+                                      fontWeight: isCurrent ? 850 : 600,
+                                      color: isCurrent || isDone ? stepColor : theme.textMuted
                                     }}>
-                                      <div style={{
-                                        width: '100%',
-                                        height: '4px',
-                                        borderRadius: '2px',
-                                        backgroundColor: isDone || isCurrent ? theme.accent : (isDarkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0'),
-                                        boxShadow: isCurrent ? `0 0 8px ${theme.accent}` : 'none'
-                                      }} />
-                                      <span style={{
-                                        fontSize: '0.62rem',
-                                        fontWeight: isCurrent ? 850 : 600,
-                                        color: isCurrent ? theme.accent : (isDone ? theme.textMain : theme.textMuted)
-                                      }}>
-                                        {stName}
-                                      </span>
-                                    </div>
-                                  </React.Fragment>
+                                      {stepObj.label}
+                                    </span>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -724,7 +751,8 @@ export default function OrderHistoryPage() {
 
                         {/* Dish Items List */}
                         <div style={{
-                          backgroundColor: theme.innerBg,
+                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc',
+                          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9'}`,
                           borderRadius: '12px',
                           padding: '10px 12px',
                           display: 'flex',
@@ -734,23 +762,23 @@ export default function OrderHistoryPage() {
                         }}>
                           {ord.items?.map((it, idx) => (
                             <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', overflow: 'hidden' }}>
                                 <span style={{
-                                  fontSize: '0.72rem',
-                                  fontWeight: 850,
-                                  color: theme.accent,
-                                  backgroundColor: isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#ffedd5',
-                                  padding: '1px 5px',
-                                  borderRadius: '4px',
+                                  fontSize: '0.69rem',
+                                  fontWeight: 800,
+                                  color: isDarkMode ? '#cbd5e1' : '#475569',
+                                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#eef2f6',
+                                  padding: '2px 6px',
+                                  borderRadius: '5px',
                                   flexShrink: 0
                                 }}>
-                                  {it.quantity || 1}x
+                                  {it.quantity || 1}×
                                 </span>
                                 <span style={{ color: theme.textMain, fontWeight: 650, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {it.name || it.item?.name || 'Delicious Dish'}
                                 </span>
                               </div>
-                              <span style={{ color: theme.textMain, fontWeight: 800, fontSize: '0.82rem', flexShrink: 0, marginLeft: '8px' }}>
+                              <span style={{ color: theme.textMain, fontWeight: 800, fontSize: '0.84rem', flexShrink: 0, marginLeft: '8px' }}>
                                 ₹{Math.round((it.price || 0) * (it.quantity || 1))}
                               </span>
                             </div>
@@ -768,38 +796,42 @@ export default function OrderHistoryPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {isPaid ? (
                               <span style={{
-                                fontSize: '0.68rem',
+                                fontSize: '0.7rem',
                                 fontWeight: 800,
-                                padding: '2px 8px',
+                                padding: '3px 9px',
                                 borderRadius: '6px',
-                                backgroundColor: 'rgba(22, 163, 74, 0.14)',
-                                color: '#16a34a',
+                                backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.14)' : '#ecfdf5',
+                                color: '#059669',
+                                border: isDarkMode ? '1px solid rgba(16, 185, 129, 0.28)' : '1px solid #a7f3d0',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '4px'
+                                gap: '5px'
                               }}>
                                 <Check size={11} strokeWidth={3} /> Paid Online
                               </span>
                             ) : (
                               <span style={{
-                                fontSize: '0.68rem',
+                                fontSize: '0.7rem',
                                 fontWeight: 800,
-                                padding: '2px 8px',
+                                padding: '3px 9px',
                                 borderRadius: '6px',
-                                backgroundColor: isDarkMode ? 'rgba(234, 88, 12, 0.14)' : '#fff7ed',
-                                color: '#ea580c',
-                                border: '1px solid rgba(234, 88, 12, 0.2)'
+                                backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.14)' : '#eef2ff',
+                                color: '#4f46e5',
+                                border: isDarkMode ? '1px solid rgba(99, 102, 241, 0.28)' : '1px solid #c7d2fe',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px'
                               }}>
-                                ● Cash at Counter
+                                <Wallet size={11} strokeWidth={2.4} /> Cash at Counter
                               </span>
                             )}
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                            <span style={{ fontSize: '0.68rem', color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>
+                            <span style={{ fontSize: '0.66rem', color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                               Total
                             </span>
-                            <span style={{ fontSize: '1.05rem', fontWeight: 900, color: theme.textMain }}>
+                            <span style={{ fontSize: '1.08rem', fontWeight: 900, color: theme.textMain }}>
                               ₹{Math.round(ord.settledAmount || ord.total || 0)}
                             </span>
                           </div>

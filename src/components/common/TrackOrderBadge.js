@@ -135,24 +135,6 @@ export default function TrackOrderBadge({
       title={hasActive ? "Track Active Order (In Progress)" : "Track Order Status"}
     >
       <OrderTrackSymbol size={18} hasActive={hasActive} />
-
-      {/* Live Pulsing Dot Badge when order is active */}
-      {hasActive && (
-        <motion.span
-          animate={{ scale: [1, 1.25, 1], opacity: [0.85, 1, 0.85] }}
-          transition={{ duration: 1.2, repeat: Infinity }}
-          style={{
-            position: 'absolute',
-            top: '2px',
-            right: '2px',
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: isReady ? '#16a34a' : '#ea580c',
-            boxShadow: `0 0 0 2px ${isDarkMode ? '#1a130e' : '#ffffff'}, 0 0 8px ${isReady ? '#16a34a' : '#ea580c'}`
-          }}
-        />
-      )}
     </motion.button>
   );
 }

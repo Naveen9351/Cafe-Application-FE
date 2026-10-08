@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import styles from "./OrderStatus.module.css";
 import axios from "axios";
 import { 
   CheckCircle2, 
-  Clock, 
   ChefHat, 
   ShoppingBag, 
   Plus, 
@@ -13,16 +12,19 @@ import {
   Sparkles, 
   Utensils, 
   Moon, 
-  Sun,
-  AlertCircle,
-  ExternalLink,
-  Layers
+  Sun, 
+  AlertCircle, 
+  Layers,
+  Wallet,
+  Check
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { encodeTableToken } from "../utils/tableToken";
-import { API_URL as API } from "../config/api";
+import { API_URL as API, SOCKET_URL } from "../config/api";
+import { io } from "socket.io-client";
 import RestaurantCafeLottieLoader from "./RestaurantCafeLottieLoader";
 import TableBadge from "./common/TableBadge";
+import CustomerBottomNav from "./common/CustomerBottomNav";
 
 const OrderStatus = () => {
   const { id } = useParams();
@@ -32,44 +34,49 @@ const OrderStatus = () => {
   const [error, setError] = useState(null);
   const [activeRoundIndex, setActiveRoundIndex] = useState(null);
 
+  const tabsContainerRef = useRef(null);
+  const activeTabRef = useRef(null);
+
   // Dark mode state matching rest of the application
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem("isDarkMode");
-    return saved !== null ? JSON.parse(saved) : false;
+    try {
+      const saved = localStorage.getItem("isDarkMode");
+      return saved !== null ? JSON.parse(saved) : false;
+    } catch (e) {
+      return false;
+    }
   });
 
   useEffect(() => {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
-  const theme = isDarkMode ? {
-    bgPage: '#0f0c08',
-    bgCard: '#1a140e',
-    cardInner: '#241c14',
-    textMain: '#fdfbf7',
-    textMuted: '#a89f91',
-    accent: '#f97316',
-    accentGlow: 'rgba(249, 115, 22, 0.25)',
-    border: '#2e2419',
-    chipBg: '#27201a',
-    stepInactive: '#241c14'
-  } : {
-    bgPage: '#f8fafc',
-    bgCard: '#ffffff',
-    cardInner: '#f8fafc',
-    textMain: '#0f172a',
-    textMuted: '#64748b',
+  // Smoothly center active round tab horizontally inside container ONLY when active tab changes
+  useEffect(() => {
+    if (activeTabRef.current && tabsContainerRef.current) {
+      const container = tabsContainerRef.current;
+      const tab = activeTabRef.current;
+      const scrollTarget = tab.offsetLeft - (container.offsetWidth / 2) + (tab.offsetWidth / 2);
+      container.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+    }
+  }, [activeRoundIndex, order]);
+
+  const theme = {
+    bgPage: isDarkMode ? '#120d09' : '#f8fafc',
+    bgCard: isDarkMode ? '#1a130e' : '#ffffff',
+    cardInner: isDarkMode ? '#221a13' : '#ffffff',
+    textMain: isDarkMode ? '#f8fafc' : '#0f172a',
+    textMuted: isDarkMode ? '#94a3b8' : '#64748b',
     accent: '#ea580c',
-    accentGlow: 'rgba(234, 88, 12, 0.25)',
-    border: '#e2e8f0',
-    chipBg: '#f1f5f9',
-    stepInactive: '#f1f5f9'
+    accentGlow: 'rgba(234, 88, 12, 0.35)',
+    border: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+    chipBg: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+    stepInactive: isDarkMode ? '#241c14' : '#f1f5f9'
   };
 
   const steps = [
     { id: 'pending', label: 'Order Placed', subtext: 'Received in kitchen', icon: ShoppingBag },
-    { id: 'preparing', label: 'In Preparation', subtext: 'Chef is crafting your dish', icon: ChefHat },
-    { id: 'ready', label: 'Ready to Serve', subtext: 'Plated & ready at counter', icon: Utensils },
+    { id: 'preparing', label: 'In Preparation', subtext: 'Chef is crafting & preparing your dish', icon: ChefHat },
     { id: 'completed', label: 'Completed', subtext: 'Served • Enjoy your meal', icon: CheckCircle2 },
   ];
 
@@ -94,6 +101,8 @@ const OrderStatus = () => {
     }
 
     let interval;
+    let socket;
+
     const fetchOrder = async () => {
       try {
         let sessionIds = [];
@@ -117,13 +126,13 @@ const OrderStatus = () => {
           ? [...currentOrder.sessionOrders]
           : [currentOrder];
 
-        // Ensure session orders only include the tracked session rounds
-        if (sessionIds.length > 0) {
-          const sessionFiltered = allOrders.filter(o => sessionIds.includes(o._id));
-          if (sessionFiltered.length > 0) {
-            allOrders = sessionFiltered;
+        // Store all active session order IDs into localStorage so customer never loses added rounds
+        try {
+          const allIds = allOrders.map(o => o._id).filter(Boolean);
+          if (allIds.length > 0) {
+            localStorage.setItem('serviq_session_orders', JSON.stringify(allIds));
           }
-        }
+        } catch (e) {}
 
         allOrders.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
@@ -132,22 +141,20 @@ const OrderStatus = () => {
           sessionOrders: allOrders.length > 0 ? allOrders : [currentOrder]
         };
 
-        setOrder(mergedOrder);
-        setLoading(false);
-
-        // Auto-select latest active round if not explicitly set by user
-        setActiveRoundIndex(prev => {
-          if (prev !== null && prev < mergedOrder.sessionOrders.length) return prev;
-          // Default to current URL order index or last round
-          const foundIdx = mergedOrder.sessionOrders.findIndex(o => o._id === id);
-          return foundIdx !== -1 ? foundIdx : mergedOrder.sessionOrders.length - 1;
+        setOrder(prevOrder => {
+          // If session orders increased or newly fetched, auto-focus active round
+          if (!prevOrder || mergedOrder.sessionOrders.length !== (prevOrder?.sessionOrders?.length || 1)) {
+            const activeIdx = mergedOrder.sessionOrders.findIndex(o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status));
+            if (activeIdx !== -1) {
+              setActiveRoundIndex(activeIdx);
+            } else {
+              setActiveRoundIndex(mergedOrder.sessionOrders.length - 1);
+            }
+          }
+          return mergedOrder;
         });
 
-        // Stop polling if all session orders are completed or cancelled
-        const allFinished = mergedOrder.sessionOrders.every(o => ['completed', 'cancelled'].includes(o.status));
-        if (allFinished) {
-          clearInterval(interval);
-        }
+        setLoading(false);
       } catch (err) {
         console.error("Fetch order error:", err);
         setError("Order not found or invalid ID");
@@ -156,9 +163,28 @@ const OrderStatus = () => {
     };
 
     fetchOrder();
-    interval = setInterval(fetchOrder, 4000);
 
-    return () => clearInterval(interval);
+    // Continuous 2.5s polling loop to immediately catch owner POS added rounds
+    interval = setInterval(fetchOrder, 2500);
+
+    // Socket.io real-time event listener for 0ms latency sync
+    try {
+      socket = io(SOCKET_URL, { transports: ['websocket', 'polling'], timeout: 6000 });
+      const currentTenantId = localStorage.getItem('tenantId');
+      if (currentTenantId) {
+        socket.emit('joinTenant', String(currentTenantId));
+      }
+      socket.on('newOrder', () => fetchOrder());
+      socket.on('orderUpdate', () => fetchOrder());
+      socket.on('tablesUpdated', () => fetchOrder());
+    } catch (e) {
+      console.warn("Socket initialization note:", e);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (socket) socket.disconnect();
+    };
   }, [id]);
 
   if (loading) {
@@ -188,7 +214,7 @@ const OrderStatus = () => {
           to="/menu"
           style={{
             padding: '10px 20px',
-            borderRadius: '10px',
+            borderRadius: '12px',
             backgroundColor: theme.accent,
             color: '#fff',
             fontWeight: 800,
@@ -207,52 +233,80 @@ const OrderStatus = () => {
   const currentIdx = activeRoundIndex !== null && activeRoundIndex < sessionOrders.length ? activeRoundIndex : (sessionOrders.length - 1);
   const trackedOrder = sessionOrders[currentIdx] || order;
 
-  const currentStepIndex = steps.findIndex(s => s.id === trackedOrder.status);
+  const getStepIndex = (status) => {
+    const s = (status || 'pending').toLowerCase();
+    if (s === 'completed') return 2;
+    if (s === 'ready' || s === 'preparing') return 1; // ready to serve is included in preparing step
+    return 0; // pending
+  };
+
+  const currentStepIndex = getStepIndex(trackedOrder.status);
   const isCancelled = trackedOrder.status === 'cancelled';
   const isCompleted = trackedOrder.status === 'completed';
-  const tableToken = order.tableNumber ? encodeTableToken(order.tableNumber) : '';
+  const tableNumStr = order.tableNumber || localStorage.getItem('tableNumber') || '1';
+  const tableToken = tableNumStr ? encodeTableToken(tableNumStr) : '';
   const tableTarget = tableToken ? `?t=${encodeURIComponent(tableToken)}` : '';
-  const guestName = order?.customerDetails?.name || order?.customerName || order?.tenantId?.name || "Valued Guest";
   const orderNumStr = trackedOrder.orderNumber ? `#${trackedOrder.orderNumber}` : (trackedOrder._id ? `#${trackedOrder._id.slice(-6).toUpperCase()}` : '#ORD');
 
   const getStatusBadgeInfo = (st) => {
     switch (st) {
-      case 'completed': return { text: '✓ Served', bg: '#dcfce7', color: '#16a34a' };
-      case 'ready': return { text: '● Ready', bg: '#e0f2fe', color: '#0284c7' };
-      case 'preparing': return { text: '● In Kitchen', bg: 'rgba(234, 88, 12, 0.15)', color: '#ea580c' };
-      case 'cancelled': return { text: '✕ Cancelled', bg: '#fee2e2', color: '#dc2626' };
-      default: return { text: '⏳ Placed', bg: isDarkMode ? '#27201a' : '#f1f5f9', color: isDarkMode ? '#f97316' : '#ea580c' };
+      case 'completed':
+        return { text: '✓ Served', bg: isDarkMode ? 'rgba(16, 185, 129, 0.16)' : '#ecfdf5', color: '#059669' };
+      case 'ready':
+      case 'preparing':
+        return { text: '● In Kitchen', bg: isDarkMode ? 'rgba(234, 88, 12, 0.16)' : '#fff7ed', color: '#ea580c' };
+      case 'cancelled':
+        return { text: '✕ Cancelled', bg: isDarkMode ? 'rgba(239, 68, 68, 0.16)' : '#fef2f2', color: '#dc2626' };
+      default:
+        return { text: '● Placed', bg: isDarkMode ? 'rgba(234, 88, 12, 0.16)' : '#fff7ed', color: '#ea580c' };
     }
   };
+
+  const stepMeta = [
+    { id: 'pending', label: 'Order Placed', icon: ShoppingBag, activeText: '● Placed', doneText: '✓ Placed' },
+    { id: 'preparing', label: 'In Preparation', icon: ChefHat, activeText: '● In Kitchen', doneText: '✓ Prepared' },
+    { id: 'completed', label: 'Completed', icon: Utensils, activeText: '✓ Served', doneText: '✓ Served' },
+  ];
 
   return (
     <div className={styles.container} style={{ backgroundColor: theme.bgPage }}>
       <div className={styles.appContainer} style={{ backgroundColor: theme.bgCard, color: theme.textMain }}>
         
-        {/* Top Header Bar */}
-        <div className={styles.topNav}>
-          <button
-            type="button"
-            onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
-            className={styles.backBtn}
-            style={{
-              backgroundColor: theme.chipBg,
-              color: theme.textMain,
-              border: `1px solid ${theme.border}`
-            }}
-          >
-            <ChevronLeft size={16} />
-            <span>Back to Menu</span>
-          </button>
+        {/* Sticky Top Header Bar */}
+        <div
+          className={styles.stickyHeader}
+          style={{
+            backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+            borderBottom: `1px solid ${theme.border}`
+          }}
+        >
+          {/* Header Left: Compact Back Button + Title */}
+          <div className={styles.headerLeft}>
+            <button
+              type="button"
+              onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
+              className={styles.backIconBtn}
+              style={{
+                backgroundColor: theme.chipBg,
+                color: theme.textMain
+              }}
+              title="Back to Menu"
+            >
+              <ChevronLeft size={19} />
+            </button>
 
-          <div className={styles.topNavCenter}>
-            <span className={styles.orderIdBadge} style={{ color: theme.textMain }}>
+            <h1 className={styles.headerTitle} style={{ color: theme.textMain }}>
               Order {orderNumStr}
-            </span>
+            </h1>
           </div>
 
-          <div className={styles.topRightGroup}>
-            <TableBadge tableNumber={order?.tableNumber || 'Takeaway'} isDarkMode={isDarkMode} />
+          {/* Header Right: Table Badge + Theme Toggle */}
+          <div className={styles.headerRightGroup}>
+            <TableBadge
+              tableNumber={tableNumStr}
+              isDarkMode={isDarkMode}
+              style={{ padding: '4px 9px', fontSize: '0.8rem' }}
+            />
 
             <button
               type="button"
@@ -260,383 +314,431 @@ const OrderStatus = () => {
               className={styles.themeToggleBtn}
               style={{
                 backgroundColor: theme.chipBg,
-                color: theme.textMain,
-                borderColor: theme.border
+                color: theme.textMain
               }}
-              title={isDarkMode ? "Light Mode" : "Dark Mode"}
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDarkMode ? <Sun size={15} color="#fbbe24" /> : <Moon size={15} color="#64748b" />}
             </button>
           </div>
         </div>
 
-        {/* Multi-Round Compact Switcher Chips */}
-        {hasMultipleRounds && (
-          <div className={styles.roundSwitcherContainer}>
-            <div className={styles.roundSwitcherHeader}>
-              <span className={styles.roundSwitcherTitle} style={{ color: theme.textMuted }}>
-                <Layers size={13} color={theme.accent} /> Select Round to Track
-              </span>
-              <span style={{ fontSize: '0.72rem', color: theme.accent, fontWeight: 700 }}>
-                {sessionOrders.length} Rounds Active
-              </span>
-            </div>
+        {/* Content Body */}
+        <div className={styles.contentBody}>
 
-            <div className={styles.roundChipsGrid}>
-              {sessionOrders.map((ord, idx) => {
-                const isTabActive = idx === currentIdx;
-                const bInfo = getStatusBadgeInfo(ord.status);
+          {/* Multi-Round Segmented Control */}
+          {hasMultipleRounds && (
+            <div ref={tabsContainerRef} className={styles.roundSwitcherContainer}>
+              <div
+                className={styles.roundSegmentedTrack}
+                style={{
+                  backgroundColor: isDarkMode ? '#1e1711' : '#f1f5f9',
+                  borderColor: theme.border
+                }}
+              >
+                {sessionOrders.map((ord, idx) => {
+                  const isTabActive = idx === currentIdx;
+                  const bInfo = getStatusBadgeInfo(ord.status);
 
-                return (
-                  <button
-                    key={ord._id || idx}
-                    type="button"
-                    onClick={() => setActiveRoundIndex(idx)}
-                    className={styles.roundChip}
-                    style={{
-                      backgroundColor: isTabActive ? theme.accent : (isDarkMode ? '#241c14' : '#f1f5f9'),
-                      color: isTabActive ? '#ffffff' : theme.textMain,
-                      borderColor: isTabActive ? theme.accent : theme.border,
-                      boxShadow: isTabActive ? `0 3px 12px ${theme.accentGlow}` : 'none'
-                    }}
-                  >
-                    <span className={styles.roundChipNumber}>
-                      Round {idx + 1}
-                    </span>
-                    <span
-                      className={styles.roundChipBadge}
+                  return (
+                    <button
+                      key={ord._id || idx}
+                      ref={isTabActive ? activeTabRef : null}
+                      type="button"
+                      onClick={() => setActiveRoundIndex(idx)}
+                      className={styles.roundSegmentTab}
                       style={{
-                        backgroundColor: isTabActive ? 'rgba(255, 255, 255, 0.22)' : bInfo.bg,
-                        color: isTabActive ? '#ffffff' : bInfo.color
+                        backgroundColor: isTabActive ? (isDarkMode ? '#2c221a' : '#ffffff') : 'transparent',
+                        color: isTabActive ? theme.textMain : theme.textMuted,
+                        boxShadow: isTabActive ? '0 2px 8px rgba(0, 0, 0, 0.06)' : 'none',
+                        border: isTabActive ? `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}` : '1px solid transparent'
                       }}
                     >
-                      {bInfo.text}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span className={styles.roundSegmentTitle}>
+                        Round {idx + 1}
+                      </span>
+                      <span
+                        className={styles.roundSegmentStatus}
+                        style={{
+                          backgroundColor: bInfo.bg,
+                          color: bInfo.color
+                        }}
+                      >
+                        {bInfo.text}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Live Timeline Step Tracker for Selected Round */}
-        {isCancelled ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={styles.cancelledCard}
-            style={{
-              background: isDarkMode
-                ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.16), rgba(220, 38, 38, 0.06))'
-                : 'linear-gradient(135deg, #fff1f2, #fef2f2)',
-              borderColor: isDarkMode ? 'rgba(220, 38, 38, 0.35)' : '#fecdd3'
-            }}
-          >
-            <div className={styles.cancelledIconBadge}>
-              <AlertCircle size={24} color="#dc2626" strokeWidth={2.5} />
-            </div>
-            
-            <div className={styles.cancelledPill}>
-              <span>● Cancelled by Kitchen</span>
-            </div>
+          {/* Kitchen Progress Tracker */}
+          {isCancelled ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={styles.cancelledCard}
+              style={{
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.16), rgba(220, 38, 38, 0.06))'
+                  : 'linear-gradient(135deg, #fff1f2, #fef2f2)',
+                borderColor: isDarkMode ? 'rgba(220, 38, 38, 0.35)' : '#fecdd3'
+              }}
+            >
+              <div className={styles.cancelledIconBadge}>
+                <AlertCircle size={26} color="#dc2626" strokeWidth={2.5} />
+              </div>
+              
+              <div className={styles.cancelledPill}>
+                <span>● Cancelled by Kitchen</span>
+              </div>
 
-            <h3 className={styles.cancelledTitle} style={{ color: isDarkMode ? '#fecaca' : '#991b1b' }}>
-              {hasMultipleRounds ? `Round ${currentIdx + 1} Has Been Cancelled` : 'Order Has Been Cancelled'}
-            </h3>
-            
-            <p className={styles.cancelledSubtitle} style={{ color: isDarkMode ? '#f87171' : '#b91c1c' }}>
-              This order was cancelled. Please speak with our restaurant staff or tap below to place fresh items.
-            </p>
-          </motion.div>
-        ) : (
+              <h3 className={styles.cancelledTitle} style={{ color: isDarkMode ? '#fecaca' : '#991b1b' }}>
+                {hasMultipleRounds ? `Round ${currentIdx + 1} Has Been Cancelled` : 'Order Has Been Cancelled'}
+              </h3>
+              
+              <p className={styles.cancelledSubtitle} style={{ color: isDarkMode ? '#f87171' : '#b91c1c' }}>
+                This order was cancelled. Please speak with our restaurant staff or tap below to place fresh items.
+              </p>
+            </motion.div>
+          ) : (
+            <div
+              className={styles.timelineCard}
+              style={{
+                backgroundColor: theme.cardInner,
+                borderColor: theme.border
+              }}
+            >
+              <div className={styles.timelineHeading} style={{ color: theme.textMuted }}>
+                <span>
+                  {hasMultipleRounds ? `Round ${currentIdx + 1} Kitchen Progress` : 'Kitchen Progress'}
+                </span>
+                {isCompleted ? (
+                  <span style={{ color: '#059669', fontSize: '0.68rem', fontWeight: 800 }}>✓ Completed</span>
+                ) : (
+                  <span style={{ color: currentStepIndex === 0 ? '#16a34a' : '#ea580c', fontSize: '0.68rem', fontWeight: 800 }}>● In Progress</span>
+                )}
+              </div>
+
+              <div className={styles.horizontalStepperWrapper}>
+                {/* Background Connecting Track Line */}
+                <div
+                  className={styles.stepperTrackBase}
+                  style={{
+                    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'
+                  }}
+                >
+                  <div
+                    className={styles.stepperTrackFill}
+                    style={{
+                      width: currentStepIndex === 0 ? '0%' : (currentStepIndex === 1 ? '50%' : '100%'),
+                      backgroundColor: '#ea580c'
+                    }}
+                  />
+                </div>
+
+                {/* 3 Step Nodes - Option 1: Single Continuous Brand Accent */}
+                {stepMeta.map((meta, index) => {
+                  const Icon = meta.icon;
+                  const isPast = index < currentStepIndex;
+                  const isCurrent = index === currentStepIndex;
+
+                  let iconBg = isDarkMode ? '#1e1711' : '#f8fafc';
+                  let iconColor = theme.textMuted;
+                  let iconBorder = isDarkMode ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0';
+                  let textColor = theme.textMuted;
+                  let subtextColor = theme.textMuted;
+
+                  if (isPast) {
+                    iconBg = '#ea580c';
+                    iconColor = '#ffffff';
+                    iconBorder = '#ea580c';
+                    textColor = theme.textMain;
+                    subtextColor = '#ea580c';
+                  } else if (isCurrent) {
+                    iconBg = '#ea580c';
+                    iconColor = '#ffffff';
+                    iconBorder = '#ea580c';
+                    textColor = '#ea580c';
+                    subtextColor = '#ea580c';
+                  }
+
+                  return (
+                    <div key={meta.id} className={styles.hStepItem}>
+                      <motion.div
+                        initial={false}
+                        animate={isCurrent ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                        transition={isCurrent ? { repeat: Infinity, duration: 2.2 } : {}}
+                        className={styles.hStepIconBox}
+                        style={{
+                          backgroundColor: iconBg,
+                          color: iconColor,
+                          boxShadow: isCurrent 
+                            ? '0 0 0 4px rgba(234, 88, 12, 0.2), 0 4px 14px rgba(234, 88, 12, 0.45)' 
+                            : (isPast ? '0 2px 8px rgba(234, 88, 12, 0.25)' : 'none'),
+                          border: `2px solid ${iconBorder}`
+                        }}
+                      >
+                        {isPast ? (
+                          <Check size={16} strokeWidth={3} color="#ffffff" />
+                        ) : (
+                          <Icon 
+                            size={16} 
+                            strokeWidth={isCurrent ? 2.5 : 2} 
+                            color={isCurrent ? '#ffffff' : theme.textMuted} 
+                          />
+                        )}
+                      </motion.div>
+
+                      <h4
+                        className={styles.hStepTitle}
+                        style={{
+                          color: textColor,
+                          fontWeight: isCurrent ? 850 : 700
+                        }}
+                      >
+                        {meta.label}
+                      </h4>
+
+                      <span
+                        className={styles.hStepSubtext}
+                        style={{
+                          color: subtextColor
+                        }}
+                      >
+                        {isPast ? meta.doneText : (isCurrent ? meta.activeText : 'Upcoming')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Ordered Items Receipt Summary */}
           <div
-            className={styles.timelineCard}
+            className={styles.receiptCard}
             style={{
               backgroundColor: theme.cardInner,
               borderColor: theme.border
             }}
           >
-            <div className={styles.timelineHeading} style={{ color: theme.textMuted }}>
-              <span>
-                {hasMultipleRounds ? `Round ${currentIdx + 1} Kitchen Progress` : 'Kitchen Progress'}
+            <div className={styles.receiptHeader}>
+              <h3 className={styles.receiptTitle} style={{ color: theme.textMain }}>
+                <Receipt size={16} color={theme.textMuted} />
+                <span>Order Summary</span>
+                {hasMultipleRounds && (
+                  <span
+                    style={{
+                      fontSize: '0.67rem',
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      borderRadius: '5px',
+                      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+                      color: theme.textMuted,
+                      letterSpacing: '0px',
+                      textTransform: 'none'
+                    }}
+                  >
+                    {sessionOrders.length} Rounds
+                  </span>
+                )}
+              </h3>
+              <span
+                className={styles.paymentBadge}
+                style={{
+                  backgroundColor: order.paymentStatus === 'paid' ? (isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5') : (isDarkMode ? 'rgba(99, 102, 241, 0.14)' : '#eef2ff'),
+                  color: order.paymentStatus === 'paid' ? '#059669' : '#4f46e5',
+                  border: order.paymentStatus === 'paid' ? '1px solid #a7f3d0' : (isDarkMode ? '1px solid rgba(99, 102, 241, 0.28)' : '1px solid #c7d2fe'),
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {order.paymentStatus === 'paid' ? (
+                  <>
+                    <Check size={11} strokeWidth={3} /> Paid Online
+                  </>
+                ) : (
+                  <>
+                    <Wallet size={11} strokeWidth={2.4} /> Pay at Counter
+                  </>
+                )}
               </span>
-              {!isCompleted && (
-                <span style={{ fontSize: '0.72rem', color: theme.accent, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Sparkles size={12} /> Auto updating
-                </span>
-              )}
             </div>
 
-            <div className={styles.timelineList}>
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-                const isPast = index < currentStepIndex;
-                const isCurrent = index === currentStepIndex;
-                const isActive = index <= currentStepIndex;
+            {sessionOrders.map((ord, rIdx) => {
+              const isCurrentOrd = rIdx === currentIdx;
+              const roundNum = rIdx + 1;
+              const roundCode = ord.orderNumber ? `#${ord.orderNumber}` : (ord._id ? `#${ord._id.slice(-6).toUpperCase()}` : `#${roundNum}`);
+              const bInfo = getStatusBadgeInfo(ord.status);
+              const itemsSum = ord.items ? ord.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
+              const roundSubtotal = Number(ord.settledAmount || (itemsSum > 0 ? itemsSum : ord.total) || 0);
 
-                return (
-                  <div key={step.id} className={styles.stepItem}>
-                    {/* Connecting Line */}
-                    {index < steps.length - 1 && (
-                      <div
-                        className={`${styles.stepConnector} ${isPast ? styles.stepConnectorActive : ''}`}
+              return (
+                <div
+                  key={ord._id || rIdx}
+                  className={hasMultipleRounds ? styles.roundSection : ''}
+                  style={{ cursor: hasMultipleRounds ? 'pointer' : 'default' }}
+                  onClick={() => hasMultipleRounds && setActiveRoundIndex(rIdx)}
+                >
+                  {hasMultipleRounds && (
+                    <div className={styles.roundHeaderRow}>
+                      <span className={styles.roundTitle} style={{ color: theme.textMain }}>
+                        Round {roundNum} • {roundCode}
+                        {isCurrentOrd && (
+                          <span style={{ fontSize: '0.66rem', color: theme.accent, textTransform: 'none', fontWeight: 800 }}>
+                            (Tracking)
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={styles.roundStatusPill}
                         style={{
-                          backgroundColor: isPast ? theme.accent : (isDarkMode ? '#2e2419' : '#e2e8f0')
+                          backgroundColor: bInfo.bg,
+                          color: bInfo.color
                         }}
-                      />
-                    )}
+                      >
+                        {bInfo.text}
+                      </span>
+                    </div>
+                  )}
 
-                    {/* Step Icon Box */}
-                    <motion.div
-                      initial={false}
-                      animate={isCurrent ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-                      transition={isCurrent ? { repeat: Infinity, duration: 2.5 } : {}}
-                      className={styles.stepIconContainer}
-                      style={{
-                        backgroundColor: isActive ? theme.accent : theme.stepInactive,
-                        color: isActive ? '#ffffff' : theme.textMuted,
-                        boxShadow: isCurrent ? `0 4px 14px ${theme.accentGlow}` : 'none',
-                        borderColor: isCurrent ? `${theme.accent}50` : 'transparent'
-                      }}
-                    >
-                      <Icon size={17} strokeWidth={isActive ? 2.5 : 2} />
-                    </motion.div>
+                  <div className={styles.itemsList}>
+                    {ord.items && ord.items.map((item, i) => {
+                      const cleanItemName = item.name
+                        ? item.name.split(' + ')[0].replace(/\s*\((?:[^)(]+|\([^)(]*\))*\)+$/, '').trim()
+                        : item.name;
 
-                    {/* Step Title & Subtext */}
-                    <div className={styles.stepInfo}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <h4
-                          className={styles.stepTitle}
-                          style={{
-                            color: isActive ? theme.textMain : theme.textMuted,
-                            fontWeight: isActive ? 800 : 600
-                          }}
-                        >
-                          {step.label}
-                        </h4>
-                        {isCurrent && !isCompleted && (
+                      const varName = item.variant ? (typeof item.variant === 'object' ? (item.variant.name || item.variant.size) : String(item.variant)) : null;
+                      const itemAddons = Array.isArray(item.addons) ? item.addons : [];
+                      const notes = item.specialNotes || item.notes || '';
+
+                      return (
+                        <div key={i} className={styles.itemRow}>
                           <span
-                            className={styles.stepActiveTag}
+                            className={styles.itemQtyBadge}
                             style={{
-                              backgroundColor: `${theme.accent}18`,
-                              color: theme.accent
+                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9',
+                              color: isDarkMode ? '#cbd5e1' : '#475569',
+                              border: `1px solid ${theme.border}`
                             }}
                           >
-                            ● In Progress
+                            {item.quantity}×
                           </span>
-                        )}
-                        {isPast && (
-                          <span style={{ color: '#22c55e', fontSize: '0.72rem', fontWeight: 800 }}>
-                            ✓ Done
-                          </span>
-                        )}
-                      </div>
-                      <p
-                        className={styles.stepSubtext}
-                        style={{ color: isActive ? theme.textMuted : (isDarkMode ? '#6e6355' : '#94a3b8') }}
-                      >
-                        {step.subtext}
-                      </p>
-                    </div>
+
+                          <div className={styles.itemDetails}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                              <p className={styles.itemName} style={{ color: theme.textMain }}>
+                                {cleanItemName}
+                              </p>
+                              <span className={styles.itemPrice} style={{ color: theme.textMain }}>
+                                ₹{Math.round(item.price * item.quantity)}
+                              </span>
+                            </div>
+
+                            {(varName || itemAddons.length > 0) && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                                {varName && (
+                                  <span
+                                    className={styles.itemVariantPill}
+                                    style={{
+                                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#f8fafc',
+                                      color: isDarkMode ? '#cbd5e1' : '#64748b',
+                                      border: `1px solid ${theme.border}`
+                                    }}
+                                  >
+                                    {varName}
+                                  </span>
+                                )}
+                                {itemAddons.map((a, aIdx) => (
+                                  <span
+                                    key={aIdx}
+                                    className={styles.itemVariantPill}
+                                    style={{
+                                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#f8fafc',
+                                      color: theme.textMuted,
+                                      border: `1px solid ${theme.border}`
+                                    }}
+                                  >
+                                    +{a.name || a}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {notes && (
+                              <p className={styles.itemNotes} style={{ color: theme.textMuted }}>
+                                "{notes}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+
+                  {hasMultipleRounds && (
+                    <div className={styles.roundSubtotalRow} style={{ color: theme.textMuted }}>
+                      <span>Round {roundNum} Total</span>
+                      <span style={{ color: theme.textMain }}>₹{Math.round(roundSubtotal)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className={styles.receiptTotalRow}>
+              <span className={styles.totalLabel} style={{ color: theme.textMain }}>
+                {hasMultipleRounds ? 'Total Running Bill' : 'Total Amount'}
+              </span>
+              <span className={styles.totalAmount} style={{ color: theme.accent }}>
+                ₹{Math.round(
+                  hasMultipleRounds
+                    ? sessionOrders.reduce((sum, ord) => {
+                        const sumItems = ord.items ? ord.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
+                        return sum + Number(ord.settledAmount || (sumItems > 0 ? sumItems : ord.total) || 0);
+                      }, 0)
+                    : (() => {
+                        const sumItems = order.items ? order.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
+                        return Number(order.settledAmount || (sumItems > 0 ? sumItems : order.total) || 0);
+                      })()
+                )}
+              </span>
             </div>
           </div>
-        )}
 
-        {/* Ordered Items Receipt Summary */}
-        <div
-          className={styles.receiptCard}
-          style={{
-            backgroundColor: theme.cardInner,
-            borderColor: theme.border
-          }}
-        >
-          <div className={styles.receiptHeader}>
-            <h3 className={styles.receiptTitle} style={{ color: theme.textMain }}>
-              <Receipt size={14} color={theme.accent} />
-              <span>
-                {hasMultipleRounds
-                  ? `Order Summary (${sessionOrders.length} Rounds)`
-                  : 'Order Summary'}
-              </span>
-            </h3>
-            <span
-              className={styles.paymentBadge}
-              style={{
-                backgroundColor: order.paymentStatus === 'paid' ? '#dcfce7' : `${theme.accent}15`,
-                color: order.paymentStatus === 'paid' ? '#16a34a' : theme.accent
-              }}
-            >
-              {order.paymentStatus === 'paid' ? '● Paid' : '● Pay at Counter'}
-            </span>
-          </div>
+          {/* Primary CTA: + Add More Items */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
+            className={styles.addMoreBtn}
+          >
+            <Plus size={18} strokeWidth={3} />
+            <span>Add More Items</span>
+          </motion.button>
 
-          {sessionOrders.map((ord, rIdx) => {
-            const isCurrentOrd = rIdx === currentIdx;
-            const roundNum = rIdx + 1;
-            const roundCode = ord.orderNumber ? `#${ord.orderNumber}` : (ord._id ? `#${ord._id.slice(-6).toUpperCase()}` : `#${roundNum}`);
-            const bInfo = getStatusBadgeInfo(ord.status);
-            const itemsSum = ord.items ? ord.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
-            const roundSubtotal = Number(ord.settledAmount || (itemsSum > 0 ? itemsSum : ord.total) || 0);
+          {/* Footer */}
+          <footer className={styles.footer}>
+            <p className={styles.footerSubtitle} style={{ color: theme.textMuted }}>
+              Table: <strong>{tableNumStr}</strong> — Enjoy your dining experience!
+            </p>
+            <p className={styles.poweredBy} style={{ color: theme.textMuted }}>
+              Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
+            </p>
+          </footer>
 
-            return (
-              <div
-                key={ord._id || rIdx}
-                className={hasMultipleRounds ? styles.roundSection : ''}
-                style={{ cursor: hasMultipleRounds ? 'pointer' : 'default' }}
-                onClick={() => hasMultipleRounds && setActiveRoundIndex(rIdx)}
-              >
-                {hasMultipleRounds && (
-                  <div className={styles.roundHeaderRow}>
-                    <span className={styles.roundTitle} style={{ color: isCurrentOrd ? theme.accent : theme.textMain }}>
-                      Round {roundNum} • {roundCode}
-                      {isCurrentOrd && (
-                        <span style={{ fontSize: '0.66rem', color: theme.accent, textTransform: 'none', fontWeight: 700 }}>
-                          (Tracking)
-                        </span>
-                      )}
-                    </span>
-                    <span
-                      className={styles.roundStatusPill}
-                      style={{
-                        backgroundColor: bInfo.bg,
-                        color: bInfo.color
-                      }}
-                    >
-                      {bInfo.text}
-                    </span>
-                  </div>
-                )}
-
-                <div className={styles.itemsList}>
-                  {ord.items && ord.items.map((item, i) => {
-                    const cleanItemName = item.name
-                      ? item.name.split(' + ')[0].replace(/\s*\((?:[^)(]+|\([^)(]*\))*\)+$/, '').trim()
-                      : item.name;
-
-                    const varName = item.variant ? (typeof item.variant === 'object' ? (item.variant.name || item.variant.size) : String(item.variant)) : null;
-                    const itemAddons = Array.isArray(item.addons) ? item.addons : [];
-                    const notes = item.specialNotes || item.notes || '';
-
-                    return (
-                      <div key={i} className={styles.itemRow}>
-                        <span
-                          className={styles.itemQtyBadge}
-                          style={{
-                            backgroundColor: theme.chipBg,
-                            color: theme.accent,
-                            border: `1px solid ${theme.border}`
-                          }}
-                        >
-                          {item.quantity}×
-                        </span>
-
-                        <div className={styles.itemDetails}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                            <p className={styles.itemName} style={{ color: theme.textMain }}>
-                              {cleanItemName}
-                            </p>
-                            <span className={styles.itemPrice} style={{ color: theme.textMain }}>
-                              ₹{Math.round(item.price * item.quantity)}
-                            </span>
-                          </div>
-
-                          {(varName || itemAddons.length > 0) && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
-                              {varName && (
-                                <span
-                                  className={styles.itemVariantPill}
-                                  style={{
-                                    backgroundColor: `${theme.accent}15`,
-                                    color: theme.accent
-                                  }}
-                                >
-                                  {varName}
-                                </span>
-                              )}
-                              {itemAddons.map((a, aIdx) => (
-                                <span
-                                  key={aIdx}
-                                  className={styles.itemVariantPill}
-                                  style={{
-                                    backgroundColor: theme.chipBg,
-                                    color: theme.textMuted
-                                  }}
-                                >
-                                  +{a.name || a}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {notes && (
-                            <p className={styles.itemNotes} style={{ color: theme.accent }}>
-                              "{notes}"
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {hasMultipleRounds && (
-                  <div className={styles.roundSubtotalRow} style={{ color: theme.textMuted }}>
-                    <span>Round {roundNum} Total</span>
-                    <span style={{ color: theme.textMain }}>₹{Math.round(roundSubtotal)}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          <div className={styles.receiptTotalRow}>
-            <span className={styles.totalLabel} style={{ color: theme.textMain }}>
-              {hasMultipleRounds ? 'Total Running Bill' : 'Total Amount'}
-            </span>
-            <span className={styles.totalAmount} style={{ color: theme.accent }}>
-              ₹{Math.round(
-                hasMultipleRounds
-                  ? sessionOrders.reduce((sum, ord) => {
-                      const sumItems = ord.items ? ord.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
-                      return sum + Number(ord.settledAmount || (sumItems > 0 ? sumItems : ord.total) || 0);
-                    }, 0)
-                  : (() => {
-                      const sumItems = order.items ? order.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
-                      return Number(order.settledAmount || (sumItems > 0 ? sumItems : order.total) || 0);
-                    })()
-              )}
-            </span>
-          </div>
         </div>
 
-        {/* Primary CTA: + Add More Items */}
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          type="button"
-          onClick={() => navigate(`/menu${tableTarget}`, { replace: true })}
-          className={styles.addMoreBtn}
-          style={{
-            background: `linear-gradient(135deg, ${theme.accent}, #c2410c)`,
-            boxShadow: `0 4px 18px ${theme.accentGlow}`
-          }}
-        >
-          <Plus size={18} strokeWidth={3} />
-          <span>Add More Items</span>
-        </motion.button>
-
-        {/* Footer */}
-        <footer className={styles.footer}>
-          <p className={styles.footerSubtitle} style={{ color: theme.textMuted }}>
-            Table: <strong>{order.tableNumber || 'Takeaway'}</strong> — Enjoy your dining experience!
-          </p>
-          <p className={styles.poweredBy} style={{ color: theme.textMuted }}>
-            Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
-          </p>
-        </footer>
+        {/* Bottom Navigation Bar */}
+        <CustomerBottomNav
+          tableNumber={tableNumStr}
+          tenantId={order?.tenantId?._id || order?.tenantId || ''}
+          isDarkMode={isDarkMode}
+        />
 
       </div>
     </div>

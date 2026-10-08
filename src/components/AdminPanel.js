@@ -589,12 +589,56 @@ export default function AdminPanel() {
         setOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
         setDashboardOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
       });
+
+      socket.on('tableServiceAlert', (alert) => {
+        try { playOrderChime(); } catch (e) {}
+        const isBill = alert.type === 'request_bill';
+        const title = isBill ? `💳 Table ${alert.tableNumber} Requested Bill!` : `🛎️ Table ${alert.tableNumber} Called Staff!`;
+        const subtitle = isBill
+          ? `Total: ₹${alert.amount || 0} • ${alert.paymentMethod || 'UPI'}`
+          : `${alert.customerName || 'Guest Diner'} needs assistance`;
+
+        toast((t) => (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', minWidth: '220px' }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.88rem' }}>{title}</div>
+              <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>{subtitle}</div>
+            </div>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                if (alert._id || alert.id) {
+                  axios.put(`${API}/tables/service-requests/${alert._id || alert.id}`, { status: 'attending' }).catch(() => {});
+                }
+              }}
+              style={{
+                backgroundColor: '#ea580c',
+                color: '#fff',
+                border: 'none',
+                padding: '4px 9px',
+                borderRadius: '6px',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Attending
+            </button>
+          </div>
+        ), {
+          duration: 9000,
+          style: { background: '#1e293b', color: '#f8fafc', border: '1.5px solid #ea580c' }
+        });
+
+        fetchTables();
+      });
     }
 
     return () => {
       if (socket) {
         socket.off('newOrder');
         socket.off('orderUpdate');
+        socket.off('tableServiceAlert');
       }
     };
   }, [user, tenantId, socket]);
