@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Heart, Share2, Star, Plus, Minus,
@@ -49,36 +49,54 @@ export default function DishDetailsModal({
   const [internalFavorite, setInternalFavorite] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [cachedDish, setCachedDish] = useState(dish);
 
-  if (!isOpen || !dish) return null;
+  useEffect(() => {
+    if (dish) {
+      setCachedDish(dish);
+      setQuantity(1);
+      setCopied(false);
+    }
+  }, [dish]);
 
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [isOpen]);
+
+  const activeDish = dish || cachedDish;
   const isFavorite = externalIsFavorite !== undefined ? externalIsFavorite : internalFavorite;
 
   const handleToggleFav = (e) => {
     e.stopPropagation();
-    if (onToggleFavorite) {
-      onToggleFavorite(dish, e);
+    if (onToggleFavorite && activeDish) {
+      onToggleFavorite(activeDish, e);
     } else {
       setInternalFavorite(prev => !prev);
     }
   };
 
-  const discount = dish.discount || {};
+  const discount = activeDish?.discount || {};
   const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
-  let discountedPrice = dish.price;
-  if (hasDiscount) {
+  let discountedPrice = activeDish?.price || 0;
+  if (hasDiscount && activeDish?.price) {
     if (discount.type === 'percentage') {
-      discountedPrice = Math.max(0, Math.round(dish.price * (1 - discount.value / 100)));
+      discountedPrice = Math.max(0, Math.round(activeDish.price * (1 - discount.value / 100)));
     } else {
-      discountedPrice = Math.max(0, dish.price - discount.value);
+      discountedPrice = Math.max(0, activeDish.price - discount.value);
     }
   }
 
-  const vars = dish.variants || dish.sizes || dish.portionSizes || [];
-  const addons = dish.addons || [];
+  const vars = activeDish?.variants || activeDish?.sizes || activeDish?.portionSizes || [];
+  const addons = activeDish?.addons || [];
   const isCustomizable = vars.length > 0 || addons.length > 0;
-  const isOutOfStock = dish.available === false || dish.isAvailable === false;
-  const isVeg = dish.isVeg !== false;
+  const isOutOfStock = activeDish?.available === false || activeDish?.isAvailable === false;
+  const isVeg = activeDish?.isVeg !== false;
 
   // Modern luxury theme tokens
   const bg = isDarkMode ? '#121110' : '#ffffff';
@@ -91,10 +109,11 @@ export default function DishDetailsModal({
 
   const handleShare = (e) => {
     e.stopPropagation();
+    if (!activeDish) return;
     if (navigator.share) {
       navigator.share({
-        title: dish.name,
-        text: `Check out ${dish.name} on our menu!`,
+        title: activeDish.name,
+        text: `Check out ${activeDish.name} on our menu!`,
         url: window.location.href
       }).catch(() => {});
     } else {
@@ -105,118 +124,122 @@ export default function DishDetailsModal({
   };
 
   const handleAction = (e) => {
-    if (isOutOfStock) return;
+    if (isOutOfStock || !activeDish) return;
     if (isCustomizable) {
-      onOpenCustomization(dish);
+      onOpenCustomization(activeDish);
     } else {
-      onAddToCart(dish, e, null, [], "", quantity);
+      onAddToCart(activeDish, e, null, [], "", quantity);
       onClose();
     }
   };
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 999999,
-          backgroundColor: isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(15,23,42,0.65)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-end',
-          overflowY: 'auto'
-        }}
-      >
+      {isOpen && activeDish && (
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
           style={{
-            width: '100%',
-            maxWidth: '480px',
-            maxHeight: '92vh',
-            backgroundColor: bg,
-            borderTopLeftRadius: '28px',
-            borderTopRightRadius: '28px',
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            backgroundColor: isDarkMode ? 'rgba(0,0,0,0.8)' : 'rgba(15,23,42,0.5)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
-            boxShadow: '0 -20px 60px rgba(0,0,0,0.4)',
-            overflow: 'hidden',
-            borderTop: `1px solid ${border}`
+            justifyContent: 'center',
+            alignItems: 'stretch',
+            overflow: 'hidden'
           }}
         >
-          {/* Scrollable Modal Content */}
-          <div style={{
-            overflowY: 'auto',
-            paddingBottom: '88px',
-            WebkitOverflowScrolling: 'touch'
-          }}>
-            {/* Hero Image Showcase */}
-            <div style={{ position: 'relative', width: '100%', height: '290px', flexShrink: 0, overflow: 'hidden' }}>
-              <motion.img
-                initial={{ scale: 1.05 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                src={getValidFoodImage(dish)}
-                alt={dish.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800";
-                }}
-              />
-
-              {/* Gradient Overlays */}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 40%, rgba(0,0,0,0.7) 100%)'
-              }} />
-
-              {/* Top Navigation Controls */}
-              <div style={{
-                position: 'absolute',
-                top: 16,
-                left: 16,
-                right: 16,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                zIndex: 10
-              }}>
-                <motion.button
-                  whileHover={{ scale: 1.06 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={onClose}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 350 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              height: '100%',
+              minHeight: '100dvh',
+              maxHeight: '100dvh',
+              backgroundColor: bg,
+              borderRadius: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              boxShadow: isDarkMode ? '0 0 50px rgba(0,0,0,0.85)' : '0 0 50px rgba(0,0,0,0.15)',
+              overflow: 'hidden',
+              borderLeft: `1px solid ${border}`,
+              borderRight: `1px solid ${border}`
+            }}
+          >
+            {/* Scrollable Modal Content */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              {/* Hero Image Showcase */}
+              <div style={{ position: 'relative', width: '100%', height: '320px', flexShrink: 0, overflow: 'hidden' }}>
+                <motion.img
+                  initial={{ scale: 1.05 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  src={getValidFoodImage(activeDish)}
+                  alt={activeDish.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800";
                   }}
-                  title="Close"
-                >
-                  <ArrowLeft size={20} strokeWidth={2.5} />
-                </motion.button>
+                />
+
+                {/* Gradient Overlays */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, rgba(0,0,0,0.75) 100%)'
+                }} />
+
+                {/* Top Navigation Controls */}
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(16px + env(safe-area-inset-top, 0px))',
+                  left: 16,
+                  right: 16,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  zIndex: 10
+                }}>
+                  <motion.button
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={onClose}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                    }}
+                    title="Close"
+                  >
+                    <ArrowLeft size={20} strokeWidth={2.5} />
+                  </motion.button>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <motion.button
@@ -282,7 +305,7 @@ export default function DishDetailsModal({
                 alignItems: 'center',
                 zIndex: 5
               }}>
-                {dish.rating ? (
+                {activeDish?.rating ? (
                   <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -298,7 +321,7 @@ export default function DishDetailsModal({
                     fontWeight: '800'
                   }}>
                     <Star size={13} color="#fbbf24" fill="#fbbf24" />
-                    <span>{dish.rating}</span>
+                    <span>{activeDish.rating}</span>
                   </div>
                 ) : (
                   <div style={{
@@ -357,7 +380,7 @@ export default function DishDetailsModal({
                   </span>
                 </div>
 
-                {dish.category && (
+                {activeDish?.category && (
                   <span style={{
                     fontSize: '0.72rem',
                     textTransform: 'capitalize',
@@ -368,7 +391,7 @@ export default function DishDetailsModal({
                     color: textMuted,
                     border: `1px solid ${border}`
                   }}>
-                    {dish.category}
+                    {activeDish.category}
                   </span>
                 )}
               </div>
@@ -382,7 +405,7 @@ export default function DishDetailsModal({
                 lineHeight: 1.25,
                 letterSpacing: '-0.02em'
               }}>
-                {dish.name}
+                {activeDish?.name}
               </h1>
 
               {/* Price Details */}
@@ -392,7 +415,7 @@ export default function DishDetailsModal({
                 </span>
                 {hasDiscount && (
                   <span style={{ fontSize: '1.1rem', color: textMuted, textDecoration: 'line-through', fontWeight: '600' }}>
-                    ₹{dish.price}
+                    ₹{activeDish?.price}
                   </span>
                 )}
                 <span style={{ fontSize: '0.72rem', color: textMuted, fontWeight: '600' }}>
@@ -401,7 +424,7 @@ export default function DishDetailsModal({
               </div>
 
               {/* Authentic Description (Only shown if description exists) */}
-              {dish.description && dish.description.trim() && (
+              {activeDish?.description && activeDish.description.trim() && (
                 <div style={{
                   backgroundColor: cardBg,
                   padding: '1rem 1.1rem',
@@ -416,7 +439,7 @@ export default function DishDetailsModal({
                     margin: 0,
                     fontWeight: '450'
                   }}>
-                    {dish.description}
+                    {activeDish.description}
                   </p>
                 </div>
               )}
@@ -449,7 +472,7 @@ export default function DishDetailsModal({
             left: 0,
             right: 0,
             padding: '0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px))',
-            backgroundColor: isDarkMode ? 'rgba(18, 17, 16, 0.96)' : 'rgba(255, 255, 255, 0.96)',
+            backgroundColor: isDarkMode ? 'rgba(18, 17, 16, 0.98)' : 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             borderTop: `1px solid ${border}`,
@@ -527,6 +550,7 @@ export default function DishDetailsModal({
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
-  );
+    )}
+  </AnimatePresence>
+);
 }
