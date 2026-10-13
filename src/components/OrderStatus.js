@@ -36,6 +36,56 @@ const OrderStatus = () => {
 
   const tabsContainerRef = useRef(null);
   const activeTabRef = useRef(null);
+  const lastKnownStatusRef = useRef(null);
+
+  // Request browser notification permission for mobile notifications
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
+  }, []);
+
+  const triggerMobileNotification = (status, tableNum) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    const tableLabel = tableNum ? `Table ${tableNum}` : 'Your Table';
+    let title = `Order Update • ${tableLabel}`;
+    let body = 'Your order status has been updated.';
+
+    if (status === 'preparing') {
+      body = 'Chef is crafting your delicious meal in the kitchen! 👨‍🍳';
+    } else if (status === 'ready') {
+      body = 'Your food is ready! Serving to your table shortly. 🍽️';
+    } else if (status === 'completed') {
+      body = 'Order served! Enjoy your meal. ✨';
+    } else if (status === 'cancelled') {
+      body = 'Your order has been cancelled.';
+    } else {
+      return;
+    }
+
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(title, {
+            body,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            vibrate: [200, 100, 200]
+          });
+        }).catch(() => {
+          new Notification(title, { body, icon: '/favicon.ico' });
+        });
+      } else {
+        new Notification(title, { body, icon: '/favicon.ico' });
+      }
+    } catch (e) {
+      console.warn('Native mobile notification notice:', e);
+    }
+  };
 
   // Dark mode state matching rest of the application
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -153,6 +203,13 @@ const OrderStatus = () => {
           }
           return mergedOrder;
         });
+
+        // Trigger native mobile notification if status changed
+        const latestStatus = currentOrder.status;
+        if (lastKnownStatusRef.current && lastKnownStatusRef.current !== latestStatus) {
+          triggerMobileNotification(latestStatus, currentOrder.tableNumber);
+        }
+        lastKnownStatusRef.current = latestStatus;
 
         setLoading(false);
       } catch (err) {

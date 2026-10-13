@@ -281,12 +281,6 @@ export default function Menu() {
 
     if (alreadyIn) {
       setFavorites(prev => prev.filter(f => (f._id || f.id) !== id));
-      toast('Removed from wishlist', {
-        id: 'wishlist-toast-action',
-        icon: '🗑️',
-        style: { background: '#1e293b', color: '#f8fafc', fontSize: '13px' },
-        duration: 1500
-      });
     } else {
       setFavorites(prev => [
         ...prev,
@@ -302,11 +296,6 @@ export default function Menu() {
           rating: item.rating || null
         }
       ]);
-      toast('Added to wishlist ❤️', {
-        id: 'wishlist-toast-action',
-        style: { background: '#1e293b', color: '#f8fafc', fontSize: '13px' },
-        duration: 1500
-      });
     }
   }, [favorites]);
 
@@ -368,10 +357,6 @@ export default function Menu() {
       localStorage.setItem(key, JSON.stringify(nextVal));
       localStorage.setItem('serviq_veg_only', JSON.stringify(nextVal));
       window.dispatchEvent(new CustomEvent('serviq_veg_only_updated', { detail: { key, isVegOnly: nextVal } }));
-      toast(nextVal ? '🟢 Pure Veg mode activated' : 'Showing all items (Veg & Non-Veg)', {
-        style: { background: '#1e293b', color: '#f8fafc', fontSize: '13px' },
-        duration: 1500
-      });
       return nextVal;
     });
   }, [getVegKey]);
@@ -586,7 +571,19 @@ export default function Menu() {
       .get(`${API}/menu`, { params: currentTenantId ? { tenantId: currentTenantId } : {} })
       .then((res) => {
         if (res.data && res.data.length > 0) {
-          setItems(res.data);
+          // Deduplicate items so identical dishes never repeat multiple times
+          const seen = new Set();
+          const uniqueItems = [];
+          for (const item of res.data) {
+            const idKey = String(item._id || item.id || '');
+            const nameCatKey = `${String(item.name || '').toLowerCase().trim()}__${String(item.category || '').toLowerCase().trim()}`;
+            if (idKey && seen.has(idKey)) continue;
+            if (nameCatKey && seen.has(nameCatKey)) continue;
+            if (idKey) seen.add(idKey);
+            if (nameCatKey) seen.add(nameCatKey);
+            uniqueItems.push(item);
+          }
+          setItems(uniqueItems.length > 0 ? uniqueItems : res.data);
         } else {
           setItems(defaultGourmetItemsFallback);
         }
@@ -682,10 +679,22 @@ export default function Menu() {
     }
   };
 
-  // Filter items by Pure Veg preference if active for this customer
+  // Filter items by Pure Veg preference and eliminate any duplicate dishes
   const displayItems = useMemo(() => {
-    if (!isVegOnly) return items;
-    return items.filter(it => it.isVeg !== false);
+    let list = items;
+    if (isVegOnly) {
+      list = list.filter(it => it.isVeg !== false);
+    }
+    const seen = new Set();
+    return list.filter(it => {
+      const idKey = String(it._id || it.id || '');
+      const nameCatKey = `${String(it.name || '').toLowerCase().trim()}__${String(it.category || '').toLowerCase().trim()}`;
+      if (idKey && seen.has(idKey)) return false;
+      if (nameCatKey && seen.has(nameCatKey)) return false;
+      if (idKey) seen.add(idKey);
+      if (nameCatKey) seen.add(nameCatKey);
+      return true;
+    });
   }, [items, isVegOnly]);
 
   const allCategories = useMemo(() => {
@@ -1338,38 +1347,52 @@ export default function Menu() {
                       />
                     </div>
 
-                    {/* Quick Veg Filter Toggle */}
+                    {/* Quick Veg Filter Toggle (Official FSSAI Green Veg Logo) */}
                     <motion.button
                       whileTap={{ scale: 0.92 }}
                       onClick={handleToggleVegOnly}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '5px',
-                        padding: '0 10px',
+                        justifyContent: 'center',
+                        padding: '0 12px',
                         borderRadius: '12px',
                         border: isVegOnly ? '1.5px solid #16a34a' : `1px solid ${theme.border}`,
                         backgroundColor: isVegOnly ? (isDarkMode ? 'rgba(22, 163, 74, 0.22)' : '#ecfdf5') : theme.inputBg,
-                        color: isVegOnly ? '#16a34a' : theme.textMuted,
-                        fontSize: '0.78rem',
-                        fontWeight: '800',
                         cursor: 'pointer',
-                        whiteSpace: 'nowrap',
                         height: '38px',
                         boxSizing: 'border-box',
                         transition: 'all 0.2s ease',
-                        boxShadow: isVegOnly ? '0 2px 8px rgba(22, 163, 74, 0.25)' : 'none'
+                        boxShadow: isVegOnly ? '0 2px 10px rgba(22, 163, 74, 0.3)' : 'none'
                       }}
                       title={isVegOnly ? "Pure Veg Mode Active — Tap to show all" : "Tap to show Vegetarian only"}
+                      aria-label="Filter Vegetarian items"
                     >
-                      <span style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: isVegOnly ? '#16a34a' : '#94a3b8',
-                        transition: 'background-color 0.2s ease'
-                      }} />
-                      <span>VEG</span>
+                      <div
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          border: `2px solid ${isVegOnly ? '#16a34a' : (isDarkMode ? 'rgba(255,255,255,0.35)' : '#94a3b8')}`,
+                          borderRadius: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: isVegOnly ? '#ffffff' : 'transparent',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease',
+                          boxShadow: isVegOnly ? '0 1px 4px rgba(22, 163, 74, 0.3)' : 'none'
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: isVegOnly ? '#16a34a' : (isDarkMode ? 'rgba(255,255,255,0.35)' : '#94a3b8'),
+                            transition: 'background-color 0.2s ease'
+                          }}
+                        />
+                      </div>
                     </motion.button>
                   </div>
                 </div>

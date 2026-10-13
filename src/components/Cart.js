@@ -188,11 +188,10 @@ export default function Cart() {
 
       setItems([]);
       localStorage.removeItem("cartItems");
-      toast.success("Order placed successfully!");
       navigate(`/order/status/${data._id}`, { replace: true });
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.error || "Failed to place order");
+      toast.error(err.response?.data?.error || "Failed to place order. Please check your internet connection.");
     } finally {
       setIsPlacing(false);
     }
@@ -209,7 +208,6 @@ export default function Cart() {
   const handleVerificationSuccess = (verifiedUser) => {
     setCustomer(verifiedUser);
     setIsVerificationOpen(false);
-    toast.success(`Welcome, ${verifiedUser.name}!`);
     executeOrderPlacement(verifiedUser);
   };
 
