@@ -115,7 +115,7 @@ export default function DishDetailsModal({
         title: activeDish.name,
         text: `Check out ${activeDish.name} on our menu!`,
         url: window.location.href
-      }).catch(() => {});
+      }).catch(() => { });
     } else {
       navigator.clipboard.writeText(window.location.href);
       setCopied(true);
@@ -404,192 +404,192 @@ export default function DishDetailsModal({
                   margin: '-4px auto 4px',
                   flexShrink: 0
                 }} />
-              {/* Category & Dietary Tag */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FssaiDietaryBadge isVeg={isVeg} size={16} />
-                  <span style={{
-                    fontSize: '0.74rem',
-                    textTransform: 'uppercase',
-                    fontWeight: '800',
-                    letterSpacing: '0.05em',
-                    color: isVeg ? '#16a34a' : '#dc2626'
-                  }}>
-                    {isVeg ? 'Veg' : 'Non-Veg'}
-                  </span>
+                {/* Category & Dietary Tag */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FssaiDietaryBadge isVeg={isVeg} size={16} />
+                    <span style={{
+                      fontSize: '0.74rem',
+                      textTransform: 'uppercase',
+                      fontWeight: '800',
+                      letterSpacing: '0.05em',
+                      color: isVeg ? '#16a34a' : '#dc2626'
+                    }}>
+                      {isVeg ? 'Veg' : 'Non-Veg'}
+                    </span>
+                  </div>
+
+                  {activeDish?.category && (
+                    <span style={{
+                      fontSize: '0.72rem',
+                      textTransform: 'capitalize',
+                      fontWeight: '700',
+                      padding: '3px 10px',
+                      borderRadius: '100px',
+                      backgroundColor: cardBg,
+                      color: textMuted,
+                      border: `1px solid ${border}`
+                    }}>
+                      {activeDish.category}
+                    </span>
+                  )}
                 </div>
 
-                {activeDish?.category && (
-                  <span style={{
-                    fontSize: '0.72rem',
-                    textTransform: 'capitalize',
-                    fontWeight: '700',
-                    padding: '3px 10px',
-                    borderRadius: '100px',
-                    backgroundColor: cardBg,
-                    color: textMuted,
-                    border: `1px solid ${border}`
-                  }}>
-                    {activeDish.category}
-                  </span>
-                )}
-              </div>
-
-              {/* Dish Name */}
-              <h1 style={{
-                fontSize: '1.45rem',
-                fontWeight: '900',
-                color: textMain,
-                margin: 0,
-                lineHeight: 1.25,
-                letterSpacing: '-0.02em'
-              }}>
-                {activeDish?.name}
-              </h1>
-
-              {/* Price Details */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-                <span style={{ fontSize: '1.65rem', fontWeight: '900', color: hasDiscount ? '#16a34a' : textMain, letterSpacing: '-0.02em' }}>
-                  ₹{discountedPrice}
-                </span>
-                {hasDiscount && (
-                  <span style={{ fontSize: '1.1rem', color: textMuted, textDecoration: 'line-through', fontWeight: '600' }}>
-                    ₹{activeDish?.price}
-                  </span>
-                )}
-                <span style={{ fontSize: '0.72rem', color: textMuted, fontWeight: '600' }}>
-                  (Inclusive of taxes)
-                </span>
-              </div>
-
-              {/* Authentic Description (Only shown if description exists) */}
-              {activeDish?.description && activeDish.description.trim() && (
-                <div style={{
-                  backgroundColor: cardBg,
-                  padding: '1rem 1.1rem',
-                  borderRadius: '16px',
-                  border: `1px solid ${border}`,
-                  marginTop: '0.2rem'
+                {/* Dish Name */}
+                <h1 style={{
+                  fontSize: '1.45rem',
+                  fontWeight: '900',
+                  color: textMain,
+                  margin: 0,
+                  lineHeight: 1.25,
+                  letterSpacing: '-0.02em'
                 }}>
-                  <p style={{
-                    fontSize: '0.88rem',
-                    color: isDarkMode ? '#cbd5e1' : '#475569',
-                    lineHeight: 1.6,
-                    margin: 0,
-                    fontWeight: '450'
-                  }}>
-                    {activeDish.description}
-                  </p>
-                </div>
-              )}
+                  {activeDish?.name}
+                </h1>
 
-              {/* Customization Notice Pill (if item has options) */}
-              {isCustomizable && (
+                {/* Price Details */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                  <span style={{ fontSize: '1.65rem', fontWeight: '900', color: hasDiscount ? '#16a34a' : textMain, letterSpacing: '-0.02em' }}>
+                    ₹{discountedPrice}
+                  </span>
+                  {hasDiscount && (
+                    <span style={{ fontSize: '1.1rem', color: textMuted, textDecoration: 'line-through', fontWeight: '600' }}>
+                      ₹{activeDish?.price}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '0.72rem', color: textMuted, fontWeight: '600' }}>
+                    (Inclusive of taxes)
+                  </span>
+                </div>
+
+                {/* Authentic Description (Only shown if description exists) */}
+                {activeDish?.description && activeDish.description.trim() && (
+                  <div style={{
+                    backgroundColor: cardBg,
+                    padding: '1rem 1.1rem',
+                    borderRadius: '16px',
+                    border: `1px solid ${border}`,
+                    marginTop: '0.2rem'
+                  }}>
+                    <p style={{
+                      fontSize: '0.88rem',
+                      color: isDarkMode ? '#cbd5e1' : '#475569',
+                      lineHeight: 1.6,
+                      margin: 0,
+                      fontWeight: '450'
+                    }}>
+                      {activeDish.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Customization Notice Pill (if item has options) */}
+                {isCustomizable && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '14px',
+                    backgroundColor: isDarkMode ? 'rgba(234, 88, 12, 0.1)' : '#fff7ed',
+                    border: `1px solid ${isDarkMode ? 'rgba(234, 88, 12, 0.25)' : '#fed7aa'}`,
+                    color: isDarkMode ? '#fdba74' : '#c2410c'
+                  }}>
+                    <Sparkles size={15} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: '700' }}>
+                      Customisable with portion sizes and add-ons
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky Bottom Bar */}
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              padding: '0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px))',
+              backgroundColor: isDarkMode ? 'rgba(18, 17, 16, 0.98)' : 'rgba(255, 255, 255, 0.98)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderTop: `1px solid ${border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 -10px 25px rgba(0,0,0,0.12)',
+              zIndex: 20
+            }}>
+              {!isCustomizable ? (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  padding: '0.75rem 1rem',
+                  gap: '14px',
+                  backgroundColor: cardBg,
+                  border: `1.5px solid ${border}`,
                   borderRadius: '14px',
-                  backgroundColor: isDarkMode ? 'rgba(234, 88, 12, 0.1)' : '#fff7ed',
-                  border: `1px solid ${isDarkMode ? 'rgba(234, 88, 12, 0.25)' : '#fed7aa'}`,
-                  color: isDarkMode ? '#fdba74' : '#c2410c'
+                  padding: '6px 14px'
                 }}>
-                  <Sparkles size={15} style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700' }}>
-                    Customisable with portion sizes and add-ons
+                  <motion.button
+                    whileTap={{ scale: 0.8 }}
+                    type="button"
+                    onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                    style={{ background: 'none', border: 'none', color: accent, cursor: 'pointer', padding: 2, display: 'flex' }}
+                  >
+                    <Minus size={16} strokeWidth={3} />
+                  </motion.button>
+                  <span style={{ fontSize: '0.95rem', fontWeight: '900', color: textMain, minWidth: '16px', textAlign: 'center' }}>
+                    {quantity}
                   </span>
+                  <motion.button
+                    whileTap={{ scale: 0.8 }}
+                    type="button"
+                    onClick={() => setQuantity(prev => prev + 1)}
+                    style={{ background: 'none', border: 'none', color: accent, cursor: 'pointer', padding: 2, display: 'flex' }}
+                  >
+                    <Plus size={16} strokeWidth={3} />
+                  </motion.button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: textMain, lineHeight: 1.1 }}>
+                    ₹{discountedPrice}
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Base Price</span>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Sticky Bottom Bar */}
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px))',
-            backgroundColor: isDarkMode ? 'rgba(18, 17, 16, 0.98)' : 'rgba(255, 255, 255, 0.98)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderTop: `1px solid ${border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 -10px 25px rgba(0,0,0,0.12)',
-            zIndex: 20
-          }}>
-            {!isCustomizable ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                backgroundColor: cardBg,
-                border: `1.5px solid ${border}`,
-                borderRadius: '14px',
-                padding: '6px 14px'
-              }}>
-                <motion.button
-                  whileTap={{ scale: 0.8 }}
-                  type="button"
-                  onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
-                  style={{ background: 'none', border: 'none', color: accent, cursor: 'pointer', padding: 2, display: 'flex' }}
-                >
-                  <Minus size={16} strokeWidth={3} />
-                </motion.button>
-                <span style={{ fontSize: '0.95rem', fontWeight: '900', color: textMain, minWidth: '16px', textAlign: 'center' }}>
-                  {quantity}
+              <motion.button
+                whileHover={!isOutOfStock ? { scale: 1.02 } : {}}
+                whileTap={!isOutOfStock ? { scale: 0.96 } : {}}
+                disabled={isOutOfStock}
+                onClick={handleAction}
+                style={{
+                  background: isOutOfStock ? '#64748b' : `linear-gradient(135deg, ${accent}, #c2410c)`,
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: '900',
+                  fontSize: '0.94rem',
+                  padding: '0.8rem 1.6rem',
+                  borderRadius: '14px',
+                  cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                  boxShadow: isOutOfStock ? 'none' : `0 6px 20px ${accentGlow}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  letterSpacing: '0.01em'
+                }}
+              >
+                <Utensils size={16} />
+                <span>
+                  {isOutOfStock ? 'Out of Stock' : (isCustomizable ? `Add • ₹${discountedPrice}` : `Add • ₹${discountedPrice * quantity}`)}
                 </span>
-                <motion.button
-                  whileTap={{ scale: 0.8 }}
-                  type="button"
-                  onClick={() => setQuantity(prev => prev + 1)}
-                  style={{ background: 'none', border: 'none', color: accent, cursor: 'pointer', padding: 2, display: 'flex' }}
-                >
-                  <Plus size={16} strokeWidth={3} />
-                </motion.button>
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '900', color: textMain, lineHeight: 1.1 }}>
-                  ₹{discountedPrice}
-                </div>
-                <span style={{ fontSize: '0.7rem', color: textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Base Price</span>
-              </div>
-            )}
-
-            <motion.button
-              whileHover={!isOutOfStock ? { scale: 1.02 } : {}}
-              whileTap={!isOutOfStock ? { scale: 0.96 } : {}}
-              disabled={isOutOfStock}
-              onClick={handleAction}
-              style={{
-                background: isOutOfStock ? '#64748b' : `linear-gradient(135deg, ${accent}, #c2410c)`,
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: '900',
-                fontSize: '0.94rem',
-                padding: '0.8rem 1.6rem',
-                borderRadius: '14px',
-                cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                boxShadow: isOutOfStock ? 'none' : `0 6px 20px ${accentGlow}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                letterSpacing: '0.01em'
-              }}
-            >
-              <Utensils size={16} />
-              <span>
-                {isOutOfStock ? 'Out of Stock' : (isCustomizable ? `Add • ₹${discountedPrice}` : `Add • ₹${discountedPrice * quantity}`)}
-              </span>
-            </motion.button>
-          </div>
+              </motion.button>
+            </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+      )}
+    </AnimatePresence>
+  );
 }

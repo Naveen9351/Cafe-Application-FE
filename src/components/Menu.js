@@ -197,7 +197,7 @@ export default function Menu() {
         name = parsed.restaurantName || parsed.businessName || parsed.tenantName || parsed.name || name;
         logo = parsed.restaurantLogo || parsed.logo || null;
       }
-    } catch (e) {}
+    } catch (e) { }
     const storedLogo = localStorage.getItem('restaurant_logo');
     if (storedLogo) logo = storedLogo;
     const storedName = localStorage.getItem('restaurant_name');
@@ -255,7 +255,7 @@ export default function Menu() {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {}
+    } catch (e) { }
     return [];
   });
 
@@ -345,7 +345,7 @@ export default function Menu() {
       try {
         const raw = localStorage.getItem(key);
         if (raw !== null) setIsVegOnly(JSON.parse(raw));
-      } catch (err) {}
+      } catch (err) { }
     };
 
     window.addEventListener('serviq_veg_only_updated', syncVegFromProfile);
@@ -438,7 +438,7 @@ export default function Menu() {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) sessionIds = parsed;
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const candidateIds = Array.from(new Set([
         lastOrdId,
@@ -537,7 +537,7 @@ export default function Menu() {
           const parsed = JSON.parse(u);
           if (parsed.tenantId) urlTenant = parsed.tenantId;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (urlTenant) {
@@ -572,7 +572,7 @@ export default function Menu() {
     }
 
     const currentTenantId = urlTenant || localStorage.getItem("tenantId");
-    
+
     // Only show full-screen blocking loader on initial app load / page refresh
     const shouldShowLoader = !hasShownInitialAppLoader;
     if (shouldShowLoader) {
@@ -977,7 +977,7 @@ export default function Menu() {
 
   const getItemQuantity = (item) => {
     if (!item) return 0;
-    const matching = cartItems.filter(ci => 
+    const matching = cartItems.filter(ci =>
       ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
     );
     return matching.reduce((sum, ci) => sum + (ci.quantity || 0), 0);
@@ -1045,7 +1045,7 @@ export default function Menu() {
     // Trigger visual flight to cart wherever + is tapped
     triggerFlyToCart(item, event);
 
-    const matching = cartItems.filter(ci => 
+    const matching = cartItems.filter(ci =>
       ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
     );
     if (matching.length === 1) {
@@ -1059,7 +1059,7 @@ export default function Menu() {
 
   const handleDecrement = (item, event) => {
     if (event && event.stopPropagation) event.stopPropagation();
-    const matching = cartItems.filter(ci => 
+    const matching = cartItems.filter(ci =>
       ci.itemId === item._id || ci.id === item._id || (typeof ci.id === 'string' && ci.id.startsWith(`${item._id}_`))
     );
     if (matching.length > 0) {
@@ -1403,8 +1403,8 @@ export default function Menu() {
                               className={styles.categoryCircleImgWrap}
                               style={{
                                 border: isSelected
-                                   ? `2.5px solid ${theme.accent}`
-                                   : `1.5px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)'}`,
+                                  ? `2.5px solid ${theme.accent}`
+                                  : `1.5px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)'}`,
                                 boxShadow: isSelected
                                   ? `0 0 0 2px ${isDarkMode ? 'rgba(224, 92, 92, 0.35)' : 'rgba(224, 92, 92, 0.22)'}, 0 4px 12px ${theme.accentGlow}`
                                   : (isDarkMode ? '0 2px 6px rgba(0,0,0,0.3)' : '0 2px 6px rgba(0,0,0,0.06)'),
@@ -1832,82 +1832,82 @@ export default function Menu() {
                     )}
                   </main>
 
-              {/* Dynamic Combos & Special Offers */}
-              {(() => {
-                const comboItems = displayItems.filter(it => {
-                  const cat = (it.category || '').toLowerCase();
-                  return cat.includes('combo') || cat.includes('offer') || it.isCombo || it.isOffer;
-                });
+                  {/* Dynamic Combos & Special Offers */}
+                  {(() => {
+                    const comboItems = displayItems.filter(it => {
+                      const cat = (it.category || '').toLowerCase();
+                      return cat.includes('combo') || cat.includes('offer') || it.isCombo || it.isOffer;
+                    });
 
-                if (comboItems.length === 0) return null;
+                    if (comboItems.length === 0) return null;
 
-                return (
-                  <div style={{ padding: '0 1rem 1.25rem', width: '100%', boxSizing: 'border-box' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>Combos & Special Offers</h3>
-                      <span style={{ fontSize: '0.72rem', fontWeight: '700', color: theme.accent, cursor: 'pointer' }}>Chef Special</span>
-                    </div>
+                    return (
+                      <div style={{ padding: '0 1rem 1.25rem', width: '100%', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: theme.textMain, margin: 0 }}>Combos & Special Offers</h3>
+                          <span style={{ fontSize: '0.72rem', fontWeight: '700', color: theme.accent, cursor: 'pointer' }}>Chef Special</span>
+                        </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-                      {comboItems.map((cb) => (
-                        <motion.div
-                          key={cb._id}
-                          whileHover={{ scale: 1.01 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setViewingDishDetails(cb)}
-                          style={{ display: 'flex', borderRadius: '18px', overflow: 'hidden', backgroundColor: theme.accent, height: '105px', boxShadow: `0 6px 20px ${theme.accentGlow}`, cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
-                        >
-                          <div style={{ flex: 1.2, padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
-                            <div>
-                              <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#ffffff', lineHeight: '1.2', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cb.name}</span>
-                              <p style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.88)', margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cb.description || 'Special Chef Combo'}</p>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>₹{cb.price}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                          {comboItems.map((cb) => (
+                            <motion.div
+                              key={cb._id}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => setViewingDishDetails(cb)}
+                              style={{ display: 'flex', borderRadius: '18px', overflow: 'hidden', backgroundColor: theme.accent, height: '105px', boxShadow: `0 6px 20px ${theme.accentGlow}`, cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
+                            >
+                              <div style={{ flex: 1.2, padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
+                                <div>
+                                  <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#ffffff', lineHeight: '1.2', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cb.name}</span>
+                                  <p style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.88)', margin: '2px 0 0 0', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cb.description || 'Special Chef Combo'}</p>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>₹{cb.price}</span>
 
-                              <motion.button
-                                whileHover={{ scale: 1.12 }}
-                                whileTap={{ scale: 0.88 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const vars = cb.variants || cb.sizes || cb.portionSizes || [];
-                                  const addons = cb.addons || [];
-                                  if (vars.length > 0 || addons.length > 0) {
-                                    openItemDetails(cb);
-                                  } else {
-                                    handleAdd(cb, e);
-                                  }
-                                }}
-                                style={{
-                                  backgroundColor: '#ffffff',
-                                  border: 'none',
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '50%',
-                                  color: theme.accent,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  padding: 0,
-                                  margin: 0,
-                                  cursor: 'pointer',
-                                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
-                                  flexShrink: 0
-                                }}
-                              >
-                                <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
-                              </motion.button>
-                            </div>
-                          </div>
-                          <div style={{ flex: 0.8, overflow: 'hidden' }}>
-                            <img src={getValidFoodImage(cb)} alt={cb.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
+                                  <motion.button
+                                    whileHover={{ scale: 1.12 }}
+                                    whileTap={{ scale: 0.88 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const vars = cb.variants || cb.sizes || cb.portionSizes || [];
+                                      const addons = cb.addons || [];
+                                      if (vars.length > 0 || addons.length > 0) {
+                                        openItemDetails(cb);
+                                      } else {
+                                        handleAdd(cb, e);
+                                      }
+                                    }}
+                                    style={{
+                                      backgroundColor: '#ffffff',
+                                      border: 'none',
+                                      width: '28px',
+                                      height: '28px',
+                                      borderRadius: '50%',
+                                      color: theme.accent,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      padding: 0,
+                                      margin: 0,
+                                      cursor: 'pointer',
+                                      boxShadow: '0 3px 10px rgba(0, 0, 0, 0.2)',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    <Plus size={15} strokeWidth={3.5} style={{ display: 'block', margin: 'auto' }} />
+                                  </motion.button>
+                                </div>
+                              </div>
+                              <div style={{ flex: 0.8, overflow: 'hidden' }}>
+                                <img src={getValidFoodImage(cb)} alt={cb.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </>
@@ -2170,7 +2170,7 @@ export default function Menu() {
                                   <input
                                     type="checkbox"
                                     checked={isChecked}
-                                    onChange={() => {}}
+                                    onChange={() => { }}
                                     style={{ accentColor: theme.accent, width: '15px', height: '15px', cursor: 'pointer' }}
                                   />
                                   <span style={{ fontSize: '0.85rem', fontWeight: isChecked ? '700' : '600', color: theme.textMain }}>{addon.name}</span>
