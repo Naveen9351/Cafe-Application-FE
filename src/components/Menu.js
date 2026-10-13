@@ -1923,7 +1923,7 @@ export default function Menu() {
               style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 999999,
+                zIndex: 1000005,
                 display: 'flex',
                 alignItems: 'flex-end',
                 justifyContent: 'center',
@@ -2251,6 +2251,9 @@ export default function Menu() {
                           onClick={(e) => {
                             handleAdd(selectedItem, e, selectedVariant, selectedAddons, dishNotes, modalDishQty);
                             closeItemDetails();
+                            if (viewingDishDetails) {
+                              setViewingDishDetails(null);
+                            }
                           }}
                           style={{
                             backgroundColor: '#ffffff',
@@ -2345,7 +2348,6 @@ export default function Menu() {
           onClose={() => setViewingDishDetails(null)}
           onAddToCart={handleAdd}
           onOpenCustomization={(dish) => {
-            setViewingDishDetails(null);
             openItemDetails(dish);
           }}
           isDarkMode={isDarkMode}

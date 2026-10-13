@@ -177,15 +177,122 @@ export default function DishDetailsModal({
               borderRight: `1px solid ${border}`
             }}
           >
-            {/* Scrollable Modal Content */}
+            {/* Embedded style to hide scrollbar across all browsers */}
+            <style>{`
+              .dish-details-scroll::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+              }
+            `}</style>
+
+            {/* Pinned Top Navigation Controls (Never Scrolls Away) */}
             <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
-              WebkitOverflowScrolling: 'touch'
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              padding: 'calc(14px + env(safe-area-inset-top, 0px)) 16px 14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              zIndex: 30,
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 65%, transparent 100%)',
+              pointerEvents: 'none'
             }}>
+              <motion.button
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                style={{
+                  pointerEvents: 'auto',
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(15, 23, 42, 0.72)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 18px rgba(0,0,0,0.35)'
+                }}
+                title="Close"
+                aria-label="Back to menu"
+              >
+                <ArrowLeft size={20} strokeWidth={2.5} />
+              </motion.button>
+
+              <div style={{ display: 'flex', gap: '10px', pointerEvents: 'auto' }}>
+                <motion.button
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleShare}
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 18px rgba(0,0,0,0.35)'
+                  }}
+                  title="Share"
+                >
+                  {copied ? <Check size={18} color="#22c55e" strokeWidth={3} /> : <Share2 size={18} strokeWidth={2.2} />}
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleToggleFav}
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    color: isFavorite ? '#ef4444' : '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 18px rgba(0,0,0,0.35)'
+                  }}
+                  title="Favorite"
+                >
+                  <motion.div animate={isFavorite ? { scale: [1, 1.3, 1] } : { scale: 1 }}>
+                    <Heart size={19} fill={isFavorite ? '#ef4444' : 'none'} strokeWidth={2.2} />
+                  </motion.div>
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Scrollable Page Content (Scrollbar Hidden) */}
+            <div
+              className="dish-details-scroll"
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                paddingBottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+              }}
+            >
               {/* Hero Image Showcase */}
-              <div style={{ position: 'relative', width: '100%', height: '320px', flexShrink: 0, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', width: '100%', height: '330px', flexShrink: 0, overflow: 'hidden' }}>
                 <motion.img
                   initial={{ scale: 1.05 }}
                   animate={{ scale: 1 }}
@@ -203,168 +310,100 @@ export default function DishDetailsModal({
                 <div style={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, rgba(0,0,0,0.75) 100%)'
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 35%, transparent 60%, rgba(0,0,0,0.7) 100%)'
                 }} />
 
-                {/* Top Navigation Controls */}
+                {/* Bottom Image Badges (Rating & Discount) */}
                 <div style={{
                   position: 'absolute',
-                  top: 'calc(16px + env(safe-area-inset-top, 0px))',
+                  bottom: 38,
                   left: 16,
                   right: 16,
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  zIndex: 10
+                  zIndex: 5
                 }}>
-                  <motion.button
-                    whileHover={{ scale: 1.06 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={onClose}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  {activeDish?.rating ? (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      backgroundColor: 'rgba(15, 23, 42, 0.78)',
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      padding: '5px 12px',
+                      borderRadius: '100px',
+                      border: '1px solid rgba(255, 255, 255, 0.22)',
                       color: '#ffffff',
-                      display: 'flex',
+                      fontSize: '0.84rem',
+                      fontWeight: '800',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.25)'
+                    }}>
+                      <Star size={13} color="#fbbf24" fill="#fbbf24" />
+                      <span>{activeDish.rating}</span>
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-                    }}
-                    title="Close"
-                  >
-                    <ArrowLeft size={20} strokeWidth={2.5} />
-                  </motion.button>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <motion.button
-                    whileHover={{ scale: 1.06 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleShare}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      gap: '5px',
+                      backgroundColor: 'rgba(234, 88, 12, 0.9)',
+                      backdropFilter: 'blur(10px)',
                       color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-                    }}
-                    title="Share"
-                  >
-                    {copied ? <Check size={18} color="#22c55e" strokeWidth={3} /> : <Share2 size={18} strokeWidth={2.2} />}
-                  </motion.button>
+                      fontSize: '0.74rem',
+                      fontWeight: '800',
+                      padding: '5px 12px',
+                      borderRadius: '100px',
+                      boxShadow: '0 4px 15px rgba(234, 88, 12, 0.35)'
+                    }}>
+                      <Sparkles size={12} />
+                      <span>Chef's Choice</span>
+                    </div>
+                  )}
 
-                  <motion.button
-                    whileHover={{ scale: 1.06 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleToggleFav}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      color: isFavorite ? '#ef4444' : '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-                    }}
-                    title="Favorite"
-                  >
-                    <motion.div animate={isFavorite ? { scale: [1, 1.3, 1] } : { scale: 1 }}>
-                      <Heart size={19} fill={isFavorite ? '#ef4444' : 'none'} strokeWidth={2.2} />
-                    </motion.div>
-                  </motion.button>
+                  {hasDiscount && (
+                    <span style={{
+                      backgroundColor: '#ea580c',
+                      color: '#ffffff',
+                      fontSize: '0.76rem',
+                      fontWeight: '900',
+                      padding: '5px 12px',
+                      borderRadius: '100px',
+                      boxShadow: '0 4px 14px rgba(234, 88, 12, 0.45)',
+                      border: '1px solid rgba(255,255,255,0.35)',
+                      letterSpacing: '0.02em'
+                    }}>
+                      {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Bottom Image Badges (Rating & Discount) */}
+              {/* Dish Information Section (Curved Sheet Transition Over Image) */}
               <div style={{
-                position: 'absolute',
-                bottom: 16,
-                left: 16,
-                right: 16,
+                position: 'relative',
+                zIndex: 6,
+                marginTop: '-24px',
+                borderTopLeftRadius: '28px',
+                borderTopRightRadius: '28px',
+                backgroundColor: bg,
+                boxShadow: isDarkMode ? '0 -10px 30px rgba(0,0,0,0.7)' : '0 -10px 30px rgba(15,23,42,0.06)',
+                padding: '1.25rem 1.25rem 0.5rem',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                zIndex: 5
+                flexDirection: 'column',
+                gap: '1rem',
+                borderTop: `1px solid ${border}`
               }}>
-                {activeDish?.rating ? (
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                    backdropFilter: 'blur(10px)',
-                    WebkitBackdropFilter: 'blur(10px)',
-                    padding: '4px 10px',
-                    borderRadius: '100px',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: '#ffffff',
-                    fontSize: '0.82rem',
-                    fontWeight: '800'
-                  }}>
-                    <Star size={13} color="#fbbf24" fill="#fbbf24" />
-                    <span>{activeDish.rating}</span>
-                  </div>
-                ) : (
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    backgroundColor: 'rgba(234, 88, 12, 0.85)',
-                    backdropFilter: 'blur(8px)',
-                    color: '#ffffff',
-                    fontSize: '0.72rem',
-                    fontWeight: '800',
-                    padding: '4px 10px',
-                    borderRadius: '100px'
-                  }}>
-                    <Sparkles size={12} />
-                    <span>Chef's Choice</span>
-                  </div>
-                )}
-
-                {hasDiscount && (
-                  <span style={{
-                    backgroundColor: '#ea580c',
-                    color: '#ffffff',
-                    fontSize: '0.75rem',
-                    fontWeight: '900',
-                    padding: '4px 10px',
-                    borderRadius: '100px',
-                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.4)',
-                    border: '1px solid rgba(255,255,255,0.3)'
-                  }}>
-                    {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Dish Information Section */}
-            <div style={{
-              padding: '1.25rem 1.25rem 0.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem'
-            }}>
+                {/* Visual Handle Pill */}
+                <div style={{
+                  width: '36px',
+                  height: '4px',
+                  borderRadius: '100px',
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
+                  margin: '-4px auto 4px',
+                  flexShrink: 0
+                }} />
               {/* Category & Dietary Tag */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -544,7 +583,7 @@ export default function DishDetailsModal({
             >
               <Utensils size={16} />
               <span>
-                {isOutOfStock ? 'Out of Stock' : (isCustomizable ? 'Customise' : `Add • ₹${discountedPrice * quantity}`)}
+                {isOutOfStock ? 'Out of Stock' : (isCustomizable ? `Add • ₹${discountedPrice}` : `Add • ₹${discountedPrice * quantity}`)}
               </span>
             </motion.button>
           </div>
