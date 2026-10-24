@@ -256,7 +256,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
           <Link to="/products" onClick={closeDropdowns} className={styles.navBtn}>Products Suite</Link>
           <Link to="/solutions" onClick={closeDropdowns} className={styles.navBtn}>Solutions for Outlets</Link>
           <Link to="/pricing" onClick={closeDropdowns} className={styles.navBtn}>Pricing (₹)</Link>
-          <Link to="/about" onClick={closeDropdowns} className={styles.navBtn}>About SERVIQ</Link>
+          <Link to="/about" onClick={closeDropdowns} className={styles.navBtn}>About DINEVIQ</Link>
           <Link to="/contact" onClick={closeDropdowns} className={styles.navBtn}>Contact Support</Link>
           <Link to="/menu" onClick={closeDropdowns} className="badge-pill badge-emerald" style={{ alignSelf: 'flex-start' }}>
             <QrCode style={{ width: 14, height: 14 }} /> Live Customer QR Menu

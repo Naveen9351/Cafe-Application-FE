@@ -209,7 +209,7 @@ export default function CustomerProfileModal({
               <div style={{ backgroundColor: cardBg, border: `1px solid ${borderCol}`, borderRadius: '14px', padding: '12px 14px' }}>
                 <span style={{ fontSize: '0.7rem', color: textMuted, textTransform: 'uppercase', fontWeight: 700 }}>Restaurant</span>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.92rem', fontWeight: 850, color: textMain, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {tenantInfo.name || localStorage.getItem('restaurant_name') || 'SERVIQ Bistro'}
+                  {tenantInfo.name || localStorage.getItem('restaurant_name') || 'DINEVIQ Bistro'}
                 </p>
               </div>
             </div>

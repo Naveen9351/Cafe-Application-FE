@@ -245,7 +245,7 @@ const OrderStatus = () => {
   }, [id]);
 
   if (loading) {
-    const cafeName = order?.tenantId?.name || localStorage.getItem('restaurant_name') || "SERVIQ Gourmet Bistro";
+    const cafeName = order?.tenantId?.name || localStorage.getItem('restaurant_name') || "DINEVIQ Gourmet Bistro";
     const cafeLogo = order?.tenantId?.logo || localStorage.getItem('restaurant_logo') || null;
     const tableNum = order?.tableNumber || localStorage.getItem('tableNumber') || "1";
 
@@ -784,7 +784,7 @@ const OrderStatus = () => {
               Table: <strong>{tableNumStr}</strong> — Enjoy your dining experience!
             </p>
             <p className={styles.poweredBy} style={{ color: theme.textMuted }}>
-              Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
+              Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>DINEVIQ OS</span>
             </p>
           </footer>
 

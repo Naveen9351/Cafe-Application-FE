@@ -73,6 +73,14 @@ export default function POSTerminal({
   const [actualAmountReceived, setActualAmountReceived] = useState('');
   const [isMuted, setIsMuted] = useState(() => isAudioMuted());
 
+  // 4-Button System: Item selection & payment states
+  const [selectedItemKeys, setSelectedItemKeys] = useState(new Set());
+  const [showPayItemsModal, setShowPayItemsModal] = useState(false);
+  const [payItemsMethod, setPayItemsMethod] = useState('Cash');
+  const [isSubmittingItemPay, setIsSubmittingItemPay] = useState(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+  const [clearTablePaymentMethod, setClearTablePaymentMethod] = useState('Cash');
+
   const prevOrdersCountRef = useRef(orders ? orders.length : 0);
   useEffect(() => {
     if (orders && orders.length > prevOrdersCountRef.current) {
@@ -321,6 +329,76 @@ export default function POSTerminal({
     return Math.round((runningOrdersTotal + draftCartTotal) * 100) / 100;
   }, [runningOrdersTotal, draftCartTotal]);
 
+  // Dynamically calculate sum of items already paid across currentTableOrders
+  const paidItemsTotal = useMemo(() => {
+    let sum = 0;
+    currentTableOrders.forEach(ord => {
+      if (ord.paymentStatus === 'paid') {
+        sum += (Number(ord.total || ord.totalAmount) || 0);
+      } else if (Array.isArray(ord.items)) {
+        ord.items.forEach(it => {
+          if (it.isPaid) {
+            sum += (Number(it.price) * (Number(it.quantity) || 1));
+          }
+        });
+      }
+    });
+    return Math.round(sum * 100) / 100;
+  }, [currentTableOrders]);
+
+  // Dynamic balance due (Total bill minus already paid items)
+  const balanceDue = useMemo(() => {
+    const due = grandTotal - paidItemsTotal;
+    return Math.max(0, Math.round(due * 100) / 100);
+  }, [grandTotal, paidItemsTotal]);
+
+  // Selection summary for items selected with checkboxes
+  const selectedItemsSummary = useMemo(() => {
+    let count = 0;
+    let total = 0;
+    const itemsList = [];
+
+    currentTableOrders.forEach(ord => {
+      (ord.items || []).forEach((it, idx) => {
+        const key = `${ord._id}_${idx}`;
+        if (selectedItemKeys.has(key)) {
+          count += 1;
+          const cost = (Number(it.price) * (Number(it.quantity) || 1));
+          total += cost;
+          itemsList.push({ orderId: ord._id, itemIndex: idx, name: it.name || it.item?.name || 'Item', price: cost });
+        }
+      });
+    });
+
+    return { count, total: Math.round(total * 100) / 100, itemsList };
+  }, [currentTableOrders, selectedItemKeys]);
+
+  const handleToggleItemSelect = (key) => {
+    setSelectedItemKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllUnpaid = () => {
+    const next = new Set();
+    currentTableOrders.forEach(ord => {
+      if (ord.paymentStatus !== 'paid') {
+        (ord.items || []).forEach((it, idx) => {
+          if (!it.isPaid) {
+            next.add(`${ord._id}_${idx}`);
+          }
+        });
+      }
+    });
+    setSelectedItemKeys(next);
+  };
+
   // Categories list for POS Menu
   const categories = useMemo(() => {
     return ['all', ...new Set(menuItems.map(item => item.category || 'main-courses'))];
@@ -464,7 +542,7 @@ export default function POSTerminal({
     }
   };
 
-  // Send to Kitchen / Submit New Order (Directly sets status to 'preparing' - In Kitchen)
+  // Button 1: Send to Kitchen / Submit New Order (Directly sets status to 'preparing' - In Kitchen KDS)
   const handleSendKOT = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty. Add dishes first!');
@@ -495,7 +573,9 @@ export default function POSTerminal({
         price: it.price,
         quantity: it.quantity,
         variant: it.variant ? it.variant : null,
-        addons: (it.addons || [])
+        addons: (it.addons || []),
+        itemStatus: 'preparing',
+        isPaid: false
       })),
       totalAmount: draftCartTotal
     };
@@ -517,13 +597,125 @@ export default function POSTerminal({
     }
   };
 
-  // Settle Bill & Clear Table
-  const handleSettleBill = async () => {
+  // Button 2: Direct (Counter Handover - Instant served, bypasses Kitchen KDS)
+  const handleDirectOrder = async () => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty. Add counter dishes first!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+    const orderPayload = {
+      tenantId: effectiveTenantId,
+      tableNumber: tableNumber === 'Walk-in' ? 'Walk-in' : String(tableNumber),
+      orderType: tableNumber === 'Walk-in' ? 'takeaway' : 'dine_in',
+      customerName: customerName.trim() || 'Guest',
+      customerPhone: customerPhone.trim(),
+      customerDetails: {
+        name: customerName.trim() || 'Guest',
+        phone: customerPhone.trim()
+      },
+      paymentMethod,
+      isDirect: true,
+      status: 'served', // Directly marks as "Served", bypassing kitchen KDS
+      paymentStatus: 'pending',
+      items: cart.map(it => ({
+        id: it.id,
+        itemId: it.id,
+        name: it.name,
+        price: it.price,
+        quantity: it.quantity,
+        variant: it.variant ? it.variant : null,
+        addons: (it.addons || []),
+        isDirect: true,
+        itemStatus: 'served',
+        isPaid: false
+      })),
+      totalAmount: draftCartTotal
+    };
+
+    try {
+      const res = await axios.post(`${API}/orders`, orderPayload, {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
+
+      toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
+      setCart([]);
+      if (onOrderPlaced) onOrderPlaced(res.data);
+      if (onOrderCreated) onOrderCreated(res.data);
+    } catch (err) {
+      console.error('Direct order error:', err);
+      toast.error('Failed to submit direct order: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Button 3: Paid Order (Mark selected items or all unpaid items as paid)
+  const handleConfirmPayItems = async () => {
+    const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+    setIsSubmittingItemPay(true);
+    try {
+      const itemsToPay = selectedItemsSummary.itemsList.map(it => ({
+        orderId: it.orderId,
+        itemIndex: it.itemIndex
+      }));
+
+      const res = await axios.put(
+        `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/pay-items`,
+        {
+          paymentMethod: payItemsMethod,
+          itemsToPay,
+          payAll: itemsToPay.length === 0,
+          tenantId: effectiveTenantId
+        },
+        { headers: token ? { 'x-auth-token': token } : {} }
+      );
+
+      toast.success(`✓ Marked items as paid (₹${formatAmount(res.data.totalNewlyPaid)}) via ${payItemsMethod}!`);
+      setShowPayItemsModal(false);
+      setSelectedItemKeys(new Set());
+
+      if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
+      if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
+    } catch (err) {
+      console.error('Pay items error:', err);
+      toast.error('Payment error: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmittingItemPay(false);
+    }
+  };
+
+  // Button 4: Clear Table Click Handler (Verifies unpaid balance)
+  const handleClearTableClick = () => {
+    if (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0) {
+      toast.error('No items or active orders to clear for this table.');
+      return;
+    }
+
+    if (balanceDue > 0) {
+      // Unpaid balance remains: prompt cashier to collect remaining tender
+      setClearTablePaymentMethod(paymentMethod || 'Cash');
+      setShowClearConfirmModal(true);
+    } else {
+      // Table is already 100% paid: clear immediately!
+      handleSettleBill(paymentMethod || 'Cash');
+    }
+  };
+
+  // Settle Bill & Free Table
+  const handleSettleBill = async (overrideMethod = null) => {
     if (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0) {
       toast.error('No items or active orders to settle for this table.');
       return;
     }
 
+    const settleMethod = overrideMethod || paymentMethod || 'Cash';
     setIsSettling(true);
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
@@ -541,8 +733,9 @@ export default function POSTerminal({
             name: customerName.trim() || 'Guest',
             phone: customerPhone.trim()
           },
-          paymentMethod,
+          paymentMethod: settleMethod,
           paymentStatus: 'paid',
+          status: 'served',
           items: cart.map(it => ({
             id: it.id,
             itemId: it.id,
@@ -550,7 +743,9 @@ export default function POSTerminal({
             price: it.price,
             quantity: it.quantity,
             variant: it.variant ? it.variant : null,
-            addons: (it.addons || [])
+            addons: (it.addons || []),
+            itemStatus: 'served',
+            isPaid: true
           })),
           totalAmount: draftCartTotal
         };
@@ -567,7 +762,7 @@ export default function POSTerminal({
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
           { 
-            paymentMethod, 
+            paymentMethod: settleMethod, 
             paymentStatus: 'paid', 
             tenantId: effectiveTenantId,
             mergedTables: allSettleTables,
@@ -579,13 +774,15 @@ export default function POSTerminal({
       }
 
       const tableLabel = allSettleTables.length > 1 ? `Tables ${allSettleTables.join(', ')}` : `Table ${tableNumber}`;
-      toast.success(`✓ ${tableLabel} fully settled (₹${finalSettledAmount})! Tables are now free.`);
+      toast.success(`✓ ${tableLabel} cleared & fully settled (₹${formatAmount(finalSettledAmount)})! Table is now free.`);
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
       setMergedTables([]);
       setActualAmountReceived('');
+      setSelectedItemKeys(new Set());
       setShowSplitModal(false);
+      setShowClearConfirmModal(false);
 
       allSettleTables.forEach(tNum => {
         if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
@@ -1219,8 +1416,34 @@ export default function POSTerminal({
                 {currentTableOrders.length > 0 && (
                   <div style={{ marginBottom: '10px' }}>
                     <div className={styles.roundHeader}>
-                      <span>ACTIVE KITCHEN ORDERS ({currentTableOrders.length})</span>
+                      <span>ACTIVE ORDERS ({currentTableOrders.length})</span>
                       <span>₹{formatAmount(runningOrdersTotal)}</span>
+                    </div>
+
+                    {/* Quick selection bar for partial/paid order */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 2px 8px', fontSize: '11px', fontWeight: 700, color: '#64748b' }}>
+                      <span>
+                        {selectedItemsSummary.count > 0 
+                          ? `Selected: ${selectedItemsSummary.count} item(s) (₹${formatAmount(selectedItemsSummary.total)})`
+                          : 'Select items below to mark as Paid:'}
+                      </span>
+                      {selectedItemsSummary.count > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedItemKeys(new Set())}
+                          style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Clear Selection
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSelectAllUnpaid}
+                          style={{ border: 'none', background: 'none', color: '#7c3aed', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Select All Unpaid
+                        </button>
+                      )}
                     </div>
 
                     {currentTableOrders.map((ord, idx) => {
@@ -1238,38 +1461,75 @@ export default function POSTerminal({
                           boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
-                            <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0f172a' }}>Order {idx + 1}</span>
-                            <span style={{
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              padding: '2px 7px',
-                              borderRadius: '6px',
-                              background: statusBg,
-                              color: statusColor,
-                              border: `1px solid ${statusColor}40`
-                            }}>
-                              {statusLabel}
-                            </span>
+                            <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0f172a' }}>Round {idx + 1}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              {ord.paymentStatus === 'paid' && (
+                                <span className={styles.paidBadge}>✓ Fully Paid</span>
+                              )}
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '2px 7px',
+                                borderRadius: '6px',
+                                background: statusBg,
+                                color: statusColor,
+                                border: `1px solid ${statusColor}40`
+                              }}>
+                                {statusLabel}
+                              </span>
+                            </div>
                           </div>
 
                           <div className={styles.cartList}>
-                            {(ord.items || []).map((it, itemIdx) => (
-                              <div key={itemIdx} className={styles.cartItem} style={{ padding: '4px 0', borderBottom: itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
-                                <div>
-                                  <p className={styles.cartItemTitle}>{it.name || it.item?.name || 'Item'}</p>
-                                  <p className={styles.cartItemPrice}>₹{formatAmount(it.price || 0)} each</p>
+                            {(ord.items || []).map((it, itemIdx) => {
+                              const isPaid = Boolean(it.isPaid || ord.paymentStatus === 'paid');
+                              const itemKey = `${ord._id}_${itemIdx}`;
+                              const isSelected = selectedItemKeys.has(itemKey);
+
+                              return (
+                                <div key={itemIdx} className={styles.cartItem} style={{ padding: '5px 0', borderBottom: itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : 'none', opacity: isPaid ? 0.88 : 1 }}>
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                    {!isPaid ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => handleToggleItemSelect(itemKey)}
+                                        className={styles.itemCheckbox}
+                                        title="Select item for partial/paid payment"
+                                        style={{ marginTop: '3px' }}
+                                      />
+                                    ) : (
+                                      <span style={{ color: '#16a34a', fontSize: '12px', fontWeight: 900, marginTop: '2px' }} title="Item is already paid">✓</span>
+                                    )}
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                        <p className={styles.cartItemTitle} style={{ margin: 0 }}>{it.name || it.item?.name || 'Item'}</p>
+                                        {it.isDirect && <span className={styles.directBadge}>⚡ Direct</span>}
+                                        {isPaid ? (
+                                          <span className={styles.paidBadge}>✓ Paid</span>
+                                        ) : (
+                                          <span className={styles.unpaidBadge}>Unpaid</span>
+                                        )}
+                                      </div>
+                                      <p className={styles.cartItemPrice} style={{ margin: '2px 0 0' }}>₹{formatAmount(it.price || 0)} each</p>
+                                    </div>
+                                  </div>
+                                  <div className={styles.qtyControls}>
+                                    {!isPaid && (
+                                      <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, -1)}>
+                                        <Minus size={10} />
+                                      </button>
+                                    )}
+                                    <span className={styles.qtyVal}>{it.quantity || 1}</span>
+                                    {!isPaid && (
+                                      <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, 1)}>
+                                        <Plus size={10} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className={styles.qtyControls}>
-                                  <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, -1)}>
-                                    <Minus size={10} />
-                                  </button>
-                                  <span className={styles.qtyVal}>{it.quantity || 1}</span>
-                                  <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, 1)}>
-                                    <Plus size={10} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -1355,9 +1615,23 @@ export default function POSTerminal({
 
                 {/* Bill Summary */}
                 <div className={styles.billSummary}>
-                  <div className={styles.billRowTotal}>
-                    <span>Original Bill Total:</span>
-                    <span>₹{formatAmount(grandTotal)}</span>
+                  <div className={styles.billRowSub}>
+                    <span>Gross Total:</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>₹{formatAmount(grandTotal)}</span>
+                  </div>
+
+                  {paidItemsTotal > 0 && (
+                    <div className={styles.billRowSub} style={{ color: '#16a34a' }}>
+                      <span>Paid So Far:</span>
+                      <span style={{ fontWeight: 700 }}>-₹{formatAmount(paidItemsTotal)}</span>
+                    </div>
+                  )}
+
+                  <div className={styles.billRowTotal} style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed #cbd5e1' }}>
+                    <span>Balance Due:</span>
+                    <span style={{ color: balanceDue > 0 ? '#ea580c' : '#16a34a', fontWeight: 900, fontSize: '0.95rem' }}>
+                      ₹{formatAmount(balanceDue)}
+                    </span>
                   </div>
 
                   {/* Actual Amount Received */}
@@ -1368,7 +1642,7 @@ export default function POSTerminal({
                         <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.85rem' }}>₹</span>
                         <input
                           type="number"
-                          placeholder={String(grandTotal)}
+                          placeholder={String(balanceDue > 0 ? balanceDue : grandTotal)}
                           value={actualAmountReceived}
                           onChange={(e) => setActualAmountReceived(e.target.value)}
                           style={{
@@ -1383,56 +1657,258 @@ export default function POSTerminal({
                         />
                       </div>
                     </div>
-                    {actualAmountReceived !== '' && Number(actualAmountReceived) > grandTotal && (
+                    {actualAmountReceived !== '' && Number(actualAmountReceived) > (balanceDue > 0 ? balanceDue : grandTotal) && (
                       <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: '700', textAlign: 'right', marginTop: '3px' }}>
-                        Change to return: ₹{formatAmount(Number(actualAmountReceived) - grandTotal)}
+                        Change to return: ₹{formatAmount(Number(actualAmountReceived) - (balanceDue > 0 ? balanceDue : grandTotal))}
                       </div>
                     )}
-                    {actualAmountReceived !== '' && Number(actualAmountReceived) < grandTotal && (
+                    {actualAmountReceived !== '' && Number(actualAmountReceived) < (balanceDue > 0 ? balanceDue : grandTotal) && (
                       <div style={{ fontSize: '0.72rem', color: '#ea580c', fontWeight: '700', textAlign: 'right', marginTop: '3px' }}>
-                        Settled with adjustment: -₹{formatAmount(grandTotal - Number(actualAmountReceived))}
+                        Settled with adjustment: -₹{formatAmount((balanceDue > 0 ? balanceDue : grandTotal) - Number(actualAmountReceived))}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Terminal Action Buttons */}
+                {/* 4-Button Unified Terminal Action System */}
                 <div className={styles.terminalActionBtns}>
-                  {cart.length > 0 && (
-                    <button
-                      type="button"
-                      className={styles.sendKotBtn}
-                      onClick={handleSendKOT}
-                      disabled={isSubmitting}
-                      title="Send draft items to Kitchen (KDS / In Kitchen)"
-                    >
-                      <ChefHat size={14} />
-                      <span>{isSubmitting ? 'Sending...' : 'Send to Kitchen'}</span>
-                    </button>
-                  )}
-
+                  {/* Button 1: Send to Kitchen */}
                   <button
                     type="button"
-                    className={styles.settlePayBtn}
+                    className={styles.sendKotBtn}
+                    onClick={handleSendKOT}
+                    disabled={isSubmitting || cart.length === 0}
+                    title="Send draft items to Kitchen KDS (Status: In Kitchen)"
+                  >
+                    <ChefHat size={14} />
+                    <span>{isSubmitting ? 'Sending...' : 'Send to Kitchen'}</span>
+                  </button>
+
+                  {/* Button 2: Direct (Counter Handover) */}
+                  <button
+                    type="button"
+                    className={styles.directBtn}
+                    onClick={handleDirectOrder}
+                    disabled={isSubmitting || cart.length === 0}
+                    title="Direct counter items (Water/Cold Drinks) - bypasses kitchen, status: Served"
+                  >
+                    <Zap size={14} />
+                    <span>{isSubmitting ? 'Processing...' : 'Direct (Counter)'}</span>
+                  </button>
+
+                  {/* Button 3: Paid Order */}
+                  <button
+                    type="button"
+                    className={styles.paidOrderBtn}
                     onClick={() => {
-                      if (paymentMethod === 'Khata / Borrow') {
+                      if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
+                        toast.error('All active items on this table are already paid!');
+                        return;
+                      }
+                      setPayItemsMethod(paymentMethod === 'Khata / Borrow' ? 'Cash' : paymentMethod);
+                      setShowPayItemsModal(true);
+                    }}
+                    disabled={isSubmittingItemPay || (currentTableOrders.length === 0 && cart.length === 0) || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
+                    title="Mark selected items (or all unpaid items) as Paid"
+                  >
+                    <CreditCard size={14} />
+                    <span>
+                      {selectedItemsSummary.count > 0 
+                        ? `Pay Selected (${selectedItemsSummary.count})` 
+                        : (balanceDue > 0 ? `Pay Unpaid (₹${formatAmount(balanceDue)})` : 'Paid Order')}
+                    </span>
+                  </button>
+
+                  {/* Button 4: Clear Table */}
+                  <button
+                    type="button"
+                    className={styles.clearTableBtn}
+                    onClick={() => {
+                      if (paymentMethod === 'Khata / Borrow' && balanceDue > 0) {
                         setKhataPaidAmount('');
-                        setKhataBorrowAmount(grandTotal);
+                        setKhataBorrowAmount(balanceDue);
                         setShowKhataModal(true);
                       } else {
-                        handleSettleBill();
+                        handleClearTableClick();
                       }
                     }}
                     disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
+                    title="Clear and reset table once customer finishes"
                   >
-                    <CheckCircle2 size={15} />
-                    <span>{isSettling ? 'Settling...' : (paymentMethod === 'Khata / Borrow' ? `Record Khata (₹${formatAmount(grandTotal)})` : `Settle & Clear (₹${formatAmount(grandTotal)})`)}</span>
+                    <CheckCircle2 size={14} />
+                    <span>
+                      {isSettling ? 'Clearing...' : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
+                    </span>
                   </button>
                 </div>
               </div>
 
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 2.1 PAY ITEMS / PARTIAL ORDER MODAL                       */}
+      {/* ========================================================= */}
+      {showPayItemsModal && (
+        <div className={styles.splitModalOverlay} onClick={() => setShowPayItemsModal(false)}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                {selectedItemsSummary.count > 0 ? `Pay Selected Items (${selectedItemsSummary.count})` : `Pay Unpaid Items - Table ${tableNumber}`}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPayItemsModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '180px', overflowY: 'auto', marginBottom: '1rem', padding: '8px 12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              {selectedItemsSummary.count > 0 ? (
+                selectedItemsSummary.itemsList.map((it, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '0.82rem', borderBottom: idx < selectedItemsSummary.itemsList.length - 1 ? '1px dashed #cbd5e1' : 'none' }}>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>{it.name}</span>
+                    <span style={{ fontWeight: 800, color: '#0f172a' }}>₹{formatAmount(it.price)}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', padding: '10px 0', fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+                  Marking all remaining unpaid items as Paid:
+                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#7c3aed', marginTop: '4px' }}>
+                    ₹{formatAmount(balanceDue)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px', textTransform: 'uppercase' }}>
+                Payment Tender
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                {['Cash', 'UPI / GPay', 'Card'].map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPayItemsMethod(m)}
+                    style={{
+                      padding: '7px 4px',
+                      borderRadius: '8px',
+                      border: payItemsMethod === m ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                      background: payItemsMethod === m ? '#f5f3ff' : '#ffffff',
+                      color: payItemsMethod === m ? '#7c3aed' : '#334155',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.6rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowPayItemsModal(false)}
+                style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', color: '#64748b' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPayItems}
+                disabled={isSubmittingItemPay}
+                style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: '#7c3aed', color: '#ffffff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <CheckCircle2 size={15} />
+                <span>{isSubmittingItemPay ? 'Processing...' : `Confirm (₹${formatAmount(selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue)})`}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 2.2 CLEAR TABLE CONFIRMATION MODAL                        */}
+      {/* ========================================================= */}
+      {showClearConfirmModal && (
+        <div className={styles.splitModalOverlay} onClick={() => setShowClearConfirmModal(false)}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                Clear Table {tableNumber}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowClearConfirmModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '12px 14px', marginBottom: '1rem', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#c2410c' }}>
+                Table has an unpaid balance of:
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '1.4rem', fontWeight: 900, color: '#ea580c' }}>
+                ₹{formatAmount(balanceDue)}
+              </p>
+              <span style={{ fontSize: '0.72rem', color: '#7c2d12' }}>Settle remaining amount to complete all orders and free the table.</span>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px', textTransform: 'uppercase' }}>
+                Select Payment Tender
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                {['Cash', 'UPI / GPay', 'Card'].map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setClearTablePaymentMethod(m)}
+                    style={{
+                      padding: '7px 4px',
+                      borderRadius: '8px',
+                      border: clearTablePaymentMethod === m ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                      background: clearTablePaymentMethod === m ? '#f0fdf4' : '#ffffff',
+                      color: clearTablePaymentMethod === m ? '#16a34a' : '#334155',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.6rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowClearConfirmModal(false)}
+                style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', color: '#64748b' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSettleBill(clearTablePaymentMethod)}
+                disabled={isSettling}
+                style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#ffffff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <CheckCircle2 size={15} />
+                <span>{isSettling ? 'Clearing...' : `Settle & Free Table (₹${formatAmount(balanceDue)})`}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

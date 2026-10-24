@@ -278,7 +278,7 @@ export default function ServiqCinematicAnimation() {
 
         // Central core
         node(ctx, cx, cy, nodeRadius * 1.3, '#059669', '', alpha, pulse);
-        text(ctx, 'SERVIQ', cx, cy + 4, '#ffffff', clamp(W * 0.013, 8, 13), '900', alpha);
+        text(ctx, 'DINEVIQ', cx, cy + 4, '#ffffff', clamp(W * 0.013, 8, 13), '900', alpha);
 
         // Outer nodes
         nodePositions.forEach((n, i) => {
@@ -302,7 +302,7 @@ export default function ServiqCinematicAnimation() {
 
         // Title
         const titleAlpha = ease.out(clamp((sceneT - 0.4) * 4, 0, 1));
-        text(ctx, 'SERVIQ', cx, H * 0.84, '#ffffff', clamp(W * 0.028, 16, 26), '900', titleAlpha);
+        text(ctx, 'DINEVIQ', cx, H * 0.84, '#ffffff', clamp(W * 0.028, 16, 26), '900', titleAlpha);
         text(ctx, 'One connected system for your entire restaurant', cx, H * 0.91,
           '#94a3b8', clamp(W * 0.012, 8, 12), '500', titleAlpha);
       }
@@ -369,7 +369,7 @@ export default function ServiqCinematicAnimation() {
         }
 
         // Labels
-        text(ctx, 'Table → Phone → ServiQ', cx, H * 0.87, '#10b981', clamp(W * 0.012, 8, 11), '700', alpha);
+        text(ctx, 'Table → Phone → DineviQ', cx, H * 0.87, '#10b981', clamp(W * 0.012, 8, 11), '700', alpha);
         node(ctx, cx, cy, nodeRadius * 0.9, '#059669', '', alpha * 0.6, pulse);
       }
 
@@ -390,7 +390,7 @@ export default function ServiqCinematicAnimation() {
         roundRect(ctx, menuX, menuY, menuW, menuH * 0.13, 16);
         ctx.fill();
         ctx.restore();
-        text(ctx, 'SERVIQ Menu', cx, menuY + menuH * 0.09, '#ffffff', clamp(W * 0.013, 8, 13), '800', alpha);
+        text(ctx, 'DINEVIQ Menu', cx, menuY + menuH * 0.09, '#ffffff', clamp(W * 0.013, 8, 13), '800', alpha);
 
         const categories = ['☕ Coffee', '🥐 Breakfast', '🍿 Snacks', '🍰 Desserts'];
         categories.forEach((cat, i) => {
@@ -447,7 +447,7 @@ export default function ServiqCinematicAnimation() {
         // Nodes: ORDER → AI → KITCHEN
         const nodes4 = [
           { x: cx - W * 0.3, y: cy, label: 'ORDER', color: '#d97706' },
-          { x: cx, y: cy, label: 'SERVIQ AI', color: '#10b981' },
+          { x: cx, y: cy, label: 'DINEVIQ AI', color: '#10b981' },
           { x: cx + W * 0.3, y: cy, label: 'KITCHEN', color: '#f43f5e' }
         ];
         nodes4.forEach((n, i) => {
@@ -535,7 +535,7 @@ export default function ServiqCinematicAnimation() {
         // Trail: Kitchen → ServiQ → Customer
         const n6 = [
           { x: cx - W * 0.32, y: cy, label: 'KITCHEN', color: '#f43f5e' },
-          { x: cx, y: cy, label: 'SERVIQ', color: '#10b981' },
+          { x: cx, y: cy, label: 'DINEVIQ', color: '#10b981' },
           { x: cx + W * 0.28, y: cy - H * 0.1, label: 'CUSTOMER', color: '#d97706' }
         ];
         n6.forEach((n, i) => {
@@ -786,14 +786,14 @@ export default function ServiqCinematicAnimation() {
         const brandA = ease.out(clamp((sceneT - 0.4) * 3, 0, 1));
         const fadeOut = 1 - ease.in(clamp((sceneT - 0.85) * 6, 0, 1));
 
-        text(ctx, 'SERVIQ', cx, H * 0.84, '#ffffff', clamp(W * 0.028, 18, 28), '900', brandA * alpha * fadeOut);
+        text(ctx, 'DINEVIQ', cx, H * 0.84, '#ffffff', clamp(W * 0.028, 18, 28), '900', brandA * alpha * fadeOut);
         text(ctx, 'From table to kitchen, everything connected.', cx, H * 0.91,
           '#94a3b8', clamp(W * 0.012, 7, 11), '500', brandA * alpha * fadeOut);
       }
 
       // ── Persistent ServiQ watermark ──
       if (sceneIdx !== 9) {
-        text(ctx, 'SERVIQ', W * 0.08, H * 0.95, '#ffffff', clamp(W * 0.013, 8, 12), '900', 0.12);
+        text(ctx, 'DINEVIQ', W * 0.08, H * 0.95, '#ffffff', clamp(W * 0.013, 8, 12), '900', 0.12);
       }
 
       // ── Scene transition overlay (subtle fade between scenes) ──
@@ -857,7 +857,7 @@ export default function ServiqCinematicAnimation() {
             boxShadow: '0 0 0 3px rgba(16,185,129,0.3)',
             animation: 'pulseSubtle 2s infinite'
           }} />
-          ServiQ — Live Ecosystem Animation
+          DineviQ — Live Ecosystem Animation
         </div>
         <div style={{
           fontSize: 10, color: '#4b5563', fontWeight: 600

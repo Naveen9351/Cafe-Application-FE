@@ -101,7 +101,7 @@ const renderFormattedAiSections = (rawText) => {
           heading = firstLine.replace(/[:\-#]+$/, '').trim();
           body = sectionBody.substring(sectionBody.indexOf('\n') + 1).trim();
         } else {
-          const headerMatch = firstLine.match(/^([A-Za-z\s&]{4,45}?)(?:\s*[:\-–]\s*|\s+(?=SERVIQ|The|Our|This|Across|During|With|\*\*))/i);
+          const headerMatch = firstLine.match(/^([A-Za-z\s&]{4,45}?)(?:\s*[:\-–]\s*|\s+(?=DINEVIQ|SERVIQ|The|Our|This|Across|During|With|\*\*))/i);
           if (headerMatch) {
             heading = headerMatch[1].trim();
             body = firstLine.substring(headerMatch[0].length).trim() + '\n' + sectionBody.substring(sectionBody.indexOf('\n') + 1).trim();
@@ -111,7 +111,7 @@ const renderFormattedAiSections = (rawText) => {
           }
         }
       } else {
-        const headerMatch = sectionBody.match(/^([A-Za-z\s&]{4,45}?)(?:\s*[:\-–]\s*|\s+(?=SERVIQ|The|Our|This|Across|During|With|\*\*))/i);
+        const headerMatch = sectionBody.match(/^([A-Za-z\s&]{4,45}?)(?:\s*[:\-–]\s*|\s+(?=DINEVIQ|SERVIQ|The|Our|This|Across|During|With|\*\*))/i);
         if (headerMatch) {
           heading = headerMatch[1].trim();
           body = sectionBody.substring(headerMatch[0].length).trim();
@@ -215,7 +215,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
   if (!isOpen) return null;
 
   const metrics = reportData?.metrics || initialData?.metrics || {};
-  const businessName = reportData?.businessName || initialData?.businessName || 'SERVIQ Partner Cafe';
+  const businessName = reportData?.businessName || initialData?.businessName || 'DINEVIQ Partner Cafe';
   const totalRev = Number(metrics.totalGrossRevenue || initialData?.totalGrossRevenue || 0);
   const totalOrders = Number(metrics.totalOrders || initialData?.totalOrdersCount || 0);
   const avgOrderVal = Number(metrics.avgTicketSize || initialData?.avgTicketSize || (totalOrders > 0 ? Math.round(totalRev / totalOrders) : 0));
@@ -320,7 +320,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
             <FileText size={20} color="#2563eb" />
             <div>
               <h3>Executive Financial & AI Intelligence Report</h3>
-              <p>Official diagnostic statement with SERVIQ AI Neural business insights</p>
+              <p>Official diagnostic statement with DINEVIQ AI Neural business insights</p>
             </div>
           </div>
           <div className={styles.actionButtons}>
@@ -361,7 +361,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
             <div className={styles.brandCol}>
               <div className={styles.logoBadge}>
                 <Building2 size={24} color="#2563eb" />
-                <span className={styles.brandTitle}>SERVIQ <span style={{ color: '#6366f1' }}>OS</span></span>
+                <span className={styles.brandTitle}>DINEVIQ <span style={{ color: '#6366f1' }}>OS</span></span>
               </div>
               <div className={styles.brandSub}>Autonomous Cafe & Restaurant Management Cloud</div>
               <div className={styles.certBadge}>
@@ -403,7 +403,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
             <div className={styles.tenancyBox}>
               <span className={styles.fieldLabel}>AI Diagnostic Engine</span>
               <div className={styles.fieldValueBold} style={{ color: '#4f46e5' }}>
-                SERVIQ Neural Analytics Core
+                DINEVIQ Neural Analytics Core
               </div>
               <div className={styles.fieldSub}>Live Database Context Synchronized</div>
             </div>
@@ -441,7 +441,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sparkles size={18} color="#4f46e5" />
                 <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 600, color: '#1e1b4b' }}>
-                  SERVIQ EXECUTIVE DIAGNOSTIC INTELLIGENCE
+                  DINEVIQ EXECUTIVE DIAGNOSTIC INTELLIGENCE
                 </h4>
               </div>
               <span className={styles.aiTagBadge}>AI Neural Analysis</span>
@@ -451,7 +451,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
               {loadingAi ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
                   <RefreshCw size={18} className={styles.spinIcon} style={{ display: 'inline', marginRight: 8 }} />
-                  Synthesizing real-time database metrics via SERVIQ Neural AI...
+                  Synthesizing real-time database metrics via DINEVIQ Neural AI...
                 </div>
               ) : (
                 <div className={styles.aiMarkdownContent}>
@@ -596,10 +596,10 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
           <div className={styles.docFooter}>
             <div className={styles.footerLeft}>
               <div className={styles.footerNote}>
-                <strong>Security & Integrity Notice:</strong> This document is an official financial intelligence digest generated by SERVIQ OS. All metrics reflect immutable database records.
+                <strong>Security & Integrity Notice:</strong> This document is an official financial intelligence digest generated by DINEVIQ OS. All metrics reflect immutable database records.
               </div>
               <div className={styles.watermarkText}>
-                SERVIQ AI • Neural Analytics Engine • Autonomous Restaurant Platform
+                DINEVIQ AI • Neural Analytics Engine • Autonomous Restaurant Platform
               </div>
             </div>
 

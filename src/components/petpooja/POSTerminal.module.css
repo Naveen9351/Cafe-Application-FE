@@ -1032,59 +1032,141 @@
   color: #0f172a;
 }
 
-/* Terminal Bottom Action Buttons in ONE Row */
+/* Terminal Bottom Action Buttons in 2x2 Grid */
 .terminalActionBtns {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.4rem;
-  align-items: center;
   width: 100%;
 }
 
-.settlePayBtn {
-  flex: 1.2;
-  background: #16a34a;
-  color: #ffffff;
+.terminalBtnBase {
   border: none;
   border-radius: 8px;
-  padding: 0.55rem 0.5rem;
-  font-size: 0.76rem;
-  font-weight: 600;
+  padding: 0.55rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
   transition: all 0.15s ease;
 }
 
-.settlePayBtn:hover {
+.terminalBtnBase:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(40%);
+}
+
+.sendKotBtn {
+  composes: terminalBtnBase;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.sendKotBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.directBtn {
+  composes: terminalBtnBase;
+  background: #d97706;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(217, 119, 6, 0.2);
+}
+
+.directBtn:hover:not(:disabled) {
+  background: #b45309;
+  transform: translateY(-1px);
+}
+
+.paidOrderBtn {
+  composes: terminalBtnBase;
+  background: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
+}
+
+.paidOrderBtn:hover:not(:disabled) {
+  background: #6d28d9;
+  transform: translateY(-1px);
+}
+
+.clearTableBtn {
+  composes: terminalBtnBase;
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+}
+
+.clearTableBtn:hover:not(:disabled) {
   background: #15803d;
   transform: translateY(-1px);
 }
 
-.sendKotBtn {
-  flex: 1;
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.55rem 0.5rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  white-space: nowrap;
-  transition: all 0.15s ease;
+/* Backwards compatibility for settlePayBtn */
+.settlePayBtn {
+  composes: clearTableBtn;
 }
 
-.sendKotBtn:hover {
-  background: #1d4ed8;
+/* Item Badges and Selectors */
+.itemCheckbox {
+  cursor: pointer;
+  accent-color: #7c3aed;
+  width: 14px;
+  height: 14px;
+}
+
+.paidBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.directBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.unpaidBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  display: inline-flex;
+  align-items: center;
+}
+
+.billRowSub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  color: #64748b;
+  margin-bottom: 2px;
 }
 
 .splitModalOverlay {

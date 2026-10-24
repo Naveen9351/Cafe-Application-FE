@@ -120,10 +120,10 @@ export default function CustomerProfilePage() {
   const [wifiCopied, setWifiCopied] = useState(false);
 
   const tenantInfo = {
-    name: localStorage.getItem('restaurant_name') || "SERVIQ Gourmet Bistro",
+    name: localStorage.getItem('restaurant_name') || "DINEVIQ Gourmet Bistro",
     address: "Indiranagar, Bangalore",
-    wifiSSID: "SERVIQ_Guest_HighSpeed",
-    wifiPass: "ServiqCafe@2026"
+    wifiSSID: "DINEVIQ_Guest_HighSpeed",
+    wifiPass: "DineviqCafe@2026"
   };
 
   useEffect(() => {
@@ -732,10 +732,10 @@ export default function CustomerProfilePage() {
           </div>
         </div>
 
-        {/* 7. SERVIQ Brand Simple One-Liner Footer */}
+        {/* 7. DINEVIQ Brand Simple One-Liner Footer */}
         <div className={styles.brandOneLiner}>
           <p className={styles.brandOneLinerText} style={{ color: theme.textMuted }}>
-            POWERED BY <strong style={{ color: theme.textMain, letterSpacing: '0.05em' }}>SERVIQ</strong> • Autonomous Dining OS
+            POWERED BY <strong style={{ color: theme.textMain, letterSpacing: '0.05em' }}>DINEVIQ</strong> • Autonomous Dining OS
           </p>
         </div>
 

@@ -27,13 +27,13 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
             </Link>
 
             <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, maxWidth: 360, margin: 0 }}>
-              SERVIQ is the autonomous AI-powered restaurant operating system uniting guest QR Table Ordering, real-time Kitchen Display Systems (KDS), POS billing, live recipe inventory, and predictive telemetry into one connected console.
+              DINEVIQ is the autonomous AI-powered restaurant operating system uniting guest QR Table Ordering, real-time Kitchen Display Systems (KDS), POS billing, live recipe inventory, and predictive telemetry into one connected console.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12, color: "#cbd5e1", marginTop: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Mail style={{ width: 14, height: 14, color: "var(--color-primary)" }} />
-                <span>support@serviq.com</span>
+                <span>support@dineviq.com</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Phone style={{ width: 14, height: 14, color: "var(--color-emerald)" }} />
@@ -71,7 +71,7 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
               </Link>
               <Link to="/features/ai-copilot" style={{ color: "#94a3b8", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
                 <Sparkles style={{ width: 14, height: 14, color: "#fde047" }} />
-                <span>SERVIQ AI Forecasting</span>
+                <span>DINEVIQ AI Forecasting</span>
               </Link>
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
                 <span>Live Customer QR Menu</span>
               </Link>
               <Link to="/about" style={{ color: "#94a3b8", textDecoration: "none" }}>
-                About SERVIQ
+                About DINEVIQ
               </Link>
               <Link to="/contact" style={{ color: "#94a3b8", textDecoration: "none" }}>
                 Contact Support
@@ -136,7 +136,7 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
         {/* Bottom Copyright */}
         <div style={{ paddingTop: 28, borderTop: "1px solid #1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, fontSize: 12, color: "#64748b" }}>
           <div>
-            © {new Date().getFullYear()} SERVIQ Technologies India Pvt. Ltd. All rights reserved.
+            © {new Date().getFullYear()} DINEVIQ Technologies India Pvt. Ltd. All rights reserved.
           </div>
 
           <div style={{ display: "flex", gap: 20 }}>

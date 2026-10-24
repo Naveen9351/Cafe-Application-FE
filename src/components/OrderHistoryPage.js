@@ -67,7 +67,7 @@ export default function OrderHistoryPage() {
   });
 
   const tenantInfo = {
-    name: localStorage.getItem('restaurant_name') || "SERVIQ Gourmet Bistro"
+    name: localStorage.getItem('restaurant_name') || "DINEVIQ Gourmet Bistro"
   };
 
   useEffect(() => {

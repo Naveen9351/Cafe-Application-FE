@@ -337,7 +337,7 @@ const SuperAdminDashboard = () => {
                             <div className={styles.logo}>
                                 <Zap size={20} fill="#ffd700" />
                             </div>
-                            {!sidebarCollapsed && <span>SERVIQ <span style={{ color: '#6366f1' }}>SuperAdmin</span></span>}
+                            {!sidebarCollapsed && <span>DINEVIQ <span style={{ color: '#6366f1' }}>SuperAdmin</span></span>}
                         </div>
                         <button
                             type="button"

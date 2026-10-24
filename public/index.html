@@ -1,28 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="utf-8" />
-  <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
-  <link rel="icon" href="%PUBLIC_URL%/logo.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
+
+  <!-- ── 1. Primary Title & Meta SEO ── -->
+  <title>DineviQ — Autonomous Restaurant & Cafe OS | QR Dining, KDS & POS</title>
   <meta
     name="description"
-    content="SERVIQ — Autonomous AI-Powered Restaurant & Cafe Operating System. Zero-latency QR dining, multi-station KDS queues, real-time POS billing, and predictive analytics."
+    content="DineviQ (dineviq.com) is the premier autonomous AI restaurant management operating system in India. Powering zero-latency QR table ordering, multi-station Kitchen Display Systems (KDS), cloud POS billing, live recipe inventory depletion, and instant UPI payments."
   />
-  
-  <!-- PWA & Mobile Web App Meta Tags -->
-  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+  <meta
+    name="keywords"
+    content="DineviQ, dineviq, dineviq.com, restaurant management system, cafe management software, restaurant POS software India, QR code menu ordering, kitchen display system KDS, cloud billing POS, restaurant recipe inventory, Petpooja alternative, food tech India"
+  />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="author" content="DineviQ Technologies India Pvt. Ltd." />
+  <link rel="canonical" href="https://www.dineviq.com/" />
+
+  <!-- ── 2. Favicons & Brand Marks ── -->
+  <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+  <!-- ── 3. Open Graph / Facebook (og:*) ── -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="DineviQ" />
+  <meta property="og:url" content="https://www.dineviq.com/" />
+  <meta property="og:title" content="DineviQ — Autonomous Restaurant & Cafe OS | QR Dining, KDS & POS" />
+  <meta property="og:description" content="Replace restaurant dining chaos with autonomous AI speed. Contactless QR table menus, real-time KDS routing, and cloud POS billing in Indian Rupees (₹)." />
+  <meta property="og:image" content="https://www.dineviq.com/dineviq-brand-full.png" />
+  <meta property="og:image:width" content="1024" />
+  <meta property="og:image:height" content="1024" />
+  <meta property="og:image:alt" content="DineviQ Autonomous Restaurant Platform Emblem" />
+  <meta property="og:locale" content="en_IN" />
+
+  <!-- ── 4. Twitter Card Meta Tags ── -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@dineviq" />
+  <meta name="twitter:creator" content="@dineviq" />
+  <meta name="twitter:url" content="https://www.dineviq.com/" />
+  <meta name="twitter:title" content="DineviQ — Autonomous Restaurant & Cafe OS" />
+  <meta name="twitter:description" content="Autonomous operating system for modern food outlets. Zero-app QR menus, instant KDS kitchen coordination, and cloud POS billing." />
+  <meta name="twitter:image" content="https://www.dineviq.com/dineviq-brand-full.png" />
+
+  <!-- ── 5. PWA & Mobile Web App Meta ── -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SERVIQ Cafe" />
-  <meta name="application-name" content="SERVIQ Cafe Admin" />
+  <meta name="apple-mobile-web-app-title" content="DineviQ" />
+  <meta name="application-name" content="DineviQ OS" />
   <meta name="msapplication-TileColor" content="#0f172a" />
+  <meta name="msapplication-TileImage" content="%PUBLIC_URL%/icon-192.png" />
   <meta name="msapplication-tap-highlight" content="no" />
-  
-  <title>SERVIQ — Autonomous Restaurant & Cafe OS</title>
+
+  <!-- ── 6. Google Knowledge Graph JSON-LD Structured Data ── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://www.dineviq.com/#software",
+        "name": "DineviQ",
+        "url": "https://www.dineviq.com",
+        "operatingSystem": "All modern browsers, Web, Android, iOS, Windows",
+        "applicationCategory": "BusinessApplication",
+        "description": "Autonomous AI restaurant operating system uniting dynamic QR table ordering, kitchen display systems (KDS), cloud POS billing, recipe inventory depletion, and predictive analytics.",
+        "image": "https://www.dineviq.com/dineviq-brand-full.png",
+        "screenshot": "https://www.dineviq.com/dineviq-brand-full.png",
+        "offers": {
+          "@type": "AggregateOffer",
+          "priceCurrency": "INR",
+          "lowPrice": "199",
+          "highPrice": "1999",
+          "offerCount": "3"
+        },
+        "publisher": {
+          "@id": "https://www.dineviq.com/#organization"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://www.dineviq.com/#organization",
+        "name": "DineviQ Technologies",
+        "url": "https://www.dineviq.com",
+        "logo": "https://www.dineviq.com/logo.png",
+        "sameAs": [
+          "https://twitter.com/dineviq",
+          "https://www.linkedin.com/company/dineviq"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+91-96801-32562",
+          "contactType": "Customer Support",
+          "email": "support@dineviq.com",
+          "areaServed": "IN",
+          "availableLanguage": ["English", "Hindi"]
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.dineviq.com/#website",
+        "url": "https://www.dineviq.com",
+        "name": "DineviQ",
+        "description": "Autonomous AI-Powered Restaurant & Cafe Operating System",
+        "publisher": {
+          "@id": "https://www.dineviq.com/#organization"
+        }
+      }
+    ]
+  }
+  </script>
 
   <!-- Google Fonts: Inter, Plus Jakarta Sans, Outfit, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +122,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <noscript>You need to enable JavaScript to experience the DineviQ Autonomous Restaurant Platform.</noscript>
   <div id="root"></div>
 </body>
 </html>

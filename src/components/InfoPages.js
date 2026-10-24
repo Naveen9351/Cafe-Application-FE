@@ -23,7 +23,7 @@ export function AboutPage() {
             Built for Restaurant Operators. Powered by Autonomous AI.
           </h1>
           <p style={{ fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.6, maxWidth: 680, margin: 0 }}>
-            SERVIQ was founded by seasoned food and technology veterans to eliminate paper tickets, waitstaff bottlenecks, and inventory chaos with a unified AI platform.
+            DINEVIQ was founded by seasoned food and technology veterans to eliminate paper tickets, waitstaff bottlenecks, and inventory chaos with a unified AI platform.
           </p>
         </div>
       </section>
@@ -42,7 +42,7 @@ export function AboutPage() {
               We believe every cafe, QSR, and dining room in India deserves the same lightning-fast operational infrastructure as global enterprise chains.
             </p>
             <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
-              From a single artisan coffee bar to a 50-location franchise network — SERVIQ runs autonomously on any phone, tablet, or browser with zero hardware lock-in.
+              From a single artisan coffee bar to a 50-location franchise network — DINEVIQ runs autonomously on any phone, tablet, or browser with zero hardware lock-in.
             </p>
           </div>
           <div style={{ borderRadius: 'var(--radius-xl)', overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xl)', height: 320, background: '#f1f5f9' }}>
@@ -116,7 +116,7 @@ export function CareersPage() {
             <span>We Are Hiring</span>
           </div>
           <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
-            Build the Future of Dining at SERVIQ
+            Build the Future of Dining at DINEVIQ
           </h1>
           <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
             Join our team of engineers, designers, and food enthusiasts creating the next generation of autonomous restaurant infrastructure.
@@ -140,7 +140,7 @@ export function CareersPage() {
                 </div>
               </div>
               <a
-                href="mailto:careers@serviq.com"
+                href="mailto:careers@dineviq.com"
                 className="btn-electric"
                 style={{ padding: '8px 18px', fontSize: 12 }}
               >
@@ -170,7 +170,7 @@ export function PressKitPage() {
             <span>Media & Resources</span>
           </div>
           <h1 style={{ fontSize: 'clamp(30px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
-            SERVIQ Press Kit & Brand Assets
+            DINEVIQ Press Kit & Brand Assets
           </h1>
           <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
             Download high-resolution official brand marks, executive bios, and company milestones.
@@ -227,8 +227,8 @@ export function ContactPage() {
             <Mail style={{ width: 20, height: 20 }} />
           </div>
           <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Email Support</h3>
-          <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: 0 }}>support@serviq.com</p>
-          <a href="mailto:support@serviq.com" style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-primary)', textDecoration: 'none', marginTop: 4 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: 0 }}>support@dineviq.com</p>
+          <a href="mailto:support@dineviq.com" style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-primary)', textDecoration: 'none', marginTop: 4 }}>
             Write to Us →
           </a>
         </div>

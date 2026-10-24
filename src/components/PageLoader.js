@@ -59,7 +59,7 @@ export default function PageLoader({ onLoaded, duration }) {
           >
             <img
               src="/logos/logo-gif.gif"
-              alt="SERVIQ Loading"
+              alt="DINEVIQ Loading"
               style={{
                 width: '100%',
                 height: '100%',
@@ -77,7 +77,7 @@ export default function PageLoader({ onLoaded, duration }) {
               letterSpacing: '0.5px',
               margin: '0 0 0.35rem'
             }}>
-              SERVIQ
+              DINEVIQ
             </h2>
             <p style={{
               fontSize: '0.8rem',

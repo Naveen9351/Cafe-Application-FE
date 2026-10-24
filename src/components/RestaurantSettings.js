@@ -236,7 +236,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       });
 
       if (res.data && res.data.success) {
-        const invoiceNumber = `INV-SERVIQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+        const invoiceNumber = `INV-DINEVIQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
         setPaymentReceipt({
           invoiceNo: invoiceNumber,
           paymentId: generatedPaymentId,
@@ -630,7 +630,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
           {/* Footer Info */}
           <footer className={styles.settingsFooter}>
-            <span>© 2026 SERVIQ OS - Enterprise POS & Cafe Management Suite.</span>
+            <span>© 2026 DINEVIQ OS - Enterprise POS & Cafe Management Suite.</span>
             <div className={styles.footerLinks}>
               <a href="#privacy">Privacy Policy</a>
               <a href="#audit">Audit Logs</a>
@@ -671,7 +671,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Sparkles size={20} color="#2563eb" />
-                  {paymentStep === 'select' && 'Upgrade SERVIQ Subscription'}
+                  {paymentStep === 'select' && 'Upgrade DINEVIQ Subscription'}
                   {paymentStep === 'checkout' && 'Secure Checkout & Payment Gateway'}
                   {paymentStep === 'verifying' && 'Payment Verification'}
                   {paymentStep === 'success' && 'Payment Verified & Plan Activated!'}
@@ -861,7 +861,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
                     <div style={{ display: 'inline-block', padding: '10px', background: '#ffffff', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                       <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=serviq.payments@icici&pn=SERVIQ%20Cafe%20OS&am=${selectedPlanToUpgrade.price}&cu=INR&tn=Plan_${selectedPlanToUpgrade.id}`}
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=dineviq.payments@icici&pn=DINEVIQ%20Cafe%20OS&am=${selectedPlanToUpgrade.price}&cu=INR&tn=Plan_${selectedPlanToUpgrade.id}`}
                         alt="UPI Payment QR Code"
                         style={{ width: '150px', height: '150px', display: 'block' }}
                       />
@@ -870,7 +870,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       Scan using Google Pay, PhonePe, Paytm, or any UPI App
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2 }}>
-                      Merchant: SERVIQ Enterprise Payments | VPA: <code>serviq.payments@icici</code>
+                      Merchant: DINEVIQ Enterprise Payments | VPA: <code>dineviq.payments@icici</code>
                     </div>
                   </div>
                 )}

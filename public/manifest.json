@@ -1,6 +1,6 @@
 {
-  "name": "SERVIQ — Autonomous Cafe & Restaurant OS",
-  "short_name": "SERVIQ Admin",
+  "name": "DINEVIQ — Autonomous Cafe & Restaurant OS",
+  "short_name": "DINEVIQ Admin",
   "description": "Complete Cloud & Offline POS, Kitchen Display System (KDS), QR Ordering, and Live Operations Management for Cafes and Restaurants.",
   "start_url": "/admin/dashboard",
   "scope": "/",

@@ -32,8 +32,8 @@ export default function PWAInstallModal({
 
   const handleDownloadWindowsExe = (type = 'setup') => {
     const fileName = type === 'portable'
-      ? 'ServiQ-Staff-Terminal-Portable.exe'
-      : 'ServiQ-Staff-Terminal-Setup.exe';
+      ? 'DineviQ-Staff-Terminal-Portable.exe'
+      : 'DineviQ-Staff-Terminal-Setup.exe';
     const downloadUrl = `/downloads/${fileName}`;
     
     const link = document.createElement('a');
@@ -79,7 +79,7 @@ export default function PWAInstallModal({
         <div className={styles.modalHeader}>
           <div className={styles.headerLeft}>
             <div className={styles.appIconWrap}>
-              <img src="/icon-192.png" alt="SERVIQ App Icon" className={styles.appIconImg} />
+              <img src="/icon-192.png" alt="DINEVIQ App Icon" className={styles.appIconImg} />
             </div>
             <div className={styles.titleArea}>
               <h3>Staff Terminal Downloads</h3>

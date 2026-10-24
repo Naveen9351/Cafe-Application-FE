@@ -177,7 +177,7 @@ const TenantRegister = () => {
                 <div className={styles.formSide}>
                     <div className={styles.header}>
                         <h2>Create Cafe Account</h2>
-                        <p>Join 500+ restaurants growing with SERVIQ</p>
+                        <p>Join 500+ restaurants growing with DINEVIQ</p>
                     </div>
 
                     {generalError && (

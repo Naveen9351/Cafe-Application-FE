@@ -19,6 +19,7 @@ import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilo
 import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
 import PageLoader from './components/PageLoader';
 import ScrollToTop from './components/common/ScrollToTop';
+import SEOManager from './components/common/SEOManager';
 
 const ALL_STAFF_ROLES = ['admin', 'manager', 'cashier', 'chef', 'waiter', 'staff', 'kitchen', 'custom', 'super_admin'];
 
@@ -199,6 +200,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <Router>
+          <SEOManager />
           <ScrollToTop />
           <AppRoutes />
         </Router>

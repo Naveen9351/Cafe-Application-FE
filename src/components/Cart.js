@@ -510,7 +510,7 @@ export default function Cart() {
         {/* Brand Footer inside Container */}
         <footer style={{ marginTop: 'auto', paddingTop: '1.5rem', paddingBottom: '0.5rem', textAlign: 'center' }}>
           <p style={{ fontSize: '0.78rem', color: theme.textMuted, fontWeight: '700', margin: 0 }}>
-            Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
+            Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>DINEVIQ OS</span>
           </p>
         </footer>
         </div>

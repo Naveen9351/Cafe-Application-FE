@@ -766,7 +766,7 @@ export default function ReportsSuite({ initialOrders = [] }) {
             topDishes
           },
           completedOrders,
-          businessName: tenantInfo?.businessName || tenantInfo?.name || 'SERVIQ Partner Cafe'
+          businessName: tenantInfo?.businessName || tenantInfo?.name || 'DINEVIQ Partner Cafe'
         }}
       />
     </div>

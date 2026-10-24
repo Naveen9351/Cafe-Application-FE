@@ -58,11 +58,36 @@ export default function ServiqLogo({
           }}
         />
 
+        <img
+          src="/logo.png"
+          alt="DineviQ Logo"
+          onError={(e) => {
+            // Fallback to vector SVG if image fails
+            e.target.style.display = 'none';
+            if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: dimensions.iconSize >= 42 ? '12px' : '8px',
+            objectFit: 'cover',
+            position: 'relative',
+            zIndex: 2,
+            boxShadow: isDark
+              ? '0 4px 16px rgba(6,182,212,0.35)'
+              : '0 4px 14px rgba(37,99,235,0.25)',
+            border: isDark
+              ? '1px solid rgba(6,182,212,0.4)'
+              : '1px solid rgba(37,99,235,0.25)'
+          }}
+        />
+
         <svg
           viewBox="0 0 52 52"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           style={{
+            display: 'none',
             width: '100%',
             height: '100%',
             position: 'relative',
@@ -71,32 +96,21 @@ export default function ServiqLogo({
           }}
         >
           <defs>
-            {/* Ultra-smooth Royal Blue to Indigo to Cyan Gradient */}
             <linearGradient id="sarviq_primary_grad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#2563eb" />
               <stop offset="55%" stopColor="#4f46e5" />
               <stop offset="100%" stopColor="#06b6d4" />
             </linearGradient>
-
-            {/* Subtle Surface Gradient for Background Rounded Squircle */}
             <linearGradient id="sarviq_squircle_bg" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={isDark ? '#0f172a' : '#ffffff'} />
               <stop offset="100%" stopColor={isDark ? '#020617' : '#f8fafc'} />
             </linearGradient>
-
             <linearGradient id="sarviq_border_grad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="rgba(37,99,235,0.4)" />
               <stop offset="50%" stopColor="rgba(79,70,229,0.3)" />
               <stop offset="100%" stopColor="rgba(6,182,212,0.4)" />
             </linearGradient>
-
-            <filter id="sarviq_subtle_glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="1.5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
           </defs>
-
-          {/* Premium Squircle Shield */}
           <rect
             x="2.5"
             y="2.5"
@@ -107,22 +121,16 @@ export default function ServiqLogo({
             stroke="url(#sarviq_border_grad)"
             strokeWidth="1.5"
           />
-
-          {/* Precision AI Continuous Curve S Monogram */}
-          {/* Top Arc & Loop */}
           <path
-            d="M 37 18 C 37 12.5 32 8.5 25 8.5 C 17.5 8.5 13 13 13 18.5 C 13 24 18 26.5 26 28.5 C 33.5 30.5 37.5 33 37.5 38.5 C 37.5 44.5 32.5 48.5 25 48.5 C 17.5 48.5 13 44 13 39"
+            d="M 16 11 L 26 11 C 34.5 11 39.5 16.5 39.5 26 C 39.5 35.5 34.5 41 26 41 L 16 41 Z"
             stroke="url(#sarviq_primary_grad)"
             strokeWidth="4.2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            filter={animated ? "url(#sarviq_subtle_glow)" : undefined}
           />
-
-          {/* Futuristic Precision Core Nodes */}
-          <circle cx="25" cy="8.5" r="2.2" fill="#2563eb" />
-          <circle cx="26" cy="28.5" r="2.8" fill="#ffffff" stroke="#4f46e5" strokeWidth="1.5" />
-          <circle cx="25" cy="48.5" r="2.2" fill="#06b6d4" />
+          <circle cx="16" cy="11" r="2.2" fill="#2563eb" />
+          <circle cx="39.5" cy="26" r="2.8" fill="#ffffff" stroke="#4f46e5" strokeWidth="1.5" />
+          <circle cx="16" cy="41" r="2.2" fill="#06b6d4" />
         </svg>
       </div>
 
@@ -140,7 +148,7 @@ export default function ServiqLogo({
               margin: 0
             }}
           >
-            SERVIQ
+            DINEVIQ
           </span>
 
           {showBadge && (

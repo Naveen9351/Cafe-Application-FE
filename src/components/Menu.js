@@ -188,7 +188,7 @@ export default function Menu() {
   const [isLoading, setIsLoading] = useState(!hasShownInitialAppLoader);
   const [isFetchingMenu, setIsFetchingMenu] = useState(false);
   const [tenantInfo, setTenantInfo] = useState(() => {
-    let name = "SERVIQ Gourmet Bistro";
+    let name = "DINEVIQ Gourmet Bistro";
     let logo = null;
     try {
       const u = localStorage.getItem('user');
@@ -1167,7 +1167,7 @@ export default function Menu() {
 
   const cartTotalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const cafeName = tenantInfo?.name || tenantInfo?.restaurantName || tenantInfo?.businessName || localStorage.getItem('restaurant_name') || "SERVIQ Gourmet Bistro";
+  const cafeName = tenantInfo?.name || tenantInfo?.restaurantName || tenantInfo?.businessName || localStorage.getItem('restaurant_name') || "DINEVIQ Gourmet Bistro";
   const cafeLogo = tenantInfo?.logo || tenantInfo?.settings?.logo || tenantInfo?.logoUrl || localStorage.getItem('restaurant_logo') || null;
   const cafeInitials = cafeName ? cafeName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() : 'SQ';
 

@@ -1918,12 +1918,12 @@ export default function AdminPanel() {
                 className={styles.brandIconSquare}
                 style={restaurantLogo ? { display: 'none' } : {}}
               >
-                {restaurantInitials || 'SQ'}
+                {restaurantInitials || 'DQ'}
               </div>
               {!sidebarCollapsed && (
                 <div className={styles.brandTextGroup}>
                   <span className={styles.brandTitle}>{restaurantDisplayName}</span>
-                  <span className={styles.brandSub}>SERVIQ OS</span>
+                  <span className={styles.brandSub}>DINEVIQ OS</span>
                 </div>
               )}
             </div>
@@ -2110,7 +2110,7 @@ export default function AdminPanel() {
                 )}
                 <div className={styles.brandTextGroup}>
                   <span className={styles.brandTitle}>{restaurantDisplayName}</span>
-                  <span className={styles.brandSub}>SERVIQ OS</span>
+                  <span className={styles.brandSub}>DINEVIQ OS</span>
                 </div>
               </div>
             </div>
@@ -2373,12 +2373,12 @@ export default function AdminPanel() {
                     <img src={restaurantLogo} alt="Logo" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
                   ) : (
                     <div className={styles.brandIconSquare} style={{ width: 28, height: 28, fontSize: '0.75rem' }}>
-                      {restaurantInitials || 'SQ'}
+                      {restaurantInitials || 'DQ'}
                     </div>
                   )}
                   <div>
                     <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 600, color: '#0f172a' }}>{restaurantDisplayName}</h4>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>SERVIQ OS Menu</span>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>DINEVIQ OS Menu</span>
                   </div>
                 </div>
                 <button

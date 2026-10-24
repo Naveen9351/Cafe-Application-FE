@@ -4,7 +4,7 @@
  * preventing printing of the application UI / dashboard.
  */
 
-export const printOrderBill = (order, tenantName = 'SERVIQ CAFE & BISTRO') => {
+export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
   if (!order) return;
 
   const orderNum = order.orderNumber || order._id?.slice(-5) || 'ORD';
@@ -104,7 +104,7 @@ export const printOrderBill = (order, tenantName = 'SERVIQ CAFE & BISTRO') => {
       <body>
         <div class="text-center">
           <div class="brand-name">${tenantName}</div>
-          <div style="font-size: 10px; color: #6b7280; font-weight: 500;">SERVIQ — Autonomous Restaurant OS</div>
+          <div style="font-size: 10px; color: #6b7280; font-weight: 500;">DINEVIQ — Autonomous Restaurant OS</div>
           <div class="divider"></div>
           <div style="font-size: 12px; font-weight: 800; letter-spacing: 0.5px;">TAX INVOICE / SETTLEMENT RECEIPT</div>
           <div style="font-size: 11px; font-weight: 700; margin-top: 2px; color: #1f2937;">Order #${orderNum}</div>
@@ -184,7 +184,7 @@ export const printOrderBill = (order, tenantName = 'SERVIQ CAFE & BISTRO') => {
         <div class="divider"></div>
         <div class="text-center" style="font-size: 10.5px; color: #4b5563; margin-top: 10px;">
           <p style="margin: 0; font-weight: 600;">Thank you for dining with us!</p>
-          <p style="margin: 3px 0 0 0; font-size: 9.5px; color: #6b7280;">Powered by SERVIQ OS</p>
+          <p style="margin: 3px 0 0 0; font-size: 9.5px; color: #6b7280;">Powered by DINEVIQ OS</p>
         </div>
 
         <script>
