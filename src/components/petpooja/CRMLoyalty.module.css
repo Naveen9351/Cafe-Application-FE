@@ -7,7 +7,7 @@
   flex-direction: column;
   min-height: 0;
   flex: 1;
-  font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #0f172a;
   box-sizing: border-box;
 }
@@ -44,19 +44,19 @@
 }
 
 .title {
-  font-size: 1.35rem;
-  font-weight: 900;
+  font-size: 1.25rem;
+  font-weight: 600;
   color: #0f172a;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   margin: 0;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .subtitle {
   font-size: 0.78rem;
   color: #64748b;
   margin: 0.1rem 0 0;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .headerActions {
@@ -75,7 +75,7 @@
   border: none;
   color: #ffffff;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
@@ -96,7 +96,7 @@
   border: 1px solid #e2e8f0;
   color: #334155;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
@@ -118,7 +118,7 @@
   border: 1px solid #a7f3d0;
   color: #059669;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .liveDot {
@@ -168,7 +168,7 @@
 
 .miniKpiLabel {
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748b;
@@ -182,7 +182,7 @@
 
 .miniKpiVal {
   font-size: 1.15rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.02em;
 }
@@ -190,7 +190,7 @@
 .miniKpiSub {
   font-size: 0.7rem;
   color: #059669;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .miniKpiIcon {
@@ -270,7 +270,7 @@
   background: #f8fafc;
   color: #64748b;
   font-size: 0.76rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
@@ -292,7 +292,7 @@
   padding: 1px 5px;
   border-radius: 9999px;
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 600;
   background: #e2e8f0;
   color: #334155;
 }
@@ -357,7 +357,7 @@
   font-size: 0.78rem;
   color: #0f172a;
   outline: none;
-  font-weight: 600;
+  font-weight: 400;
   transition: all 0.15s ease;
 }
 
@@ -375,7 +375,7 @@
   font-size: 0.76rem;
   color: #0f172a;
   outline: none;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -395,7 +395,7 @@
   border: 1px solid #cbd5e1;
   color: #475569;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -426,10 +426,10 @@
   background: #f8fafc;
   z-index: 10;
   padding: 0.65rem 0.9rem;
-  color: #475569;
+  color: #64748b;
   font-size: 0.7rem;
   text-transform: uppercase;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.05em;
   border-bottom: 1.5px solid #e2e8f0;
 }
@@ -469,7 +469,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
+  font-weight: 600;
   font-size: 0.8rem;
   color: #ffffff;
   flex-shrink: 0;
@@ -483,9 +483,9 @@
 }
 
 .nameRow {
-  font-weight: 900;
+  font-weight: 500;
   color: #0f172a;
-  font-size: 0.86rem;
+  font-size: 0.83rem;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -494,7 +494,7 @@
 .emailText {
   font-size: 0.7rem;
   color: #94a3b8;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* Badges */
@@ -508,7 +508,7 @@
   border: 1px solid #fcd34d;
   padding: 1px 5px;
   border-radius: 4px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .tierRegular {
@@ -520,7 +520,7 @@
   border: 1px solid #e2e8f0;
   padding: 1px 5px;
   border-radius: 4px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .tierNew {
@@ -532,7 +532,7 @@
   border: 1px solid #a7f3d0;
   padding: 1px 5px;
   border-radius: 4px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .badgeVerified {
@@ -545,7 +545,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .badgeUnverified {
@@ -558,7 +558,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .badgeUnverifiedBtn {
@@ -571,7 +571,7 @@
   padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -589,14 +589,14 @@
   padding: 1px 5px;
   border-radius: 9999px;
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 600;
   margin-left: 0.2rem;
   letter-spacing: 0.02em;
 }
 
 .drawerVerifiedText {
   color: #059669;
-  font-weight: 700;
+  font-weight: 500;
   font-size: 0.75rem;
 }
 
@@ -606,7 +606,7 @@
   padding: 0;
   color: #dc2626;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -628,22 +628,22 @@
   border-radius: 7px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  font-weight: 800;
-  color: #0f172a;
+  font-weight: 500;
+  color: #334155;
   font-size: 0.8rem;
 }
 
 .spendText {
-  font-weight: 900;
+  font-weight: 600;
   color: #059669;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   letter-spacing: -0.01em;
 }
 
 .aovText {
-  font-weight: 800;
-  color: #0f172a;
-  font-size: 0.84rem;
+  font-weight: 500;
+  color: #334155;
+  font-size: 0.82rem;
 }
 
 .actionBtn {
@@ -655,7 +655,7 @@
   border-radius: 7px;
   padding: 0.32rem 0.65rem;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   color: #1e293b;
   transition: all 0.15s ease;
@@ -677,7 +677,7 @@
   align-items: center;
   font-size: 0.75rem;
   color: #64748b;
-  font-weight: 600;
+  font-weight: 400;
   flex-shrink: 0;
   margin-top: auto;
 }
@@ -739,7 +739,7 @@
   align-items: center;
   justify-content: center;
   font-size: 1.05rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #ffffff;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
@@ -747,7 +747,7 @@
 
 .drawerName {
   font-size: 1.2rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
   display: flex;
@@ -771,18 +771,25 @@
 }
 
 .contactIconBtn {
+  display: none; /* Hidden on desktop / PC */
   width: 28px;
   height: 28px;
   border-radius: 7px;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  display: flex;
   align-items: center;
   justify-content: center;
   color: #334155;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+/* Show only when viewed on mobile */
+@media (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+  .contactIconBtn {
+    display: inline-flex;
+  }
 }
 
 .contactIconBtn:hover {
@@ -834,14 +841,14 @@
 .drawerMetricLabel {
   font-size: 0.65rem;
   color: #64748b;
-  font-weight: 800;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .drawerMetricVal {
   font-size: 1.15rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
   margin-top: 0.1rem;
 }
@@ -859,7 +866,7 @@
 
 .drawerSectionTitle {
   font-size: 0.84rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
   display: flex;
@@ -883,7 +890,7 @@
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 500;
   color: #1e293b;
 }
 
@@ -893,7 +900,7 @@
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* WhatsApp Promo Sender */
@@ -913,7 +920,7 @@
   border: 1px solid #bbf7d0;
   color: #166534;
   font-size: 0.76rem;
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -939,7 +946,7 @@
   resize: vertical;
   min-height: 60px;
   outline: none;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .notesInput:focus {
@@ -954,7 +961,7 @@
   background: #0f172a;
   color: #ffffff;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 500;
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -976,7 +983,7 @@
   align-items: center;
   gap: 0.45rem;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #475569;
   background: #f1f5f9;
   padding: 0.35rem 0.75rem;
@@ -1014,7 +1021,7 @@
 }
 
 .orderNumber {
-  font-weight: 900;
+  font-weight: 600;
   font-size: 0.84rem;
   color: #0f172a;
 }
@@ -1026,11 +1033,11 @@
   color: #475569;
   padding: 1px 6px;
   border-radius: 5px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .orderAmount {
-  font-weight: 900;
+  font-weight: 600;
   color: #059669;
   font-size: 0.92rem;
 }
@@ -1060,7 +1067,7 @@
   justify-content: space-between;
   align-items: center;
   color: #334155;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* ── Modal Form Styles ── */
@@ -1112,7 +1119,7 @@
 .label {
   font-size: 0.76rem;
   color: #334155;
-  font-weight: 800;
+  font-weight: 500;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1141,7 +1148,7 @@
   color: #0f172a;
   font-size: 0.82rem;
   outline: none;
-  font-weight: 600;
+  font-weight: 400;
   transition: all 0.15s ease;
 }
 
@@ -1170,7 +1177,7 @@
   gap: 0.5rem;
   color: #b91c1c;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   animation: fadeIn 0.2s ease;
 }
 
@@ -1185,7 +1192,7 @@
   padding: 0.3rem 0.65rem;
   border-radius: 7px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1206,7 +1213,7 @@
   transform: translateY(-50%);
   color: #059669;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -1236,7 +1243,7 @@
 
 .otpPromptTitle {
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   display: flex;
   align-items: center;
@@ -1254,7 +1261,7 @@
   height: 46px;
   text-align: center;
   font-size: 1.25rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
   border-radius: 10px;
   border: 1.5px solid #cbd5e1;
@@ -1279,7 +1286,7 @@
   background: none;
   border: none;
   color: #059669;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
@@ -1298,7 +1305,7 @@
   padding: 0.45rem 0.95rem;
   border-radius: 8px;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1314,7 +1321,7 @@
   width: 100%;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
   padding: 0.75rem 1rem;
   border-radius: 10px;
   border: none;
@@ -1422,4 +1429,236 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Combined Filter Modal & Active Pill Styles ── */
+.btnFilterActive {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.filterBadgeCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  min-width: 16px;
+}
+
+.filterModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.filterModalCard {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 440px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.filterModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+}
+
+.filterModalTitle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.modalCloseBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.filterModalBody {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filterLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.modalSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  transition: border-color 0.15s;
+}
+
+.modalSearchWrap:focus-within {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.modalSearchInput {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.8rem;
+  color: #0f172a;
+  width: 100%;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.modalSelectField {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.modalSelectField:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.filterModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.1rem;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.filterResetBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.filterResetBtn:hover:not(:disabled) {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.filterResetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.filterApplyBtn {
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.filterApplyBtn:hover {
+  background: #1e293b;
+}
+
+.activeFilterPillsBar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  font-size: 0.7rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.filterChipRemove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+}
+
+.filterChipRemove:hover {
+  color: #ef4444;
 }

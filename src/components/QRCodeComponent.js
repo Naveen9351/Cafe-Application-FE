@@ -341,6 +341,16 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
       return;
     }
 
+    // Check duplicate table name
+    const isDuplicate = tables.some(t =>
+      t._id !== editingTable._id &&
+      String(t.tableNumber || '').trim().toLowerCase() === cleanNum.toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error(`Table "${cleanNum}" already exists. Table name must be unique.`);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
@@ -483,19 +493,11 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   };
 
   const filteredTables = useMemo(() => {
-    return tables
-      .filter(t => {
-        const matchesSearch = String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase());
-        if (!matchesSearch) return false;
-        const occupied = isTableOccupied(t);
-        if (statusFilter === 'available') return !occupied;
-        if (statusFilter === 'occupied') return occupied;
-        return true;
-      })
-      .sort((a, b) => {
-        return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
-      });
-  }, [tables, searchQuery, statusFilter, activeOrdersLookup]);
+    return tables.filter(t => {
+      const matchesSearch = !searchQuery || String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase().trim());
+      return matchesSearch;
+    });
+  }, [tables, searchQuery]);
 
   return (
     <div style={{ width: '100%' }}>
@@ -566,64 +568,21 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
           </div>
         </div>
 
-        {/* Right: Status Filter Pills + Action Buttons in ONE LINE */}
+        {/* Right: Table Count + Action Buttons in ONE LINE */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Segmented Filter Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('all')}
-              style={{
-                background: statusFilter === 'all' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'all' ? '#0f172a' : '#64748b',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: '11.5px',
-                cursor: 'pointer',
-                boxShadow: statusFilter === 'all' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              All ({tables.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('available')}
-              style={{
-                background: statusFilter === 'available' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'available' ? '#16a34a' : '#64748b',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: '11.5px',
-                cursor: 'pointer',
-                boxShadow: statusFilter === 'available' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              ● Available ({tables.filter(t => !activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('occupied')}
-              style={{
-                background: statusFilter === 'occupied' ? '#ffffff' : 'transparent',
-                color: statusFilter === 'occupied' ? '#d97706' : '#64748b',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: '11.5px',
-                cursor: 'pointer',
-                boxShadow: statusFilter === 'occupied' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              ● Occupied ({tables.filter(t => !!activeOrdersLookup[String(t.tableNumber || '').toLowerCase().trim()]).length})
-            </button>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            background: '#f1f5f9',
+            padding: '5px 12px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            color: '#475569'
+          }}>
+            Total Tables: <strong style={{ color: '#0f172a' }}>{tables.length}</strong>
           </div>
 
           {/* Action Buttons */}
@@ -714,36 +673,59 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
         </div>
       </div>
 
+      <style>{`
+        .table-qr-grid-4 {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 1rem;
+        }
+        @media (max-width: 1024px) {
+          .table-qr-grid-4 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 768px) {
+          .table-qr-grid-4 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 480px) {
+          .table-qr-grid-4 {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
       {/* Grid of Dynamic Table Cards / Skeleton Loader */}
       {loading && tables.length === 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
-          {[1, 2, 3, 4, 5, 6].map((sk) => (
+        <div className="table-qr-grid-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((sk) => (
             <div
               key={sk}
               style={{
                 background: '#ffffff',
-                borderRadius: '18px',
+                borderRadius: '16px',
                 border: '1px solid #e2e8f0',
-                padding: '1.25rem',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                padding: '1rem 0.85rem',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 opacity: 0.85
               }}
             >
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div style={{ width: 80, height: 24, borderRadius: 8, background: '#f1f5f9' }} />
-                <div style={{ width: 64, height: 20, borderRadius: 100, background: '#f1f5f9' }} />
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ width: 70, height: 22, borderRadius: 8, background: '#f1f5f9' }} />
+                <div style={{ width: 50, height: 20, borderRadius: 6, background: '#f1f5f9' }} />
               </div>
-              <div style={{ width: 160, height: 160, borderRadius: 14, background: '#f8fafc', border: '1.5px dashed #cbd5e1', marginBottom: '12px' }} />
-              <div style={{ width: '100%', height: 32, borderRadius: 10, background: '#f1f5f9', marginBottom: '10px' }} />
-              <div style={{ width: '100%', height: 38, borderRadius: 10, background: '#e2e8f0' }} />
+              <div style={{ width: 120, height: 120, borderRadius: 12, background: '#f8fafc', border: '1.5px dashed #cbd5e1', marginBottom: '10px' }} />
+              <div style={{ width: '100%', height: 28, borderRadius: 8, background: '#f1f5f9', marginBottom: '8px' }} />
+              <div style={{ width: '100%', height: 32, borderRadius: 8, background: '#e2e8f0' }} />
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
+        <div className="table-qr-grid-4">
           {filteredTables.map((table) => {
             const qrUrl = getTableQRUrl(table.tableNumber);
             const isOccupied = isTableOccupied(table);
@@ -758,10 +740,10 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
                 transition={{ duration: 0.2 }}
                 style={{
                   background: '#ffffff',
-                  borderRadius: '18px',
-                  border: isOccupied ? '1px solid #fde68a' : '1px solid #e2e8f0',
-                  padding: '1.25rem',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 6px 16px -2px rgba(15, 23, 42, 0.03)',
+                  borderRadius: '16px',
+                  border: '1px solid #e2e8f0',
+                  padding: '1rem 0.85rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px -2px rgba(15, 23, 42, 0.03)',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -769,79 +751,77 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
                   position: 'relative'
                 }}
               >
-                {/* 1. Header with Table Badge, Live Status & Delete Button */}
+                {/* 1. Header with Table Badge, Edit & Delete Buttons */}
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      background: '#f8fafc',
-                      color: '#0f172a',
-                      border: '1px solid #e2e8f0',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      fontWeight: 800,
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                    }}>
-                      Table {table.tableNumber}
-                    </div>
-
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4.5,
-                      fontSize: '10.5px',
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: '100px',
-                      background: isOccupied ? '#fffbeb' : '#f0fdf4',
-                      color: isOccupied ? '#92400e' : '#166534',
-                      border: isOccupied ? '1px solid #fde68a' : '1px solid #bbf7d0'
-                    }}>
-                      <span style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: '50%',
-                        background: isOccupied ? '#f59e0b' : '#22c55e'
-                      }}></span>
-                      {isOccupied ? 'Occupied' : 'Available'}
-                    </span>
+                  <div style={{
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    border: '1px solid #e2e8f0',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                  }}>
+                    Table {table.tableNumber}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setTableToDelete(table)}
-                    title="Delete Table"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '7px',
-                      border: '1px solid #fee2e2',
-                      background: '#fff1f2',
-                      color: '#e11d48',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(table)}
+                      title="Edit Table Name / Seating Capacity"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '7px',
+                        border: '1px solid #e2e8f0',
+                        background: '#f8fafc',
+                        color: '#475569',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Edit3 size={13} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTableToDelete(table)}
+                      title="Delete Table"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '7px',
+                        border: '1px solid #fee2e2',
+                        background: '#fff1f2',
+                        color: '#e11d48',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
 
-
-
-                {/* 2. QR Code Canvas Frame (Clickable for High-Res Full Screen Preview) */}
+                {/* 2. QR Code Canvas Frame (Compact, Clickable for Preview) */}
                 <div
                   onClick={() => setPreviewTable(table)}
                   title="Click to preview full-screen QR & print options"
                   style={{
                     width: '100%',
                     background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
-                    padding: '14px 10px 10px',
+                    padding: '10px 8px 8px',
                     borderRadius: '14px',
                     border: '1px solid #f1f5f9',
                     marginBottom: '12px',
@@ -862,7 +842,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
                 >
                   <div style={{
                     background: '#ffffff',
-                    padding: '10px',
+                    padding: '8px',
                     borderRadius: '12px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                     display: 'inline-flex',
@@ -871,7 +851,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
                     <QRCodeCanvas
                       id={`qr-canvas-${table.tableNumber}`}
                       value={qrUrl}
-                      size={140}
+                      size={105}
                       fgColor="#0f172a"
                       bgColor="#ffffff"
                       level="H"
@@ -880,15 +860,15 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
                   </div>
                   
                   <span style={{
-                    marginTop: '8px',
-                    fontSize: '11px',
+                    marginTop: '6px',
+                    fontSize: '10.5px',
                     fontWeight: 600,
                     color: '#64748b',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4
                   }}>
-                    <Coffee size={12} color="#64748b" /> Dine-in Menu & Order
+                    <Coffee size={11} color="#64748b" /> Dine-in Menu & Order
                   </span>
                 </div>
 

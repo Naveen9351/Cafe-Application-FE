@@ -1,5 +1,5 @@
 .container {
-  padding: 24px;
+  padding: 0px;
   background-color: #f8fafc;
   min-height: calc(100vh - 80px);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -9,83 +9,130 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 }
 
 .titleGroup h2 {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: 1.35rem;
+  font-weight: 600;
   color: #0f172a;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .titleGroup p {
   color: #64748b;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   margin: 0;
+}
+
+.searchBar {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  width: 100%;
+  min-width: 200px;
+  max-width: 260px;
+  font-size: 0.8rem;
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.15s ease;
+}
+
+.searchBar:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.refreshBtn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.refreshBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.addRecordBtn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+  transition: all 0.15s ease;
+}
+
+.addRecordBtn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
 }
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .statCard {
   background: #ffffff;
-  padding: 16px 20px;
-  border-radius: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .statIcon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .statInfo h4 {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 900;
+  font-size: 1.15rem;
+  font-weight: 600;
   color: #0f172a;
 }
 
 .statInfo span {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #64748b;
-  font-weight: 600;
-}
-
-.searchBar {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  width: 100%;
-  max-width: 340px;
-  font-size: 0.85rem;
-  outline: none;
-  background: #ffffff;
+  font-weight: 500;
 }
 
 .tableCard {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   overflow: hidden;
 }
 
@@ -96,20 +143,25 @@
 
 .khataTable th {
   background: #f8fafc;
-  padding: 14px 18px;
-  font-size: 0.75rem;
-  font-weight: 800;
+  padding: 8px 12px;
+  font-size: 0.68rem;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: #64748b;
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
 }
 
 .khataTable td {
-  padding: 14px 18px;
-  font-size: 0.85rem;
+  padding: 8px 12px;
+  font-size: 0.78rem;
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
+}
+
+.khataTable tr:last-child td {
+  border-bottom: none;
 }
 
 .statusPill {
@@ -117,7 +169,7 @@
   padding: 3px 9px;
   border-radius: 20px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .statusPending { background: #fee2e2; color: #dc2626; }
@@ -129,9 +181,9 @@
   color: #ffffff;
   border: none;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -143,7 +195,7 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
@@ -156,7 +208,16 @@
   background: #ffffff;
   width: 100%;
   max-width: 440px;
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   padding: 24px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }

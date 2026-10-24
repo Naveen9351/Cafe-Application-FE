@@ -1,18 +1,17 @@
 /* ==========================================================================
    ORDERS DIRECTORY & MANAGEMENT MODULE (CSS MODULE)
-   Enterprise-grade, Dense, Pixel-Perfect Layout matching CRMLoyalty
+   Modern Executive SaaS Aesthetics • Balanced Weights • Generous Breathing Space
    ========================================================================== */
 
 .page {
-  padding: 0.15rem 0.35rem 0;
+  padding: 0;
   background-color: transparent;
-  height: 100%;
-  max-height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
-  font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #0f172a;
   box-sizing: border-box;
 }
@@ -22,9 +21,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.75rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.55rem;
   flex-shrink: 0;
 }
 
@@ -32,62 +31,65 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .brandIconWrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  border: 1.5px solid rgba(16, 185, 129, 0.3);
-  color: #059669;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.1);
+  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.08);
   flex-shrink: 0;
 }
 
 .title {
-  font-size: 1.35rem;
-  font-weight: 900;
+  font-size: 1.15rem;
+  font-weight: 600;
   color: #0f172a;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.015em;
   margin: 0;
-  line-height: 1.15;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .subtitle {
-  font-size: 0.78rem;
-  color: #64748b;
-  margin: 0.1rem 0 0;
-  font-weight: 500;
+  display: none;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .btnPrimary {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.85rem;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  padding: 0.42rem 0.85rem;
+  border-radius: 7px;
+  background: #0f172a;
   border: none;
   color: #ffffff;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+  white-space: nowrap;
 }
 
 .btnPrimary:hover {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  background: #1e293b;
   transform: translateY(-1px);
 }
 
@@ -95,20 +97,21 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.75rem;
-  border-radius: 9px;
+  padding: 0.42rem 0.8rem;
+  border-radius: 7px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   color: #334155;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  white-space: nowrap;
 }
 
 .btnSecondary:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
   color: #0f172a;
   border-color: #cbd5e1;
 }
@@ -119,51 +122,52 @@
   gap: 0.35rem;
   padding: 0.3rem 0.65rem;
   border-radius: 9999px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #059669;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  color: #166534;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .liveDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 /* ── Streamlined Mini KPI Ribbon ── */
 .compactKpiRibbon {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.55rem;
-  margin-bottom: 0.45rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
   flex-shrink: 0;
 }
 
 .miniKpiCard {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  padding: 0.45rem 0.85rem;
   border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
-  transition: transform 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .miniKpiCard:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
 .miniKpiInfo {
@@ -172,38 +176,39 @@
 }
 
 .miniKpiLabel {
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: 0.65rem;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748b;
-  margin-bottom: 0.1rem;
+  margin-bottom: 0.18rem;
 }
 
 .miniKpiValueRow {
   display: flex;
   align-items: baseline;
   gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
 .miniKpiVal {
-  font-size: 1.22rem;
-  font-weight: 900;
+  font-size: 1.15rem;
+  font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
 .miniKpiSub {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 400;
   color: #059669;
 }
 
 .miniKpiIcon {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -211,41 +216,35 @@
 }
 
 .iconEmerald {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #dcfce7;
 }
 
 .iconAmber {
   background: #fffbeb;
   color: #d97706;
-  border: 1px solid #fde68a;
+  border: 1px solid #fef3c7;
 }
 
 .iconIndigo {
   background: #eef2ff;
   color: #4f46e5;
-  border: 1px solid #c7d2fe;
+  border: 1px solid #e0e7ff;
 }
 
 .iconRose {
   background: #fff1f2;
   color: #e11d48;
-  border: 1px solid #fecdd3;
-}
-
-.iconBlue {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #ffe4e6;
 }
 
 /* ── Full Width Table Container ── */
 .fullWidthCard {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -255,12 +254,12 @@
 
 /* ── Unified Toolbar ── */
 .unifiedToolbar {
-  padding: 0.6rem 0.95rem;
+  padding: 0.45rem 0.85rem;
   background: #ffffff;
   border-bottom: 1px solid #f1f5f9;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
@@ -269,50 +268,52 @@
 .toolbarLeft {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .totalOrdersLedgerBadge {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
+  gap: 0.35rem;
+  padding: 0.32rem 0.65rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 0.78rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-weight: 500;
+  color: #334155;
+  white-space: nowrap;
 }
 
 .totalOrdersLedgerCount {
   background: #0f172a;
   color: #ffffff;
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .toolbarRight {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
   flex: 1 1 auto;
   justify-content: flex-end;
 }
 
 .searchField {
   position: relative;
-  min-width: 170px;
-  flex: 1 1 170px;
+  min-width: 160px;
+  flex: 1 1 180px;
   max-width: 240px;
 }
 
 .searchIcon {
   position: absolute;
-  left: 0.7rem;
+  left: 0.65rem;
   top: 50%;
   transform: translateY(-50%);
   color: #94a3b8;
@@ -342,52 +343,52 @@
 .inputField {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.4rem 1.5rem 0.4rem 2rem;
-  border-radius: 9px;
+  padding: 0.36rem 1.4rem 0.36rem 1.8rem;
+  border-radius: 7px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   font-size: 0.78rem;
   color: #0f172a;
   outline: none;
-  font-weight: 600;
+  font-weight: 400;
   transition: all 0.15s ease;
 }
 
 .inputField:focus {
   background: #ffffff;
-  border-color: #059669;
-  box-shadow: 0 0 0 2.5px rgba(5, 150, 105, 0.1);
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2.5px rgba(15, 23, 42, 0.06);
 }
 
 .selectField {
-  padding: 0.4rem 0.65rem;
-  border-radius: 9px;
+  padding: 0.36rem 0.65rem;
+  border-radius: 7px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
-  font-size: 0.76rem;
-  color: #0f172a;
+  font-size: 0.78rem;
+  color: #334155;
   outline: none;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .selectField:focus {
   background: #ffffff;
-  border-color: #059669;
+  border-color: #0f172a;
 }
 
 .resetBtn {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.4rem 0.65rem;
-  border-radius: 9px;
+  padding: 0.36rem 0.65rem;
+  border-radius: 7px;
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
   color: #475569;
-  font-size: 0.74rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -417,75 +418,20 @@
   top: 0;
   background: #f8fafc;
   z-index: 10;
-  padding: 0.65rem 0.9rem;
-  color: #475569;
-  font-size: 0.7rem;
+  padding: 0.5rem 0.85rem;
+  color: #64748b;
+  font-size: 0.67rem;
   text-transform: uppercase;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  border-bottom: 1.5px solid #e2e8f0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e2e8f0;
   white-space: nowrap;
 }
 
-/* ── Date Group Header Row ── */
-.dateGroupHeaderRow {
-  background: #f8fafc;
-}
-
-.dateGroupCell {
-  padding: 0.55rem 0.95rem;
-  background: #f1f5f9;
-  border-top: 1.5px solid #e2e8f0;
-  border-bottom: 1.5px solid #e2e8f0;
-}
-
-.dateGroupContent {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.dateGroupBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.01em;
-}
-
-.dateGroupCount {
-  display: inline-flex;
-  align-items: center;
-  background: #e2e8f0;
-  color: #475569;
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 1.5px 6px;
-  border-radius: 9999px;
-}
-
-.dateGroupSales {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: #64748b;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.dateGroupSales strong {
-  color: #059669;
-  font-weight: 800;
-}
-
 .td {
-  padding: 0.65rem 0.9rem;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.82rem;
+  padding: 0.45rem 0.85rem;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 0.8rem;
   color: #334155;
   vertical-align: middle;
 }
@@ -500,7 +446,7 @@
 }
 
 .trActive {
-  background-color: #ecfdf5 !important;
+  background-color: #f0fdf4 !important;
 }
 
 /* Order Identity Cell */
@@ -511,9 +457,10 @@
 }
 
 .orderNumberText {
-  font-weight: 900;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
   color: #0f172a;
-  font-size: 0.86rem;
+  font-size: 0.8125rem;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -525,10 +472,11 @@
   gap: 2px;
   padding: 1px 5px;
   border-radius: 4px;
-  font-size: 0.66rem;
-  font-weight: 800;
-  background: #e2e8f0;
-  color: #334155;
+  font-size: 0.65rem;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
 .channelPill {
@@ -536,55 +484,41 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.12rem 0.45rem;
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 500;
   width: fit-content;
 }
 
 .channelDineIn {
   background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  border: 1px solid #dbeafe;
 }
 
 .channelTakeaway {
   background: #fffbeb;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  color: #b45309;
+  border: 1px solid #fef3c7;
 }
 
 .channelDelivery {
   background: #f5f3ff;
-  color: #7c3aed;
-  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+  border: 1px solid #ede9fe;
 }
 
 .channelQr {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #dcfce7;
 }
 
 /* Customer Cell */
 .customerIdentity {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 0.78rem;
-  color: #ffffff;
-  flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  gap: 0.5rem;
 }
 
 .identityText {
@@ -594,15 +528,15 @@
 }
 
 .nameRow {
-  font-weight: 800;
+  font-weight: 500;
   color: #0f172a;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
 }
 
 .phoneText {
   font-size: 0.72rem;
-  color: #64748b;
-  font-weight: 600;
+  color: #94a3b8;
+  font-weight: 400;
 }
 
 /* Items Preview Cell */
@@ -610,7 +544,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  max-width: 220px;
+  max-width: 240px;
 }
 
 .itemsCountBadge {
@@ -618,18 +552,18 @@
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
-  border-radius: 9999px;
+  border-radius: 5px;
   background: #f1f5f9;
-  color: #475569;
-  font-size: 0.68rem;
-  font-weight: 800;
+  color: #64748b;
+  font-size: 0.67rem;
+  font-weight: 500;
   width: fit-content;
 }
 
 .itemsSummaryText {
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   color: #334155;
-  font-weight: 600;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -640,52 +574,52 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: #059669;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  padding: 0.18rem 0.55rem;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 0.16rem 0.55rem;
   border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 .paymentPaidCash {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: #0284c7;
+  color: #0369a1;
   background: #f0f9ff;
   border: 1px solid #bae6fd;
-  padding: 0.18rem 0.55rem;
+  padding: 0.16rem 0.55rem;
   border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 .paymentPaidCard {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: #7c3aed;
+  color: #6d28d9;
   background: #f5f3ff;
   border: 1px solid #ddd6fe;
-  padding: 0.18rem 0.55rem;
+  padding: 0.16rem 0.55rem;
   border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 .paymentUnpaid {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: #dc2626;
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  padding: 0.18rem 0.55rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 0.16rem 0.55rem;
   border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 /* Order Status Badges */
@@ -693,79 +627,79 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: #d97706;
+  color: #b45309;
   background: #fffbeb;
-  border: 1px solid #fde68a;
-  padding: 0.2rem 0.6rem;
+  border: 1px solid #fef3c7;
+  padding: 0.18rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .statusPreparing {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: #2563eb;
+  color: #1d4ed8;
   background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  padding: 0.2rem 0.6rem;
+  border: 1px solid #dbeafe;
+  padding: 0.18rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .statusReady {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: #7c3aed;
+  color: #6d28d9;
   background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-  padding: 0.2rem 0.6rem;
+  border: 1px solid #ede9fe;
+  padding: 0.18rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .statusCompleted {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: #059669;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  padding: 0.2rem 0.6rem;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  padding: 0.18rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .statusCancelled {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: #dc2626;
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  padding: 0.2rem 0.6rem;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  padding: 0.18rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .statusDot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
 }
 
 /* Amount & Action Button */
 .amountText {
-  font-weight: 900;
-  color: #059669;
-  font-size: 0.88rem;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.82rem;
   letter-spacing: -0.01em;
 }
 
@@ -773,15 +707,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: 8px;
-  background: #f8fafc;
+  padding: 0.32rem 0.65rem;
+  border-radius: 6px;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   color: #334155;
-  font-size: 0.74rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .actionBtn:hover {
@@ -792,7 +727,7 @@
 
 /* ── Table Footer ── */
 .tableFooter {
-  padding: 0.65rem 0.95rem;
+  padding: 0.4rem 0.85rem;
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
   display: flex;
@@ -800,7 +735,7 @@
   align-items: center;
   font-size: 0.75rem;
   color: #64748b;
-  font-weight: 600;
+  font-weight: 400;
   flex-shrink: 0;
   margin-top: auto;
 }
@@ -808,22 +743,22 @@
 /* ── Empty State ── */
 .emptyState {
   text-align: center;
-  padding: 3.5rem 1.5rem;
+  padding: 4rem 1.5rem;
   color: #94a3b8;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 /* ── Loading Skeleton & Spinner States ── */
 .skeletonRow {
-  height: 54px;
+  height: 56px;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .skeletonCell {
-  padding: 0.75rem 0.9rem;
+  padding: 0.95rem 1.25rem;
 }
 
 .skeletonLine {
@@ -832,16 +767,6 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 6px;
-}
-
-.skeletonAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  flex-shrink: 0;
 }
 
 .skeletonPill {
@@ -874,14 +799,14 @@
   max-width: 520px;
   height: 100%;
   background: #ffffff;
-  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
 .drawerHeader {
-  padding: 1rem 1.25rem;
+  padding: 1.15rem 1.5rem;
   background: #ffffff;
   border-bottom: 1px solid #f1f5f9;
   display: flex;
@@ -893,21 +818,21 @@
 .drawerOrderTitleWrap {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 .drawerOrderId {
   font-size: 1.15rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .drawerTimestamp {
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   color: #64748b;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .closeBtn {
@@ -931,12 +856,12 @@
 }
 
 .drawerBody {
-  padding: 1.1rem 1.25rem;
+  padding: 1.25rem 1.5rem;
   overflow-y: auto;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.95rem;
+  gap: 1.15rem;
 }
 
 /* Status Quick Stepper */
@@ -944,37 +869,37 @@
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 0.75rem 0.9rem;
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .statusStepperTitle {
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
   color: #64748b;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .statusBtnGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .statusStepBtn {
-  padding: 0.4rem 0.25rem;
+  padding: 0.45rem 0.35rem;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   color: #475569;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   text-align: center;
   transition: all 0.15s ease;
@@ -990,7 +915,7 @@
   background: #0f172a !important;
   color: #ffffff !important;
   border-color: #0f172a !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
 }
 
 /* Customer Snapshot Card */
@@ -998,7 +923,7 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 0.75rem 0.95rem;
+  padding: 0.85rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1008,22 +933,22 @@
 .customerSnapshotLeft {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 .quickActionBtns {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
 .contactIconBtn {
-  width: 30px;
-  height: 30px;
+  display: none; /* Hidden on desktop / PC */
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  display: flex;
   align-items: center;
   justify-content: center;
   color: #334155;
@@ -1032,10 +957,17 @@
   transition: all 0.15s ease;
 }
 
+/* Show only when viewed on mobile */
+@media (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+  .contactIconBtn {
+    display: inline-flex;
+  }
+}
+
 .contactIconBtn:hover {
-  background: #ecfdf5;
-  color: #059669;
-  border-color: #a7f3d0;
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
   transform: translateY(-1px);
 }
 
@@ -1049,7 +981,7 @@
 }
 
 .receiptHeader {
-  padding: 0.65rem 0.95rem;
+  padding: 0.75rem 1rem;
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
@@ -1059,12 +991,12 @@
 
 .receiptHeaderTitle {
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .receiptTable {
@@ -1073,10 +1005,10 @@
 }
 
 .receiptTh {
-  padding: 0.5rem 0.95rem;
-  font-size: 0.68rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  font-weight: 800;
+  font-weight: 600;
   color: #64748b;
   border-bottom: 1px solid #f1f5f9;
   text-align: left;
@@ -1084,7 +1016,7 @@
 }
 
 .receiptTd {
-  padding: 0.6rem 0.95rem;
+  padding: 0.7rem 1rem;
   font-size: 0.78rem;
   border-bottom: 1px solid #f8fafc;
   color: #334155;
@@ -1092,14 +1024,14 @@
 }
 
 .receiptItemName {
-  font-weight: 800;
+  font-weight: 500;
   color: #0f172a;
 }
 
 .receiptItemModifier {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: #64748b;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 /* Bill Calculation Breakdown */
@@ -1107,28 +1039,28 @@
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 0.75rem 0.95rem;
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
 .calcRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   color: #64748b;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .calcRowHighlight {
-  font-size: 0.92rem;
-  font-weight: 900;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #0f172a;
-  padding-top: 0.4rem;
+  padding-top: 0.5rem;
   border-top: 1px dashed #cbd5e1;
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
 }
 
 /* Special Note Alert */
@@ -1136,22 +1068,22 @@
   background: #fffbeb;
   border: 1px solid #fde68a;
   border-radius: 10px;
-  padding: 0.6rem 0.85rem;
+  padding: 0.75rem 1rem;
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  font-size: 0.76rem;
+  gap: 0.6rem;
+  font-size: 0.78rem;
   color: #92400e;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 /* Drawer Footer Actions */
 .drawerFooter {
-  padding: 0.85rem 1.25rem;
+  padding: 1rem 1.5rem;
   background: #ffffff;
   border-top: 1px solid #f1f5f9;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.65rem;
   flex-shrink: 0;
 }
 
@@ -1160,13 +1092,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   padding: 0.65rem 1rem;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #0f172a;
   color: #ffffff;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 500;
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -1181,13 +1113,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   padding: 0.65rem 1rem;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #16a34a;
   color: #ffffff;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 500;
   border: none;
   cursor: pointer;
   text-decoration: none;
@@ -1197,4 +1129,236 @@
 .whatsappBillBtn:hover {
   background: #15803d;
   transform: translateY(-1px);
+}
+
+/* ── Filter Popup Modal & Active Pill Styles ── */
+.btnFilterActive {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.filterBadgeCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  min-width: 16px;
+}
+
+.filterModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.filterModalCard {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 440px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.filterModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+}
+
+.filterModalTitle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.modalCloseBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.filterModalBody {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filterLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.modalSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  transition: border-color 0.15s;
+}
+
+.modalSearchWrap:focus-within {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.modalSearchInput {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.8rem;
+  color: #0f172a;
+  width: 100%;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.modalSelectField {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.modalSelectField:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.filterModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.1rem;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.filterResetBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.filterResetBtn:hover:not(:disabled) {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.filterResetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.filterApplyBtn {
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.filterApplyBtn:hover {
+  background: #1e293b;
+}
+
+.activeFilterPillsBar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  font-size: 0.7rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.filterChipRemove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+}
+
+.filterChipRemove:hover {
+  color: #ef4444;
 }

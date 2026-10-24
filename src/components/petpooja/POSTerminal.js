@@ -606,8 +606,13 @@ export default function POSTerminal({
   // Confirm Khata / Borrow (Udhari) Record & Settlement
   const handleConfirmKhataSettlement = async (e) => {
     if (e) e.preventDefault();
-    if (!customerName.trim() || !customerPhone.trim()) {
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (!customerName.trim() || !cleanPhone) {
       toast.error('Customer Name and Phone number are required to record Khata / Borrow');
+      return;
+    }
+    if (cleanPhone.length !== 10) {
+      toast.error('Customer phone number must be exactly 10 digits');
       return;
     }
 
@@ -1193,9 +1198,16 @@ export default function POSTerminal({
                   />
                   <input
                     type="tel"
-                    placeholder="Phone Number"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit Phone No"
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className={styles.inputField}
                   />
                 </div>
@@ -1964,10 +1976,16 @@ export default function POSTerminal({
                   <Phone size={14} className={styles.khataInputIcon} />
                   <input
                     type="tel"
-                    placeholder="e.g. 98765 43210"
-                    maxLength="14"
+                    inputMode="numeric"
+                    placeholder="10-digit Mobile Number"
+                    maxLength={10}
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className={styles.khataInputField}
                     required
                   />

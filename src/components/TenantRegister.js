@@ -239,6 +239,11 @@ const TenantRegister = () => {
                                         pattern="[0-9]*"
                                         placeholder="10-digit Mobile"
                                         value={formData.phone}
+                                        onKeyDown={(e) => {
+                                            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         onChange={handleChange}
                                         disabled={loading}
                                         maxLength={10}

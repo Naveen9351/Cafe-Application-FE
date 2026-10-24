@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Shield, Check, X, Edit, Trash2, Key, UserCheck, Eye, EyeOff } from 'lucide-react';
+import { Users, Plus, Shield, Check, X, Edit, Trash2, Key, UserCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
@@ -165,6 +165,11 @@ export default function StaffManager() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (phone.trim() && !/^[0-9]{10}$/.test(phone.trim())) {
+        toast.error('Mobile number must be exactly 10 digits');
+        return;
+      }
+
       setSubmitting(true);
       const token = localStorage.getItem('token');
 
@@ -277,7 +282,7 @@ export default function StaffManager() {
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <h2>
-            <Users size={26} color="#2563eb" />
+            <Users size={20} color="#2563eb" />
             Staff Management
           </h2>
         </div>
@@ -306,8 +311,11 @@ export default function StaffManager() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                    Loading staff directory...
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                      <Loader2 size={30} color="#4f46e5" style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Loading staff directory...</span>
+                    </div>
                   </td>
                 </tr>
               ) : staffList.length === 0 ? (
@@ -485,9 +493,16 @@ export default function StaffManager() {
                   <label>Phone Number</label>
                   <input
                     type="tel"
-                    placeholder="e.g. 9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit Phone No"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className={styles.inputField}
                   />
                 </div>

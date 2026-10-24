@@ -53,7 +53,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
       return;
     }
 
-    if (cleanPhone.length < 10) {
+    if (!cleanPhone || cleanPhone.length !== 10 || !/^[0-9]{10}$/.test(cleanPhone)) {
       toast.error('Please enter a valid 10-digit mobile number');
       return;
     }
@@ -292,12 +292,18 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
                 <span className={styles.countryCode}>+91</span>
                 <input
                   type="tel"
+                  inputMode="numeric"
                   required
                   maxLength={10}
-                  placeholder="Enter Mobile Number"
+                  placeholder="10-digit Mobile Number"
                   className={styles.phoneInput}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={(e) => {
+                    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
                 />
               </div>
             </div>

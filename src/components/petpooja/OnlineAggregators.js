@@ -16,6 +16,11 @@ export default function OnlineAggregators({ tenantId }) {
     if (!itemName) return toast.error("Enter food item name");
     const token = localStorage.getItem('token');
     
+    if (custPhone && !/^[0-9]{10}$/.test(custPhone.trim())) {
+      toast.error("Customer phone must be a valid 10-digit number");
+      return;
+    }
+
     const payload = {
       platform,
       customerName: custName,
@@ -107,9 +112,17 @@ export default function OnlineAggregators({ tenantId }) {
             <div>
               <label className={styles.label}>Customer Phone</label>
               <input 
-                type="text" 
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit Phone No"
                 value={custPhone}
-                onChange={(e) => setCustPhone(e.target.value)}
+                onKeyDown={(e) => {
+                  if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                  }
+                }}
+                onChange={(e) => setCustPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 className={styles.input}
               />
             </div>

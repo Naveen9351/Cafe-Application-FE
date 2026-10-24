@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, Clock, CreditCard, 
+import {
+  Building2, Clock, CreditCard,
   Upload, Trash2, CheckCircle, Info, X, ShieldCheck, Check, Sparkles, BookOpen,
-  QrCode, Receipt, Lock, Smartphone, RefreshCw, AlertCircle, Printer, Download
+  QrCode, Receipt, Lock, Smartphone, RefreshCw, AlertCircle, Printer, Download,
+  TrendingUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -18,7 +19,7 @@ const AVAILABLE_PLANS = [
 export default function RestaurantSettings({ tenantInfo, onSave }) {
   const [activeSection, setActiveSection] = useState('general');
   const [logoPreview, setLogoPreview] = useState(tenantInfo?.logo || '');
-  
+
   // In-App Upgrade Modal & Payment State
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedPlanToUpgrade, setSelectedPlanToUpgrade] = useState(AVAILABLE_PLANS[1]);
@@ -36,6 +37,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     storeAddress: tenantInfo?.address || '',
     primaryPhone: tenantInfo?.phone || '',
     publicEmail: tenantInfo?.email || '',
+    profitMargin: tenantInfo?.settings?.profitMargin !== undefined ? tenantInfo.settings.profitMargin : 40,
     enableEstimatedPrepTime: tenantInfo?.settings?.enableEstimatedPrepTime || false,
     enableKhata: tenantInfo?.settings?.enableKhata || false,
     operatingHours: tenantInfo?.settings?.operatingHours || [
@@ -58,6 +60,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         storeAddress: tenantInfo.address || prev.storeAddress,
         primaryPhone: tenantInfo.phone || prev.primaryPhone,
         publicEmail: tenantInfo.email || prev.publicEmail,
+        profitMargin: tenantInfo.settings?.profitMargin !== undefined ? tenantInfo.settings.profitMargin : prev.profitMargin,
         enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime !== undefined ? tenantInfo.settings.enableEstimatedPrepTime : false,
         enableKhata: tenantInfo.settings?.enableKhata !== undefined ? tenantInfo.settings.enableKhata : false,
         operatingHours: tenantInfo.settings?.operatingHours || prev.operatingHours,
@@ -147,6 +150,11 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
   const handleSave = (e) => {
     if (e) e.preventDefault();
+    if (form.primaryPhone && !/^[0-9]{10}$/.test(form.primaryPhone.trim())) {
+      toast.error('Primary phone must be a valid 10-digit mobile number');
+      return;
+    }
+
     if (onSave) {
       onSave({
         name: form.restaurantName,
@@ -156,6 +164,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         address: form.storeAddress,
         phone: form.primaryPhone,
         email: form.publicEmail,
+        profitMargin: Number(form.profitMargin) || 40,
         enableEstimatedPrepTime: form.enableEstimatedPrepTime,
         enableKhata: form.enableKhata,
         operatingHours: form.operatingHours
@@ -208,11 +217,11 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       const generatedPaymentId = `PAY_RZP_${Date.now().toString(36).toUpperCase()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       const bankRefNo = `TXN${Math.floor(1000000000 + Math.random() * 9000000000)}`;
 
-      const paymentMethodName = 
+      const paymentMethodName =
         payMethod === 'upi_qr' ? 'UPI Dynamic QR Scan (Instant)' :
-        payMethod === 'upi_vpa' ? `UPI ID (${upiVpa})` :
-        payMethod === 'card' ? `Credit/Debit Card (Ending in ${cardData.number.slice(-4) || '4242'})` :
-        `Net Banking (${selectedBank})`;
+          payMethod === 'upi_vpa' ? `UPI ID (${upiVpa})` :
+            payMethod === 'card' ? `Credit/Debit Card (Ending in ${cardData.number.slice(-4) || '4242'})` :
+              `Net Banking (${selectedBank})`;
 
       const res = await axios.post(`${API_URL}/tenants/upgrade-plan`, {
         planId: selectedPlanToUpgrade.id,
@@ -255,7 +264,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       <div className={styles.topHeader}>
         <div>
           <h1 className={styles.pageTitle}>Restaurant Settings</h1>
-          <p className={styles.pageSubtitle}>Configure your restaurant identity, operations, customer credit, and subscription.</p>
         </div>
         <div className={styles.topActions}>
           <button type="button" className={styles.discardBtn} onClick={handleDiscard}>Discard Changes</button>
@@ -268,23 +276,23 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         <aside className={styles.subSidebar}>
           <div className={styles.navGroup}>
             <span className={styles.groupLabel}>SECTIONS</span>
-            <button 
+            <button
               className={`${styles.navItem} ${activeSection === 'general' ? styles.activeNav : ''}`}
               onClick={() => { setActiveSection('general'); document.getElementById('general')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
               <Building2 size={16} /> <span>General Identity</span>
             </button>
-            <button 
+            <button
               className={`${styles.navItem} ${activeSection === 'operations' ? styles.activeNav : ''}`}
               onClick={() => { setActiveSection('operations'); document.getElementById('operations')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
-              <Clock size={16} /> <span>Operations & Features</span>
+              <Clock size={16} /> <span>Features</span>
             </button>
-            <button 
+            <button
               className={`${styles.navItem} ${activeSection === 'subscription' ? styles.activeNav : ''}`}
               onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
-              <CreditCard size={16} /> <span>Subscription & Billing</span>
+              <CreditCard size={16} /> <span>Subscription</span>
             </button>
           </div>
 
@@ -313,14 +321,14 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
         {/* Right Settings Cards Area */}
         <div className={styles.cardsArea}>
-          
+
           {/* 1. General Identity */}
           <section className={styles.sectionCard} id="general">
             <div className={styles.cardHeader}>
               <h3>General Identity</h3>
               <Info size={16} className={styles.infoIcon} />
             </div>
-            
+
             <div className={styles.cardBody}>
               <div className={styles.identityGrid}>
                 {/* Logo Box */}
@@ -339,9 +347,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       <Upload size={14} />
                       <span>{logoPreview ? 'Replace Logo' : 'Upload Logo'}</span>
                       <small>PNG, JPG up to 5MB</small>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
+                      <input
+                        type="file"
+                        accept="image/*"
                         style={{ display: 'none' }}
                         onChange={(e) => {
                           const file = e.target.files && e.target.files[0];
@@ -368,8 +376,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   <div className={styles.inputRow}>
                     <div className={styles.inputGroup}>
                       <label>Restaurant Name</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder="e.g. Cafe Delight"
                         value={form.restaurantName}
                         onChange={(e) => setForm({ ...form, restaurantName: e.target.value })}
@@ -377,8 +385,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     </div>
                     <div className={styles.inputGroup}>
                       <label>GST / Tax Number</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder="e.g. GSTIN29ABCDE1234F"
                         value={form.gstNumber}
                         onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
@@ -388,8 +396,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
                   <div className={styles.inputGroup}>
                     <label>Store Address</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="e.g. 1224 Main Road, Sector 5, City"
                       value={form.storeAddress}
                       onChange={(e) => setForm({ ...form, storeAddress: e.target.value })}
@@ -399,17 +407,24 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   <div className={styles.inputRow}>
                     <div className={styles.inputGroup}>
                       <label>Primary Phone</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. +91 9876543210"
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="10-digit Phone No (e.g. 9876543210)"
                         value={form.primaryPhone}
-                        onChange={(e) => setForm({ ...form, primaryPhone: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => setForm({ ...form, primaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                       />
                     </div>
                     <div className={styles.inputGroup}>
                       <label>Public Email</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         placeholder="e.g. contact@mycafe.com"
                         value={form.publicEmail}
                         onChange={(e) => setForm({ ...form, publicEmail: e.target.value })}
@@ -429,17 +444,17 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 📋 Copy Hours to All
               </button>
             </div>
-            
+
             <div className={styles.cardBody}>
               <div className={styles.hoursList}>
                 {form.operatingHours.map((schedule, idx) => (
                   <div key={schedule.day} className={styles.hourRow}>
                     <div className={styles.daySwitch}>
                       <label className={styles.switch}>
-                        <input 
-                          type="checkbox" 
-                          checked={schedule.enabled} 
-                          onChange={() => handleToggleDay(idx)} 
+                        <input
+                          type="checkbox"
+                          checked={schedule.enabled}
+                          onChange={() => handleToggleDay(idx)}
                         />
                         <span className={styles.slider}></span>
                       </label>
@@ -448,9 +463,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
                     {schedule.enabled ? (
                       <div className={styles.timeInputs}>
-                        <input 
-                          type="text" 
-                          value={schedule.open} 
+                        <input
+                          type="text"
+                          value={schedule.open}
                           onChange={(e) => {
                             const val = e.target.value;
                             setForm(prev => {
@@ -462,9 +477,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                           className={styles.timeField}
                         />
                         <span className={styles.toLabel}>to</span>
-                        <input 
-                          type="text" 
-                          value={schedule.close} 
+                        <input
+                          type="text"
+                          value={schedule.close}
                           onChange={(e) => {
                             const val = e.target.value;
                             setForm(prev => {
@@ -475,8 +490,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                           }}
                           className={styles.timeField}
                         />
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           className={styles.deleteHourBtn}
                           onClick={() => handleToggleDay(idx)}
                         >
@@ -502,34 +517,37 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   </p>
                 </div>
                 <label className={styles.switch}>
-                  <input 
-                    type="checkbox" 
-                    checked={form.enableEstimatedPrepTime} 
-                    onChange={(e) => handleTogglePrepTimeDirect(e.target.checked)} 
+                  <input
+                    type="checkbox"
+                    checked={form.enableEstimatedPrepTime}
+                    onChange={(e) => handleTogglePrepTimeDirect(e.target.checked)}
                   />
                   <span className={styles.slider}></span>
                 </label>
               </div>
 
-              {/* Customer Khata / Borrow (Udhari) Feature Toggle */}
+              {/* Target Net Profit Margin (%) */}
               <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <BookOpen size={16} color="#d97706" />
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Enable Customer Credit / Borrow (Udhari / Khata)</strong>
+                    <TrendingUp size={16} color="#4f46e5" />
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Estimated Net Profit Margin (%)</strong>
                   </div>
                   <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Enable this toggle if your cafe allows daily/regular customers to borrow or make partial payments (e.g. paying ₹600 on a ₹610 bill). This adds a Khata button in POS and ledger tracking.
+                    Used on your main Dashboard to calculate estimated net profit and profit margin from gross sales. (Default: 40%)
                   </p>
                 </div>
-                <label className={styles.switch}>
-                  <input 
-                    type="checkbox" 
-                    checked={form.enableKhata} 
-                    onChange={(e) => handleToggleKhataDirect(e.target.checked)} 
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={form.profitMargin ?? 40}
+                    onChange={(e) => setForm({ ...form, profitMargin: Math.max(1, Math.min(100, Number(e.target.value) || 0)) })}
+                    style={{ width: '70px', padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', textAlign: 'center', fontWeight: 700 }}
                   />
-                  <span className={styles.slider}></span>
-                </label>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>%</span>
+                </div>
               </div>
             </div>
           </section>
@@ -542,7 +560,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 {tenantInfo?.subscription?.isActive !== false ? '● ACTIVE PLAN' : '● DEACTIVATED'}
               </span>
             </div>
-            
+
             <div className={styles.cardBody}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
                 <div>
@@ -566,7 +584,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               </div>
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button 
+                <button
                   type="button"
                   onClick={() => { setPaymentStep('select'); setShowUpgradeModal(true); }}
                   style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: '#ffffff', border: 'none', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
@@ -647,7 +665,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             maxHeight: '92vh',
             overflowY: 'auto'
           }} onClick={(e) => e.stopPropagation()}>
-            
+
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
               <div>
@@ -842,7 +860,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 {payMethod === 'upi_qr' && (
                   <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
                     <div style={{ display: 'inline-block', padding: '10px', background: '#ffffff', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <img 
+                      <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=serviq.payments@icici&pn=SERVIQ%20Cafe%20OS&am=${selectedPlanToUpgrade.price}&cu=INR&tn=Plan_${selectedPlanToUpgrade.id}`}
                         alt="UPI Payment QR Code"
                         style={{ width: '150px', height: '150px', display: 'block' }}
@@ -862,8 +880,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                       Enter your UPI ID (VPA)
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="e.g. mobileNumber@upi / yourname@okaxis"
                       value={upiVpa}
                       onChange={(e) => setUpiVpa(e.target.value)}
@@ -879,8 +897,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
                     <div style={{ marginBottom: 10 }}>
                       <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Card Number</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder="4532 •••• •••• 8921"
                         maxLength="19"
                         value={cardData.number}
@@ -891,8 +909,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Expiry (MM/YY)</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="12/28"
                           maxLength="5"
                           value={cardData.expiry}
@@ -902,8 +920,8 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>CVV / CVC</label>
-                        <input 
-                          type="password" 
+                        <input
+                          type="password"
                           placeholder="•••"
                           maxLength="4"
                           value={cardData.cvv}

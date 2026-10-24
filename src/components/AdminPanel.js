@@ -8,7 +8,7 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -117,6 +117,7 @@ export default function AdminPanel() {
 
   const [posSelectedTable, setPosSelectedTable] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [items, setItems] = useState([]);
@@ -191,7 +192,7 @@ export default function AdminPanel() {
   const userInitials = (user?.name || user?.fullName || userEmail.split('@')[0] || 'U').slice(0, 2).toUpperCase();
 
   // Dashboard Date Filter State
-  const [dateRange, setDateRange] = useState('all'); // 'all', 'today', 'this_week', 'this_month', 'custom'
+  const [dateRange, setDateRange] = useState('today'); // 'today', 'this_week', 'this_month', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [isFilterLoading, setIsFilterLoading] = useState(false);
@@ -209,6 +210,16 @@ export default function AdminPanel() {
     }
     return standardCategories;
   });
+
+  // Alphabetically sorted categories with "All Dishes" always first (A-Z)
+  const sortedCategories = useMemo(() => {
+    if (!categories || !categories.length) return [];
+    const allCat = categories.find(c => c.id === 'all') || { id: 'all', name: 'All Dishes' };
+    const others = categories
+      .filter(c => c.id !== 'all')
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+    return [allCat, ...others];
+  }, [categories]);
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState('add'); // 'add' or 'edit'
@@ -258,6 +269,146 @@ export default function AdminPanel() {
   // Delete Confirmation Modal State
   const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Top Header Global Omnisearch Spotlight State
+  const [headerSearchQuery, setHeaderSearchQuery] = useState('');
+  const [isHeaderSearchOpen, setIsHeaderSearchOpen] = useState(false);
+  const searchDropdownRef = useRef(null);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target)) {
+        setIsHeaderSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  // Application Modules & Destinations with Typo-Tolerant Keywords
+  const appModules = useMemo(() => [
+    {
+      id: 'menu',
+      label: 'Menu Management',
+      keywords: ['menu', 'menu management', 'mune', 'manue', 'manue mangement', 'dishes', 'items', 'catalog', 'food menu', 'categories', 'add dish'],
+      icon: UtensilsCrossed,
+      desc: 'Dishes catalog, pricing, categories & inventory'
+    },
+    {
+      id: 'pos',
+      label: 'POS Terminal & Tables',
+      keywords: ['pos', 'pos terminal', 'terminal', 'billing', 'cashier', 'table billing', 'counter', 'pos billing', 'takeaway', 'dine in'],
+      icon: IndianRupee,
+      desc: 'Table layout, dine-in orders & fast takeaway checkout'
+    },
+    {
+      id: 'kds',
+      label: 'Live Orders (KDS)',
+      keywords: ['live orders', 'kds', 'kitchen', 'kitchen display', 'live', 'cook', 'chef', 'active orders', 'preparation'],
+      icon: ChefHat,
+      desc: 'Real-time kitchen display queue & order readiness'
+    },
+    {
+      id: 'orders',
+      label: 'Orders Directory & History',
+      keywords: ['orders', 'order directory', 'all orders', 'order history', 'bills', 'receipts', 'past orders', 'settled'],
+      icon: ShoppingBag,
+      desc: 'Comprehensive order ledger, customer receipts & bills'
+    },
+    {
+      id: 'reports',
+      label: 'Revenue & Sales Reports',
+      keywords: ['reports', 'reports suite', 'sales reports', 'revenue reports', 'daily sales', 'financials', 'reprot', 'audit', 'tax'],
+      icon: BarChart3,
+      desc: 'Financial reports, payment method breakdown & metrics'
+    },
+    {
+      id: 'staff',
+      label: 'Staff Management',
+      keywords: ['staff', 'staff management', 'waiters', 'cashiers', 'employees', 'roles', 'team', 'users', 'permissions'],
+      icon: UserCheck,
+      desc: 'Team permissions, PIN codes, waiter & cashier logins'
+    },
+    {
+      id: 'khata',
+      label: 'Khata Ledger & Borrow (Udhari)',
+      keywords: ['khata', 'khata ledger', 'borrow', 'udhari', 'credit', 'customer credit', 'pending balance', 'due', 'ledger', 'dues'],
+      icon: BookOpen,
+      desc: 'Track customer credit, settle udhari & balance dues'
+    },
+    {
+      id: 'dashboard',
+      label: 'Dashboard Overview',
+      keywords: ['dashboard', 'home', 'overview', 'kpi', 'revenue', 'analytics', 'dashbord', 'deshboard'],
+      icon: LayoutDashboard,
+      desc: 'Live revenue velocity, sales telemetry & peak metrics'
+    },
+    {
+      id: 'tables',
+      label: 'Table QR Codes & Hub',
+      keywords: ['table qr codes', 'qr', 'tables', 'qr codes', 'table management', 'table ordering', 'dine in', 'hub'],
+      icon: QrCode,
+      desc: 'Physical dining tables, seatings & printable QR codes'
+    },
+    {
+      id: 'crm',
+      label: 'Customer CRM & Loyalty',
+      keywords: ['customer crm', 'crm', 'customers', 'loyalty', 'diners', 'customer database', 'patrons', 'points'],
+      icon: Users,
+      desc: 'Guest database, visit logs, loyalty & phone numbers'
+    },
+    {
+      id: 'settings',
+      label: 'Restaurant Settings',
+      keywords: ['settings', 'restaurant settings', 'store settings', 'cafe settings', 'config', 'preferences', 'profile', 'tax', 'logo'],
+      icon: Settings,
+      desc: 'Cafe branding, GST/tax, operating hours & toggles'
+    }
+  ], []);
+
+  // Filtered Navigation Suggestions & Matched Dishes
+  const searchResults = useMemo(() => {
+    const q = headerSearchQuery.trim().toLowerCase();
+    if (!q) {
+      return {
+        pages: appModules.slice(0, 6),
+        dishes: []
+      };
+    }
+
+    // Match pages with typo tolerance
+    const matchedPages = appModules.filter(m => {
+      if (m.label.toLowerCase().includes(q)) return true;
+      if (m.id.toLowerCase().includes(q)) return true;
+      if (m.keywords.some(k => k.includes(q) || q.includes(k))) return true;
+      if (q.length >= 3) {
+        const cleanQ = q.replace(/[^a-z]/g, '');
+        if (cleanQ.startsWith('mun') || cleanQ.startsWith('man') || cleanQ.startsWith('men')) {
+          if (m.id === 'menu') return true;
+        }
+        if (cleanQ.startsWith('rep') || cleanQ.startsWith('sal')) {
+          if (m.id === 'reports') return true;
+        }
+        if (cleanQ.startsWith('stf') || cleanQ.startsWith('staf')) {
+          if (m.id === 'staff') return true;
+        }
+        if (cleanQ.startsWith('khat') || cleanQ.startsWith('udhar')) {
+          if (m.id === 'khata') return true;
+        }
+      }
+      return false;
+    });
+
+    // Match dishes in menu
+    const matchedDishes = (items || []).filter(dish => {
+      const name = (dish.name || '').toLowerCase();
+      const cat = (dish.category || '').toLowerCase();
+      return name.includes(q) || cat.includes(q);
+    }).slice(0, 5);
+
+    return { pages: matchedPages, dishes: matchedDishes };
+  }, [headerSearchQuery, appModules, items]);
 
   // Drawer Form State
   const [drawerForm, setDrawerForm] = useState({
@@ -323,15 +474,28 @@ export default function AdminPanel() {
   };
 
   // Fetch Dashboard Orders based on dashboard dateRange filter
-  const fetchDashboardOrders = async () => {
+  const fetchDashboardOrders = async (overrideRange, overrideStart, overrideEnd) => {
     const token = localStorage.getItem('token');
     if (!token) return;
+
+    const activeR = overrideRange || dateRange;
+    if (activeR === 'custom') {
+      const start = overrideStart !== undefined ? overrideStart : customStartDate;
+      const end = overrideEnd !== undefined ? overrideEnd : customEndDate;
+      if (!start || !end) {
+        // Do not call API until user chooses both dates and clicks Apply Filter
+        return;
+      }
+    }
+
     setIsFilterLoading(true);
 
     try {
-      let url = `${API}/orders?range=${dateRange}`;
-      if (dateRange === 'custom' && customStartDate && customEndDate) {
-        url += `&startDate=${customStartDate}&endDate=${customEndDate}`;
+      let url = `${API}/orders?range=${activeR}`;
+      if (activeR === 'custom') {
+        const start = overrideStart !== undefined ? overrideStart : customStartDate;
+        const end = overrideEnd !== undefined ? overrideEnd : customEndDate;
+        url += `&startDate=${start}&endDate=${end}`;
       }
 
       const res = await axios.get(url, { headers: { 'x-auth-token': token } });
@@ -377,6 +541,35 @@ export default function AdminPanel() {
     setUnreadNotifsCount(0);
     toast.success('All notifications marked as read');
   };
+
+  // Date-wise separation grouping for Notifications
+  const groupedNotifications = useMemo(() => {
+    if (!notifications || notifications.length === 0) return [];
+    const groups = {};
+    const todayStr = new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    notifications.forEach((notif) => {
+      const d = new Date(notif.timestamp);
+      const dStr = d.toDateString();
+      let label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+      if (dStr === todayStr) {
+        label = 'Today';
+      } else if (dStr === yesterdayStr) {
+        label = 'Yesterday';
+      }
+
+      if (!groups[dStr]) {
+        groups[dStr] = { dateStr: dStr, label, items: [] };
+      }
+      groups[dStr].items.push(notif);
+    });
+
+    return Object.values(groups);
+  }, [notifications]);
 
   // Real Tables State from Database
   const [tables, setTables] = useState([]);
@@ -549,8 +742,11 @@ export default function AdminPanel() {
 
   // Dedicated Dashboard Date Filter Hook - updates ONLY dashboardOrders without affecting other tabs
   useEffect(() => {
-    fetchDashboardOrders();
-  }, [dateRange, customStartDate, customEndDate]);
+    // Only auto-fetch for standard ranges. For custom, wait until user clicks Apply Filter
+    if (dateRange !== 'custom') {
+      fetchDashboardOrders(dateRange);
+    }
+  }, [dateRange]);
 
   // Daily Performance Checklist State
   const [checklist, setChecklist] = useState([
@@ -577,7 +773,7 @@ export default function AdminPanel() {
 
   // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
-    const targetOrders = dateRange === 'all' ? (orders.length > 0 ? orders : dashboardOrders) : dashboardOrders;
+    const targetOrders = dashboardOrders;
     const completedOrders = targetOrders.filter(o => o.status === 'completed');
     const activeOrders = targetOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
     const cancelledOrders = targetOrders.filter(o => o.status === 'cancelled');
@@ -586,8 +782,16 @@ export default function AdminPanel() {
     const grossSales = completedOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
     const activePipelineSales = activeOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
     const totalOrdersCount = targetOrders.length;
+
+    // Real Net Sales (SubTotal of completed orders excluding taxes)
+    const netSales = completedOrders.reduce((sum, o) => sum + (o.subTotal || Math.round(getOrderAmount(o) / 1.05)), 0);
+
+    // Average Order Value (AOV) / Average Bill Value
     const avgTicket = completedOrders.length > 0 ? Math.round(grossSales / completedOrders.length) : (totalOrdersCount > 0 ? Math.round((grossSales + activePipelineSales) / totalOrdersCount) : 0);
-    const netProfit = Math.round(grossSales * 0.42);
+
+    // Dynamic Net Profit Margin (from cafe settings, default 40%)
+    const profitMarginPercent = Number(tenantInfo?.settings?.profitMargin ?? 40);
+    const netProfit = Math.round(grossSales * (profitMarginPercent / 100));
 
     const occupiedTablesList = tables.filter(t => {
       const rawNum = String(t.tableNumber || '').trim().toLowerCase();
@@ -884,6 +1088,8 @@ export default function AdminPanel() {
 
     return {
       grossSales,
+      netSales,
+      profitMarginPercent,
       totalOrdersCount,
       avgTicket,
       netProfit,
@@ -904,7 +1110,7 @@ export default function AdminPanel() {
       catList,
       peakInsight
     };
-  }, [orders, dashboardOrders, items, tables, dateRange, customStartDate, customEndDate]);
+  }, [orders, dashboardOrders, items, tables, dateRange, customStartDate, customEndDate, tenantInfo?.settings?.profitMargin]);
 
   // Drawer Handlers
   const handleOpenAddDrawer = () => {
@@ -1375,7 +1581,7 @@ export default function AdminPanel() {
           const updatedItem = { ...item, category: cleanName };
           if (item._id && !item._id.startsWith('dish_')) {
             const token = localStorage.getItem('token');
-            axios.put(`${API}/menu/${item._id}`, { category: cleanName }, { headers: { 'x-auth-token': token } }).catch(e => {});
+            axios.put(`${API}/menu/${item._id}`, { category: cleanName }, { headers: { 'x-auth-token': token } }).catch(e => { });
           }
           return updatedItem;
         }
@@ -1410,7 +1616,7 @@ export default function AdminPanel() {
         const updatedItem = { ...item, category: 'uncategorized' };
         if (item._id && !item._id.startsWith('dish_')) {
           const token = localStorage.getItem('token');
-          axios.put(`${API}/menu/${item._id}`, { category: 'uncategorized' }, { headers: { 'x-auth-token': token } }).catch(e => {});
+          axios.put(`${API}/menu/${item._id}`, { category: 'uncategorized' }, { headers: { 'x-auth-token': token } }).catch(e => { });
         }
         return updatedItem;
       }
@@ -1457,6 +1663,9 @@ export default function AdminPanel() {
           enableKhata: updatedSettings.enableKhata !== undefined
             ? updatedSettings.enableKhata
             : (newSettings.enableKhata !== undefined ? newSettings.enableKhata : prevSettings.enableKhata),
+          profitMargin: updatedSettings.profitMargin !== undefined
+            ? updatedSettings.profitMargin
+            : (newSettings.profitMargin !== undefined ? newSettings.profitMargin : prevSettings.profitMargin),
           operatingHours: updatedSettings.operatingHours || newSettings.operatingHours || prevSettings.operatingHours,
           logo: logoToSave || newSettings.logo || prevSettings.logo,
         },
@@ -1629,6 +1838,9 @@ export default function AdminPanel() {
               </button>
             )}
 
+            {/* Separator Divider / Cushion */}
+            <div className={styles.sidebarDivider} />
+
             <button
               type="button"
               className={styles.logoutBtn}
@@ -1672,23 +1884,144 @@ export default function AdminPanel() {
               </div>
             </div>
           ) : (
-            <div className={styles.topSearchWrapper}>
-              <Search size={16} className={styles.searchIcon} />
+            <div className={styles.topSearchWrapper} ref={searchDropdownRef}>
+              <Search size={15} className={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search dishes, orders, or tables..."
+                placeholder="Search screens (e.g. menu, pos, staff) or dishes..."
                 className={styles.topSearchInput}
-                value={menuSearchQuery}
-                onChange={(e) => setMenuSearchQuery(e.target.value)}
+                value={headerSearchQuery}
+                onFocus={() => setIsHeaderSearchOpen(true)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setHeaderSearchQuery(val);
+                  setIsHeaderSearchOpen(true);
+                  if (activeTab === 'menu') {
+                    setMenuSearchQuery(val);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsHeaderSearchOpen(false);
+                    e.target.blur();
+                  } else if (e.key === 'Enter') {
+                    if (searchResults.pages.length > 0) {
+                      const topPage = searchResults.pages[0];
+                      handleTabChange(topPage.id);
+                      setIsHeaderSearchOpen(false);
+                    } else if (searchResults.dishes.length > 0) {
+                      const topDish = searchResults.dishes[0];
+                      setMenuSearchQuery(topDish.name);
+                      handleTabChange('menu');
+                      setIsHeaderSearchOpen(false);
+                    }
+                  }
+                }}
               />
-              {menuSearchQuery && (
+              {headerSearchQuery && (
                 <button
                   type="button"
-                  onClick={() => setMenuSearchQuery('')}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                  onClick={() => {
+                    setHeaderSearchQuery('');
+                    if (activeTab === 'menu') setMenuSearchQuery('');
+                  }}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px', display: 'flex', alignItems: 'center' }}
+                  title="Clear search"
                 >
                   <X size={14} />
                 </button>
+              )}
+
+              {/* Omnisearch Auto-Suggest Dropdown */}
+              {isHeaderSearchOpen && (
+                <div className={styles.searchDropdownMenu}>
+                  {searchResults.pages.length > 0 && (
+                    <div className={styles.searchDropSection}>
+                      <div className={styles.searchDropSectionTitle}>
+                        <span>NAVIGATE TO MODULE</span>
+                        <span className={styles.searchDropSectionCount}>{searchResults.pages.length} matches</span>
+                      </div>
+                      <div className={styles.searchDropList}>
+                        {searchResults.pages.map((mod) => {
+                          const IconComp = mod.icon;
+                          const isCurrent = activeTab === mod.id;
+                          return (
+                            <button
+                              key={mod.id}
+                              type="button"
+                              className={`${styles.searchDropItem} ${isCurrent ? styles.searchDropItemCurrent : ''}`}
+                              onClick={() => {
+                                handleTabChange(mod.id);
+                                setIsHeaderSearchOpen(false);
+                              }}
+                            >
+                              <div className={styles.searchDropIconWrap}>
+                                <IconComp size={15} />
+                              </div>
+                              <div className={styles.searchDropContent}>
+                                <div className={styles.searchDropHeadRow}>
+                                  <span className={styles.searchDropLabel}>{mod.label}</span>
+                                  {isCurrent && <span className={styles.searchDropActiveBadge}>Current</span>}
+                                </div>
+                                <span className={styles.searchDropDesc}>{mod.desc}</span>
+                              </div>
+                              <div className={styles.searchDropAction}>
+                                <span className={styles.searchDropKeyHint}>Go</span>
+                                <ArrowRight size={13} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.dishes.length > 0 && (
+                    <div className={styles.searchDropSection}>
+                      <div className={styles.searchDropSectionTitle}>
+                        <span>MATCHED DISHES IN MENU</span>
+                        <span className={styles.searchDropSectionCount}>{searchResults.dishes.length} dishes</span>
+                      </div>
+                      <div className={styles.searchDropList}>
+                        {searchResults.dishes.map((dish) => (
+                          <button
+                            key={dish._id || dish.id || dish.name}
+                            type="button"
+                            className={styles.searchDropItem}
+                            onClick={() => {
+                              setMenuSearchQuery(dish.name);
+                              handleTabChange('menu');
+                              setIsHeaderSearchOpen(false);
+                            }}
+                          >
+                            <div className={`${styles.searchDropIconWrap} ${styles.dishIconWrap}`}>
+                              <UtensilsCrossed size={14} />
+                            </div>
+                            <div className={styles.searchDropContent}>
+                              <div className={styles.searchDropHeadRow}>
+                                <span className={styles.searchDropLabel}>{dish.name}</span>
+                                <span className={styles.searchDropPrice}>₹{dish.price || 0}</span>
+                              </div>
+                              <span className={styles.searchDropDesc}>Category: {dish.category || 'General'}</span>
+                            </div>
+                            <div className={styles.searchDropAction}>
+                              <span className={styles.searchDropKeyHint}>View Dish</span>
+                              <ArrowRight size={13} />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.pages.length === 0 && searchResults.dishes.length === 0 && (
+                    <div className={styles.searchDropEmpty}>
+                      <Search size={20} color="#94a3b8" />
+                      <p>No matching screens or dishes found for <strong>"{headerSearchQuery}"</strong></p>
+                      <span>Try searching for "menu", "pos", "kds", "reports", "staff", or "khata"</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1721,8 +2054,9 @@ export default function AdminPanel() {
             </nav>
           )}
 
-          {/* Right User Actions (User Identity Pill, Notifications, Support, Sign Out) */}
+          {/* Right User Actions (User Pill, Notifications, Support, Sign Out, Hamburger) */}
           <div className={styles.topBarRight}>
+
             {/* Logged in User Identity Badge */}
             <div className={styles.userProfilePill} title={`Signed in as ${userEmail} (${userRoleLabel})`}>
               <div className={styles.userAvatarCircle}>
@@ -1752,7 +2086,7 @@ export default function AdminPanel() {
                   background: '#ef4444',
                   color: '#ffffff',
                   fontSize: '10px',
-                  fontWeight: 900,
+                  fontWeight: 600,
                   width: '18px',
                   height: '18px',
                   borderRadius: '50%',
@@ -1785,8 +2119,117 @@ export default function AdminPanel() {
                 <span>Sign Out</span>
               </button>
             )}
+
+            {/* Hamburger Toggle Button for Collapsing UI / Responsive View */}
+            <button
+              type="button"
+              className={styles.hamburgerBtn}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              title="Toggle Menu"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <MenuIcon size={20} />}
+            </button>
           </div>
         </header>
+
+        {/* Mobile / Collapsed UI Hamburger Drawer Overlay */}
+        {mobileMenuOpen && (
+          <div className={styles.mobileNavOverlay} onClick={() => setMobileMenuOpen(false)}>
+            <div className={styles.mobileNavDrawer} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.mobileNavHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {restaurantLogo ? (
+                    <img src={restaurantLogo} alt="Logo" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+                  ) : (
+                    <div className={styles.brandIconSquare} style={{ width: 28, height: 28, fontSize: '0.75rem' }}>
+                      {restaurantInitials || 'SQ'}
+                    </div>
+                  )}
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 600, color: '#0f172a' }}>{restaurantDisplayName}</h4>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>SERVIQ OS Menu</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 4 }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className={styles.mobileNavBody}>
+                {/* PWA Download Button in Drawer */}
+                {!isStandalone && (
+                  <button
+                    type="button"
+                    className={`${styles.mobileNavTabBtn} ${isInstalled ? styles.pwaNavbarBtnInstalled : ''}`}
+                    onClick={() => {
+                      promptInstall();
+                      setMobileMenuOpen(false);
+                    }}
+                    style={{ background: isInstalled ? '#f0fdf4' : '#eff6ff', borderColor: isInstalled ? '#86efac' : '#bfdbfe', color: isInstalled ? '#15803d' : '#1d4ed8', fontWeight: 700 }}
+                  >
+                    {isInstalled ? <CheckCircle2 size={18} color="#16a34a" /> : <Download size={18} />}
+                    <span>{isInstalled ? 'SERVIQ App Downloaded' : 'Download Application (PWA)'}</span>
+                  </button>
+                )}
+
+                {/* Navigation Tabs */}
+                {allowedTabs.map((t) => {
+                  const IconComp = t.icon;
+                  const isActive = activeTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        if (t.id === 'pos') setPosSelectedTable(null);
+                        handleTabChange(t.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`${styles.mobileNavTabBtn} ${isActive ? styles.mobileNavTabBtnActive : ''}`}
+                    >
+                      <IconComp size={18} />
+                      <span style={{ flex: 1 }}>{t.label}</span>
+                      {t.badge && liveActiveOrdersCount > 0 && (
+                        <span className={styles.staffTabBadge}>{liveActiveOrdersCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <div style={{ height: '1px', background: '#f1f5f9', margin: '8px 0' }} />
+
+                <button
+                  type="button"
+                  className={styles.mobileNavTabBtn}
+                  onClick={() => {
+                    setShowSupportModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <HelpCircle size={18} />
+                  <span>Help & Support Desk</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.mobileNavTabBtn}
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{ color: '#ef4444', borderColor: '#fee2e2', background: '#fef2f2' }}
+                >
+                  <LogOut size={18} />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* MAIN BODY AREA */}
         <main className={`${styles.mainContent} ${(activeTab === 'pos' || activeTab === 'kds' || activeTab === 'orders' || activeTab === 'crm') ? styles.mainContentFitScreen : ''}`}>
@@ -1814,20 +2257,20 @@ export default function AdminPanel() {
           ) : (
             <AnimatePresence mode="wait">
 
-            {/* ========================================================= */}
-            {/* 1. ULTRA-MODERN LUXURY DASHBOARD VIEW                     */}
-            {/* ========================================================= */}
-            {activeTab === 'dashboard' && (
-              <motion.div
-                key="dashboard"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className={styles.dashboardView}
-              >
-                {/* PWA Quick Install Banner - only shown when not standalone and not installed */}
-                {/* {!isStandalone && !isInstalled && showPwaBanner && (
+              {/* ========================================================= */}
+              {/* 1. ULTRA-MODERN LUXURY DASHBOARD VIEW                     */}
+              {/* ========================================================= */}
+              {activeTab === 'dashboard' && (
+                <motion.div
+                  key="dashboard"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className={styles.dashboardView}
+                >
+                  {/* PWA Quick Install Banner - only shown when not standalone and not installed */}
+                  {/* {!isStandalone && !isInstalled && showPwaBanner && (
                   <div className={styles.pwaBannerCard}>
                     <div className={styles.pwaBannerLeft}>
                       <div className={styles.pwaBannerIcon}>
@@ -1858,2094 +2301,2158 @@ export default function AdminPanel() {
                   </div>
                 )} */}
 
-                {/* 1. CONTROL BAR: DATE FILTER PILLS */}
-                <div className={styles.dashControlBar}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Performance Overview</h3>
-                      {isFilterLoading && (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          background: '#eef2ff',
-                          color: '#4f46e5',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: 700
-                        }}>
-                          <RefreshCw size={11} className={styles.spinIcon} /> Updating...
-                        </div>
-                      )}
-                    </div>
-                    <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>Showing metrics for {dateRange.replace('_', ' ')}</p>
-                  </div>
-
-                  <div className={styles.datePillsWrap}>
-                    {[
-                      { id: 'today', label: 'Today' },
-                      { id: 'this_week', label: 'This Week' },
-                      { id: 'this_month', label: 'This Month' },
-                      { id: 'all', label: 'All Time' },
-                      { id: 'custom', label: 'Custom' }
-                    ].map(r => (
-                      <button
-                        key={r.id}
-                        type="button"
-                        onClick={() => {
-                          if (dateRange !== r.id) {
-                            setDateRange(r.id);
-                          }
-                        }}
-                        className={`${styles.datePillBtn} ${dateRange === r.id ? styles.datePillBtnActive : ''}`}
-                      >
-                        {dateRange === r.id && isFilterLoading && (
-                          <RefreshCw size={11} className={styles.spinIcon} />
+                  {/* 1. CONTROL BAR: DATE FILTER PILLS */}
+                  <div className={styles.dashControlBar}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Performance Overview</h3>
+                        {isFilterLoading && (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            background: '#eef2ff',
+                            color: '#4f46e5',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 500
+                          }}>
+                            <RefreshCw size={11} className={styles.spinIcon} /> Updating...
+                          </div>
                         )}
-                        {r.label}
-                      </button>
-                    ))}
+                      </div>
+                      <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>Showing metrics for {dateRange.replace('_', ' ')}</p>
+                    </div>
+
+                    <div className={styles.datePillsWrap}>
+                      {[
+                        { id: 'today', label: 'Today' },
+                        { id: 'this_week', label: 'This Week' },
+                        { id: 'this_month', label: 'This Month' },
+                        { id: 'custom', label: 'Custom' }
+                      ].map(r => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            if (dateRange !== r.id) {
+                              setDateRange(r.id);
+                            }
+                          }}
+                          className={`${styles.datePillBtn} ${dateRange === r.id ? styles.datePillBtnActive : ''}`}
+                        >
+                          {dateRange === r.id && isFilterLoading && (
+                            <RefreshCw size={11} className={styles.spinIcon} />
+                          )}
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Custom Date Range Picker */}
-                {dateRange === 'custom' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}
-                  >
-                    <Calendar size={16} color="#64748b" />
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>From:</span>
-                    <input
-                      type="date"
-                      max={todayStr}
-                      value={customStartDate}
-                      onChange={(e) => handleCustomStartDateChange(e.target.value)}
-                      style={{ padding: '5px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none' }}
-                    />
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>To:</span>
-                    <input
-                      type="date"
-                      min={customStartDate || undefined}
-                      max={todayStr}
-                      value={customEndDate}
-                      onChange={(e) => handleCustomEndDateChange(e.target.value)}
-                      style={{ padding: '5px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={fetchOrders}
-                      style={{ padding: '5px 14px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                  {/* Custom Date Range Picker */}
+                  {dateRange === 'custom' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}
                     >
-                      Apply Filter
-                    </button>
-                  </motion.div>
-                )}
+                      <Calendar size={16} color="#64748b" />
+                      <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>From:</span>
+                      <input
+                        type="date"
+                        max={todayStr}
+                        value={customStartDate}
+                        onChange={(e) => handleCustomStartDateChange(e.target.value)}
+                        style={{ padding: '5px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>To:</span>
+                      <input
+                        type="date"
+                        min={customStartDate || undefined}
+                        max={todayStr}
+                        value={customEndDate}
+                        onChange={(e) => handleCustomEndDateChange(e.target.value)}
+                        style={{ padding: '5px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        disabled={isFilterLoading}
+                        onClick={() => {
+                          if (!customStartDate || !customEndDate) {
+                            toast.error('Please select both From and To dates');
+                            return;
+                          }
+                          if (customStartDate > customEndDate) {
+                            toast.error('From date cannot be after To date');
+                            return;
+                          }
+                          fetchDashboardOrders('custom', customStartDate, customEndDate);
+                        }}
+                        style={{
+                          padding: '6px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: '#4f46e5',
+                          color: '#ffffff',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          cursor: isFilterLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        {isFilterLoading ? <RefreshCw size={12} className={styles.spinIcon} /> : null}
+                        <span>{isFilterLoading ? 'Applying...' : 'Apply Filter'}</span>
+                      </button>
+                    </motion.div>
+                  )}
 
-                {/* 3-DAY EXPIRY & DEACTIVATION ALERT BANNER */}
-                {(() => {
-                  const sub = tenantInfo?.subscription;
-                  if (!sub) return null;
-                  const now = new Date();
-                  const endDate = sub.endDate ? new Date(sub.endDate) : null;
-                  const daysLeft = endDate ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)) : null;
-                  const isExpiring3Days = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3 && sub.isActive;
-                  const isExpired = endDate && endDate < now;
+                  {/* 3-DAY EXPIRY & DEACTIVATION ALERT BANNER */}
+                  {(() => {
+                    const sub = tenantInfo?.subscription;
+                    if (!sub) return null;
+                    const now = new Date();
+                    const endDate = sub.endDate ? new Date(sub.endDate) : null;
+                    const daysLeft = endDate ? Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)) : null;
+                    const isExpiring3Days = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3 && sub.isActive;
+                    const isExpired = endDate && endDate < now;
 
-                  if (!sub.isActive || isExpired || isExpiring3Days) {
-                    return (
-                      <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '12px 18px', borderRadius: '12px', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 10, color: '#92400e', fontSize: '13px', fontWeight: 700 }}>
-                        <AlertTriangle size={20} color="#d97706" />
-                        <span>
-                          {!sub.isActive || isExpired
-                            ? `⚠️ Subscription Alert: Your cafe subscription plan is currently ${!sub.isActive ? 'deactivated' : 'expired'}. Please contact SuperAdmin to renew your plan.`
-                            : `⚠️ Subscription Alert: Your subscription plan will expire in ${daysLeft} day(s) (on ${endDate ? endDate.toLocaleDateString('en-IN') : ''}). Please contact SuperAdmin support to renew.`}
+                    if (!sub.isActive || isExpired || isExpiring3Days) {
+                      return (
+                        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '10px 16px', borderRadius: '10px', marginBottom: '1.15rem', display: 'flex', alignItems: 'center', gap: 10, color: '#92400e', fontSize: '12.5px', fontWeight: 500 }}>
+                          <AlertTriangle size={18} color="#d97706" />
+                          <span>
+                            {!sub.isActive || isExpired
+                              ? `⚠️ Subscription Alert: Your cafe subscription plan is currently ${!sub.isActive ? 'deactivated' : 'expired'}. Please contact SuperAdmin to renew your plan.`
+                              : `⚠️ Subscription Alert: Your subscription plan will expire in ${daysLeft} day(s) (on ${endDate ? endDate.toLocaleDateString('en-IN') : ''}). Please contact SuperAdmin support to renew.`}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
+                  <div className={styles.kpiGridModern}>
+                    {/* Card 1: Gross Revenue */}
+                    <div className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}>
+                      <div className={styles.kpiTopRow}>
+                        <div className={`${styles.kpiIconBox} ${styles.kpiIconEmerald}`}>
+                          <IndianRupee size={16} />
+                        </div>
+                        <span className={`${styles.kpiPillBadge} ${metrics.grossSales > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
+                          {metrics.grossSales > 0 ? (
+                            <>
+                              <ArrowUpRight size={13} /> Active
+                            </>
+                          ) : (
+                            '● Live Sales'
+                          )}
                         </span>
                       </div>
-                    );
-                  }
-                  return null;
-                })()}
-
-                {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
-                <div className={styles.kpiGridModern}>
-                  {/* Card 1: Gross Revenue */}
-                  <div className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}>
-                    <div className={styles.kpiTopRow}>
-                      <div className={`${styles.kpiIconBox} ${styles.kpiIconEmerald}`}>
-                        <IndianRupee size={22} />
+                      <div className={styles.kpiTitleGroup}>
+                        <span className={styles.kpiCardTag}>Gross Revenue</span>
+                        <div className={styles.kpiBigNum}>
+                          {isFilterLoading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                              <Loader size={20} className={styles.spinIcon} color="#059669" />
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                            </div>
+                          ) : (
+                            `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
+                          )}
+                        </div>
                       </div>
-                      <span className={`${styles.kpiPillBadge} ${metrics.grossSales > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
-                        {metrics.grossSales > 0 ? (
-                          <>
-                            <ArrowUpRight size={13} /> Active
-                          </>
-                        ) : (
-                          '● Live Sales'
-                        )}
-                      </span>
-                    </div>
-                    <div className={styles.kpiTitleGroup}>
-                      <span className={styles.kpiCardTag}>Gross Revenue</span>
-                      <div className={styles.kpiBigNum}>
+                      <div className={styles.kpiFooterMeta}>
+                        <span>{isFilterLoading ? 'Refreshing orders...' : `${metrics.completedOrders.length} settled orders`}</span>
                         {isFilterLoading ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                            <Loader size={20} className={styles.spinIcon} color="#059669" />
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            <Loader size={12} className={styles.spinIcon} />
+                          </div>
+                        ) : metrics.grossSales > 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#ecfdf5',
+                            color: '#059669',
+                            border: '1px solid #a7f3d0'
+                          }} title="Positive Trend">
+                            <TrendingUp size={13} strokeWidth={2.5} />
+                          </div>
+                        ) : metrics.grossSales < 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            border: '1px solid #fecaca'
+                          }} title="Negative Trend">
+                            <TrendingDown size={13} strokeWidth={2.5} />
                           </div>
                         ) : (
-                          `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }} title="Neutral / Live Telemetry">
+                            <Activity size={13} strokeWidth={2.2} />
+                          </div>
                         )}
                       </div>
                     </div>
-                    <div className={styles.kpiFooterMeta}>
-                      <span>{isFilterLoading ? 'Refreshing orders...' : `${metrics.completedOrders.length} settled orders`}</span>
-                      {isFilterLoading ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }}>
-                          <Loader size={12} className={styles.spinIcon} />
+
+                    {/* Card 2: Net Sales (Excl. Tax) */}
+                    <div className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}>
+                      <div className={styles.kpiTopRow}>
+                        <div className={`${styles.kpiIconBox} ${styles.kpiIconIndigo}`}>
+                          <TrendingUp size={16} />
                         </div>
-                      ) : metrics.grossSales > 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#ecfdf5',
-                          color: '#059669',
-                          border: '1px solid #a7f3d0'
-                        }} title="Positive Trend">
-                          <TrendingUp size={13} strokeWidth={2.5} />
+                        <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
+                          Excl. GST & Taxes
+                        </span>
+                      </div>
+                      <div className={styles.kpiTitleGroup}>
+                        <span className={styles.kpiCardTag}>Net Sales (Excl. Tax)</span>
+                        <div className={styles.kpiBigNum}>
+                          {isFilterLoading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                              <Loader size={20} className={styles.spinIcon} color="#4f46e5" />
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                            </div>
+                          ) : (
+                            `₹${Math.round(metrics.netSales || 0).toLocaleString('en-IN')}`
+                          )}
                         </div>
-                      ) : metrics.grossSales < 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1px solid #fecaca'
-                        }} title="Negative Trend">
-                          <TrendingDown size={13} strokeWidth={2.5} />
+                      </div>
+                      <div className={styles.kpiFooterMeta}>
+                        <span>{isFilterLoading ? 'Recalculating...' : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`}</span>
+                        {isFilterLoading ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            <Loader size={12} className={styles.spinIcon} />
+                          </div>
+                        ) : metrics.netSales > 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#eef2ff',
+                            color: '#4f46e5',
+                            border: '1px solid #c7d2fe'
+                          }} title="Positive Net Sales">
+                            <TrendingUp size={13} strokeWidth={2.5} />
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }} title="Neutral / Live Telemetry">
+                            <Activity size={13} strokeWidth={2.2} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card 3: Average Bill Value */}
+                    <div className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}>
+                      <div className={styles.kpiTopRow}>
+                        <div className={`${styles.kpiIconBox} ${styles.kpiIconAmber}`}>
+                          <Receipt size={16} />
                         </div>
-                      ) : (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }} title="Neutral / Live Telemetry">
-                          <Activity size={13} strokeWidth={2.2} />
+                        <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
+                          {metrics.totalOrdersCount} Orders
+                        </span>
+                      </div>
+                      <div className={styles.kpiTitleGroup}>
+                        <span className={styles.kpiCardTag}>Average Bill Value</span>
+                        <div className={styles.kpiBigNum}>
+                          {isFilterLoading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                              <Loader size={20} className={styles.spinIcon} color="#d97706" />
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                            </div>
+                          ) : (
+                            `₹${Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}`
+                          )}
                         </div>
-                      )}
+                      </div>
+                      <div className={styles.kpiFooterMeta}>
+                        <span>{isFilterLoading ? 'Updating average...' : 'Per order average'}</span>
+                        {isFilterLoading ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            <Loader size={12} className={styles.spinIcon} />
+                          </div>
+                        ) : metrics.avgTicket > 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#fffbeb',
+                            color: '#d97706',
+                            border: '1px solid #fde68a'
+                          }} title="Positive Average">
+                            <TrendingUp size={13} strokeWidth={2.5} />
+                          </div>
+                        ) : metrics.avgTicket < 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            border: '1px solid #fecaca'
+                          }} title="Negative Average">
+                            <TrendingDown size={13} strokeWidth={2.5} />
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }} title="Neutral / Live Telemetry">
+                            <Activity size={13} strokeWidth={2.2} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card 4: Total Orders */}
+                    <div className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}>
+                      <div className={styles.kpiTopRow}>
+                        <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
+                          <ShoppingBag size={16} />
+                        </div>
+                        <span className={`${styles.kpiPillBadge} ${liveActiveOrdersCount > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`} title="Active orders in kitchen & dining floor">
+                          {liveActiveOrdersCount} In Kitchen Queue
+                        </span>
+                      </div>
+                      <div className={styles.kpiTitleGroup}>
+                        <span className={styles.kpiCardTag}>
+                          Total Orders ({dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})
+                        </span>
+                        <div className={styles.kpiBigNum}>
+                          {isFilterLoading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
+                              <Loader size={20} className={styles.spinIcon} color="#0284c7" />
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                            </div>
+                          ) : (
+                            metrics.totalOrdersCount
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.kpiFooterMeta}>
+                        <span>{isFilterLoading ? 'Updating count...' : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`}</span>
+                        {isFilterLoading ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            <Loader size={12} className={styles.spinIcon} />
+                          </div>
+                        ) : metrics.totalOrdersCount > 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f0f9ff',
+                            color: '#0284c7',
+                            border: '1px solid #bae6fd'
+                          }} title="Active Volume">
+                            <TrendingUp size={13} strokeWidth={2.5} />
+                          </div>
+                        ) : metrics.totalOrdersCount < 0 ? (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            border: '1px solid #fecaca'
+                          }} title="Negative Volume">
+                            <TrendingDown size={13} strokeWidth={2.5} />
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }} title="Neutral / Live Telemetry">
+                            <Activity size={13} strokeWidth={2.2} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Card 2: Estimated Net Profit */}
-                  <div className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}>
-                    <div className={styles.kpiTopRow}>
-                      <div className={`${styles.kpiIconBox} ${styles.kpiIconIndigo}`}>
-                        <TrendingUp size={22} />
-                      </div>
-                      <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
-                        <Percent size={12} /> 42% Net
-                      </span>
-                    </div>
-                    <div className={styles.kpiTitleGroup}>
-                      <span className={styles.kpiCardTag}>Estimated Profit (42%)</span>
-                      <div className={styles.kpiBigNum}>
-                        {isFilterLoading ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                            <Loader size={20} className={styles.spinIcon} color="#4f46e5" />
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
+                  {/* 6. MIDDLE SPLIT: HIGH-TECH REVENUE CHART + LIVE ORDERS FEED */}
+                  <div className={styles.dashSplitGridModern}>
+                    {/* Left: High-Tech Dynamic Chart Panel */}
+                    <div className={styles.chartPanelCardModern} style={{ position: 'relative' }}>
+                      {/* Top Bar with Title, Insight Chip & Controls */}
+                      <div className={styles.chartTopBar}>
+                        <div className={styles.chartTitleWrap}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Revenue Velocity & Telemetry</h3>
+                            {metrics.peakInsight && (
+                              <span style={{
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                padding: '2px 9px',
+                                borderRadius: '100px',
+                                background: '#ecfdf5',
+                                color: '#059669',
+                                border: '1px solid #d1fae5',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}>
+                                {metrics.peakInsight}
+                              </span>
+                            )}
                           </div>
-                        ) : (
-                          `₹${Math.round(metrics.netProfit || 0).toLocaleString('en-IN')}`
+                          <p style={{ margin: '3px 0 0 0' }}>
+                            {dateRange === 'today' ? 'Real-time hourly telemetry for today' :
+                              dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
+                                dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
+                                  dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
+                                    `Custom range telemetry (${customStartDate || ''} to ${customEndDate || ''})`}
+                          </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {/* Chart Style Toggle (Line vs Bars) */}
+                          <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: 2, border: '1px solid #e2e8f0' }}>
+                            <button
+                              type="button"
+                              onClick={() => setChartDisplayType('area')}
+                              title="Spline Line Chart"
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: chartDisplayType === 'area' ? '#ffffff' : 'transparent',
+                                color: chartDisplayType === 'area' ? '#4f46e5' : '#64748b',
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                boxShadow: chartDisplayType === 'area' ? '0 1px 3px rgba(79, 70, 229, 0.08)' : 'none',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              Line
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setChartDisplayType('bar')}
+                              title="Column Bar Chart"
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: chartDisplayType === 'bar' ? '#ffffff' : 'transparent',
+                                color: chartDisplayType === 'bar' ? '#4f46e5' : '#64748b',
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                boxShadow: chartDisplayType === 'bar' ? '0 1px 3px rgba(79, 70, 229, 0.08)' : 'none',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              Bars
+                            </button>
+                          </div>
+
+                          {/* Metric Mode Switcher (Revenue vs Orders) */}
+                          <div className={styles.chartModeSwitch} style={{ border: '1px solid #e2e8f0' }}>
+                            <button
+                              type="button"
+                              className={`${styles.chartModeBtn} ${chartMetricTab === 'revenue' ? styles.chartModeBtnActive : ''}`}
+                              onClick={() => setChartMetricTab('revenue')}
+                            >
+                              Revenue (₹)
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.chartModeBtn} ${chartMetricTab === 'orders' ? styles.chartModeBtnActive : ''}`}
+                              onClick={() => setChartMetricTab('orders')}
+                            >
+                              Orders (#)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Chart Box with Floating Tooltip and SVG Engine */}
+                      <div className={styles.chartCanvasBox} style={{ position: 'relative' }}>
+                        {isFilterLoading && (
+                          <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'rgba(255, 255, 255, 0.88)',
+                            backdropFilter: 'blur(3px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 10,
+                            borderRadius: '12px',
+                            gap: 10
+                          }}>
+                            <Loader size={26} className={styles.spinIcon} color="#4f46e5" />
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#475569' }}>
+                              Loading Telemetry...
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Floating Interactive Tooltip on Hover */}
+                        {hoveredDataPoint && (
+                          <div style={{
+                            position: 'absolute',
+                            left: `${Math.min(80, Math.max(10, (hoveredDataPoint.x / 700) * 100))}%`,
+                            top: `${Math.max(10, (hoveredDataPoint.y / 185) * 100 - 35)}%`,
+                            transform: 'translate(-50%, -100%)',
+                            background: '#0f172a',
+                            color: '#ffffff',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            pointerEvents: 'none',
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                            zIndex: 20,
+                            whiteSpace: 'nowrap'
+                          }}>
+                            <div style={{ color: '#94a3b8', fontSize: '10px', marginBottom: 2 }}>{hoveredDataPoint.label}</div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <span style={{ color: '#38bdf8', fontWeight: 600 }}>₹{hoveredDataPoint.revenue ? hoveredDataPoint.revenue.toLocaleString('en-IN') : (hoveredDataPoint.val || 0).toLocaleString('en-IN')}</span>
+                              <span>•</span>
+                              <span style={{ color: '#4ade80' }}>{hoveredDataPoint.orders !== undefined ? hoveredDataPoint.orders : hoveredDataPoint.val} Orders</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Empty Zero Sales State Banner */}
+                        {metrics.grossSales === 0 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '38%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            background: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid #e2e8f0',
+                            padding: '6px 16px',
+                            borderRadius: '100px',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            color: '#64748b',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            pointerEvents: 'none'
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                            Live Telemetry Ready • Graph streams with first order
+                          </div>
+                        )}
+
+                        <svg
+                          className={styles.svgHighTech}
+                          viewBox="0 0 700 185"
+                          preserveAspectRatio="none"
+                          onMouseLeave={() => setHoveredDataPoint(null)}
+                        >
+                          <defs>
+                            <linearGradient id="glowRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                              <stop offset="60%" stopColor="#6366f1" stopOpacity="0.06" />
+                              <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                            </linearGradient>
+                            <linearGradient id="glowOrderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+                              <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                            </linearGradient>
+                            <linearGradient id="barRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#3b82f6" />
+                              <stop offset="100%" stopColor="#6366f1" />
+                            </linearGradient>
+                            <linearGradient id="barOrderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#34d399" />
+                              <stop offset="100%" stopColor="#059669" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Background Grid Lines */}
+                          <line x1="0" y1="35" x2="700" y2="35" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                          <line x1="0" y1="75" x2="700" y2="75" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                          <line x1="0" y1="115" x2="700" y2="115" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                          <line x1="0" y1="155" x2="700" y2="155" stroke="#e2e8f0" strokeWidth="1.2" strokeDasharray={metrics.grossSales === 0 ? "4 4" : "none"} />
+
+                          {/* BAR COLUMNS MODE */}
+                          {chartDisplayType === 'bar' ? (
+                            (chartMetricTab === 'revenue' ? metrics.revPoints : metrics.ordPoints)?.map((pt, i) => {
+                              const barWidth = Math.min(38, 700 / (metrics.timeBuckets.length * 2.2));
+                              const barHeight = Math.max(4, 155 - pt.y);
+                              const isHovered = hoveredDataPoint && hoveredDataPoint.label === pt.label;
+
+                              return (
+                                <g
+                                  key={i}
+                                  style={{ cursor: 'pointer' }}
+                                  onMouseEnter={() => setHoveredDataPoint({
+                                    ...pt,
+                                    revenue: chartMetricTab === 'revenue' ? pt.val : pt.revenue,
+                                    orders: chartMetricTab === 'orders' ? pt.val : pt.orders
+                                  })}
+                                >
+                                  <rect
+                                    x={pt.x - barWidth / 2}
+                                    y={pt.y}
+                                    width={barWidth}
+                                    height={barHeight}
+                                    rx="5"
+                                    fill={pt.val > 0 ? (chartMetricTab === 'revenue' ? 'url(#barRevGrad)' : 'url(#barOrderGrad)') : '#f1f5f9'}
+                                    opacity={isHovered ? 1 : 0.88}
+                                    style={{ transition: 'all 0.2s ease' }}
+                                  />
+                                  {pt.val > 0 && (
+                                    <text
+                                      x={pt.x}
+                                      y={pt.y - 6}
+                                      textAnchor="middle"
+                                      fontSize="10"
+                                      fontWeight="600"
+                                      fill="#475569"
+                                    >
+                                      {chartMetricTab === 'revenue' ? `₹${pt.val}` : pt.val}
+                                    </text>
+                                  )}
+                                </g>
+                              );
+                            })
+                          ) : (
+                            /* AREA SPLINE MODE */
+                            chartMetricTab === 'revenue' ? (
+                              <>
+                                <path
+                                  d={metrics.revAreaPath}
+                                  fill="url(#glowRevGrad)"
+                                />
+                                <path
+                                  d={metrics.revPath}
+                                  fill="none"
+                                  stroke="#3b82f6"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                />
+                                {metrics.revPoints?.map((pt, i) => (
+                                  <g
+                                    key={i}
+                                    style={{ cursor: 'pointer' }}
+                                    onMouseEnter={() => setHoveredDataPoint({
+                                      ...pt,
+                                      revenue: pt.val,
+                                      orders: pt.orders
+                                    })}
+                                  >
+                                    <circle
+                                      cx={pt.x}
+                                      cy={pt.y}
+                                      r={hoveredDataPoint?.label === pt.label ? 5.5 : (pt.val > 0 ? 4 : 2.5)}
+                                      fill="#3b82f6"
+                                      stroke="#ffffff"
+                                      strokeWidth="2"
+                                      style={{ transition: 'all 0.15s ease' }}
+                                    />
+                                  </g>
+                                ))}
+                              </>
+                            ) : (
+                              <>
+                                <path
+                                  d={metrics.ordAreaPath}
+                                  fill="url(#glowOrderGrad)"
+                                />
+                                <path
+                                  d={metrics.ordPath}
+                                  fill="none"
+                                  stroke="#10b981"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                />
+                                {metrics.ordPoints?.map((pt, i) => (
+                                  <g
+                                    key={i}
+                                    style={{ cursor: 'pointer' }}
+                                    onMouseEnter={() => setHoveredDataPoint({
+                                      ...pt,
+                                      revenue: pt.revenue,
+                                      orders: pt.val
+                                    })}
+                                  >
+                                    <circle
+                                      cx={pt.x}
+                                      cy={pt.y}
+                                      r={hoveredDataPoint?.label === pt.label ? 5.5 : (pt.val > 0 ? 4 : 2.5)}
+                                      fill="#10b981"
+                                      stroke="#ffffff"
+                                      strokeWidth="2"
+                                      style={{ transition: 'all 0.15s ease' }}
+                                    />
+                                  </g>
+                                ))}
+                              </>
+                            )
+                          )}
+                        </svg>
+
+                        {/* Dynamic Bottom Time/Date Axis */}
+                        <div className={styles.chartBottomAxis}>
+                          {metrics.timeBuckets?.map((b, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                fontWeight: hoveredDataPoint?.label === b.label ? 600 : 500,
+                                color: hoveredDataPoint?.label === b.label ? '#0f172a' : '#64748b',
+                                cursor: 'pointer'
+                              }}
+                              onMouseEnter={() => {
+                                const pt = (chartMetricTab === 'revenue' ? metrics.revPoints : metrics.ordPoints)[idx];
+                                if (pt) setHoveredDataPoint({ ...pt, revenue: pt.val || pt.revenue, orders: pt.orders || pt.val });
+                              }}
+                            >
+                              {b.shortLabel}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bottom Summary Metric Bar */}
+                      <div className={styles.chartSummaryFooter}>
+                        <div className={styles.summaryStatItem}>
+                          <span className={styles.summaryStatLabel}>Gross Sales</span>
+                          <span className={styles.summaryStatVal}>
+                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : `₹${Math.round(metrics.grossSales).toLocaleString('en-IN')}`}
+                          </span>
+                        </div>
+                        <div className={styles.summaryStatItem}>
+                          <span className={styles.summaryStatLabel}>Avg Bill Value</span>
+                          <span className={styles.summaryStatVal}>
+                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#d97706" /> : `₹${Math.round(metrics.avgTicket).toLocaleString('en-IN')}`}
+                          </span>
+                        </div>
+                        <div className={styles.summaryStatItem}>
+                          <span className={styles.summaryStatLabel}>Total Volume</span>
+                          <span className={styles.summaryStatVal}>
+                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#0284c7" /> : `${metrics.totalOrdersCount} Orders`}
+                          </span>
+                        </div>
+                        <div className={styles.summaryStatItem}>
+                          <span className={styles.summaryStatLabel}>Occupied Floor</span>
+                          <span className={styles.summaryStatVal} style={{ color: (metrics.occupiedTablesCount || 0) > 0 ? '#b45309' : '#059669' }}>
+                            {isFilterLoading ? (
+                              <Loader size={14} className={styles.spinIcon} color="#059669" />
+                            ) : (metrics.occupiedTablesCount || 0) > 0 ? (
+                              `${metrics.occupiedTablesCount}/${tables.length || 4} Tables Busy`
+                            ) : (
+                              'All Tables Free'
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Live Kitchen & Orders Feed */}
+                    <div className={styles.liveOrdersPanelModern}>
+                      <div className={styles.liveHeaderRow}>
+                        <div className={styles.liveTitleBlock}>
+                          <h3>Live Orders Queue</h3>
+                          <span className={styles.liveCountPill}>
+                            ● {liveActiveOrdersCount} Active
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.liveRefreshBtn}
+                          onClick={() => { fetchOrders(); toast.success("Refreshed live queue"); }}
+                          title="Refresh Queue"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                      </div>
+
+                      <div className={styles.liveCardsStream}>
+                        {liveActiveOrders.slice(0, 5).map((order) => {
+                          const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-5) || 'ORD'}`;
+                          const totalAmt = Number(order.total || order.totalAmount) || 0;
+                          const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
+                          const tableText = order.tableNumber ? `Table ${order.tableNumber}` : 'Counter Walk-in';
+
+                          return (
+                            <div key={order._id} className={styles.liveTicketCard}>
+                              <div className={styles.ticketHead}>
+                                <span className={styles.ticketIdBadge}>{orderCode}</span>
+                                <span className={`${styles.ticketStatusPill} ${order.status === 'completed'
+                                  ? styles.readyChip
+                                  : order.status === 'preparing'
+                                    ? styles.prepChip
+                                    : styles.deliveryChip
+                                  }`}>
+                                  {order.status}
+                                </span>
+                              </div>
+                              <div className={styles.ticketBody}>
+                                <span>{tableText}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {liveActiveOrders.length === 0 && (
+                          <div className={styles.emptyLiveRadar}>
+                            <div className={styles.radarPulseCircle}>
+                              <Coffee size={24} />
+                            </div>
+                            <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>No active orders in queue</strong>
+                            <span style={{ fontSize: '0.72rem' }}>New orders from QR codes or POS will appear here instantly.</span>
+                          </div>
                         )}
                       </div>
                     </div>
-                    <div className={styles.kpiFooterMeta}>
-                      <span>{isFilterLoading ? 'Recalculating margin...' : 'Estimated cafe margin'}</span>
-                      {isFilterLoading ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }}>
-                          <Loader size={12} className={styles.spinIcon} />
-                        </div>
-                      ) : metrics.netProfit > 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#eef2ff',
-                          color: '#4f46e5',
-                          border: '1px solid #c7d2fe'
-                        }} title="Positive Margin">
-                          <TrendingUp size={13} strokeWidth={2.5} />
-                        </div>
-                      ) : metrics.netProfit < 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1px solid #fecaca'
-                        }} title="Negative Margin">
-                          <TrendingDown size={13} strokeWidth={2.5} />
-                        </div>
-                      ) : (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }} title="Neutral / Live Telemetry">
-                          <Activity size={13} strokeWidth={2.2} />
-                        </div>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Card 3: Avg Ticket Value */}
-                  <div className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}>
-                    <div className={styles.kpiTopRow}>
-                      <div className={`${styles.kpiIconBox} ${styles.kpiIconAmber}`}>
-                        <Receipt size={22} />
-                      </div>
-                      <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
-                        {metrics.totalOrdersCount} Tabs
-                      </span>
-                    </div>
-                    <div className={styles.kpiTitleGroup}>
-                      <span className={styles.kpiCardTag}>Avg Ticket Value</span>
-                      <div className={styles.kpiBigNum}>
-                        {isFilterLoading ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                            <Loader size={20} className={styles.spinIcon} color="#d97706" />
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
-                          </div>
-                        ) : (
-                          `₹${Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}`
-                        )}
-                      </div>
-                    </div>
-                    <div className={styles.kpiFooterMeta}>
-                      <span>{isFilterLoading ? 'Updating average...' : 'Per order average'}</span>
-                      {isFilterLoading ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }}>
-                          <Loader size={12} className={styles.spinIcon} />
-                        </div>
-                      ) : metrics.avgTicket > 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#fffbeb',
-                          color: '#d97706',
-                          border: '1px solid #fde68a'
-                        }} title="Positive Average">
-                          <TrendingUp size={13} strokeWidth={2.5} />
-                        </div>
-                      ) : metrics.avgTicket < 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1px solid #fecaca'
-                        }} title="Negative Average">
-                          <TrendingDown size={13} strokeWidth={2.5} />
-                        </div>
-                      ) : (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }} title="Neutral / Live Telemetry">
-                          <Activity size={13} strokeWidth={2.2} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX */}
+                  {(() => {
+                    const occupiedTables = tables.filter(t => getActiveOrdersForTable(t).length > 0);
+                    const availableTables = tables.filter(t => getActiveOrdersForTable(t).length === 0);
+                    const billReadyTables = tables.filter(t => {
+                      const tableOrds = getActiveOrdersForTable(t);
+                      return tableOrds.length > 0 && tableOrds.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+                    });
 
-                  {/* Card 4: Total Orders */}
-                  <div className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}>
-                    <div className={styles.kpiTopRow}>
-                      <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
-                        <ShoppingBag size={22} />
-                      </div>
-                      <span className={`${styles.kpiPillBadge} ${liveActiveOrdersCount > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`} title="Active orders in kitchen & dining floor">
-                        {liveActiveOrdersCount} In Kitchen Queue
-                      </span>
-                    </div>
-                    <div className={styles.kpiTitleGroup}>
-                      <span className={styles.kpiCardTag}>
-                        Total Orders ({dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})
-                      </span>
-                      <div className={styles.kpiBigNum}>
-                        {isFilterLoading ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                            <Loader size={20} className={styles.spinIcon} color="#0284c7" />
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
-                          </div>
-                        ) : (
-                          metrics.totalOrdersCount
-                        )}
-                      </div>
-                    </div>
-                    <div className={styles.kpiFooterMeta}>
-                      <span>{isFilterLoading ? 'Updating count...' : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`}</span>
-                      {isFilterLoading ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }}>
-                          <Loader size={12} className={styles.spinIcon} />
-                        </div>
-                      ) : metrics.totalOrdersCount > 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f0f9ff',
-                          color: '#0284c7',
-                          border: '1px solid #bae6fd'
-                        }} title="Active Volume">
-                          <TrendingUp size={13} strokeWidth={2.5} />
-                        </div>
-                      ) : metrics.totalOrdersCount < 0 ? (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1px solid #fecaca'
-                        }} title="Negative Volume">
-                          <TrendingDown size={13} strokeWidth={2.5} />
-                        </div>
-                      ) : (
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          background: '#f1f5f9',
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }} title="Neutral / Live Telemetry">
-                          <Activity size={13} strokeWidth={2.2} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                    let displayTables = tables;
+                    if (tableFilterTab === 'occupied') displayTables = occupiedTables;
+                    else if (tableFilterTab === 'available') displayTables = availableTables;
+                    else if (tableFilterTab === 'bill') displayTables = billReadyTables;
 
-                {/* 6. MIDDLE SPLIT: HIGH-TECH REVENUE CHART + LIVE ORDERS FEED */}
-                <div className={styles.dashSplitGridModern}>
-                  {/* Left: High-Tech Dynamic Chart Panel */}
-                  <div className={styles.chartPanelCardModern} style={{ position: 'relative' }}>
-                    {/* Top Bar with Title, Insight Chip & Controls */}
-                    <div className={styles.chartTopBar}>
-                      <div className={styles.chartTitleWrap}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <h3 style={{ margin: 0 }}>Revenue Velocity & Telemetry</h3>
-                          {metrics.peakInsight && (
+                    // Sort serial-wise naturally (Table 1, Table 2, Table 3... Table 10, Table 11)
+                    const sortedDisplayTables = [...displayTables].sort((a, b) => {
+                      return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+                    });
+
+                    // If > 8 tables, show first 7 tables and 8th tile is "View More" card
+                    const hasMoreTables = sortedDisplayTables.length > 8;
+                    const previewTables = hasMoreTables ? sortedDisplayTables.slice(0, 7) : sortedDisplayTables.slice(0, 8);
+                    const remainingCount = sortedDisplayTables.length - 7;
+
+                    const occupancyRate = tables.length > 0 ? Math.round((occupiedTables.length / tables.length) * 100) : 0;
+
+                    return (
+                      <div className={styles.floorMatrixCard}>
+                        {/* Matrix Header Row */}
+                        <div className={styles.floorHeaderRow}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Grid size={19} color="#4f46e5" />
+                              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+                                Live Dining Floor & Table Matrix
+                              </h3>
+                            </div>
+
                             <span style={{
                               fontSize: '11px',
                               fontWeight: 700,
-                              padding: '2px 9px',
+                              padding: '3px 10px',
                               borderRadius: '100px',
-                              background: '#ecfdf5',
-                              color: '#059669',
-                              border: '1px solid #d1fae5',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4
+                              background: occupancyRate > 60 ? '#fef2f2' : occupancyRate > 0 ? '#fffbeb' : '#ecfdf5',
+                              color: occupancyRate > 60 ? '#b91c1c' : occupancyRate > 0 ? '#b45309' : '#047857',
+                              border: '1px solid currentColor'
                             }}>
-                              {metrics.peakInsight}
+                              {occupancyRate}% Occupied ({occupiedTables.length}/{tables.length} Tables Active)
                             </span>
-                          )}
-                        </div>
-                        <p style={{ margin: '3px 0 0 0' }}>
-                          {dateRange === 'today' ? 'Real-time hourly telemetry for today' :
-                            dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
-                              dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
-                                dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
-                                  `Custom range telemetry (${customStartDate || ''} to ${customEndDate || ''})`}
-                        </p>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {/* Chart Style Toggle (Line vs Bars) */}
-                        <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: 2, border: '1px solid #e2e8f0' }}>
-                          <button
-                            type="button"
-                            onClick={() => setChartDisplayType('area')}
-                            title="Spline Line Chart"
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: chartDisplayType === 'area' ? '#ffffff' : 'transparent',
-                              color: chartDisplayType === 'area' ? '#4f46e5' : '#64748b',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              boxShadow: chartDisplayType === 'area' ? '0 1px 3px rgba(79, 70, 229, 0.08)' : 'none',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Line
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setChartDisplayType('bar')}
-                            title="Column Bar Chart"
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: chartDisplayType === 'bar' ? '#ffffff' : 'transparent',
-                              color: chartDisplayType === 'bar' ? '#4f46e5' : '#64748b',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              boxShadow: chartDisplayType === 'bar' ? '0 1px 3px rgba(79, 70, 229, 0.08)' : 'none',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Bars
-                          </button>
-                        </div>
-
-                        {/* Metric Mode Switcher (Revenue vs Orders) */}
-                        <div className={styles.chartModeSwitch} style={{ border: '1px solid #e2e8f0' }}>
-                          <button
-                            type="button"
-                            className={`${styles.chartModeBtn} ${chartMetricTab === 'revenue' ? styles.chartModeBtnActive : ''}`}
-                            onClick={() => setChartMetricTab('revenue')}
-                          >
-                            Revenue (₹)
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.chartModeBtn} ${chartMetricTab === 'orders' ? styles.chartModeBtnActive : ''}`}
-                            onClick={() => setChartMetricTab('orders')}
-                          >
-                            Orders (#)
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Chart Box with Floating Tooltip and SVG Engine */}
-                    <div className={styles.chartCanvasBox} style={{ position: 'relative' }}>
-                      {isFilterLoading && (
-                        <div style={{
-                          position: 'absolute',
-                          inset: 0,
-                          background: 'rgba(255, 255, 255, 0.88)',
-                          backdropFilter: 'blur(3px)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 10,
-                          borderRadius: '12px',
-                          gap: 10
-                        }}>
-                          <Loader size={26} className={styles.spinIcon} color="#4f46e5" />
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
-                            Loading Telemetry...
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Floating Interactive Tooltip on Hover */}
-                      {hoveredDataPoint && (
-                        <div style={{
-                          position: 'absolute',
-                          left: `${Math.min(80, Math.max(10, (hoveredDataPoint.x / 700) * 100))}%`,
-                          top: `${Math.max(10, (hoveredDataPoint.y / 185) * 100 - 35)}%`,
-                          transform: 'translate(-50%, -100%)',
-                          background: '#0f172a',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          pointerEvents: 'none',
-                          boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-                          zIndex: 20,
-                          whiteSpace: 'nowrap'
-                        }}>
-                          <div style={{ color: '#94a3b8', fontSize: '10px', marginBottom: 2 }}>{hoveredDataPoint.label}</div>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <span style={{ color: '#38bdf8', fontWeight: 800 }}>₹{hoveredDataPoint.revenue ? hoveredDataPoint.revenue.toLocaleString('en-IN') : (hoveredDataPoint.val || 0).toLocaleString('en-IN')}</span>
-                            <span>•</span>
-                            <span style={{ color: '#4ade80' }}>{hoveredDataPoint.orders !== undefined ? hoveredDataPoint.orders : hoveredDataPoint.val} Orders</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Empty Zero Sales State Banner */}
-                      {metrics.grossSales === 0 && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '38%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          background: 'rgba(255, 255, 255, 0.95)',
-                          border: '1px solid #e2e8f0',
-                          padding: '6px 16px',
-                          borderRadius: '100px',
-                          fontSize: '11.5px',
-                          fontWeight: 600,
-                          color: '#64748b',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          pointerEvents: 'none'
-                        }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
-                          Live Telemetry Ready • Graph streams with first order
-                        </div>
-                      )}
-
-                      <svg
-                        className={styles.svgHighTech}
-                        viewBox="0 0 700 185"
-                        preserveAspectRatio="none"
-                        onMouseLeave={() => setHoveredDataPoint(null)}
-                      >
-                        <defs>
-                          <linearGradient id="glowRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-                            <stop offset="60%" stopColor="#6366f1" stopOpacity="0.06" />
-                            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
-                          </linearGradient>
-                          <linearGradient id="glowOrderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                            <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                          </linearGradient>
-                          <linearGradient id="barRevGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#3b82f6" />
-                            <stop offset="100%" stopColor="#6366f1" />
-                          </linearGradient>
-                          <linearGradient id="barOrderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#34d399" />
-                            <stop offset="100%" stopColor="#059669" />
-                          </linearGradient>
-                        </defs>
-
-                        {/* Background Grid Lines */}
-                        <line x1="0" y1="35" x2="700" y2="35" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="0" y1="75" x2="700" y2="75" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="0" y1="115" x2="700" y2="115" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="0" y1="155" x2="700" y2="155" stroke="#e2e8f0" strokeWidth="1.2" strokeDasharray={metrics.grossSales === 0 ? "4 4" : "none"} />
-
-                        {/* BAR COLUMNS MODE */}
-                        {chartDisplayType === 'bar' ? (
-                          (chartMetricTab === 'revenue' ? metrics.revPoints : metrics.ordPoints)?.map((pt, i) => {
-                            const barWidth = Math.min(38, 700 / (metrics.timeBuckets.length * 2.2));
-                            const barHeight = Math.max(4, 155 - pt.y);
-                            const isHovered = hoveredDataPoint && hoveredDataPoint.label === pt.label;
-
-                            return (
-                              <g
-                                key={i}
-                                style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => setHoveredDataPoint({
-                                  ...pt,
-                                  revenue: chartMetricTab === 'revenue' ? pt.val : pt.revenue,
-                                  orders: chartMetricTab === 'orders' ? pt.val : pt.orders
-                                })}
-                              >
-                                <rect
-                                  x={pt.x - barWidth / 2}
-                                  y={pt.y}
-                                  width={barWidth}
-                                  height={barHeight}
-                                  rx="5"
-                                  fill={pt.val > 0 ? (chartMetricTab === 'revenue' ? 'url(#barRevGrad)' : 'url(#barOrderGrad)') : '#f1f5f9'}
-                                  opacity={isHovered ? 1 : 0.88}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                />
-                                {pt.val > 0 && (
-                                  <text
-                                    x={pt.x}
-                                    y={pt.y - 6}
-                                    textAnchor="middle"
-                                    fontSize="10"
-                                    fontWeight="700"
-                                    fill="#475569"
-                                  >
-                                    {chartMetricTab === 'revenue' ? `₹${pt.val}` : pt.val}
-                                  </text>
-                                )}
-                              </g>
-                            );
-                          })
-                        ) : (
-                          /* AREA SPLINE MODE */
-                          chartMetricTab === 'revenue' ? (
-                            <>
-                              <path
-                                d={metrics.revAreaPath}
-                                fill="url(#glowRevGrad)"
-                              />
-                              <path
-                                d={metrics.revPath}
-                                fill="none"
-                                stroke="#3b82f6"
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                              />
-                              {metrics.revPoints?.map((pt, i) => (
-                                <g
-                                  key={i}
-                                  style={{ cursor: 'pointer' }}
-                                  onMouseEnter={() => setHoveredDataPoint({
-                                    ...pt,
-                                    revenue: pt.val,
-                                    orders: pt.orders
-                                  })}
-                                >
-                                  <circle
-                                    cx={pt.x}
-                                    cy={pt.y}
-                                    r={hoveredDataPoint?.label === pt.label ? 7 : (pt.val > 0 ? 5 : 3.5)}
-                                    fill="#3b82f6"
-                                    stroke="#ffffff"
-                                    strokeWidth="2.5"
-                                    style={{ transition: 'all 0.15s ease' }}
-                                  />
-                                </g>
-                              ))}
-                            </>
-                          ) : (
-                            <>
-                              <path
-                                d={metrics.ordAreaPath}
-                                fill="url(#glowOrderGrad)"
-                              />
-                              <path
-                                d={metrics.ordPath}
-                                fill="none"
-                                stroke="#10b981"
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                              />
-                              {metrics.ordPoints?.map((pt, i) => (
-                                <g
-                                  key={i}
-                                  style={{ cursor: 'pointer' }}
-                                  onMouseEnter={() => setHoveredDataPoint({
-                                    ...pt,
-                                    revenue: pt.revenue,
-                                    orders: pt.val
-                                  })}
-                                >
-                                  <circle
-                                    cx={pt.x}
-                                    cy={pt.y}
-                                    r={hoveredDataPoint?.label === pt.label ? 7 : (pt.val > 0 ? 5 : 3.5)}
-                                    fill="#10b981"
-                                    stroke="#ffffff"
-                                    strokeWidth="2.5"
-                                    style={{ transition: 'all 0.15s ease' }}
-                                  />
-                                </g>
-                              ))}
-                            </>
-                          )
-                        )}
-                      </svg>
-
-                      {/* Dynamic Bottom Time/Date Axis */}
-                      <div className={styles.chartBottomAxis}>
-                        {metrics.timeBuckets?.map((b, idx) => (
-                          <span
-                            key={idx}
-                            style={{
-                              fontWeight: hoveredDataPoint?.label === b.label ? 800 : 600,
-                              color: hoveredDataPoint?.label === b.label ? '#0f172a' : '#64748b',
-                              cursor: 'pointer'
-                            }}
-                            onMouseEnter={() => {
-                              const pt = (chartMetricTab === 'revenue' ? metrics.revPoints : metrics.ordPoints)[idx];
-                              if (pt) setHoveredDataPoint({ ...pt, revenue: pt.val || pt.revenue, orders: pt.orders || pt.val });
-                            }}
-                          >
-                            {b.shortLabel}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bottom Summary Metric Bar */}
-                    <div className={styles.chartSummaryFooter}>
-                      <div className={styles.summaryStatItem}>
-                        <span className={styles.summaryStatLabel}>Gross Sales</span>
-                        <span className={styles.summaryStatVal}>
-                          {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : `₹${Math.round(metrics.grossSales).toLocaleString('en-IN')}`}
-                        </span>
-                      </div>
-                      <div className={styles.summaryStatItem}>
-                        <span className={styles.summaryStatLabel}>Avg Ticket</span>
-                        <span className={styles.summaryStatVal}>
-                          {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#d97706" /> : `₹${Math.round(metrics.avgTicket).toLocaleString('en-IN')}`}
-                        </span>
-                      </div>
-                      <div className={styles.summaryStatItem}>
-                        <span className={styles.summaryStatLabel}>Total Volume</span>
-                        <span className={styles.summaryStatVal}>
-                          {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#0284c7" /> : `${metrics.totalOrdersCount} Orders`}
-                        </span>
-                      </div>
-                      <div className={styles.summaryStatItem}>
-                        <span className={styles.summaryStatLabel}>Occupied Floor</span>
-                        <span className={styles.summaryStatVal} style={{ color: (metrics.occupiedTablesCount || 0) > 0 ? '#b45309' : '#059669' }}>
-                          {isFilterLoading ? (
-                            <Loader size={14} className={styles.spinIcon} color="#059669" />
-                          ) : (metrics.occupiedTablesCount || 0) > 0 ? (
-                            `${metrics.occupiedTablesCount}/${tables.length || 4} Tables Busy`
-                          ) : (
-                            'All Tables Free'
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Live Kitchen & Orders Feed */}
-                  <div className={styles.liveOrdersPanelModern}>
-                    <div className={styles.liveHeaderRow}>
-                      <div className={styles.liveTitleBlock}>
-                        <h3>Live Orders Queue</h3>
-                        <span className={styles.liveCountPill}>
-                          ● {liveActiveOrdersCount} Active
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.liveRefreshBtn}
-                        onClick={() => { fetchOrders(); toast.success("Refreshed live queue"); }}
-                        title="Refresh Queue"
-                      >
-                        <RefreshCw size={14} />
-                      </button>
-                    </div>
-
-                    <div className={styles.liveCardsStream}>
-                      {liveActiveOrders.slice(0, 5).map((order) => {
-                        const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-5) || 'ORD'}`;
-                        const totalAmt = Number(order.total || order.totalAmount) || 0;
-                        const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
-                        const tableText = order.tableNumber ? `Table ${order.tableNumber}` : 'Counter Walk-in';
-
-                        return (
-                          <div key={order._id} className={styles.liveTicketCard}>
-                            <div className={styles.ticketHead}>
-                              <span className={styles.ticketIdBadge}>{orderCode}</span>
-                              <span className={`${styles.ticketStatusPill} ${order.status === 'completed'
-                                ? styles.readyChip
-                                : order.status === 'preparing'
-                                  ? styles.prepChip
-                                  : styles.deliveryChip
-                                }`}>
-                                {order.status}
-                              </span>
-                            </div>
-                            <div className={styles.ticketBody}>
-                              <span>{tableText}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {liveActiveOrders.length === 0 && (
-                        <div className={styles.emptyLiveRadar}>
-                          <div className={styles.radarPulseCircle}>
-                            <Coffee size={24} />
-                          </div>
-                          <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>No active orders in queue</strong>
-                          <span style={{ fontSize: '0.72rem' }}>New orders from QR codes or POS will appear here instantly.</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX */}
-                {(() => {
-                  const occupiedTables = tables.filter(t => getActiveOrdersForTable(t).length > 0);
-                  const availableTables = tables.filter(t => getActiveOrdersForTable(t).length === 0);
-                  const billReadyTables = tables.filter(t => {
-                    const tableOrds = getActiveOrdersForTable(t);
-                    return tableOrds.length > 0 && tableOrds.every(o => o.paymentStatus === 'paid' || o.status === 'served');
-                  });
-
-                  let displayTables = tables;
-                  if (tableFilterTab === 'occupied') displayTables = occupiedTables;
-                  else if (tableFilterTab === 'available') displayTables = availableTables;
-                  else if (tableFilterTab === 'bill') displayTables = billReadyTables;
-
-                  // Sort serial-wise naturally (Table 1, Table 2, Table 3... Table 10, Table 11)
-                  const sortedDisplayTables = [...displayTables].sort((a, b) => {
-                    return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
-                  });
-
-                  // If > 8 tables, show first 7 tables and 8th tile is "View More" card
-                  const hasMoreTables = sortedDisplayTables.length > 8;
-                  const previewTables = hasMoreTables ? sortedDisplayTables.slice(0, 7) : sortedDisplayTables.slice(0, 8);
-                  const remainingCount = sortedDisplayTables.length - 7;
-
-                  const occupancyRate = tables.length > 0 ? Math.round((occupiedTables.length / tables.length) * 100) : 0;
-
-                  return (
-                    <div className={styles.floorMatrixCard}>
-                      {/* Matrix Header Row */}
-                      <div className={styles.floorHeaderRow}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Grid size={19} color="#4f46e5" />
-                            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                              Live Dining Floor & Table Matrix
-                            </h3>
                           </div>
 
-                          <span style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '3px 10px',
-                            borderRadius: '100px',
-                            background: occupancyRate > 60 ? '#fef2f2' : occupancyRate > 0 ? '#fffbeb' : '#ecfdf5',
-                            color: occupancyRate > 60 ? '#b91c1c' : occupancyRate > 0 ? '#b45309' : '#047857',
-                            border: '1px solid currentColor'
-                          }}>
-                            {occupancyRate}% Occupied ({occupiedTables.length}/{tables.length} Tables Active)
-                          </span>
-                        </div>
-
-                        {/* Filter Tabs & Quick Action */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '10px', gap: '2px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setTableFilterTab('all')}
-                              style={{
-                                border: 'none',
-                                background: tableFilterTab === 'all' ? '#ffffff' : 'transparent',
-                                color: tableFilterTab === 'all' ? '#0f172a' : '#64748b',
-                                fontWeight: 700,
-                                fontSize: '11px',
-                                padding: '4px 10px',
-                                borderRadius: '7px',
-                                cursor: 'pointer',
-                                boxShadow: tableFilterTab === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                              }}
-                            >
-                              All ({tables.length})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setTableFilterTab('available')}
-                              style={{
-                                border: 'none',
-                                background: tableFilterTab === 'available' ? '#ffffff' : 'transparent',
-                                color: tableFilterTab === 'available' ? '#059669' : '#64748b',
-                                fontWeight: 700,
-                                fontSize: '11px',
-                                padding: '4px 10px',
-                                borderRadius: '7px',
-                                cursor: 'pointer',
-                                boxShadow: tableFilterTab === 'available' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                              }}
-                            >
-                              Free ({availableTables.length})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setTableFilterTab('occupied')}
-                              style={{
-                                border: 'none',
-                                background: tableFilterTab === 'occupied' ? '#ffffff' : 'transparent',
-                                color: tableFilterTab === 'occupied' ? '#d97706' : '#64748b',
-                                fontWeight: 700,
-                                fontSize: '11px',
-                                padding: '4px 10px',
-                                borderRadius: '7px',
-                                cursor: 'pointer',
-                                boxShadow: tableFilterTab === 'occupied' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                              }}
-                            >
-                              Busy ({occupiedTables.length})
-                            </button>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPosSelectedTable(null);
-                              handleTabChange('pos');
-                            }}
-                            style={{
-                              border: 'none',
-                              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                              color: '#ffffff',
-                              fontWeight: 800,
-                              fontSize: '11px',
-                              padding: '6px 14px',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 5,
-                              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
-                            }}
-                          >
-                            <Grid size={13} /> POS Terminal & Floor Plan →
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Dynamic Grid of Real Tables (Petpooja Style: 3 Clean Colors) */}
-                      {tables.length === 0 ? (
-                        <TableMatrixSkeleton count={8} />
-                      ) : (
-                        <div className={styles.tableGridContainer}>
-                          {previewTables.map((tbl) => {
-                            const tableOrders = getActiveOrdersForTable(tbl);
-                            const isOccupied = tableOrders.length > 0;
-                            const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
-                            const firstOrder = tableOrders[0];
-                            const elapsedMins = firstOrder?.createdAt
-                              ? Math.max(1, Math.round((new Date() - new Date(firstOrder.createdAt)) / 60000))
-                              : 5;
-
-                            const totalSum = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
-                            const orderTotal = Math.round(totalSum * 100) / 100;
-                            const rawCustName = firstOrder?.customerDetails?.name || firstOrder?.customerName || '';
-
-                            // 1. FREE / EMPTY CARD
-                            if (!isOccupied) {
-                              return (
-                                <div
-                                  key={tbl._id || tbl.tableNumber}
-                                  onClick={() => {
-                                    setPosSelectedTable(tbl.tableNumber);
-                                    handleTabChange('pos');
-                                  }}
-                                  style={{
-                                    position: 'relative',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    minHeight: '100px',
-                                    padding: '10px 12px',
-                                    borderRadius: '12px',
-                                    border: '1.5px dashed #cbd5e1',
-                                    background: '#ffffff',
-                                    cursor: 'pointer',
-                                    textAlign: 'center',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                  title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
-                                >
-                                  <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{tbl.seatingCapacity || 4} Seats</span>
-                                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', margin: '4px 0' }}>
-                                    Table {tbl.tableNumber}
-                                  </span>
-                                  <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                                </div>
-                              );
-                            }
-
-                            // 2. PAID / SERVED CARD (Soft Green)
-                            if (isServed) {
-                              return (
-                                <div
-                                  key={tbl._id || tbl.tableNumber}
-                                  onClick={() => {
-                                    setPosSelectedTable(tbl.tableNumber);
-                                    handleTabChange('pos');
-                                  }}
-                                  style={{
-                                    position: 'relative',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    minHeight: '100px',
-                                    padding: '10px 12px',
-                                    borderRadius: '12px',
-                                    border: '1.5px solid #10b981',
-                                    background: '#ecfdf5',
-                                    color: '#065f46',
-                                    cursor: 'pointer',
-                                    textAlign: 'center',
-                                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
-                                  }}
-                                  title={`Table ${tbl.tableNumber} - All Orders Served/Paid. Click to open POS.`}
-                                >
-                                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
-                                    ✓ {elapsedMins} Min
-                                  </div>
-                                  <span style={{ fontSize: '1rem', fontWeight: 900, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
-                                  </span>
-                                  {getCustomerFirstName(rawCustName) && (
-                                    <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
-                                      Table {tbl.tableNumber}
-                                    </span>
-                                  )}
-                                  <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#047857' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
-                                </div>
-                              );
-                            }
-
-                            // 3. OCCUPIED / RUNNING CARD (Orange / Warm Amber)
-                            return (
-                              <div
-                                key={tbl._id || tbl.tableNumber}
-                                onClick={() => {
-                                  setPosSelectedTable(tbl.tableNumber);
-                                  handleTabChange('pos');
-                                }}
+                          {/* Filter Tabs & Quick Action */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '10px', gap: '2px' }}>
+                              <button
+                                type="button"
+                                onClick={() => setTableFilterTab('all')}
                                 style={{
-                                  position: 'relative',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  justifyContent: 'space-between',
-                                  minHeight: '100px',
-                                  padding: '10px 12px',
-                                  borderRadius: '12px',
-                                  border: '1.5px solid #f59e0b',
-                                  background: '#fef3c7',
-                                  color: '#78350f',
+                                  border: 'none',
+                                  background: tableFilterTab === 'all' ? '#ffffff' : 'transparent',
+                                  color: tableFilterTab === 'all' ? '#0f172a' : '#64748b',
+                                  fontWeight: 700,
+                                  fontSize: '11px',
+                                  padding: '4px 10px',
+                                  borderRadius: '7px',
                                   cursor: 'pointer',
-                                  textAlign: 'center',
-                                  boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
+                                  boxShadow: tableFilterTab === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                                 }}
-                                title={`Table ${tbl.tableNumber} - Running Order ₹${orderTotal}. Click to open POS.`}
                               >
-                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
-                                  ⏱️ {elapsedMins} Min
-                                </div>
-                                <span style={{ fontSize: '1rem', fontWeight: 900, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
-                                </span>
-                                {getCustomerFirstName(rawCustName) && (
-                                  <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
-                                    Table {tbl.tableNumber}
-                                  </span>
-                                )}
-                                <strong style={{ fontSize: '12.5px', fontWeight: 800, color: '#92400e' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
-                              </div>
-                            );
-                          })}
+                                All ({tables.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTableFilterTab('available')}
+                                style={{
+                                  border: 'none',
+                                  background: tableFilterTab === 'available' ? '#ffffff' : 'transparent',
+                                  color: tableFilterTab === 'available' ? '#059669' : '#64748b',
+                                  fontWeight: 700,
+                                  fontSize: '11px',
+                                  padding: '4px 10px',
+                                  borderRadius: '7px',
+                                  cursor: 'pointer',
+                                  boxShadow: tableFilterTab === 'available' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                }}
+                              >
+                                Free ({availableTables.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTableFilterTab('occupied')}
+                                style={{
+                                  border: 'none',
+                                  background: tableFilterTab === 'occupied' ? '#ffffff' : 'transparent',
+                                  color: tableFilterTab === 'occupied' ? '#d97706' : '#64748b',
+                                  fontWeight: 700,
+                                  fontSize: '11px',
+                                  padding: '4px 10px',
+                                  borderRadius: '7px',
+                                  cursor: 'pointer',
+                                  boxShadow: tableFilterTab === 'occupied' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                }}
+                              >
+                                Busy ({occupiedTables.length})
+                              </button>
+                            </div>
 
-                          {/* 8th Position "View More" Interactive Card */}
-                          {hasMoreTables && (
-                            <div
+                            <button
+                              type="button"
                               onClick={() => {
                                 setPosSelectedTable(null);
                                 handleTabChange('pos');
                               }}
                               style={{
-                                background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
-                                borderRadius: '12px',
-                                border: '1.5px dashed #3b82f6',
-                                padding: '10px 12px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                textAlign: 'center',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                                color: '#ffffff',
+                                fontWeight: 600,
+                                fontSize: '11px',
+                                padding: '6px 14px',
+                                borderRadius: '8px',
                                 cursor: 'pointer',
-                                minHeight: '100px',
-                                transition: 'all 0.2s ease'
-                              }}
-                              title="Click to view all tables in POS Terminal"
-                            >
-                              <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>
-                                +{remainingCount} More
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: 800, marginTop: 3 }}>
-                                Open POS Floor →
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {displayTables.length === 0 && tables.length > 0 && (
-                        <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '13px' }}>
-                          No tables found matching the filter "{tableFilterTab}".
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* REAL TABLE ORDER DETAILS & BILL SETTLE MODAL */}
-                <AnimatePresence>
-                  {selectedTableModal && (
-                    <div style={{
-                      position: 'fixed',
-                      inset: 0,
-                      background: 'rgba(15, 23, 42, 0.65)',
-                      backdropFilter: 'blur(4px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 9999,
-                      padding: '1rem'
-                    }} onClick={() => setSelectedTableModal(null)}>
-                      <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          background: '#ffffff',
-                          borderRadius: '20px',
-                          padding: '1.75rem',
-                          width: '100%',
-                          maxWidth: '480px',
-                          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                          maxHeight: '90vh',
-                          overflowY: 'auto'
-                        }}
-                      >
-                        {/* Modal Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                          <div>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                              Table {selectedTableModal.table?.tableNumber} • Active Order
-                            </h3>
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>
-                              Order #{selectedTableModal.activeOrder?.orderNumber || selectedTableModal.activeOrder?._id?.slice(-5)} • {selectedTableModal.table?.seatingCapacity || 4} Guests
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTableModal(null)}
-                            style={{ border: 'none', background: '#f1f5f9', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-
-                        {/* Order Status Ribbon */}
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          background: '#f8fafc',
-                          padding: '10px 14px',
-                          borderRadius: '12px',
-                          border: '1px solid #e2e8f0',
-                          marginBottom: '1rem'
-                        }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Current Kitchen Status:</span>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'preparing')}
-                              style={{
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid #fde68a',
-                                background: selectedTableModal.activeOrder?.status === 'preparing' ? '#f59e0b' : '#fffbeb',
-                                color: selectedTableModal.activeOrder?.status === 'preparing' ? '#ffffff' : '#b45309',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: 'pointer'
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
                               }}
                             >
-                              Cooking
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'ready')}
-                              style={{
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid #a7f3d0',
-                                background: selectedTableModal.activeOrder?.status === 'ready' ? '#10b981' : '#ecfdf5',
-                                color: selectedTableModal.activeOrder?.status === 'ready' ? '#ffffff' : '#047857',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Served
+                              <Grid size={13} /> POS Terminal & Floor Plan →
                             </button>
                           </div>
                         </div>
 
-                        {/* Itemized Dish List */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Itemized Dishes
-                          </span>
-                          <div style={{ marginTop: '8px', border: '1px solid #f1f5f9', borderRadius: '12px', overflow: 'hidden' }}>
-                            {(selectedTableModal.activeOrder?.items || []).map((it, idx) => (
-                              <div
-                                key={idx}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  padding: '10px 14px',
-                                  background: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
-                                  borderBottom: idx === (selectedTableModal.activeOrder?.items?.length - 1) ? 'none' : '1px solid #f1f5f9'
-                                }}
-                              >
-                                <div>
-                                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', display: 'block' }}>
-                                    {it.name || it.item?.name || 'Dish Item'}
+                        {/* Dynamic Grid of Real Tables (Petpooja Style: 3 Clean Colors) */}
+                        {tables.length === 0 ? (
+                          <TableMatrixSkeleton count={8} />
+                        ) : (
+                          <div className={styles.tableGridContainer}>
+                            {previewTables.map((tbl) => {
+                              const tableOrders = getActiveOrdersForTable(tbl);
+                              const isOccupied = tableOrders.length > 0;
+                              const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+                              const firstOrder = tableOrders[0];
+                              const elapsedMins = firstOrder?.createdAt
+                                ? Math.max(1, Math.round((new Date() - new Date(firstOrder.createdAt)) / 60000))
+                                : 5;
+
+                              const totalSum = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+                              const orderTotal = Math.round(totalSum * 100) / 100;
+                              const rawCustName = firstOrder?.customerDetails?.name || firstOrder?.customerName || '';
+
+                              // 1. FREE / EMPTY CARD
+                              if (!isOccupied) {
+                                return (
+                                  <div
+                                    key={tbl._id || tbl.tableNumber}
+                                    onClick={() => {
+                                      setPosSelectedTable(tbl.tableNumber);
+                                      handleTabChange('pos');
+                                    }}
+                                    style={{
+                                      position: 'relative',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      justifyContent: 'space-between',
+                                      minHeight: '100px',
+                                      padding: '10px 12px',
+                                      borderRadius: '12px',
+                                      border: '1.5px dashed #cbd5e1',
+                                      background: '#ffffff',
+                                      cursor: 'pointer',
+                                      textAlign: 'center',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                                  >
+                                    <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{tbl.seatingCapacity || 4} Seats</span>
+                                    <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', margin: '4px 0' }}>
+                                      Table {tbl.tableNumber}
+                                    </span>
+                                    <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                                  </div>
+                                );
+                              }
+
+                              // 2. PAID / SERVED CARD (Soft Green)
+                              if (isServed) {
+                                return (
+                                  <div
+                                    key={tbl._id || tbl.tableNumber}
+                                    onClick={() => {
+                                      setPosSelectedTable(tbl.tableNumber);
+                                      handleTabChange('pos');
+                                    }}
+                                    style={{
+                                      position: 'relative',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      justifyContent: 'space-between',
+                                      minHeight: '100px',
+                                      padding: '10px 12px',
+                                      borderRadius: '12px',
+                                      border: '1.5px solid #10b981',
+                                      background: '#ecfdf5',
+                                      color: '#065f46',
+                                      cursor: 'pointer',
+                                      textAlign: 'center',
+                                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
+                                    }}
+                                    title={`Table ${tbl.tableNumber} - All Orders Served/Paid. Click to open POS.`}
+                                  >
+                                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
+                                      ✓ {elapsedMins} Min
+                                    </div>
+                                    <span style={{ fontSize: '1rem', fontWeight: 600, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
+                                    </span>
+                                    {getCustomerFirstName(rawCustName) && (
+                                      <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
+                                        Table {tbl.tableNumber}
+                                      </span>
+                                    )}
+                                    <strong style={{ fontSize: '12.5px', fontWeight: 600, color: '#047857' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
+                                  </div>
+                                );
+                              }
+
+                              // 3. OCCUPIED / RUNNING CARD (Orange / Warm Amber)
+                              return (
+                                <div
+                                  key={tbl._id || tbl.tableNumber}
+                                  onClick={() => {
+                                    setPosSelectedTable(tbl.tableNumber);
+                                    handleTabChange('pos');
+                                  }}
+                                  style={{
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    minHeight: '100px',
+                                    padding: '10px 12px',
+                                    borderRadius: '12px',
+                                    border: '1.5px solid #f59e0b',
+                                    background: '#fef3c7',
+                                    color: '#78350f',
+                                    cursor: 'pointer',
+                                    textAlign: 'center',
+                                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
+                                  }}
+                                  title={`Table ${tbl.tableNumber} - Running Order ₹${orderTotal}. Click to open POS.`}
+                                >
+                                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
+                                    ⏱️ {elapsedMins} Min
+                                  </div>
+                                  <span style={{ fontSize: '1rem', fontWeight: 600, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
                                   </span>
-                                  <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                    Qty: {it.quantity || 1} × ₹{Number(it.price || it.item?.price || 0)}
-                                  </span>
+                                  {getCustomerFirstName(rawCustName) && (
+                                    <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
+                                      Table {tbl.tableNumber}
+                                    </span>
+                                  )}
+                                  <strong style={{ fontSize: '12.5px', fontWeight: 600, color: '#92400e' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
                                 </div>
-                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
-                                  ₹{Math.round((it.quantity || 1) * (Number(it.price || it.item?.price || 0)))}
+                              );
+                            })}
+
+                            {/* 8th Position "View More" Interactive Card */}
+                            {hasMoreTables && (
+                              <div
+                                onClick={() => {
+                                  setPosSelectedTable(null);
+                                  handleTabChange('pos');
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
+                                  borderRadius: '12px',
+                                  border: '1.5px dashed #3b82f6',
+                                  padding: '10px 12px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  textAlign: 'center',
+                                  cursor: 'pointer',
+                                  minHeight: '100px',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                title="Click to view all tables in POS Terminal"
+                              >
+                                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#0f172a' }}>
+                                  +{remainingCount} More
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: 600, marginTop: 3 }}>
+                                  Open POS Floor →
                                 </span>
                               </div>
-                            ))}
+                            )}
                           </div>
-                        </div>
+                        )}
 
-                        {/* Bill Total Summary */}
-                        <div style={{
-                          background: '#f8fafc',
-                          borderRadius: '12px',
-                          padding: '12px 16px',
-                          border: '1px solid #e2e8f0',
-                          marginBottom: '1.25rem'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: 4 }}>
-                            <span>Subtotal</span>
-                            <span>₹{Math.round(selectedTableModal.activeOrder?.subtotal || selectedTableModal.activeOrder?.total || 0)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: 6 }}>
-                            <span>Taxes & GST (5%)</span>
-                            <span>₹{Math.round((selectedTableModal.activeOrder?.total || 0) * 0.05)}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 900, color: '#0f172a', borderTop: '1px solid #e2e8f0', paddingTop: 6 }}>
-                            <span>Total Payable</span>
-                            <span style={{ color: '#4f46e5' }}>₹{Math.round(selectedTableModal.activeOrder?.total || 0)}</span>
-                          </div>
-                        </div>
-
-                        {/* Modal Action Buttons */}
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              toast.success("KOT sent to kitchen printer");
-                              window.print();
-                            }}
-                            style={{
-                              flex: 1,
-                              padding: '11px',
-                              borderRadius: '10px',
-                              border: '1px solid #cbd5e1',
-                              background: '#ffffff',
-                              color: '#334155',
-                              fontWeight: 700,
-                              fontSize: '13px',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            🖨️ Print Bill
-                          </button>
-                          {(selectedTableModal.activeOrder?.status === 'ready' || selectedTableModal.activeOrder?.status === 'served') ? (
-                            <button
-                              type="button"
-                              disabled={isSettlingTable}
-                              onClick={() => handleSettleTable(selectedTableModal.table?.tableNumber)}
-                              style={{
-                                flex: 1.4,
-                                padding: '11px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: '#10b981',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '13px',
-                                cursor: 'pointer',
-                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                              }}
-                            >
-                              {isSettlingTable ? 'Settling...' : '✓ Settle & Free Table'}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                await handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'ready');
-                              }}
-                              style={{
-                                flex: 1.4,
-                                padding: '11px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: '#3b82f6',
-                                color: '#ffffff',
-                                fontWeight: 800,
-                                fontSize: '13px',
-                                cursor: 'pointer',
-                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                              }}
-                            >
-                              🍽️ Mark as Served
-                            </button>
-                          )}
-                        </div>
-                      </motion.div>
-                    </div>
-                  )}
-                </AnimatePresence>
-
-                {/* 8. BOTTOM SECTION: OPERATIONAL CHECKLIST + TOP SELLING DISHES */}
-                <div className={styles.dashBottomGridModern}>
-                  {/* Left: Operational Checklist */}
-                  <div className={styles.opsChecklistCard}>
-                    <div className={styles.opsHeaderRow}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <CheckCircle2 size={18} color="#4f46e5" />
-                        <h3>Daily Operational Checklist</h3>
-                      </div>
-                      <span className={styles.opsProgressPill}>
-                        {checklist.filter(c => c.done).length} / {checklist.length} Completed
-                      </span>
-                    </div>
-
-                    <div className={styles.opsProgressBarTrack}>
-                      <div
-                        className={styles.opsProgressBarFill}
-                        style={{
-                          width: `${(checklist.filter(c => c.done).length / (checklist.length || 1)) * 100}%`
-                        }}
-                      />
-                    </div>
-
-                    <div className={styles.opsCheckList}>
-                      {checklist.map(item => (
-                        <div
-                          key={item.id}
-                          onClick={() => handleToggleChecklist(item.id)}
-                          className={`${styles.opsItemRow} ${item.done ? styles.opsItemRowDone : ''}`}
-                        >
-                          <div className={styles.opsItemLeft}>
-                            <div className={`${styles.opsCheckbox} ${item.done ? styles.opsCheckboxChecked : ''}`}>
-                              {item.done && <Check size={12} />}
-                            </div>
-                            <span className={`${styles.opsItemText} ${item.done ? styles.opsItemTextDone : ''}`}>
-                              {item.text}
-                            </span>
-                          </div>
-                          <span className={styles.opsItemTime}>{item.time}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <form onSubmit={handleAddChecklistItem} className={styles.opsAddForm}>
-                      <input
-                        type="text"
-                        placeholder="Add quick operational task..."
-                        value={newChecklistText}
-                        onChange={(e) => setNewChecklistText(e.target.value)}
-                        className={styles.opsInput}
-                      />
-                      <button type="submit" className={styles.opsAddBtn}>
-                        Add
-                      </button>
-                    </form>
-                  </div>
-
-                  {/* Right: Top Selling Items & Category Share */}
-                  <div className={styles.topSellingCard}>
-                    <div className={styles.opsHeaderRow}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Flame size={18} color="#e11d48" />
-                        <h3>Popular Menu Performers</h3>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange('menu')}
-                        style={{ background: 'transparent', border: 'none', color: '#4f46e5', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        Manage Menu →
-                      </button>
-                    </div>
-
-                    <div className={styles.topSellingList}>
-                      {metrics.topSellingItems?.map((it, idx) => {
-                        const totalRev = metrics.grossSales || 1;
-                        const pct = Math.min(100, Math.round((it.revenue / totalRev) * 100)) || (40 - idx * 8);
-
-                        return (
-                          <div key={idx} className={styles.topDishRow}>
-                            <div className={`${styles.dishRankCircle} ${idx === 0 ? styles.dishRankTop : ''}`}>
-                              #{idx + 1}
-                            </div>
-                            <div className={styles.dishInfoBlock}>
-                              <span className={styles.dishName}>{it.name}</span>
-                              <span className={styles.dishMeta}>{it.count} units sold</span>
-                            </div>
-                            <div className={styles.dishBarWrap}>
-                              <div className={styles.dishBarFill} style={{ width: `${pct}%` }} />
-                            </div>
-                            <div className={styles.dishRevenue}>
-                              ₹{Math.round(it.revenue).toLocaleString('en-IN')}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 1.5. DINING FLOOR & TABLE OPERATIONS HUB                   */}
-            {/* ========================================================= */}
-            {activeTab === 'tables_hub' && (
-              <motion.div
-                key="tables_hub"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <TableOperationsHub
-                  tables={tables}
-                  orders={orders}
-                  tenantInfo={tenantInfo}
-                  tenantId={tenantId || user?.tenantId}
-                  onSettleTable={handleSettleTable}
-                  onUpdateOrderStatus={handleUpdateOrderStatus}
-                  onOpenPOS={(tableNum) => {
-                    handleTabChange('pos');
-                    toast.success(`POS opened for Table ${tableNum}`);
-                  }}
-                  onRefresh={() => {
-                    fetchTables();
-                    fetchOrders();
-                    toast.success("Live floor & orders refreshed");
-                  }}
-                  onAddTable={handleAddTableFromHub}
-                  onDeleteTable={handleDeleteTableFromHub}
-                />
-              </motion.div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 2. LIVE ORDERS & KITCHEN DISPLAY SYSTEM (KDS)             */}
-            {/* ========================================================= */}
-            {activeTab === 'kds' && (
-              <motion.div
-                key="kds"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
-              >
-                <KOTMonitor
-                  orders={orders}
-                  onUpdateStatus={handleStatusUpdate}
-                  onDeleteOrder={handleDeleteOrder}
-                  enableEstimatedPrepTime={tenantInfo?.settings?.enableEstimatedPrepTime || false}
-                />
-              </motion.div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 2.5 ALL ORDERS DIRECTORY & MANAGEMENT                     */}
-            {/* ========================================================= */}
-            {activeTab === 'orders' && (
-              <motion.div
-                key="orders"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
-              >
-                <OrdersManagement
-                  orders={orders}
-                  onUpdateStatus={handleUpdateOrderStatus}
-                  onNavigateTab={handleTabChange}
-                />
-              </motion.div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 3. MENU MANAGEMENT & CATALOG                              */}
-            {/* ========================================================= */}
-            {activeTab === 'menu' && (
-              <motion.div
-                key="menu"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className={styles.menuManagementView}
-              >
-                {/* Top Action Header */}
-                <div className={styles.menuHeaderRow}>
-                  <div>
-                    <h2 className={styles.sectionHeading}>Menu Catalog & Digital Availability Sync</h2>
-                    <p className={styles.sectionSubtitle}>Manage dish prices in ₹, discounts, veg/non-veg tags, and live out-of-stock items.</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    {selectedItemIds.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleBulkDelete}
-                        className={styles.bulkDeleteBtn}
-                      >
-                        <Trash2 size={16} /> Delete Selected ({selectedItemIds.length})
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleOpenAddDrawer}
-                      className={styles.addNewItemBtn}
-                    >
-                      <Plus size={16} /> Add New Dish
-                    </button>
-                  </div>
-                </div>
-
-                {/* Categories Bar */}
-                <div className={styles.categoriesPillRow}>
-                  {categories.map((cat) => {
-                    const IconComp = cat.Component || UtensilsCrossed;
-                    const isActive = selectedCategory === cat.id;
-                    const count = cat.id === 'all'
-                      ? items.length
-                      : items.filter(i => itemMatchesCategory(i, cat.id, categories)).length;
-
-                    return (
-                      <div
-                        key={cat.id}
-                        style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCategory(cat.id)}
-                          className={`${styles.categoryPill} ${isActive ? styles.activeCategoryPill : ''}`}
-                        >
-                          <IconComp size={15} />
-                          <span>{cat.name}</span>
-                          <span className={styles.catCountBadge}>{count}</span>
-                        </button>
-                        {cat.id !== 'all' && (
-                          <div style={{ display: 'inline-flex', gap: 2, marginLeft: 2 }}>
-                            <button
-                              type="button"
-                              onClick={(e) => handleOpenEditCategoryModal(cat, e)}
-                              title="Edit Category Name"
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                color: '#94a3b8',
-                                cursor: 'pointer',
-                                padding: '2px 4px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
-                            >
-                              <Edit3 size={11} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteCategory(cat.id, e)}
-                              title="Delete Category"
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                color: '#f87171',
-                                cursor: 'pointer',
-                                padding: '2px 4px',
-                                borderRadius: '4px',
-                                display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
-                            >
-                              <Trash2 size={11} />
-                            </button>
+                        {displayTables.length === 0 && tables.length > 0 && (
+                          <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '13px' }}>
+                            No tables found matching the filter "{tableFilterTab}".
                           </div>
                         )}
                       </div>
                     );
-                  })}
-                  <button
-                    type="button"
-                    onClick={handleOpenAddCategoryModal}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '7px 14px',
-                      borderRadius: '100px',
-                      border: '1px dashed #4f46e5',
-                      background: '#eef2ff',
-                      color: '#4f46e5',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      flexShrink: 0
-                    }}
-                  >
-                    <Plus size={14} /> Add Category
-                  </button>
-                </div>
+                  })()}
 
-                {/* Items Grid */}
-                <div className={styles.menuItemsGrid}>
-                  {paginatedMenuItems.map((item) => {
-                    const isSelected = selectedItemIds.includes(item._id);
-                    const discount = item.discount || {};
-                    const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
-
-                    let discountedPrice = item.price;
-                    if (hasDiscount) {
-                      if (discount.type === 'percentage') {
-                        discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
-                      } else {
-                        discountedPrice = Math.max(0, item.price - discount.value);
-                      }
-                    }
-
-                    return (
-                      <motion.div
-                        key={item._id}
-                        whileHover={{ y: -4 }}
-                        className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
-                      >
-                        <div className={styles.dishImageWrap}>
-                          <img
-                            src={getValidFoodImage(item)}
-                            alt={item.name}
-                            className={styles.dishImage}
-                            loading="lazy"
-                          />
-                          <div className={styles.dishImageOverlay}>
+                  {/* REAL TABLE ORDER DETAILS & BILL SETTLE MODAL */}
+                  <AnimatePresence>
+                    {selectedTableModal && (
+                      <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '1rem'
+                      }} onClick={() => setSelectedTableModal(null)}>
+                        <motion.div
+                          initial={{ scale: 0.95, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.95, opacity: 0 }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            background: '#ffffff',
+                            borderRadius: '20px',
+                            padding: '1.75rem',
+                            width: '100%',
+                            maxWidth: '480px',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                            maxHeight: '90vh',
+                            overflowY: 'auto'
+                          }}
+                        >
+                          {/* Modal Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                            <div>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+                                Table {selectedTableModal.table?.tableNumber} • Active Order
+                              </h3>
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                Order #{selectedTableModal.activeOrder?.orderNumber || selectedTableModal.activeOrder?._id?.slice(-5)} • {selectedTableModal.table?.seatingCapacity || 4} Guests
+                              </span>
+                            </div>
                             <button
                               type="button"
-                              onClick={() => handleToggleSelectItem(item._id)}
-                              className={styles.selectCheckboxBtn}
+                              onClick={() => setSelectedTableModal(null)}
+                              style={{ border: 'none', background: '#f1f5f9', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}
                             >
-                              {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
+                              <X size={18} />
                             </button>
-                            <div className={styles.dishBadges}>
-                              <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
-                                {item.isVeg ? '● VEG' : '▲ NON-VEG'}
-                              </span>
-                              {hasDiscount && (
-                                <span style={{
-                                  background: '#ef4444',
-                                  color: '#ffffff',
-                                  fontSize: '10px',
-                                  fontWeight: 800,
-                                  padding: '3px 8px',
-                                  borderRadius: '100px',
-                                  letterSpacing: '0.04em'
-                                }}>
-                                  {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
-                                </span>
-                              )}
-                              {!item.available && (
-                                <span className={styles.soldOutPill}>OUT OF STOCK</span>
-                              )}
-                            </div>
                           </div>
-                        </div>
 
-                        <div className={styles.dishBody}>
-                          <div className={styles.dishTitleRow}>
-                            <h4 className={styles.dishName}>{item.name}</h4>
-                            <div style={{ textAlign: 'right' }}>
-                              {hasDiscount ? (
-                                <div>
-                                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a' }}>₹{discountedPrice}</span>
-                                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '6px' }}>₹{item.price}</span>
-                                </div>
-                              ) : (
-                                <div className={styles.dishPrice}>
-                                  {item.variants && item.variants.length > 0 ? `From ₹${Math.min(...item.variants.map(v => Number(v.price) || item.price))}` : `₹${item.price}`}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                            {item.category === 'uncategorized' && (
-                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
-                                ⚠️ Uncategorized
-                              </span>
-                            )}
-                            {item.variants && item.variants.length > 0 && (
-                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
-                                {item.variants.length} Sizes/Options
-                              </span>
-                            )}
-                          </div>
-                          <p className={styles.dishDescription}>{item.description}</p>
-
-                          {/* Stock Toggle & Quick Actions */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-                            <div
-                              onClick={() => handleToggleItemAvailability(item)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                            >
-                              <div style={{
-                                width: 34,
-                                height: 18,
-                                borderRadius: 100,
-                                background: item.available ? '#10b981' : '#cbd5e1',
-                                position: 'relative',
-                                transition: 'background 0.2s ease'
-                              }}>
-                                <div style={{
-                                  width: 14,
-                                  height: 14,
-                                  borderRadius: '50%',
-                                  background: '#ffffff',
-                                  position: 'absolute',
-                                  top: 2,
-                                  left: item.available ? 18 : 2,
-                                  transition: 'left 0.2s ease',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                }} />
-                              </div>
-                            </div>
-
+                          {/* Order Status Ribbon */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: '#f8fafc',
+                            padding: '10px 14px',
+                            borderRadius: '12px',
+                            border: '1px solid #e2e8f0',
+                            marginBottom: '1rem'
+                          }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Current Kitchen Status:</span>
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button
                                 type="button"
-                                onClick={() => handleOpenEditDrawer(item)}
+                                onClick={() => handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'preparing')}
                                 style={{
-                                  padding: '6px 10px',
+                                  padding: '4px 8px',
                                   borderRadius: '6px',
-                                  border: '1px solid #e2e8f0',
-                                  background: '#ffffff',
-                                  color: '#334155',
+                                  border: '1px solid #fde68a',
+                                  background: selectedTableModal.activeOrder?.status === 'preparing' ? '#f59e0b' : '#fffbeb',
+                                  color: selectedTableModal.activeOrder?.status === 'preparing' ? '#ffffff' : '#b45309',
                                   fontSize: '11px',
                                   fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 4,
                                   cursor: 'pointer'
                                 }}
                               >
-                                <Edit3 size={12} /> Edit
+                                Cooking
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setDeleteConfirmItem(item)}
+                                onClick={() => handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'ready')}
                                 style={{
-                                  padding: '6px 10px',
+                                  padding: '4px 8px',
                                   borderRadius: '6px',
-                                  border: '1px solid #fee2e2',
-                                  background: '#fef2f2',
-                                  color: '#ef4444',
+                                  border: '1px solid #a7f3d0',
+                                  background: selectedTableModal.activeOrder?.status === 'ready' ? '#10b981' : '#ecfdf5',
+                                  color: selectedTableModal.activeOrder?.status === 'ready' ? '#ffffff' : '#047857',
                                   fontSize: '11px',
                                   fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 4,
                                   cursor: 'pointer'
                                 }}
                               >
-                                <Trash2 size={12} /> Delete
+                                Served
                               </button>
                             </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
 
-                {/* Menu Pagination Controls */}
-                {totalMenuPages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '12px 18px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      Showing {((menuPage - 1) * menuPageSize) + 1} - {Math.min(menuPage * menuPageSize, filteredMenuItems.length)} of {filteredMenuItems.length} dishes
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        disabled={menuPage === 1}
-                        onClick={() => setMenuPage(p => Math.max(1, p - 1))}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === 1 ? '#f8fafc' : '#ffffff', color: menuPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === 1 ? 'not-allowed' : 'pointer' }}
-                      >
-                        Previous
-                      </button>
-                      {Array.from({ length: totalMenuPages }, (_, i) => i + 1).map(p => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setMenuPage(p)}
-                          style={{ minWidth: '32px', height: '32px', padding: '0 6px', borderRadius: '8px', border: 'none', background: menuPage === p ? '#4f46e5' : '#f1f5f9', color: menuPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          {p}
+                          {/* Itemized Dish List */}
+                          <div style={{ marginBottom: '1.25rem' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Itemized Dishes
+                            </span>
+                            <div style={{ marginTop: '8px', border: '1px solid #f1f5f9', borderRadius: '12px', overflow: 'hidden' }}>
+                              {(selectedTableModal.activeOrder?.items || []).map((it, idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '10px 14px',
+                                    background: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                                    borderBottom: idx === (selectedTableModal.activeOrder?.items?.length - 1) ? 'none' : '1px solid #f1f5f9'
+                                  }}
+                                >
+                                  <div>
+                                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', display: 'block' }}>
+                                      {it.name || it.item?.name || 'Dish Item'}
+                                    </span>
+                                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                      Qty: {it.quantity || 1} × ₹{Number(it.price || it.item?.price || 0)}
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
+                                    ₹{Math.round((it.quantity || 1) * (Number(it.price || it.item?.price || 0)))}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Bill Total Summary */}
+                          <div style={{
+                            background: '#f8fafc',
+                            borderRadius: '12px',
+                            padding: '12px 16px',
+                            border: '1px solid #e2e8f0',
+                            marginBottom: '1.25rem'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: 4 }}>
+                              <span>Subtotal</span>
+                              <span>₹{Math.round(selectedTableModal.activeOrder?.subtotal || selectedTableModal.activeOrder?.total || 0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: 6 }}>
+                              <span>Taxes & GST (5%)</span>
+                              <span>₹{Math.round((selectedTableModal.activeOrder?.total || 0) * 0.05)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 600, color: '#0f172a', borderTop: '1px solid #e2e8f0', paddingTop: 6 }}>
+                              <span>Total Payable</span>
+                              <span style={{ color: '#4f46e5' }}>₹{Math.round(selectedTableModal.activeOrder?.total || 0)}</span>
+                            </div>
+                          </div>
+
+                          {/* Modal Action Buttons */}
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toast.success("KOT sent to kitchen printer");
+                                window.print();
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '11px',
+                                borderRadius: '10px',
+                                border: '1px solid #cbd5e1',
+                                background: '#ffffff',
+                                color: '#334155',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🖨️ Print Bill
+                            </button>
+                            {(selectedTableModal.activeOrder?.status === 'ready' || selectedTableModal.activeOrder?.status === 'served') ? (
+                              <button
+                                type="button"
+                                disabled={isSettlingTable}
+                                onClick={() => handleSettleTable(selectedTableModal.table?.tableNumber)}
+                                style={{
+                                  flex: 1.4,
+                                  padding: '11px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#10b981',
+                                  color: '#ffffff',
+                                  fontWeight: 600,
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                                }}
+                              >
+                                {isSettlingTable ? 'Settling...' : '✓ Settle & Free Table'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await handleUpdateOrderStatus(selectedTableModal.activeOrder?._id, 'ready');
+                                }}
+                                style={{
+                                  flex: 1.4,
+                                  padding: '11px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#3b82f6',
+                                  color: '#ffffff',
+                                  fontWeight: 600,
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                                }}
+                              >
+                                🍽️ Mark as Served
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* 8. BOTTOM SECTION: OPERATIONAL CHECKLIST + TOP SELLING DISHES */}
+                  <div className={styles.dashBottomGridModern}>
+                    {/* Left: Operational Checklist */}
+                    <div className={styles.opsChecklistCard}>
+                      <div className={styles.opsHeaderRow}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckCircle2 size={18} color="#4f46e5" />
+                          <h3>Daily Operational Checklist</h3>
+                        </div>
+                        <span className={styles.opsProgressPill}>
+                          {checklist.filter(c => c.done).length} / {checklist.length} Completed
+                        </span>
+                      </div>
+
+                      <div className={styles.opsProgressBarTrack}>
+                        <div
+                          className={styles.opsProgressBarFill}
+                          style={{
+                            width: `${(checklist.filter(c => c.done).length / (checklist.length || 1)) * 100}%`
+                          }}
+                        />
+                      </div>
+
+                      <div className={styles.opsCheckList}>
+                        {checklist.map(item => (
+                          <div
+                            key={item.id}
+                            onClick={() => handleToggleChecklist(item.id)}
+                            className={`${styles.opsItemRow} ${item.done ? styles.opsItemRowDone : ''}`}
+                          >
+                            <div className={styles.opsItemLeft}>
+                              <div className={`${styles.opsCheckbox} ${item.done ? styles.opsCheckboxChecked : ''}`}>
+                                {item.done && <Check size={12} />}
+                              </div>
+                              <span className={`${styles.opsItemText} ${item.done ? styles.opsItemTextDone : ''}`}>
+                                {item.text}
+                              </span>
+                            </div>
+                            <span className={styles.opsItemTime}>{item.time}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <form onSubmit={handleAddChecklistItem} className={styles.opsAddForm}>
+                        <input
+                          type="text"
+                          placeholder="Add quick operational task..."
+                          value={newChecklistText}
+                          onChange={(e) => setNewChecklistText(e.target.value)}
+                          className={styles.opsInput}
+                        />
+                        <button type="submit" className={styles.opsAddBtn}>
+                          Add
                         </button>
-                      ))}
+                      </form>
+                    </div>
+
+                    {/* Right: Top Selling Items & Category Share */}
+                    <div className={styles.topSellingCard}>
+                      <div className={styles.opsHeaderRow}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Flame size={18} color="#e11d48" />
+                          <h3>Popular Menu Performers</h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleTabChange('menu')}
+                          style={{ background: 'transparent', border: 'none', color: '#4f46e5', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Manage Menu →
+                        </button>
+                      </div>
+
+                      <div className={styles.topSellingList}>
+                        {metrics.topSellingItems?.map((it, idx) => {
+                          const totalRev = metrics.grossSales || 1;
+                          const pct = Math.min(100, Math.round((it.revenue / totalRev) * 100)) || (40 - idx * 8);
+
+                          return (
+                            <div key={idx} className={styles.topDishRow}>
+                              <div className={`${styles.dishRankCircle} ${idx === 0 ? styles.dishRankTop : ''}`}>
+                                #{idx + 1}
+                              </div>
+                              <div className={styles.dishInfoBlock}>
+                                <span className={styles.dishName}>{it.name}</span>
+                                <span className={styles.dishMeta}>{it.count} units sold</span>
+                              </div>
+                              <div className={styles.dishBarWrap}>
+                                <div className={styles.dishBarFill} style={{ width: `${pct}%` }} />
+                              </div>
+                              <div className={styles.dishRevenue}>
+                                ₹{Math.round(it.revenue).toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 1.5. DINING FLOOR & TABLE OPERATIONS HUB                   */}
+              {/* ========================================================= */}
+              {activeTab === 'tables_hub' && (
+                <motion.div
+                  key="tables_hub"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <TableOperationsHub
+                    tables={tables}
+                    orders={orders}
+                    tenantInfo={tenantInfo}
+                    tenantId={tenantId || user?.tenantId}
+                    onSettleTable={handleSettleTable}
+                    onUpdateOrderStatus={handleUpdateOrderStatus}
+                    onOpenPOS={(tableNum) => {
+                      handleTabChange('pos');
+                      toast.success(`POS opened for Table ${tableNum}`);
+                    }}
+                    onRefresh={() => {
+                      fetchTables();
+                      fetchOrders();
+                      toast.success("Live floor & orders refreshed");
+                    }}
+                    onAddTable={handleAddTableFromHub}
+                    onDeleteTable={handleDeleteTableFromHub}
+                  />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 2. LIVE ORDERS & KITCHEN DISPLAY SYSTEM (KDS)             */}
+              {/* ========================================================= */}
+              {activeTab === 'kds' && (
+                <motion.div
+                  key="kds"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+                >
+                  <KOTMonitor
+                    orders={orders}
+                    onUpdateStatus={handleStatusUpdate}
+                    onDeleteOrder={handleDeleteOrder}
+                    enableEstimatedPrepTime={tenantInfo?.settings?.enableEstimatedPrepTime || false}
+                  />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 2.5 ALL ORDERS DIRECTORY & MANAGEMENT                     */}
+              {/* ========================================================= */}
+              {activeTab === 'orders' && (
+                <motion.div
+                  key="orders"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+                >
+                  <OrdersManagement
+                    orders={orders}
+                    onUpdateStatus={handleUpdateOrderStatus}
+                    onNavigateTab={handleTabChange}
+                  />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 3. MENU MANAGEMENT & CATALOG                              */}
+              {/* ========================================================= */}
+              {activeTab === 'menu' && (
+                <motion.div
+                  key="menu"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className={styles.menuManagementView}
+                >
+                  {/* Top Action Header */}
+                  <div className={styles.menuHeaderRow}>
+                    <div>
+                      <h2 className={styles.sectionHeading}>Menu Catalog</h2>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {/* Menu Search Box */}
+                      <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        minWidth: '220px'
+                      }}>
+                        <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, pointerEvents: 'none' }} />
+                        <input
+                          type="text"
+                          placeholder="Search menu dishes..."
+                          value={menuSearchQuery}
+                          onChange={(e) => {
+                            setMenuSearchQuery(e.target.value);
+                            setMenuPage(1);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 28px 7px 30px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            background: '#ffffff',
+                            fontSize: '12px',
+                            outline: 'none',
+                            color: '#0f172a'
+                          }}
+                        />
+                        {menuSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuSearchQuery('');
+                              setMenuPage(1);
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: 8,
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                              color: '#94a3b8',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      {selectedItemIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleBulkDelete}
+                          className={styles.bulkDeleteBtn}
+                        >
+                          <Trash2 size={16} /> Delete Selected ({selectedItemIds.length})
+                        </button>
+                      )}
                       <button
                         type="button"
-                        disabled={menuPage === totalMenuPages}
-                        onClick={() => setMenuPage(p => Math.min(totalMenuPages, p + 1))}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === totalMenuPages ? '#f8fafc' : '#ffffff', color: menuPage === totalMenuPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === totalMenuPages ? 'not-allowed' : 'pointer' }}
+                        onClick={handleOpenAddCategoryModal}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #c7d2fe',
+                          background: '#eef2ff',
+                          color: '#4f46e5',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
                       >
-                        Next
+                        <Plus size={14} /> Add Category
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenAddDrawer}
+                        className={styles.addNewItemBtn}
+                      >
+                        <Plus size={16} /> Add New Dish
                       </button>
                     </div>
                   </div>
-                )}
 
-                {filteredMenuItems.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-                    <UtensilsCrossed size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
-                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', margin: 0 }}>No dishes found</h4>
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
-                      {menuSearchQuery ? `No items match "${menuSearchQuery}"` : 'Click "+ Add New Dish" above to create your first menu item.'}
-                    </p>
+                  {/* Categories Bar (Arranged A-Z) */}
+                  <div className={styles.categoriesPillRow}>
+                    {sortedCategories.map((cat) => {
+                      const IconComp = cat.Component || UtensilsCrossed;
+                      const isActive = selectedCategory === cat.id;
+                      const count = cat.id === 'all'
+                        ? items.length
+                        : items.filter(i => itemMatchesCategory(i, cat.id, categories)).length;
+
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => setSelectedCategory(cat.id)}
+                          className={`${styles.categoryPillWrap} ${isActive ? styles.categoryPillWrapActive : ''}`}
+                          style={{ cursor: 'pointer', ...(cat.id === 'all' ? { paddingRight: '0.85rem' } : {}) }}
+                        >
+                          <div className={styles.categoryPillMain}>
+                            <IconComp size={15} />
+                            <span>{cat.name}</span>
+                            <span className={styles.catCountBadge}>{count}</span>
+                          </div>
+                          {cat.id !== 'all' && (
+                            <div className={styles.catActionGroup}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditCategoryModal(cat, e);
+                                }}
+                                title={`Edit "${cat.name}" category`}
+                                className={`${styles.catActionBtn} ${styles.catEditBtn} ${isActive ? styles.catActionBtnActive : ''}`}
+                              >
+                                <Edit3 size={11} strokeWidth={2.2} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCategory(cat.id, e);
+                                }}
+                                title={`Delete "${cat.name}" category`}
+                                className={`${styles.catActionBtn} ${styles.catDeleteBtn} ${isActive ? styles.catDeleteBtnActive : ''}`}
+                              >
+                                <Trash2 size={11} strokeWidth={2.2} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={handleOpenAddCategoryModal}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '7px 14px',
+                        borderRadius: '100px',
+                        border: '1px dashed #4f46e5',
+                        background: '#eef2ff',
+                        color: '#4f46e5',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}
+                    >
+                      <Plus size={14} /> Add Category
+                    </button>
                   </div>
-                )}
-              </motion.div>
-            )}
 
-            {/* ========================================================= */}
-            {/* 4. POS BILLING TERMINAL                                   */}
-            {/* ========================================================= */}
-            {activeTab === 'pos' && (
-              <motion.div
-                key="pos"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
-              >
-                <POSTerminal
-                  tenantId={tenantId}
-                  tenantInfo={tenantInfo}
-                  menuItems={items}
-                  orders={orders}
-                  initialTable={posSelectedTable}
-                  onOrderPlaced={(newOrd) => {
-                    // For settlement (_refreshAll flag), just re-fetch to clear table
-                    if (newOrd?._refreshAll) {
-                      fetchOrders();
-                      return;
-                    }
-                    setOrders(prev => {
-                      const exists = prev.some(o => o._id === newOrd._id);
-                      if (exists) {
-                        return prev.map(o => o._id === newOrd._id ? newOrd : o);
+                  {/* Items Grid */}
+                  <div className={styles.menuItemsGrid}>
+                    {paginatedMenuItems.map((item) => {
+                      const isSelected = selectedItemIds.includes(item._id);
+                      const discount = item.discount || {};
+                      const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
+
+                      let discountedPrice = item.price;
+                      if (hasDiscount) {
+                        if (discount.type === 'percentage') {
+                          discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+                        } else {
+                          discountedPrice = Math.max(0, item.price - discount.value);
+                        }
                       }
-                      return [newOrd, ...prev];
-                    });
-                    fetchOrders();
-                  }}
-                  onOrderCreated={(newOrd) => {
-                    // Always re-fetch to get latest state (new round or settlement)
-                    fetchOrders();
-                  }}
-                />
-              </motion.div>
-            )}
 
-            {/* ========================================================= */}
-            {/* 6. CRM & LOYALTY                                          */}
-            {/* ========================================================= */}
-            {activeTab === 'crm' && (
-              <motion.div
-                key="crm"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
-              >
-                <CRMLoyalty orders={orders} />
-              </motion.div>
-            )}
+                      return (
+                        <motion.div
+                          key={item._id}
+                          whileHover={{ y: -4 }}
+                          className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
+                        >
+                          <div className={styles.dishImageWrap}>
+                            <img
+                              src={getValidFoodImage(item)}
+                              alt={item.name}
+                              className={styles.dishImage}
+                              loading="lazy"
+                            />
+                            <div className={styles.dishImageOverlay}>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSelectItem(item._id)}
+                                className={styles.selectCheckboxBtn}
+                              >
+                                {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
+                              </button>
+                              <div className={styles.dishBadges}>
+                                <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
+                                  {item.isVeg ? '● VEG' : '▲ NON-VEG'}
+                                </span>
+                                {hasDiscount && (
+                                  <span style={{
+                                    background: '#ef4444',
+                                    color: '#ffffff',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    padding: '3px 8px',
+                                    borderRadius: '100px',
+                                    letterSpacing: '0.04em'
+                                  }}>
+                                    {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                                  </span>
+                                )}
+                                {!item.available && (
+                                  <span className={styles.soldOutPill}>OUT OF STOCK</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-            {/* ========================================================= */}
-            {/* 7. DYNAMIC TABLE QR CODES MANAGER                         */}
-            {/* ========================================================= */}
-            {activeTab === 'qrcodes' && (
-              <motion.div
-                key="qrcodes"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <QRCodeComponent orders={orders} initialTables={tables} />
-              </motion.div>
-            )}
+                          <div className={styles.dishBody}>
+                            <div className={styles.dishTitleRow}>
+                              <h4 className={styles.dishName}>{item.name}</h4>
+                              <div style={{ textAlign: 'right' }}>
+                                {hasDiscount ? (
+                                  <div>
+                                    <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#16a34a' }}>₹{discountedPrice}</span>
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '6px' }}>₹{item.price}</span>
+                                  </div>
+                                ) : (
+                                  <div className={styles.dishPrice}>
+                                    {item.variants && item.variants.length > 0 ? `From ₹${Math.min(...item.variants.map(v => Number(v.price) || item.price))}` : `₹${item.price}`}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                              {item.category === 'uncategorized' && (
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                  ⚠️ Uncategorized
+                                </span>
+                              )}
+                              {item.variants && item.variants.length > 0 && (
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
+                                  {item.variants.length} Sizes/Options
+                                </span>
+                              )}
+                            </div>
+                            <p className={styles.dishDescription}>{item.description}</p>
 
-            {/* ========================================================= */}
-            {/* 8. RESTAURANT SETTINGS                                    */}
-            {/* ========================================================= */}
-            {activeTab === 'settings' && (
-              <motion.div
-                key="settings"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <RestaurantSettings
-                  tenantInfo={tenantInfo}
-                  onSave={handleSaveTenantSettings}
-                />
-              </motion.div>
-            )}
+                            {/* Stock Toggle & Quick Actions */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                              <div
+                                onClick={() => handleToggleItemAvailability(item)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                              >
+                                <div style={{
+                                  width: 34,
+                                  height: 18,
+                                  borderRadius: 100,
+                                  background: item.available ? '#10b981' : '#cbd5e1',
+                                  position: 'relative',
+                                  transition: 'background 0.2s ease'
+                                }}>
+                                  <div style={{
+                                    width: 14,
+                                    height: 14,
+                                    borderRadius: '50%',
+                                    background: '#ffffff',
+                                    position: 'absolute',
+                                    top: 2,
+                                    left: item.available ? 18 : 2,
+                                    transition: 'left 0.2s ease',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                  }} />
+                                </div>
+                              </div>
 
-            {/* ========================================================= */}
-            {/* 9. STAFF & ROLE-BASED ACCESS CONTROL (RBAC)               */}
-            {/* ========================================================= */}
-            {activeTab === 'staff' && (
-              <motion.div
-                key="staff"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <StaffManager />
-              </motion.div>
-            )}
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditDrawer(item)}
+                                  style={{
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #e2e8f0',
+                                    background: '#ffffff',
+                                    color: '#334155',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Edit3 size={12} /> Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirmItem(item)}
+                                  style={{
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #fee2e2',
+                                    background: '#fef2f2',
+                                    color: '#ef4444',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Trash2 size={12} /> Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
 
-            {/* ========================================================= */}
-            {/* 10. REVENUE & FINANCIAL REPORTS SUITE                     */}
-            {/* ========================================================= */}
-            {activeTab === 'reports' && (
-              <motion.div
-                key="reports"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <ReportsSuite initialOrders={orders} />
-              </motion.div>
-            )}
+                  {/* Menu Pagination Controls */}
+                  {totalMenuPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '12px 18px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                        Showing {((menuPage - 1) * menuPageSize) + 1} - {Math.min(menuPage * menuPageSize, filteredMenuItems.length)} of {filteredMenuItems.length} dishes
+                      </span>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          disabled={menuPage === 1}
+                          onClick={() => setMenuPage(p => Math.max(1, p - 1))}
+                          style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === 1 ? '#f8fafc' : '#ffffff', color: menuPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === 1 ? 'not-allowed' : 'pointer' }}
+                        >
+                          Previous
+                        </button>
+                        {Array.from({ length: totalMenuPages }, (_, i) => i + 1).map(p => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setMenuPage(p)}
+                            style={{ minWidth: '32px', height: '32px', padding: '0 6px', borderRadius: '8px', border: 'none', background: menuPage === p ? '#4f46e5' : '#f1f5f9', color: menuPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          disabled={menuPage === totalMenuPages}
+                          onClick={() => setMenuPage(p => Math.min(totalMenuPages, p + 1))}
+                          style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === totalMenuPages ? '#f8fafc' : '#ffffff', color: menuPage === totalMenuPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === totalMenuPages ? 'not-allowed' : 'pointer' }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-            {/* ========================================================= */}
-            {/* 11. CUSTOMER KHATA & BORROW (UDHARI) LEDGER               */}
-            {/* ========================================================= */}
-            {activeTab === 'khata' && (
-              <motion.div
-                key="khata"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <KhataLedger />
-              </motion.div>
-            )}
+                  {filteredMenuItems.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+                      <UtensilsCrossed size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
+                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', margin: 0 }}>No dishes found</h4>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
+                        {menuSearchQuery ? `No items match "${menuSearchQuery}"` : 'Click "+ Add New Dish" above to create your first menu item.'}
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
-          </AnimatePresence>
-        )}
-      </main>
+              {/* ========================================================= */}
+              {/* 4. POS BILLING TERMINAL                                   */}
+              {/* ========================================================= */}
+              {activeTab === 'pos' && (
+                <motion.div
+                  key="pos"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+                >
+                  <POSTerminal
+                    tenantId={tenantId}
+                    tenantInfo={tenantInfo}
+                    menuItems={items}
+                    orders={orders}
+                    initialTable={posSelectedTable}
+                    onOrderPlaced={(newOrd) => {
+                      // For settlement (_refreshAll flag), just re-fetch to clear table
+                      if (newOrd?._refreshAll) {
+                        fetchOrders();
+                        return;
+                      }
+                      setOrders(prev => {
+                        const exists = prev.some(o => o._id === newOrd._id);
+                        if (exists) {
+                          return prev.map(o => o._id === newOrd._id ? newOrd : o);
+                        }
+                        return [newOrd, ...prev];
+                      });
+                      fetchOrders();
+                    }}
+                    onOrderCreated={(newOrd) => {
+                      // Always re-fetch to get latest state (new round or settlement)
+                      fetchOrders();
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 6. CRM & LOYALTY                                          */}
+              {/* ========================================================= */}
+              {activeTab === 'crm' && (
+                <motion.div
+                  key="crm"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+                >
+                  <CRMLoyalty orders={orders} />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 7. DYNAMIC TABLE QR CODES MANAGER                         */}
+              {/* ========================================================= */}
+              {activeTab === 'qrcodes' && (
+                <motion.div
+                  key="qrcodes"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <QRCodeComponent orders={orders} initialTables={tables} />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 8. RESTAURANT SETTINGS                                    */}
+              {/* ========================================================= */}
+              {activeTab === 'settings' && (
+                <motion.div
+                  key="settings"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <RestaurantSettings
+                    tenantInfo={tenantInfo}
+                    onSave={handleSaveTenantSettings}
+                  />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 9. STAFF & ROLE-BASED ACCESS CONTROL (RBAC)               */}
+              {/* ========================================================= */}
+              {activeTab === 'staff' && (
+                <motion.div
+                  key="staff"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <StaffManager />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 10. REVENUE & FINANCIAL REPORTS SUITE                     */}
+              {/* ========================================================= */}
+              {activeTab === 'reports' && (
+                <motion.div
+                  key="reports"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <ReportsSuite initialOrders={orders} />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 11. CUSTOMER KHATA & BORROW (UDHARI) LEDGER               */}
+              {/* ========================================================= */}
+              {activeTab === 'khata' && (
+                <motion.div
+                  key="khata"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <KhataLedger />
+                </motion.div>
+              )}
+
+            </AnimatePresence>
+          )}
+        </main>
       </div>
 
       {/* DRAWER FOR ADDING / EDITING DISH */}
@@ -4013,14 +4520,34 @@ export default function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Category</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Category</label>
+                    <button
+                      type="button"
+                      onClick={handleOpenAddCategoryModal}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#4f46e5',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}
+                    >
+                      <Plus size={12} /> New Category
+                    </button>
+                  </div>
                   <select
                     value={drawerForm.category || 'uncategorized'}
                     onChange={(e) => setDrawerForm({ ...drawerForm, category: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
                   >
                     <option value="uncategorized">-- Uncategorized (Assign Later) --</option>
-                    {categories.filter(c => c.id !== 'all').map(c => (
+                    {sortedCategories.filter(c => c.id !== 'all').map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -4040,7 +4567,7 @@ export default function AdminPanel() {
                       border: drawerForm.isVeg ? '2px solid #16a34a' : '1px solid #cbd5e1',
                       background: drawerForm.isVeg ? '#f0fdf4' : '#ffffff',
                       color: drawerForm.isVeg ? '#16a34a' : '#64748b',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: '13px',
                       display: 'flex',
                       alignItems: 'center',
@@ -4060,7 +4587,7 @@ export default function AdminPanel() {
                       border: !drawerForm.isVeg ? '2px solid #dc2626' : '1px solid #cbd5e1',
                       background: !drawerForm.isVeg ? '#fef2f2' : '#ffffff',
                       color: !drawerForm.isVeg ? '#dc2626' : '#64748b',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: '13px',
                       display: 'flex',
                       alignItems: 'center',
@@ -4078,7 +4605,7 @@ export default function AdminPanel() {
               <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: (drawerForm.variants && drawerForm.variants.length > 0) ? '10px' : '4px' }}>
                   <div>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Layers size={14} color="#4f46e5" /> Portion Sizes & Custom Labels
                     </span>
 
@@ -4191,7 +4718,7 @@ export default function AdminPanel() {
               <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Percent size={14} color="#4f46e5" /> Promotional Discount
                     </span>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>Apply temporary price reduction</span>
@@ -4417,7 +4944,7 @@ export default function AdminPanel() {
               <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
                 <AlertTriangle size={24} />
               </div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>Delete "{deleteConfirmItem.name}"?</h3>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#0f172a', margin: '0 0 6px 0' }}>Delete "{deleteConfirmItem.name}"?</h3>
               <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.5rem 0' }}>This will permanently remove the dish from your restaurant menu catalog.</p>
 
               <div style={{ display: 'flex', gap: 10 }}>
@@ -4514,7 +5041,7 @@ export default function AdminPanel() {
                     <Bell size={18} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#0f172a' }}>
                       Notifications
                     </h3>
                     <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
@@ -4580,122 +5107,149 @@ export default function AdminPanel() {
                     </p>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {notifications.map((notif) => {
-                      const notifDate = new Date(notif.timestamp);
-                      const isToday = notifDate.toDateString() === new Date().toDateString();
-                      const readIds = JSON.parse(localStorage.getItem('serviq_read_notifs') || '[]');
-                      const isUnread = !readIds.includes(notif.id);
-
-                      let IconComp = Bell;
-                      let iconColor = '#2563eb';
-                      let iconBg = '#eff6ff';
-
-                      if (notif.type === 'new_order') {
-                        IconComp = ShoppingBag;
-                        iconColor = '#4f46e5';
-                        iconBg = '#eef2ff';
-                      } else if (notif.type === 'preparing') {
-                        IconComp = ChefHat;
-                        iconColor = '#d97706';
-                        iconBg = '#fef3c7';
-                      } else if (notif.type === 'ready') {
-                        IconComp = CheckCircle2;
-                        iconColor = '#16a34a';
-                        iconBg = '#dcfce7';
-                      } else if (notif.type === 'completed') {
-                        IconComp = Receipt;
-                        iconColor = '#059669';
-                        iconBg = '#ecfdf5';
-                      }
-
-                      return (
-                        <div
-                          key={notif.id}
-                          onClick={() => {
-                            const updated = Array.from(new Set([...readIds, notif.id]));
-                            localStorage.setItem('serviq_read_notifs', JSON.stringify(updated));
-                            setUnreadNotifsCount(prev => Math.max(0, prev - 1));
-                          }}
-                          style={{
-                            padding: '12px 14px',
-                            borderRadius: '12px',
-                            border: isUnread ? '1.5px solid #bfdbfe' : '1px solid #e2e8f0',
-                            backgroundColor: isUnread ? '#f8faff' : '#ffffff',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-                            display: 'flex',
-                            gap: 12,
-                            alignItems: 'flex-start',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            position: 'relative'
-                          }}
-                        >
-                          <div style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '10px',
-                            background: iconBg,
-                            color: iconColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            marginTop: 2
-                          }}>
-                            <IconComp size={17} />
-                          </div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                              <h4 style={{
-                                margin: 0,
-                                fontSize: '0.85rem',
-                                fontWeight: 800,
-                                color: '#0f172a',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                {notif.title}
-                              </h4>
-                              {isUnread && (
-                                <span style={{
-                                  width: 7,
-                                  height: 7,
-                                  borderRadius: '50%',
-                                  background: '#2563eb',
-                                  flexShrink: 0,
-                                  marginTop: 4
-                                }} />
-                              )}
-                            </div>
-
-                            <p style={{
-                              margin: '3px 0 6px 0',
-                              fontSize: '0.78rem',
-                              color: '#475569',
-                              lineHeight: 1.4
-                            }}>
-                              {notif.message}
-                            </p>
-
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: '#94a3b8' }}>
-                              <span>
-                                {isToday
-                                  ? `Today at ${notifDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                                  : notifDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                              </span>
-                              {notif.amount > 0 && (
-                                <strong style={{ color: '#0f172a', fontWeight: 800 }}>
-                                  ₹{notif.amount}
-                                </strong>
-                              )}
-                            </div>
-                          </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {groupedNotifications.map((group) => (
+                      <div key={group.dateStr}>
+                        {/* Date Divider Badge Header */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          margin: '0 0 10px 0',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          background: '#f1f5f9',
+                          color: '#475569',
+                          fontSize: '0.73rem',
+                          fontWeight: 600,
+                          letterSpacing: '0.03em',
+                          textTransform: 'uppercase'
+                        }}>
+                          <Calendar size={13} color="#64748b" />
+                          <span>{group.label}</span>
+                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>({group.items.length})</span>
+                          <div style={{ flex: 1, height: '1px', background: '#cbd5e1', marginLeft: 4 }} />
                         </div>
-                      );
-                    })}
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {group.items.map((notif) => {
+                            const notifDate = new Date(notif.timestamp);
+                            const isToday = notifDate.toDateString() === new Date().toDateString();
+                            const readIds = JSON.parse(localStorage.getItem('serviq_read_notifs') || '[]');
+                            const isUnread = !readIds.includes(notif.id);
+
+                            let IconComp = Bell;
+                            let iconColor = '#2563eb';
+                            let iconBg = '#eff6ff';
+
+                            if (notif.type === 'new_order') {
+                              IconComp = ShoppingBag;
+                              iconColor = '#4f46e5';
+                              iconBg = '#eef2ff';
+                            } else if (notif.type === 'preparing') {
+                              IconComp = ChefHat;
+                              iconColor = '#d97706';
+                              iconBg = '#fef3c7';
+                            } else if (notif.type === 'ready') {
+                              IconComp = CheckCircle2;
+                              iconColor = '#16a34a';
+                              iconBg = '#dcfce7';
+                            } else if (notif.type === 'completed') {
+                              IconComp = Receipt;
+                              iconColor = '#059669';
+                              iconBg = '#ecfdf5';
+                            }
+
+                            return (
+                              <div
+                                key={notif.id}
+                                onClick={() => {
+                                  const updated = Array.from(new Set([...readIds, notif.id]));
+                                  localStorage.setItem('serviq_read_notifs', JSON.stringify(updated));
+                                  setUnreadNotifsCount(prev => Math.max(0, prev - 1));
+                                }}
+                                style={{
+                                  padding: '12px 14px',
+                                  borderRadius: '12px',
+                                  border: isUnread ? '1.5px solid #bfdbfe' : '1px solid #e2e8f0',
+                                  backgroundColor: isUnread ? '#f8faff' : '#ffffff',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                                  display: 'flex',
+                                  gap: 12,
+                                  alignItems: 'flex-start',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  position: 'relative'
+                                }}
+                              >
+                                <div style={{
+                                  width: 34,
+                                  height: 34,
+                                  borderRadius: '10px',
+                                  background: iconBg,
+                                  color: iconColor,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  marginTop: 2
+                                }}>
+                                  <IconComp size={17} />
+                                </div>
+
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                                    <h4 style={{
+                                      margin: 0,
+                                      fontSize: '0.85rem',
+                                      fontWeight: 600,
+                                      color: '#0f172a',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      {notif.title}
+                                    </h4>
+                                    {isUnread && (
+                                      <span style={{
+                                        width: 7,
+                                        height: 7,
+                                        borderRadius: '50%',
+                                        background: '#2563eb',
+                                        flexShrink: 0,
+                                        marginTop: 4
+                                      }} />
+                                    )}
+                                  </div>
+
+                                  <p style={{
+                                    margin: '3px 0 6px 0',
+                                    fontSize: '0.78rem',
+                                    color: '#475569',
+                                    lineHeight: 1.4
+                                  }}>
+                                    {notif.message}
+                                  </p>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', color: '#94a3b8' }}>
+                                    <span>
+                                      {isToday
+                                        ? `Today at ${notifDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                        : notifDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                    </span>
+                                    {notif.amount > 0 && (
+                                      <strong style={{ color: '#0f172a', fontWeight: 600 }}>
+                                        ₹{notif.amount}
+                                      </strong>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -4755,7 +5309,7 @@ export default function AdminPanel() {
               style={{ position: 'relative', width: '92%', maxWidth: '440px', background: '#ffffff', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', zIndex: 10 }}
             >
               <div style={{ padding: '18px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>
                   {categoryModalMode === 'add' ? 'Add New Category' : 'Rename Category'}
                 </h3>
                 <button

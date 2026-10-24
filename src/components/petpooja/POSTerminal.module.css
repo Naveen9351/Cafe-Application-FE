@@ -70,7 +70,7 @@
 
 .floorHeading {
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
   letter-spacing: -0.02em;
@@ -257,7 +257,7 @@
 
 .zoneTitle {
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #334155;
   margin: 0;
   display: flex;
@@ -336,7 +336,7 @@
 
 .tileFree .tileName {
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #1e293b;
   margin: 0.5rem 0 0.1rem 0;
 }
@@ -372,14 +372,14 @@
 
 .tileOccupied .tileName {
   font-size: 1.15rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #78350f;
   margin: 2px 0;
 }
 
 .tileOccupied .tileAmount {
   font-size: 0.92rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #92400e;
 }
 
@@ -402,14 +402,14 @@
 
 .tilePaid .tileName {
   font-size: 1.15rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #065f46;
   margin: 2px 0;
 }
 
 .tilePaid .tileAmount {
   font-size: 0.92rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #047857;
 }
 
@@ -489,7 +489,7 @@
 
 .tableTagPill {
   font-size: 0.88rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -718,7 +718,7 @@
 
 .dishPrice {
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #059669;
 }
 
@@ -785,7 +785,7 @@
 
 .dishStepperQty {
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #1e40af;
   min-width: 14px;
   text-align: center;
@@ -827,7 +827,7 @@
 
 .drawerTitle {
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
 }
@@ -876,7 +876,7 @@
 
 .roundHeader {
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
   margin-bottom: 3px;
@@ -886,7 +886,7 @@
 
 .draftSectionHeader {
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
   margin-bottom: 0.35rem;
@@ -949,7 +949,7 @@
 
 .qtyVal {
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   min-width: 12px;
   text-align: center;
@@ -1028,7 +1028,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.9rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #0f172a;
 }
 
@@ -1049,7 +1049,7 @@
   border-radius: 8px;
   padding: 0.55rem 0.5rem;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1073,7 +1073,7 @@
   border-radius: 8px;
   padding: 0.55rem 0.5rem;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1147,7 +1147,7 @@
 .khataTitleArea h3 {
   margin: 0;
   font-size: 1.02rem;
-  font-weight: 800;
+  font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.2px;
 }
@@ -1202,7 +1202,7 @@
 
 .khataBillAmount {
   font-size: 1.2rem;
-  font-weight: 900;
+  font-weight: 600;
   color: #38bdf8;
 }
 
@@ -1357,7 +1357,7 @@
 
 .khataAmountBoxLabel {
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   margin-bottom: 3px;
@@ -1372,7 +1372,7 @@
 .khataAmountCurrency {
   position: absolute;
   left: 8px;
-  font-weight: 900;
+  font-weight: 600;
   font-size: 0.88rem;
 }
 
@@ -1382,7 +1382,7 @@
   border-radius: 6px;
   border: 1.5px solid;
   font-size: 0.95rem;
-  font-weight: 900;
+  font-weight: 600;
   box-sizing: border-box;
   height: 28px;
 }
@@ -1470,7 +1470,7 @@
   border: none;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
   display: flex;

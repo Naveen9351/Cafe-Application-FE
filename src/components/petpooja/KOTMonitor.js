@@ -21,6 +21,9 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const [prepTimeMinutes, setPrepTimeMinutes] = useState(20);
   const [orderToEdit, setOrderToEdit] = useState(null);
   const [editTimeMinutes, setEditTimeMinutes] = useState(20);
+  const [servedKanbanPage, setServedKanbanPage] = useState(1);
+  const [tableOrdersPage, setTableOrdersPage] = useState(1);
+  const servedLimit = 20;
 
   // Live Timer ticker: updates every second with proper lifecycle cleanup
   useEffect(() => {
@@ -155,50 +158,23 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
       <div className={styles.mainKdsLayout}>
         <div className={styles.kdsBoardColumn}>
           
-          {/* Top Bar: View Mode Toggle & Metrics */}
+          {/* Top Bar: Channels & Refresh */}
           <div className={styles.channelBar}>
-            {/* Primary Toggle: Card View vs Table View */}
-            <div className={styles.viewModeToggleGroup}>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'card' ? styles.viewModeBtnActive : ''}`}
-                onClick={() => setViewMode('card')}
-                title="Card View (Kanban Board)"
-              >
-                <LayoutGrid size={15} />
-                <span>Card View</span>
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeBtnActive : ''}`}
-                onClick={() => setViewMode('table')}
-                title="Table View (Filtered List)"
-              >
-                <TableIcon size={15} />
-                <span>Table View</span>
-              </button>
+            <div className={styles.channelTabs}>
+              {['All', 'Dine-in', 'Takeaway', 'Delivery'].map(ch => (
+                <button
+                  key={ch}
+                  type="button"
+                  className={`${styles.channelTab} ${orderChannel === ch ? styles.activeChannelTab : ''}`}
+                  onClick={() => setOrderChannel(ch)}
+                  style={{ padding: '4px 10px', fontSize: '0.74rem' }}
+                >
+                  {ch}
+                </button>
+              ))}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {viewMode === 'card' && (
-                <div className={styles.channelTabs} style={{ marginRight: '4px' }}>
-                  {['All', 'Dine-in', 'Takeaway', 'Delivery'].map(ch => (
-                    <button
-                      key={ch}
-                      type="button"
-                      className={`${styles.channelTab} ${orderChannel === ch ? styles.activeChannelTab : ''}`}
-                      onClick={() => setOrderChannel(ch)}
-                      style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                    >
-                      {ch === 'All' ? 'All' : ch}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className={styles.perfMetric}>
-                <span>Active In Prep:</span>
-                <span className={styles.avgTimePill}>{inKitchenOrders.length} Tickets</span>
-              </div>
               <button 
                 type="button" 
                 className={styles.refreshIconBtn} 
@@ -475,34 +451,26 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
               </div>
             </div>
 
-            {/* COLUMN 4: SERVED / COMPLETED */}
+            {/* COLUMN 4: SERVED */}
             <div className={styles.kanbanCol}>
               <div className={`${styles.colHeader} ${styles.colGray}`}>
                 <div className={styles.colTitleWrap}>
                   <span className={styles.colBullet}></span>
-                  <span className={styles.colName}>Served (Completed)</span>
+                  <span className={styles.colName}>Served</span>
                 </div>
                 <span className={`${styles.countBadge} ${styles.grayBadge}`}>{servedOrders.length}</span>
               </div>
 
               <div className={styles.ticketsList}>
-                {servedOrders.slice(0, 10).map(order => (
+                {servedOrders.slice((servedKanbanPage - 1) * servedLimit, servedKanbanPage * servedLimit).map(order => (
                   <div key={order._id} className={`${styles.ticketCard} ${styles.cardServed}`}>
                     <div className={styles.cardHeader}>
                       <div>
                         <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                        <div className={styles.stationTag}>{order.channel} • Completed</div>
+                        <div className={styles.stationTag}>{order.channel} • Served</div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span className={styles.completedPill}>Delivered</span>
-                        <button 
-                          type="button"
-                          onClick={() => setOrderToDelete(order)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2 }}
-                          title="Delete Order"
-                        >
-                          <Trash2 size={15} />
-                        </button>
                       </div>
                     </div>
 
@@ -522,9 +490,66 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                     </div>
                   </div>
                 ))}
+
+                {servedOrders.length > servedLimit && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    background: '#ffffff',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    marginTop: '6px',
+                    fontSize: '11px',
+                    color: '#64748b'
+                  }}>
+                    <span>
+                      {((servedKanbanPage - 1) * servedLimit) + 1} - {Math.min(servedKanbanPage * servedLimit, servedOrders.length)} of {servedOrders.length}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <button
+                        type="button"
+                        disabled={servedKanbanPage === 1}
+                        onClick={() => setServedKanbanPage(p => Math.max(1, p - 1))}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #cbd5e1',
+                          background: servedKanbanPage === 1 ? '#f8fafc' : '#ffffff',
+                          color: servedKanbanPage === 1 ? '#94a3b8' : '#0f172a',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: servedKanbanPage === 1 ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Prev
+                      </button>
+                      <span style={{ fontWeight: 700 }}>{servedKanbanPage} / {Math.ceil(servedOrders.length / servedLimit)}</span>
+                      <button
+                        type="button"
+                        disabled={servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit)}
+                        onClick={() => setServedKanbanPage(p => Math.min(Math.ceil(servedOrders.length / servedLimit), p + 1))}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #cbd5e1',
+                          background: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? '#f8fafc' : '#ffffff',
+                          color: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? '#94a3b8' : '#0f172a',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {servedOrders.length === 0 && (
                   <div className={styles.emptyCol}>
-                    <p>Completed orders will appear here</p>
+                    <p>Served orders will appear here</p>
                   </div>
                 )}
               </div>
@@ -542,13 +567,13 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                     { id: 'pending', label: 'New Orders', count: newOrders.length, color: '#2563eb' },
                     { id: 'preparing', label: 'In Kitchen', count: inKitchenOrders.length, color: '#d97706' },
                     { id: 'ready', label: 'Ready for Pass', count: readyOrders.length, color: '#16a34a' },
-                    { id: 'completed', label: 'Served (Completed)', count: servedOrders.length, color: '#64748b' }
+                    { id: 'completed', label: 'Served', count: servedOrders.length, color: '#64748b' }
                   ].map(tab => (
                     <button
                       key={tab.id}
                       type="button"
                       className={`${styles.statusTabBtn} ${tableStatusTab === tab.id ? styles.statusTabBtnActive : ''}`}
-                      onClick={() => setTableStatusTab(tab.id)}
+                      onClick={() => { setTableStatusTab(tab.id); setTableOrdersPage(1); }}
                     >
                       <span>{tab.label}</span>
                       <span 
@@ -630,7 +655,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                         </td>
                       </tr>
                     ) : (
-                      displayedTableOrders.map((order) => {
+                      displayedTableOrders.slice((tableOrdersPage - 1) * 20, tableOrdersPage * 20).map((order) => {
                         const elapsedMins = getElapsedMinutes(order.createdAt);
                         const isLate = elapsedMins >= (order.estimatedTime || 15);
                         const isNew = order.status === 'pending' || order.status === 'confirmed';
@@ -778,25 +803,22 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                     <CheckCircle size={12} /> Mark Served
                                   </button>
                                 )}
-                                {isDone && (
-                                  <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>
-                                    Completed
-                                  </span>
+                                {!isDone && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setOrderToDelete(order)}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#94a3b8',
+                                      cursor: 'pointer',
+                                      padding: '4px'
+                                    }}
+                                    title="Delete Order"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
                                 )}
-                                <button
-                                  type="button"
-                                  onClick={() => setOrderToDelete(order)}
-                                  style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: '#94a3b8',
-                                    cursor: 'pointer',
-                                    padding: '4px'
-                                  }}
-                                  title="Delete Order"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -805,6 +827,60 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                     )}
                   </tbody>
                 </table>
+
+                {displayedTableOrders.length > 20 && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderTop: '1px solid #f1f5f9',
+                    background: '#f8fafc',
+                    fontSize: '12px',
+                    color: '#64748b'
+                  }}>
+                    <span>
+                      Showing {((tableOrdersPage - 1) * 20) + 1} - {Math.min(tableOrdersPage * 20, displayedTableOrders.length)} of {displayedTableOrders.length} orders
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        disabled={tableOrdersPage === 1}
+                        onClick={() => setTableOrdersPage(p => Math.max(1, p - 1))}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: tableOrdersPage === 1 ? '#f8fafc' : '#ffffff',
+                          color: tableOrdersPage === 1 ? '#94a3b8' : '#0f172a',
+                          fontWeight: 700,
+                          cursor: tableOrdersPage === 1 ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Previous
+                      </button>
+                      <span style={{ fontWeight: 700 }}>
+                        Page {tableOrdersPage} of {Math.ceil(displayedTableOrders.length / 20) || 1}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={tableOrdersPage >= Math.ceil(displayedTableOrders.length / 20)}
+                        onClick={() => setTableOrdersPage(p => Math.min(Math.ceil(displayedTableOrders.length / 20), p + 1))}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: tableOrdersPage >= Math.ceil(displayedTableOrders.length / 20) ? '#f8fafc' : '#ffffff',
+                          color: tableOrdersPage >= Math.ceil(displayedTableOrders.length / 20) ? '#94a3b8' : '#0f172a',
+                          fontWeight: 700,
+                          cursor: tableOrdersPage >= Math.ceil(displayedTableOrders.length / 20) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { 
-  ShoppingBag, Search, Plus, Filter, ArrowUpDown, X, 
+import * as XLSX from 'xlsx';
+import {
+  ShoppingBag, Search, Plus, Filter, ArrowUpDown, X,
   RefreshCw, Download, CheckCircle2, Clock, Eye, Printer,
   Phone, MessageSquare, IndianRupee, AlertCircle, TrendingUp,
   Receipt, Flame, Check, Utensils, Send, ChevronRight, ShieldCheck,
-  Calendar, User
+  Calendar, User, FileSpreadsheet
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersManagement.module.css';
 import { API_URL as API } from '../../config/api';
+import { printOrderBill } from '../../utils/billPrinter';
 
 export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus, onNavigateTab }) {
   const [localOrders, setLocalOrders] = useState([]);
@@ -19,27 +21,71 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
   // Filter States
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all'); // 'all', 'paid', 'unpaid', 'upi', 'cash', 'card'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'preparing', 'ready', 'completed', 'cancelled'
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'highest_amount', 'lowest_amount'
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  // Pagination State
+  // Server-side Pagination State (20 Limit)
   const [ordersPage, setOrdersPage] = useState(1);
-  const ordersPageSize = 10;
+  const ordersPageSize = 20;
+  const [totalServerOrders, setTotalServerOrders] = useState(0);
+  const [totalServerPages, setTotalServerPages] = useState(1);
+  const [isServerPaginated, setIsServerPaginated] = useState(false);
 
-  // Fetch / Sync All Historical Orders
-  const fetchOrders = async () => {
+  // Debounce search query (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setOrdersPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch Orders with Database-wide Pagination & Filtering
+  const fetchOrders = useCallback(async (
+    page = ordersPage,
+    q = debouncedSearch,
+    pay = paymentFilter,
+    st = statusFilter,
+    sort = sortBy
+  ) => {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     try {
       if (token) {
-        const res = await axios.get(`${API}/orders?range=all`, {
+        let url = `${API}/orders?paginate=true&page=${page}&limit=${ordersPageSize}&sortBy=${sort}`;
+        if (q && q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
+        if (st && st !== 'all') url += `&status=${encodeURIComponent(st)}`;
+        if (pay && pay !== 'all') {
+          if (['upi', 'cash', 'card'].includes(pay)) {
+            url += `&paymentMethod=${encodeURIComponent(pay)}`;
+          } else {
+            url += `&paymentStatus=${encodeURIComponent(pay)}`;
+          }
+        }
+
+        const res = await axios.get(url, {
           headers: { 'x-auth-token': token }
         });
-        if (res.data && Array.isArray(res.data)) {
-          setLocalOrders(res.data);
-          setIsLoading(false);
-          return;
+
+        if (res.data) {
+          if (res.data.orders && Array.isArray(res.data.orders)) {
+            setLocalOrders(res.data.orders);
+            setTotalServerOrders(res.data.total || 0);
+            setTotalServerPages(res.data.totalPages || 1);
+            setIsServerPaginated(true);
+            setIsLoading(false);
+            return;
+          } else if (Array.isArray(res.data)) {
+            setLocalOrders(res.data);
+            setTotalServerOrders(res.data.length);
+            setTotalServerPages(Math.ceil(res.data.length / ordersPageSize) || 1);
+            setIsServerPaginated(false);
+            setIsLoading(false);
+            return;
+          }
         }
       }
     } catch (err) {
@@ -48,13 +94,22 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
     if (orders && Array.isArray(orders)) {
       setLocalOrders(orders);
+      setTotalServerOrders(orders.length);
+      setTotalServerPages(Math.ceil(orders.length / ordersPageSize) || 1);
+      setIsServerPaginated(false);
     }
     setIsLoading(false);
-  };
+  }, [ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy, orders, ordersPageSize]);
 
+  // Fetch when filters or page change
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchOrders(ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy);
+  }, [fetchOrders, ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setOrdersPage(1);
+  }, [paymentFilter, statusFilter, sortBy]);
 
   // Sync selectedOrder if orders update in real-time
   useEffect(() => {
@@ -70,12 +125,12 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const formatDateTime = (dateStr) => {
     if (!dateStr) return 'N/A';
     const d = new Date(dateStr);
-    return d.toLocaleString('en-IN', { 
-      day: 'numeric', 
-      month: 'short', 
-      hour: '2-digit', 
+    return d.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
   };
 
@@ -98,32 +153,62 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     }
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
+  // Export Excel (.xlsx) Feature - Replacing CSV
+  const handleExportExcel = () => {
     if (localOrders.length === 0) return toast.error("No order records to export");
-    const headers = ["Order ID", "Channel", "Table", "Customer Name", "Phone", "Status", "Payment", "Items Count", "Total Amount", "Date & Time"];
+
+    const headers = [
+      "Order #",
+      "Channel",
+      "Table",
+      "Customer Name",
+      "Phone",
+      "Status",
+      "Payment Status",
+      "Payment Method",
+      "Items Count",
+      "Items Summary",
+      "Subtotal (₹)",
+      "Tax (₹)",
+      "Total Amount (₹)",
+      "Date & Time"
+    ];
+
     const rows = localOrders.map(o => [
-      `"${o.orderNumber || o._id?.slice(-5) || ''}"`,
-      `"${o.orderType || o.channel || 'dine-in'}"`,
-      `"${o.tableNumber || o.table || '-'}"`,
-      `"${o.customerName || o.customerDetails?.name || 'Guest Diner'}"`,
-      `"${o.customerPhone || o.customerDetails?.phone || ''}"`,
-      `"${o.status || 'pending'}"`,
-      `"${o.paymentStatus || 'unpaid'}"`,
-      o.items?.length || 1,
-      Math.round(o.totalAmount || o.finalAmount || o.total || 0),
-      `"${o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN') : ''}"`
+      o.orderNumber || o._id?.slice(-5) || '',
+      o.orderType || o.channel || 'dine-in',
+      o.tableNumber || o.table || '-',
+      o.customerName || o.customerDetails?.name || 'Guest Diner',
+      o.customerPhone || o.customerDetails?.phone || '',
+      (o.status || 'pending').toUpperCase(),
+      (o.paymentStatus || 'unpaid').toUpperCase(),
+      (o.paymentMethod || 'UPI').toUpperCase(),
+      (o.items || []).reduce((s, it) => s + (it.quantity || 1), 0),
+      (o.items || []).map(it => `${it.quantity || 1}x ${it.name || it.item?.name || 'Item'}`).join(', '),
+      Number(o.subTotal || o.subtotal || o.total || 0),
+      Number(o.taxAmount || 0),
+      Math.round(Number(o.totalAmount || o.finalAmount || o.total || 0)),
+      o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN') : ''
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `serviq_orders_master_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Orders master ledger exported as CSV!");
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    worksheet['!cols'] = [
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 20 }, { wch: 16 },
+      { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 35 },
+      { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 22 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders Master");
+
+    const fileName = `serviq_orders_master_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success("Orders master ledger downloaded as Excel (.xlsx)!");
+  };
+
+  // Print Bill / KOT Handler
+  const handlePrintReceipt = (order) => {
+    printOrderBill(order);
   };
 
   // WhatsApp Bill Message Generator
@@ -142,25 +227,19 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
-  // Print Bill Trigger
-  const handlePrintReceipt = (order) => {
-    window.print();
-  };
-
-  // Computed Metrics
+  // Computed Metrics (Harmonized with Dashboard & Reports Suite)
   const metrics = useMemo(() => {
-    const totalOrders = localOrders.length;
+    const totalOrders = totalServerOrders || localOrders.length;
     const completedOrders = localOrders.filter(o => o.status === 'completed');
     const completedRate = totalOrders > 0 ? Math.round((completedOrders.length / totalOrders) * 100) : 0;
 
     const activeOrders = localOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
     const pendingCount = localOrders.filter(o => o.status === 'pending').length;
 
-    const totalRevenue = localOrders
-      .filter(o => o.status !== 'cancelled')
+    const totalRevenue = completedOrders
       .reduce((sum, o) => sum + Number(o.totalAmount || o.finalAmount || o.total || 0), 0);
 
-    const aov = totalOrders > 0 ? Math.round(totalRevenue / Math.max(1, totalOrders)) : 0;
+    const aov = completedOrders.length > 0 ? Math.round(totalRevenue / completedOrders.length) : 0;
 
     return {
       totalOrders,
@@ -170,7 +249,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       totalRevenue,
       aov
     };
-  }, [localOrders]);
+  }, [localOrders, totalServerOrders]);
 
   // Filtered & Sorted Orders
   const filteredOrders = useMemo(() => {
@@ -266,19 +345,25 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     setOrdersPage(1);
   }, [search, paymentFilter, statusFilter, sortBy]);
 
-  const totalOrdersPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize));
+  const totalOrdersPages = isServerPaginated
+    ? totalServerPages
+    : Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize));
+
   const paginatedOrders = useMemo(() => {
+    if (isServerPaginated) return localOrders;
     const start = (ordersPage - 1) * ordersPageSize;
     return filteredOrders.slice(start, start + ordersPageSize);
-  }, [filteredOrders, ordersPage, ordersPageSize]);
+  }, [isServerPaginated, localOrders, filteredOrders, ordersPage, ordersPageSize]);
 
-  const hasActiveFilters = search || paymentFilter !== 'all' || statusFilter !== 'all';
+  const activeFilterCount = (search.trim() ? 1 : 0) + (paymentFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (sortBy !== 'newest' ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0;
 
   const resetFilters = () => {
     setSearch('');
     setPaymentFilter('all');
     setStatusFilter('all');
     setSortBy('newest');
+    setOrdersPage(1);
   };
 
   return (
@@ -289,34 +374,39 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       <div className={styles.headerRow}>
         <div className={styles.titleArea}>
           <div className={styles.brandIconWrap}>
-            <ShoppingBag size={20} />
+            <ShoppingBag size={18} />
           </div>
-          <div>
-            <h2 className={styles.title}>Orders Directory & Management</h2>
-            <p className={styles.subtitle}>
-              Master ledger of all historical dine-in, takeaway, delivery & QR orders with itemized billing.
-            </p>
-          </div>
+          <h2 className={styles.title}>Orders Directory & Management</h2>
         </div>
 
         <div className={styles.headerActions}>
-          <div className={styles.liveBadge}>
-            <span className={styles.liveDot}></span>
-            <span>Live Sync</span>
-          </div>
 
-          <button 
-            className={styles.btnSecondary}
-            onClick={handleExportCSV}
-            title="Download CSV Master Ledger"
+
+          {/* Combined Filter Button */}
+          <button
+            className={`${styles.btnSecondary} ${hasActiveFilters ? styles.btnFilterActive : ''}`}
+            onClick={() => setIsFilterModalOpen(true)}
+            title="Filter and Search Orders"
           >
-            <Download size={13} />
-            <span>Export CSV</span>
+            <Filter size={13} color={hasActiveFilters ? "#2563eb" : "#475569"} />
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className={styles.filterBadgeCount}>{activeFilterCount}</span>
+            )}
           </button>
 
-          <button 
-            className={styles.btnSecondary} 
-            onClick={fetchOrders}
+          <button
+            className={styles.btnSecondary}
+            onClick={handleExportExcel}
+            title="Download Excel (.xlsx) Master Ledger"
+          >
+            <FileSpreadsheet size={13} color="#16a34a" />
+            <span>Download Excel</span>
+          </button>
+
+          <button
+            className={styles.btnSecondary}
+            onClick={() => fetchOrders(ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy)}
             title="Refresh Orders"
           >
             <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
@@ -324,11 +414,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
           </button>
 
           {onNavigateTab && (
-            <button 
+            <button
               className={styles.btnPrimary}
               onClick={() => onNavigateTab('pos')}
             >
-              <Plus size={14} />
+              <Plus size={13} />
               <span>New POS Order</span>
             </button>
           )}
@@ -395,97 +485,64 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       </div>
 
       {/* ── Full-Width Maximized Table Card ── */}
+      {/* ── Full-Width Maximized Table Card ── */}
       <div className={styles.fullWidthCard}>
-        {/* Unified Toolbar */}
-        <div className={styles.unifiedToolbar}>
-          {/* Total Ledger Badge on Left */}
-          <div className={styles.toolbarLeft}>
-            <div className={styles.totalOrdersLedgerBadge}>
-              <ShoppingBag size={14} color="#059669" />
-              <span>All Orders Directory</span>
-              <span className={styles.totalOrdersLedgerCount}>{filteredOrders.length}</span>
-            </div>
-          </div>
-
-          {/* Search & Select Filters */}
-          <div className={styles.toolbarRight}>
-            {/* Search Field */}
-            <div className={styles.searchField}>
-              <Search size={13} className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search Order #, Name, Phone, Table..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={styles.inputField}
-              />
-              {search && (
-                <button className={styles.clearBtn} onClick={() => setSearch('')}>
-                  <X size={12} />
+        {/* Active Filter Pills Bar (Only shown if filters are active) */}
+        {hasActiveFilters && (
+          <div className={styles.activeFilterPillsBar}>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
+            {search && (
+              <span className={styles.filterChip}>
+                Search: "{search}"
+                <button type="button" onClick={() => setSearch('')} className={styles.filterChipRemove}>
+                  <X size={10} />
                 </button>
-              )}
-            </div>
-
-            {/* Payment Filter */}
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className={styles.selectField}
-            >
-              <option value="all">All Payments</option>
-              <option value="paid">Paid Only</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="upi">UPI / QR</option>
-              <option value="cash">Cash</option>
-              <option value="card">Credit/Debit Card</option>
-            </select>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={styles.selectField}
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="preparing">Preparing</option>
-              <option value="ready">Ready for Pickup/Serve</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-
-            {/* Sorting */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={styles.selectField}
-            >
-              <option value="newest">Sort: Newest First</option>
-              <option value="highest_amount">Sort: Highest Amount</option>
-              <option value="lowest_amount">Sort: Lowest Amount</option>
-              <option value="oldest">Sort: Oldest First</option>
-            </select>
-
-            {/* Reset Button */}
-            {hasActiveFilters && (
-              <button className={styles.resetBtn} onClick={resetFilters}>
-                <X size={12} />
-                <span>Reset</span>
-              </button>
+              </span>
             )}
+            {paymentFilter !== 'all' && (
+              <span className={styles.filterChip}>
+                Payment: {paymentFilter.toUpperCase()}
+                <button type="button" onClick={() => setPaymentFilter('all')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span className={styles.filterChip}>
+                Status: {statusFilter.toUpperCase()}
+                <button type="button" onClick={() => setStatusFilter('all')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {sortBy !== 'newest' && (
+              <span className={styles.filterChip}>
+                Sort: {sortBy.replace('_', ' ').toUpperCase()}
+                <button type="button" onClick={() => setSortBy('newest')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={resetFilters}
+              style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}
+            >
+              Clear All
+            </button>
           </div>
-        </div>
+        )}
 
         {/* Dense Data Table */}
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th}>Order # / Token</th>
+                <th className={styles.th}>Order id</th>
+                <th className={styles.th}>Table No</th>
                 <th className={styles.th}>Customer</th>
-                <th className={styles.th}>Items Summary</th>
+                <th className={styles.th}>Phone Number</th>
                 <th className={styles.th}>Payment</th>
-                <th className={styles.th}>Order Status</th>
                 <th className={styles.th}>Date & Time</th>
                 <th className={styles.th}>Total Amount</th>
                 <th className={styles.th} style={{ textAlign: 'center' }}>Actions</th>
@@ -496,19 +553,16 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                 Array.from({ length: 7 }).map((_, sIdx) => (
                   <tr key={sIdx} className={styles.skeletonRow}>
                     <td className={styles.skeletonCell}>
-                      <div className={styles.skeletonLine} style={{ width: '90px', height: '13px' }} />
+                      <div className={styles.skeletonLine} style={{ width: '70px', height: '13px' }} />
                     </td>
                     <td className={styles.skeletonCell}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        <div className={styles.skeletonLine} style={{ width: '80px', height: '12px' }} />
-                        <div className={styles.skeletonLine} style={{ width: '60px', height: '9px' }} />
-                      </div>
+                      <div className={styles.skeletonLine} style={{ width: '75px', height: '13px' }} />
                     </td>
                     <td className={styles.skeletonCell}>
-                      <div className={styles.skeletonLine} style={{ width: '130px', height: '12px' }} />
+                      <div className={styles.skeletonLine} style={{ width: '90px', height: '12px' }} />
                     </td>
                     <td className={styles.skeletonCell}>
-                      <div className={styles.skeletonPill} />
+                      <div className={styles.skeletonLine} style={{ width: '85px', height: '12px' }} />
                     </td>
                     <td className={styles.skeletonCell}>
                       <div className={styles.skeletonPill} />
@@ -543,7 +597,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
               ) : (
                 paginatedOrders.map(ord => {
                   const custName = ord.customerName || ord.customerDetails?.name || 'Guest Diner';
-                  const custPhone = ord.customerPhone || ord.customerDetails?.phone || 'Not Provided';
+                  const custPhone = ord.customerPhone || ord.customerDetails?.phone || '';
                   const orderNum = ord.orderNumber || ord._id?.slice(-5) || 'ORD';
                   const total = Number(ord.totalAmount || ord.finalAmount || ord.total || 0);
                   const itemsCount = ord.items?.reduce((s, it) => s + (Number(it.quantity) || 1), 0) || ord.items?.length || 1;
@@ -559,7 +613,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                       className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
                       onClick={() => setSelectedOrder(ord)}
                     >
-                      {/* Order # & Channel Badge */}
+                      {/* Order # & Token */}
                       <td className={styles.td}>
                         <div className={styles.orderIdWrap}>
                           <span className={styles.orderNumberText}>
@@ -568,47 +622,44 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               <span className={styles.tokenBadge}>T#{ord.tokenNumber}</span>
                             )}
                           </span>
-                          {channel.includes('dine') ? (
-                            <span className={`${styles.channelPill} ${styles.channelDineIn}`}>
-                              🍽️ Table {ord.tableNumber || ord.table || '1'}
-                            </span>
-                          ) : channel.includes('takeaway') ? (
-                            <span className={`${styles.channelPill} ${styles.channelTakeaway}`}>
-                              🛍️ Takeaway
-                            </span>
-                          ) : channel.includes('delivery') ? (
-                            <span className={`${styles.channelPill} ${styles.channelDelivery}`}>
-                              🛵 Delivery
-                            </span>
-                          ) : (
-                            <span className={`${styles.channelPill} ${styles.channelQr}`}>
-                              📱 QR Order
-                            </span>
-                          )}
                         </div>
                       </td>
 
-                      {/* Customer Identity */}
+                      {/* Table No / Channel */}
                       <td className={styles.td}>
-                        <div className={styles.customerIdentity}>
-                          <div className={styles.identityText}>
-                            <span className={styles.nameRow}>{custName}</span>
-                            <span className={styles.phoneText}>{custPhone}</span>
-                          </div>
-                        </div>
+                        {channel.includes('dine') ? (
+                          <span className={`${styles.channelPill} ${styles.channelDineIn}`}>
+                            🍽️ Table {ord.tableNumber || ord.table || '1'}
+                          </span>
+                        ) : channel.includes('takeaway') ? (
+                          <span className={`${styles.channelPill} ${styles.channelTakeaway}`}>
+                            🛍️ Takeaway
+                          </span>
+                        ) : channel.includes('delivery') ? (
+                          <span className={`${styles.channelPill} ${styles.channelDelivery}`}>
+                            🛵 Delivery
+                          </span>
+                        ) : (
+                          <span className={`${styles.channelPill} ${styles.channelQr}`}>
+                            📱 QR Order
+                          </span>
+                        )}
                       </td>
 
-                      {/* Items Summary */}
+                      {/* Customer Name */}
                       <td className={styles.td}>
-                        <div className={styles.itemsPreviewWrap}>
-                          <span className={styles.itemsCountBadge}>
-                            <Utensils size={10} />
-                            <span>{itemsCount} {itemsCount === 1 ? 'item' : 'items'}</span>
+                        <span className={styles.nameRow} style={{ fontWeight: 600, color: '#0f172a' }}>{custName}</span>
+                      </td>
+
+                      {/* Customer Phone */}
+                      <td className={styles.td}>
+                        {custPhone && custPhone !== 'Not Provided' ? (
+                          <span style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 500, fontFamily: 'monospace' }}>
+                            {custPhone}
                           </span>
-                          <span className={styles.itemsSummaryText} title={ord.items?.map(i => `${i.quantity || 1}x ${i.name || i.item?.name}`).join(', ')}>
-                            {firstItem} {ord.items?.length > 1 ? `+${ord.items.length - 1} more` : ''}
-                          </span>
-                        </div>
+                        ) : (
+                          <span style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>—</span>
+                        )}
                       </td>
 
                       {/* Payment Status */}
@@ -622,35 +673,6 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                           <span className={styles.paymentUnpaid}>
                             <Clock size={11} />
                             <span>Unpaid</span>
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Order Status */}
-                      <td className={styles.td}>
-                        {status === 'pending' && (
-                          <span className={styles.statusPending}>
-                            <span className={styles.statusDot} /> Pending
-                          </span>
-                        )}
-                        {status === 'preparing' && (
-                          <span className={styles.statusPreparing}>
-                            <span className={styles.statusDot} /> Preparing
-                          </span>
-                        )}
-                        {status === 'ready' && (
-                          <span className={styles.statusReady}>
-                            <span className={styles.statusDot} /> Ready
-                          </span>
-                        )}
-                        {status === 'completed' && (
-                          <span className={styles.statusCompleted}>
-                            <CheckCircle2 size={11} /> Completed
-                          </span>
-                        )}
-                        {status === 'cancelled' && (
-                          <span className={styles.statusCancelled}>
-                            <AlertCircle size={11} /> Cancelled
                           </span>
                         )}
                       </td>
@@ -687,25 +709,25 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         </div>
 
         {/* Pinned Bottom Table Footer with Pagination */}
-        <div className={styles.tableFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '12px 18px' }}>
+        <div className={styles.tableFooter}>
           {isLoading ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <RefreshCw size={12} className="animate-spin" color="#059669" />
+              <RefreshCw size={12} className="animate-spin" color="#0f172a" />
               <span>Loading orders directory...</span>
             </span>
           ) : (
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-              Showing <strong>{filteredOrders.length > 0 ? ((ordersPage - 1) * ordersPageSize) + 1 : 0} - {Math.min(ordersPage * ordersPageSize, filteredOrders.length)}</strong> of <strong>{filteredOrders.length}</strong> orders
+            <span style={{ fontSize: '12px', fontWeight: 400, color: '#64748b' }}>
+              Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredOrders.length > 0 ? ((ordersPage - 1) * ordersPageSize) + 1 : 0} - {Math.min(ordersPage * ordersPageSize, filteredOrders.length)}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredOrders.length}</span> orders
             </span>
           )}
 
           {totalOrdersPages > 1 && (
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
               <button
                 type="button"
                 disabled={ordersPage === 1}
                 onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
-                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: ordersPage === 1 ? '#f8fafc' : '#ffffff', color: ordersPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: ordersPage === 1 ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '3px 10px', height: '26px', borderRadius: '6px', border: '1px solid #e2e8f0', background: ordersPage === 1 ? '#f8fafc' : '#ffffff', color: ordersPage === 1 ? '#cbd5e1' : '#334155', fontWeight: 500, fontSize: '11.5px', cursor: ordersPage === 1 ? 'not-allowed' : 'pointer', transition: 'all 0.15s ease' }}
               >
                 Prev
               </button>
@@ -714,7 +736,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                   key={p}
                   type="button"
                   onClick={() => setOrdersPage(p)}
-                  style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: ordersPage === p ? '#4f46e5' : '#f1f5f9', color: ordersPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                  style={{ minWidth: '26px', height: '26px', padding: '0 4px', borderRadius: '6px', border: 'none', background: ordersPage === p ? '#0f172a' : '#f8fafc', color: ordersPage === p ? '#ffffff' : '#475569', fontWeight: 500, fontSize: '11.5px', cursor: 'pointer', transition: 'all 0.15s ease' }}
                 >
                   {p}
                 </button>
@@ -723,21 +745,21 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                 type="button"
                 disabled={ordersPage === totalOrdersPages}
                 onClick={() => setOrdersPage(p => Math.min(totalOrdersPages, p + 1))}
-                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: ordersPage === totalOrdersPages ? '#f8fafc' : '#ffffff', color: ordersPage === totalOrdersPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: ordersPage === totalOrdersPages ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '3px 10px', height: '26px', borderRadius: '6px', border: '1px solid #e2e8f0', background: ordersPage === totalOrdersPages ? '#f8fafc' : '#ffffff', color: ordersPage === totalOrdersPages ? '#cbd5e1' : '#334155', fontWeight: 500, fontSize: '11.5px', cursor: ordersPage === totalOrdersPages ? 'not-allowed' : 'pointer', transition: 'all 0.15s ease' }}
               >
                 Next
               </button>
             </div>
           )}
 
-          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Click row to open 360° Order Details</span>
+          <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>Click row to open 360° Order Details</span>
         </div>
       </div>
 
       {/* ── Right Slide-Over Side Drawer: Order 360° Details & Itemized Bill Receipt ── */}
       <AnimatePresence>
         {selectedOrder && (
-          <div 
+          <div
             className={styles.drawerOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setSelectedOrder(null);
@@ -773,27 +795,45 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
               {/* Drawer Body */}
               <div className={styles.drawerBody}>
-                {/* 1. Quick Status Stepper */}
-                <div className={styles.statusStepperCard}>
-                  <h5 className={styles.statusStepperTitle}>
-                    <Clock size={12} color="#059669" />
-                    <span>Order Lifecycle Stage</span>
-                  </h5>
-                  <div className={styles.statusBtnGrid}>
-                    {['pending', 'preparing', 'ready', 'completed'].map((st) => {
-                      const isActive = (selectedOrder.status || 'pending').toLowerCase() === st;
-                      return (
-                        <button
-                          key={st}
-                          type="button"
-                          className={`${styles.statusStepBtn} ${isActive ? styles.statusStepBtnActive : ''}`}
-                          onClick={() => handleUpdateOrderStatus(selectedOrder._id, st)}
-                        >
-                          {st.charAt(0).toUpperCase() + st.slice(1)}
-                        </button>
-                      );
-                    })}
-                  </div>
+                {/* 1. Current Step Status Chip */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: '#f8fafc',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  marginBottom: '1rem'
+                }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+                    Order Status
+                  </span>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    textTransform: 'capitalize',
+                    background: (selectedOrder.status === 'completed' || selectedOrder.status === 'served') ? '#f0fdf4' :
+                      selectedOrder.status === 'ready' ? '#eff6ff' :
+                        selectedOrder.status === 'preparing' ? '#fffbeb' : '#f1f5f9',
+                    color: (selectedOrder.status === 'completed' || selectedOrder.status === 'served') ? '#15803d' :
+                      selectedOrder.status === 'ready' ? '#2563eb' :
+                        selectedOrder.status === 'preparing' ? '#b45309' : '#475569',
+                    border: '1px solid currentColor'
+                  }}>
+                    <span style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'currentColor'
+                    }} />
+                    {selectedOrder.status || 'Pending'}
+                  </span>
                 </div>
 
                 {/* 2. Customer Snapshot */}
@@ -811,17 +851,17 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
                   {(selectedOrder.customerPhone || selectedOrder.customerDetails?.phone) && (
                     <div className={styles.quickActionBtns}>
-                      <a 
-                        href={`https://wa.me/91${String(selectedOrder.customerPhone || selectedOrder.customerDetails?.phone).replace(/\D/g, '')}`} 
-                        target="_blank" 
+                      <a
+                        href={`https://wa.me/91${String(selectedOrder.customerPhone || selectedOrder.customerDetails?.phone).replace(/\D/g, '')}`}
+                        target="_blank"
                         rel="noreferrer"
                         className={styles.contactIconBtn}
                         title="WhatsApp Customer"
                       >
                         <MessageSquare size={13} color="#16a34a" />
                       </a>
-                      <a 
-                        href={`tel:${selectedOrder.customerPhone || selectedOrder.customerDetails?.phone}`} 
+                      <a
+                        href={`tel:${selectedOrder.customerPhone || selectedOrder.customerDetails?.phone}`}
                         className={styles.contactIconBtn}
                         title="Call Customer"
                       >
@@ -896,7 +936,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                 <div className={styles.calculationCard}>
                   <div className={styles.calcRow}>
                     <span>Items Subtotal</span>
-                    <span>{formatCurrency(selectedOrder.subtotal || selectedOrder.items?.reduce((s, i) => s + ((i.price || 0) * (i.quantity || 1)), 0) || selectedOrder.totalAmount || 0)}</span>
+                    <span>{formatCurrency(selectedOrder.subTotal || selectedOrder.subtotal || selectedOrder.items?.reduce((s, i) => s + ((Number(i.price) || 0) * (Number(i.quantity) || 1)), 0) || selectedOrder.totalAmount || 0)}</span>
                   </div>
                   {selectedOrder.discountAmount > 0 && (
                     <div className={styles.calcRow} style={{ color: '#059669' }}>
@@ -904,14 +944,19 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                       <span>- {formatCurrency(selectedOrder.discountAmount)}</span>
                     </div>
                   )}
-                  {selectedOrder.taxAmount > 0 && (
+                  {selectedOrder.taxAmount > 0 ? (
                     <div className={styles.calcRow}>
                       <span>Taxes & GST (5%)</span>
                       <span>+ {formatCurrency(selectedOrder.taxAmount)}</span>
                     </div>
+                  ) : (
+                    <div className={styles.calcRow} style={{ color: '#64748b', fontSize: '0.74rem' }}>
+                      <span>Taxes & Levies</span>
+                      <span>₹0 (Inclusive in menu price)</span>
+                    </div>
                   )}
                   <div className={`${styles.calcRow} ${styles.calcRowHighlight}`}>
-                    <span>Grand Total</span>
+                    <span>Grand Total Payable</span>
                     <span style={{ color: '#059669' }}>
                       {formatCurrency(selectedOrder.totalAmount || selectedOrder.finalAmount || selectedOrder.total || 0)}
                     </span>
@@ -949,6 +994,131 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                     <span>WhatsApp Bill</span>
                   </a>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Filter & Search Modal Popup ── */}
+      <AnimatePresence>
+        {isFilterModalOpen && (
+          <div className={styles.filterModalOverlay} onClick={() => setIsFilterModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className={styles.filterModalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.filterModalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Filter size={16} color="#2563eb" />
+                  <h3 className={styles.filterModalTitle}>Filter Orders</h3>
+                  {activeFilterCount > 0 && (
+                    <span className={styles.filterBadgeCount}>{activeFilterCount} active</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className={styles.modalCloseBtn}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className={styles.filterModalBody}>
+                {/* Search */}
+                <div className={styles.filterGroup}>
+                  <label className={styles.filterLabel}>Search Orders</label>
+                  <div className={styles.modalSearchWrap}>
+                    <Search size={14} color="#94a3b8" />
+                    <input
+                      type="text"
+                      placeholder="Order #, Customer, Phone, Table..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className={styles.modalSearchInput}
+                    />
+                    {search && (
+                      <button type="button" onClick={() => setSearch('')} className={styles.clearBtn}>
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grid for Selects */}
+                <div className={styles.filterGrid}>
+                  {/* Payment */}
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Payment Status</label>
+                    <select
+                      value={paymentFilter}
+                      onChange={(e) => setPaymentFilter(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Payments</option>
+                      <option value="paid">Paid Only</option>
+                      <option value="unpaid">Unpaid</option>
+                      <option value="upi">UPI / QR</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Credit/Debit Card</option>
+                    </select>
+                  </div>
+
+                  {/* Order Status */}
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Order Status</label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="preparing">Preparing</option>
+                      <option value="ready">Ready for Pickup/Serve</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {/* Sorting */}
+                  <div className={styles.filterGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.filterLabel}>Sort By</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="highest_amount">Highest Amount</option>
+                      <option value="lowest_amount">Lowest Amount</option>
+                      <option value="oldest">Oldest First</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.filterModalFooter}>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className={styles.filterResetBtn}
+                  disabled={activeFilterCount === 0}
+                >
+                  Reset Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className={styles.filterApplyBtn}
+                >
+                  Done
+                </button>
               </div>
             </motion.div>
           </div>

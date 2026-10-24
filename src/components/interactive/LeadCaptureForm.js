@@ -27,6 +27,12 @@ export default function LeadCaptureForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setErrorMessage("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage("");
 
@@ -174,10 +180,17 @@ export default function LeadCaptureForm({
         </label>
         <input
           type="tel"
+          inputMode="numeric"
+          maxLength={10}
           required
-          placeholder="e.g. +91 98765 43210"
+          placeholder="10-digit Mobile Number"
           value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          onKeyDown={(e) => {
+            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+            }
+          }}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
           style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card-subtle)", fontSize: 13 }}
         />
       </div>

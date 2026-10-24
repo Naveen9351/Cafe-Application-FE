@@ -132,6 +132,16 @@ export default function TableOperationsHub({
 
   const handleConfirmSettle = async () => {
     if (!selectedTableForPayment) return;
+
+    if (sendWhatsapp && !customerPhone.trim()) {
+      toast.error('Please enter a 10-digit mobile number to send WhatsApp receipt');
+      return;
+    }
+    if (customerPhone.trim() && !/^[0-9]{10}$/.test(customerPhone.trim())) {
+      toast.error('Mobile number must be exactly 10 digits');
+      return;
+    }
+
     const tableNum = selectedTableForPayment.table.tableNumber;
     setIsSubmitting(true);
     try {
@@ -1201,9 +1211,16 @@ export default function TableOperationsHub({
                     />
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
                       placeholder="10-digit Phone No"
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '11.5px', outline: 'none', background: '#ffffff' }}
                     />
                   </div>

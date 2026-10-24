@@ -144,7 +144,11 @@ const SuperAdminDashboard = () => {
 
     // Handle Onboard Submission
     const handleOnboardSubmit = async (e) => {
-        e.preventDefault();
+        if (onboardForm.phone && !/^[0-9]{10}$/.test(onboardForm.phone.trim())) {
+            toast.error("Mobile number must be exactly 10 digits");
+            return;
+        }
+
         setIsOnboarding(true);
 
         try {
@@ -819,9 +823,16 @@ const SuperAdminDashboard = () => {
                                     </label>
                                     <input
                                         type="tel"
-                                        placeholder="e.g. +91 98765 43210"
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        placeholder="10-digit Mobile Number"
                                         value={onboardForm.phone}
-                                        onChange={(e) => setOnboardForm({ ...onboardForm, phone: e.target.value })}
+                                        onKeyDown={(e) => {
+                                            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                                                e.preventDefault();
+                                            }
+                                        }}
+                                        onChange={(e) => setOnboardForm({ ...onboardForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                                         style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                                     />
                                 </div>

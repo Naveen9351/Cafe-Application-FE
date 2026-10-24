@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { 
-  Users, Award, Search, Plus, PhoneCall, Mail, Star, 
-  CheckCircle2, XCircle, Calendar, ArrowUpDown, Filter, 
+import * as XLSX from 'xlsx';
+import {
+  Users, Award, Search, Plus, PhoneCall, Mail, Star,
+  CheckCircle2, XCircle, Calendar, ArrowUpDown, Filter,
   Receipt, Clock, ChevronRight, X, TrendingUp, IndianRupee,
   RefreshCw, UserCheck, ShieldCheck, ShoppingBag, Sparkles,
   Info, ArrowRight, UserPlus, Download, Crown, Eye, MessageSquare, Phone,
-  UtensilsCrossed, Tag, Gift, Edit3, Heart, AlertCircle, Send, KeyRound
+  UtensilsCrossed, Tag, Gift, Edit3, Heart, AlertCircle, Send, KeyRound,
+  FileSpreadsheet
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +19,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Segment Dropdown Tab ('all', 'repeat', 'single', 'inactive')
   const [activeTab, setActiveTab] = useState('all');
 
@@ -25,17 +27,18 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [verificationFilter, setVerificationFilter] = useState('all'); // 'all', 'verified', 'unverified'
   const [sortBy, setSortBy] = useState('highest_spend'); // 'highest_spend', 'highest_aov', 'recent_visit', 'total_visits'
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  
+
   // Side Drawer & Add Modal State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
   const [formError, setFormError] = useState('');
-  
+
   // OTP Verification State in Add Customer Modal
   const [isOtpMode, setIsOtpMode] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
@@ -142,8 +145,10 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         const phone = o.customerPhone || o.customerDetails?.phone;
         const name = o.customerName || o.customerDetails?.name || 'Guest Diner';
         if (phone || (name && name !== 'Walk-in Guest')) {
+          if (o.status === 'cancelled') return;
           const key = phone || name;
-          const orderTotal = Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0);
+          const isCompleted = o.status === 'completed';
+          const orderTotal = isCompleted ? Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0) : 0;
           const orderDate = new Date(o.createdAt || Date.now());
 
           if (!custMap.has(key)) {
@@ -155,16 +160,18 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               isPhoneVerified: Boolean(o.isPhoneVerified || o.customerDetails?.isPhoneVerified),
               firstVisit: orderDate,
               lastVisit: orderDate,
-              totalVisits: 1,
+              totalVisits: isCompleted ? 1 : 0,
               lifetimeSpend: orderTotal,
               averageOrderValue: orderTotal,
               orders: [o]
             });
           } else {
             const existing = custMap.get(key);
-            existing.totalVisits += 1;
-            existing.lifetimeSpend += orderTotal;
-            existing.averageOrderValue = Math.round(existing.lifetimeSpend / existing.totalVisits);
+            if (isCompleted) {
+              existing.totalVisits += 1;
+              existing.lifetimeSpend += orderTotal;
+              existing.averageOrderValue = Math.round(existing.lifetimeSpend / Math.max(1, existing.totalVisits));
+            }
             if (orderDate < new Date(existing.firstVisit)) existing.firstVisit = orderDate;
             if (orderDate > new Date(existing.lastVisit)) existing.lastVisit = orderDate;
             if (o.isPhoneVerified || o.customerDetails?.isPhoneVerified) existing.isPhoneVerified = true;
@@ -185,13 +192,13 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const handleSendOtp = async () => {
     setFormError('');
     const cleanPhone = newCustomer.phone.replace(/[^0-9]/g, '');
-    
+
     if (!newCustomer.name.trim()) {
       setFormError("Please enter Full Name before sending OTP");
       toast.error("Please enter Full Name before sending OTP");
       return;
     }
-    if (cleanPhone.length < 10) {
+    if (!cleanPhone || cleanPhone.length !== 10 || !/^[0-9]{10}$/.test(cleanPhone)) {
       setFormError("Please enter a valid 10-digit mobile number");
       toast.error("Please enter a valid 10-digit mobile number");
       return;
@@ -317,9 +324,9 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     if (!verifyingCustomer) return;
     setVerifyFormError('');
     const cleanPhone = (verifyingCustomer.phone || '').replace(/[^0-9]/g, '');
-    if (cleanPhone.length < 10) {
-      setVerifyFormError("Invalid mobile number. Must be 10 digits.");
-      return toast.error("Invalid mobile number");
+    if (!cleanPhone || cleanPhone.length !== 10 || !/^[0-9]{10}$/.test(cleanPhone)) {
+      setVerifyFormError("Invalid mobile number. Must be exactly 10 digits.");
+      return toast.error("Invalid mobile number. Must be 10 digits.");
     }
     setIsVerifySending(true);
     try {
@@ -446,7 +453,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     }
 
     const cleanPhone = newCustomer.phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
+    if (!cleanPhone || cleanPhone.length !== 10 || !/^[0-9]{10}$/.test(cleanPhone)) {
       setFormError("Please enter a valid 10-digit mobile number");
       return toast.error("Please enter a valid 10-digit mobile number");
     }
@@ -583,31 +590,45 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     return groups;
   }, [selectedCustomer]);
 
-  // Export CSV Feature
-  const handleExportCSV = () => {
+  // Export Excel (.xlsx) Feature - Replacing CSV
+  const handleExportExcel = () => {
     if (customers.length === 0) return toast.error("No customer records to export");
-    const headers = ["Full Name", "Mobile", "Email", "Verified", "Visits", "Lifetime Spend", "AOV", "First Visit", "Last Visit"];
+    const headers = [
+      "Customer Name",
+      "Mobile Number",
+      "Email Address",
+      "Verified",
+      "Total Visits",
+      "Lifetime Spend (₹)",
+      "Average Order Value (₹)",
+      "First Visit Date",
+      "Last Visit Date"
+    ];
+
     const rows = customers.map(c => [
-      `"${c.name || 'Guest'}"`,
-      `"${c.phone || ''}"`,
-      `"${c.email || ''}"`,
-      c.isPhoneVerified ? 'Yes' : 'No',
-      c.totalVisits || 1,
-      Math.round(c.lifetimeSpend || 0),
-      Math.round(c.averageOrderValue || c.aov || 0),
-      c.firstVisit ? new Date(c.firstVisit).toISOString().slice(0,10) : '',
-      c.lastVisit ? new Date(c.lastVisit).toISOString().slice(0,10) : ''
+      c.name || 'Guest',
+      c.phone || '',
+      c.email || '',
+      c.isPhoneVerified ? 'Verified' : 'Unverified',
+      Number(c.totalVisits || (c.orders?.length || 1)),
+      Math.round(Number(c.lifetimeSpend || 0)),
+      Math.round(Number(c.averageOrderValue || c.aov || (c.lifetimeSpend ? c.lifetimeSpend / Math.max(1, c.totalVisits || 1) : 0))),
+      c.firstVisit ? new Date(c.firstVisit).toLocaleDateString('en-IN') : '',
+      c.lastVisit ? new Date(c.lastVisit).toLocaleDateString('en-IN') : ''
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `serviq_crm_customers_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Customer directory exported as CSV!");
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    worksheet['!cols'] = [
+      { wch: 22 }, { wch: 16 }, { wch: 25 }, { wch: 12 },
+      { wch: 12 }, { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 16 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "CRM Directory");
+
+    const fileName = `serviq_crm_customers_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success("Customer CRM directory downloaded as Excel (.xlsx)!");
   };
 
   // WhatsApp Promo Link Generator
@@ -635,11 +656,11 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
     const inactiveCount = customers.filter(c => new Date(c.lastVisit || 0).getTime() < thirtyDaysAgo).length;
-    
+
     const totalSpend = customers.reduce((sum, c) => sum + (Number(c.lifetimeSpend) || 0), 0);
     const totalOrdersCount = customers.reduce((s, c) => s + (Number(c.totalVisits) || (c.orders?.length || 1)), 0);
     const overallAov = totalOrdersCount > 0 ? Math.round(totalSpend / totalOrdersCount) : 0;
-    
+
     const verifiedCount = customers.filter(c => c.isPhoneVerified).length;
     const verifiedRate = totalCust > 0 ? Math.round((verifiedCount / totalCust) * 100) : 0;
     const repeatCustCount = customers.filter(c => (Number(c.totalVisits) || (c.orders?.length || 1)) >= 2).length;
@@ -672,7 +693,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
           const matchesEmail = (c.email || '').toLowerCase().includes(q);
           if (!matchesName && !matchesPhone && !matchesEmail) return false;
         }
-        
+
         let matchesVerification = true;
         if (verificationFilter === 'verified') matchesVerification = Boolean(c.isPhoneVerified);
         if (verificationFilter === 'unverified') matchesVerification = !Boolean(c.isPhoneVerified);
@@ -706,13 +727,15 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     return filteredCustomers.slice(start, start + pageSize);
   }, [filteredCustomers, currentPage, pageSize]);
 
-  const hasActiveFilters = searchQuery || verificationFilter !== 'all' || activeTab !== 'all';
+  const activeFilterCount = (searchQuery.trim() ? 1 : 0) + (activeTab !== 'all' ? 1 : 0) + (verificationFilter !== 'all' ? 1 : 0) + (sortBy !== 'highest_spend' ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0;
 
   const resetFilters = () => {
     setActiveTab('all');
     setSearchQuery('');
     setVerificationFilter('all');
     setSortBy('highest_spend');
+    setCurrentPage(1);
   };
 
   return (
@@ -727,30 +750,35 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
             <Users size={20} />
           </div>
           <div>
-            <h2 className={styles.title}>Customer Directory & CRM</h2>
-            <p className={styles.subtitle}>
-              Unified guest profiles, visit frequencies, and loyalty spend tracking powered by real orders.
-            </p>
+            <h2 className={styles.title}>Customer Directorys</h2>
           </div>
         </div>
 
         <div className={styles.headerActions}>
-          <div className={styles.liveBadge}>
-            <span className={styles.liveDot}></span>
-            <span>Live Sync</span>
-          </div>
-
-          <button 
-            className={styles.btnSecondary}
-            onClick={handleExportCSV}
-            title="Download CSV"
+          {/* Combined Filter Button */}
+          <button
+            className={`${styles.btnSecondary} ${hasActiveFilters ? styles.btnFilterActive : ''}`}
+            onClick={() => setIsFilterModalOpen(true)}
+            title="Filter and Search Customers"
           >
-            <Download size={13} />
-            <span>Export CSV</span>
+            <Filter size={13} color={hasActiveFilters ? "#2563eb" : "#475569"} />
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className={styles.filterBadgeCount}>{activeFilterCount}</span>
+            )}
           </button>
 
-          <button 
-            className={styles.btnSecondary} 
+          <button
+            className={styles.btnSecondary}
+            onClick={handleExportExcel}
+            title="Download Excel (.xlsx) CRM Directory"
+          >
+            <FileSpreadsheet size={13} color="#16a34a" />
+            <span>Download Excel</span>
+          </button>
+
+          <button
+            className={styles.btnSecondary}
             onClick={fetchCustomers}
             title="Refresh Directory"
           >
@@ -758,7 +786,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
             <span>Refresh</span>
           </button>
 
-          <button 
+          <button
             className={styles.btnPrimary}
             onClick={() => {
               setFormError('');
@@ -826,76 +854,51 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
       {/* ── Full-Width Maximized Customer Table Card ── */}
       <div className={styles.fullWidthCard}>
-        {/* Unified Toolbar */}
-        <div className={styles.unifiedToolbar}>
-          {/* Segment Dropdown */}
-          <div className={styles.toolbarLeft}>
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value)}
-              className={styles.selectField}
-              style={{ fontWeight: 700, minWidth: '180px', background: '#f8fafc' }}
-            >
-              <option value="all">All Guests ({tabCounts.all})</option>
-              <option value="repeat">Repeat Diners (2+) ({tabCounts.repeat})</option>
-              <option value="single">Single Visit ({tabCounts.single})</option>
-              {tabCounts.inactive > 0 && (
-                <option value="inactive">Inactive (&gt;30d) ({tabCounts.inactive})</option>
-              )}
-            </select>
-          </div>
-
-          {/* Unified Search & Filters */}
-          <div className={styles.toolbarRight}>
-            {/* Single Unified Search Field (Name or Phone) */}
-            <div className={styles.searchField} style={{ minWidth: '260px' }}>
-              <Search size={13} className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search by name or mobile number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={styles.inputField}
-              />
-              {searchQuery && (
-                <button className={styles.clearBtn} onClick={() => setSearchQuery('')}>
-                  <X size={12} />
+        {/* Active Filter Pills Bar (Shown only when filters active) */}
+        {hasActiveFilters && (
+          <div className={styles.activeFilterPillsBar}>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
+            {searchQuery && (
+              <span className={styles.filterChip}>
+                Search: "{searchQuery}"
+                <button type="button" onClick={() => setSearchQuery('')} className={styles.filterChipRemove}>
+                  <X size={10} />
                 </button>
-              )}
-            </div>
-
-            {/* Verification Status */}
-            <select
-              value={verificationFilter}
-              onChange={(e) => setVerificationFilter(e.target.value)}
-              className={styles.selectField}
-            >
-              <option value="all">All Verification</option>
-              <option value="verified">Verified Only</option>
-              <option value="unverified">Unverified Only</option>
-            </select>
-
-            {/* Sorting */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={styles.selectField}
-            >
-              <option value="highest_spend">Sort: Highest Spend</option>
-              <option value="highest_aov">Sort: Highest AOV</option>
-              <option value="recent_visit">Sort: Recent Visit</option>
-              <option value="total_visits">Sort: Total Visits</option>
-            </select>
-
-            {/* Reset Button */}
-            {hasActiveFilters && (
-              <button className={styles.resetBtn} onClick={resetFilters}>
-                <X size={12} />
-                <span>Reset</span>
-              </button>
+              </span>
             )}
+            {activeTab !== 'all' && (
+              <span className={styles.filterChip}>
+                Segment: {activeTab === 'repeat' ? 'Repeat (2+)' : activeTab === 'single' ? 'Single Visit' : 'Inactive'}
+                <button type="button" onClick={() => setActiveTab('all')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {verificationFilter !== 'all' && (
+              <span className={styles.filterChip}>
+                Status: {verificationFilter.toUpperCase()}
+                <button type="button" onClick={() => setVerificationFilter('all')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {sortBy !== 'highest_spend' && (
+              <span className={styles.filterChip}>
+                Sort: {sortBy.replace('_', ' ').toUpperCase()}
+                <button type="button" onClick={() => setSortBy('highest_spend')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={resetFilters}
+              style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}
+            >
+              Clear All
+            </button>
           </div>
-        </div>
+        )}
 
         {/* Maximized Full-Width Table */}
         <div className={styles.tableWrapper}>
@@ -918,13 +921,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 Array.from({ length: 7 }).map((_, sIdx) => (
                   <tr key={sIdx} className={styles.skeletonRow}>
                     <td className={styles.skeletonCell}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                        <div className={styles.skeletonAvatar} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                          <div className={styles.skeletonLine} style={{ width: '65%', height: '13px' }} />
-                          <div className={styles.skeletonLine} style={{ width: '40%', height: '9px' }} />
-                        </div>
-                      </div>
+                      <div className={styles.skeletonLine} style={{ width: '85px', height: '13px' }} />
                     </td>
                     <td className={styles.skeletonCell}>
                       <div className={styles.skeletonLine} style={{ width: '90px', height: '12px' }} />
@@ -957,7 +954,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   <td colSpan={9}>
                     <div className={styles.emptyState}>
                       <Users size={34} strokeWidth={1.5} />
-                      <p style={{ margin: 0, fontWeight: '700', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: '400', color: '#64748b' }}>
                         No customer profiles match your selected search criteria.
                       </p>
                       {hasActiveFilters && (
@@ -976,33 +973,23 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
 
                   return (
-                    <motion.tr 
-                      key={cust._id || cust.phone} 
+                    <motion.tr
+                      key={cust._id || cust.phone}
                       className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
                       onClick={() => setSelectedCustomer(cust)}
                     >
                       {/* Customer Identity */}
                       <td className={styles.td}>
-                        <div className={styles.customerIdentity}>
-                          <div 
-                            className={styles.avatar} 
-                            style={{ background: getAvatarGradient(cust.name) }}
-                          >
-                            {getInitials(cust.name)}
-                          </div>
-                          <div className={styles.identityText}>
-                            <div className={styles.nameRow}>
-                              <span>{cust.name || 'Guest Diner'}</span>
-                            </div>
-                            {cust.email && (
-                              <span className={styles.emailText}>{cust.email}</span>
-                            )}
-                          </div>
+                        <div className={styles.nameRow}>
+                          <span style={{ fontWeight: 600, color: '#0f172a' }}>{cust.name || 'Guest Diner'}</span>
                         </div>
+                        {cust.email && (
+                          <span className={styles.emailText} style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8' }}>{cust.email}</span>
+                        )}
                       </td>
 
                       {/* Mobile Number */}
-                      <td className={styles.td} style={{ fontWeight: '700', color: '#1e293b' }}>
+                      <td className={styles.td} style={{ color: '#334155' }}>
                         {cust.phone || 'Not Provided'}
                       </td>
 
@@ -1029,12 +1016,12 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       </td>
 
                       {/* First Visit */}
-                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '500' }}>
+                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '400' }}>
                         {formatDate(cust.firstVisit)}
                       </td>
 
                       {/* Last Visit */}
-                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '500' }}>
+                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '400' }}>
                         {formatDate(cust.lastVisit)}
                       </td>
 
@@ -1088,8 +1075,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               <span>Loading customer directory...</span>
             </span>
           ) : (
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-              Showing <strong>{filteredCustomers.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} - {Math.min(currentPage * pageSize, filteredCustomers.length)}</strong> of <strong>{filteredCustomers.length}</strong> guests
+            <span style={{ fontSize: '12px', fontWeight: 400, color: '#64748b' }}>
+              Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredCustomers.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} - {Math.min(currentPage * pageSize, filteredCustomers.length)}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredCustomers.length}</span> guests
             </span>
           )}
 
@@ -1099,7 +1086,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 type="button"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : '#ffffff', color: currentPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : '#ffffff', color: currentPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 500, fontSize: '11px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
               >
                 Prev
               </button>
@@ -1108,7 +1095,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   key={p}
                   type="button"
                   onClick={() => setCurrentPage(p)}
-                  style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: currentPage === p ? '#4f46e5' : '#f1f5f9', color: currentPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                  style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: currentPage === p ? '#0f172a' : '#f1f5f9', color: currentPage === p ? '#ffffff' : '#475569', fontWeight: 500, fontSize: '11px', cursor: 'pointer' }}
                 >
                   {p}
                 </button>
@@ -1117,7 +1104,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 type="button"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : '#ffffff', color: currentPage === totalPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '11px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : '#ffffff', color: currentPage === totalPages ? '#cbd5e1' : '#0f172a', fontWeight: 500, fontSize: '11px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
               >
                 Next
               </button>
@@ -1131,7 +1118,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       {/* ── Slide-over Modal: Add Customer Record with OTP Verification ── */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div 
+          <div
             className={styles.modalOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) resetAddModal();
@@ -1147,7 +1134,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               <div className={styles.modalHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
                   <UserPlus size={18} color="#059669" />
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
                     Register New Customer
                   </h3>
                 </div>
@@ -1164,9 +1151,9 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
                   <AlertCircle size={16} style={{ flexShrink: 0 }} />
                   <span>{formError}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setFormError('')} 
+                  <button
+                    type="button"
+                    onClick={() => setFormError('')}
                     style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
                   >
                     <X size={14} />
@@ -1183,8 +1170,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   </label>
                   <div className={styles.inputIconWrap}>
                     <Users size={15} className={styles.fieldIcon} />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       placeholder="e.g. Rahul Kapoor"
                       value={newCustomer.name}
@@ -1205,19 +1192,25 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   </label>
                   <div className={styles.inputIconWrap}>
                     <PhoneCall size={15} className={styles.fieldIcon} />
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
+                      inputMode="numeric"
                       required
                       maxLength={10}
                       disabled={isPhoneVerified}
                       placeholder="e.g. 9876543210"
                       value={newCustomer.phone}
+                      onKeyDown={(e) => {
+                        if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
                       onChange={(e) => {
-                        setNewCustomer({ ...newCustomer, phone: e.target.value.replace(/\D/g, '') });
+                        setNewCustomer({ ...newCustomer, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
                         setIsPhoneVerified(false);
                         if (formError) setFormError('');
                       }}
-                      className={`${styles.formInput} ${formError && newCustomer.phone.length < 10 ? styles.inputError : ''}`}
+                      className={`${styles.formInput} ${formError && newCustomer.phone.length !== 10 ? styles.inputError : ''}`}
                     />
 
                     {/* Verified Pill or Send OTP Button */}
@@ -1314,8 +1307,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   </label>
                   <div className={styles.inputIconWrap}>
                     <Mail size={15} className={styles.fieldIcon} />
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       placeholder="rahul@domain.com"
                       value={newCustomer.email}
                       onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
@@ -1328,10 +1321,10 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 <button type="submit" disabled={isSubmitting} className={styles.submitBtn}>
                   <Plus size={15} />
                   <span>
-                    {isSubmitting 
-                      ? 'Registering...' 
-                      : isPhoneVerified 
-                        ? 'Save Verified Customer Profile' 
+                    {isSubmitting
+                      ? 'Registering...'
+                      : isPhoneVerified
+                        ? 'Save Verified Customer Profile'
                         : 'Register Customer Profile'}
                   </span>
                 </button>
@@ -1351,7 +1344,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       {/* ── Modal: Verify Customer Mobile via OTP ── */}
       <AnimatePresence>
         {verifyingCustomer && (
-          <div 
+          <div
             className={styles.modalOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setVerifyingCustomer(null);
@@ -1367,12 +1360,12 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               <div className={styles.modalHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
                   <ShieldCheck size={20} color="#059669" />
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
                     Verify Customer Mobile
                   </h3>
                 </div>
-                <button 
-                  onClick={() => setVerifyingCustomer(null)} 
+                <button
+                  onClick={() => setVerifyingCustomer(null)}
                   className={styles.closeBtn}
                 >
                   <X size={16} />
@@ -1384,9 +1377,9 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
                   <AlertCircle size={16} style={{ flexShrink: 0 }} />
                   <span>{verifyFormError}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setVerifyFormError('')} 
+                  <button
+                    type="button"
+                    onClick={() => setVerifyFormError('')}
                     style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
                   >
                     <X size={14} />
@@ -1397,17 +1390,17 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Customer Snapshot Card */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                  <div 
-                    className={styles.avatar} 
+                  <div
+                    className={styles.avatar}
                     style={{ background: getAvatarGradient(verifyingCustomer.name), width: '40px', height: '40px', fontSize: '0.95rem' }}
                   >
                     {getInitials(verifyingCustomer.name)}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
                       {verifyingCustomer.name || 'Guest Diner'}
                     </span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 500, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       📱 +91 {verifyingCustomer.phone || 'Not Provided'}
                     </span>
                   </div>
@@ -1415,7 +1408,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
                 {!verifyOtpMode ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '500', lineHeight: 1.4 }}>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '400', lineHeight: 1.4 }}>
                       Send a 6-digit verification passcode (OTP) to <strong>+91 {verifyingCustomer.phone}</strong> to authenticate this guest.
                     </p>
 
@@ -1513,7 +1506,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       {/* ── Right Slide-Over Side Drawer: Customer 360° Profile & Date-Grouped Timeline ── */}
       <AnimatePresence>
         {selectedCustomer && (
-          <div 
+          <div
             className={styles.drawerOverlay}
             onClick={(e) => {
               if (e.target === e.currentTarget) setSelectedCustomer(null);
@@ -1529,8 +1522,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               {/* Drawer Header */}
               <div className={styles.drawerHeader}>
                 <div className={styles.drawerProfile}>
-                  <div 
-                    className={styles.drawerAvatar} 
+                  <div
+                    className={styles.drawerAvatar}
                     style={{ background: getAvatarGradient(selectedCustomer.name) }}
                   >
                     {getInitials(selectedCustomer.name)}
@@ -1557,21 +1550,21 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className={styles.quickActionBtns}>
                   {selectedCustomer.phone && selectedCustomer.phone !== 'Not Provided' && (
                     <>
-                      <a 
-                        href={`https://wa.me/91${selectedCustomer.phone.replace(/\D/g, '')}`} 
-                        target="_blank" 
+                      <a
+                        href={`https://wa.me/91${selectedCustomer.phone.replace(/\D/g, '')}`}
+                        target="_blank"
                         rel="noreferrer"
                         className={styles.contactIconBtn}
                         title="Chat on WhatsApp"
                       >
                         <MessageSquare size={14} color="#16a34a" />
                       </a>
-                      <a 
-                        href={`tel:${selectedCustomer.phone}`} 
+                      <a
+                        href={`tel:${selectedCustomer.phone}`}
                         className={styles.contactIconBtn}
                         title="Call Customer"
                       >
@@ -1606,11 +1599,11 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                     </div>
                   </div>
                   <div>
-                    <div className={styles.drawerMetricLabel}>Avg Ticket (AOV)</div>
+                    <div className={styles.drawerMetricLabel}>Avg Bill Value (AOV)</div>
                     <div className={styles.drawerMetricVal}>
                       {formatCurrency(
-                        selectedCustomer.averageOrderValue || 
-                        selectedCustomer.aov || 
+                        selectedCustomer.averageOrderValue ||
+                        selectedCustomer.aov ||
                         Math.round((Number(selectedCustomer.lifetimeSpend) || 0) / Math.max(1, Number(selectedCustomer.totalVisits) || 1))
                       )}
                     </div>
@@ -1620,7 +1613,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 {/* 📅 Date-Grouped Order History Timeline */}
                 <div className={styles.timelineSection}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '0.92rem', fontWeight: '900', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: '600', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Clock size={15} color="#059669" />
                       <span>Order History Timeline ({selectedCustomer.orders?.length || 0})</span>
                     </h4>
@@ -1629,7 +1622,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   {(!selectedCustomer.orders || selectedCustomer.orders.length === 0) ? (
                     <div className={styles.emptyState} style={{ padding: '2rem 1rem' }}>
                       <Receipt size={30} />
-                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '600' }}>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '400' }}>
                         No past order records found for this guest.
                       </p>
                     </div>
@@ -1640,7 +1633,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                         <div className={styles.dateGroupHeader}>
                           <Calendar size={13} color="#059669" />
                           <span>{dateLabel}</span>
-                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: 'auto', fontWeight: '700' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: 'auto', fontWeight: '500' }}>
                             {dateOrders.length} {dateOrders.length === 1 ? 'order' : 'orders'}
                           </span>
                         </div>
@@ -1673,7 +1666,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                                 {ord.paymentMethod && (
                                   <>
                                     <span>•</span>
-                                    <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '800' }}>
+                                    <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '500' }}>
                                       {ord.paymentMethod}
                                     </span>
                                   </>
@@ -1686,7 +1679,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                                   {ord.items.map((it, itIdx) => (
                                     <div key={itIdx} className={styles.itemRow}>
                                       <span>{it.quantity}x {it.name || it.item?.name || 'Menu Item'}</span>
-                                      <span style={{ fontWeight: '800' }}>₹{(it.price || 0) * (it.quantity || 1)}</span>
+                                      <span style={{ fontWeight: '600' }}>₹{(it.price || 0) * (it.quantity || 1)}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1698,6 +1691,127 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                     ))
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Filter & Search Modal Popup ── */}
+      <AnimatePresence>
+        {isFilterModalOpen && (
+          <div className={styles.filterModalOverlay} onClick={() => setIsFilterModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className={styles.filterModalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.filterModalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Filter size={16} color="#2563eb" />
+                  <h3 className={styles.filterModalTitle}>Filter Customers</h3>
+                  {activeFilterCount > 0 && (
+                    <span className={styles.filterBadgeCount}>{activeFilterCount} active</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className={styles.modalCloseBtn}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className={styles.filterModalBody}>
+                {/* Search Field */}
+                <div className={styles.filterGroup}>
+                  <label className={styles.filterLabel}>Search Guests</label>
+                  <div className={styles.modalSearchWrap}>
+                    <Search size={14} color="#94a3b8" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or mobile number..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={styles.modalSearchInput}
+                    />
+                    {searchQuery && (
+                      <button type="button" onClick={() => setSearchQuery('')} className={styles.clearBtn}>
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.filterGrid}>
+                  {/* Segment Tab */}
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Guest Segment</label>
+                    <select
+                      value={activeTab}
+                      onChange={(e) => setActiveTab(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Guests ({tabCounts.all})</option>
+                      <option value="repeat">Repeat Diners (2+) ({tabCounts.repeat})</option>
+                      <option value="single">Single Visit ({tabCounts.single})</option>
+                      {tabCounts.inactive > 0 && (
+                        <option value="inactive">Inactive (&gt;30d) ({tabCounts.inactive})</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Verification Status */}
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Verification Status</label>
+                    <select
+                      value={verificationFilter}
+                      onChange={(e) => setVerificationFilter(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Verification</option>
+                      <option value="verified">Verified Only</option>
+                      <option value="unverified">Unverified Only</option>
+                    </select>
+                  </div>
+
+                  {/* Sorting */}
+                  <div className={styles.filterGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.filterLabel}>Sort By</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="highest_spend">Highest Lifetime Spend</option>
+                      <option value="highest_aov">Highest Average Order Value (AOV)</option>
+                      <option value="recent_visit">Recent Visit Date</option>
+                      <option value="total_visits">Total Visit Frequency</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.filterModalFooter}>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className={styles.filterResetBtn}
+                  disabled={activeFilterCount === 0}
+                >
+                  Reset Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className={styles.filterApplyBtn}
+                >
+                  Done
+                </button>
               </div>
             </motion.div>
           </div>

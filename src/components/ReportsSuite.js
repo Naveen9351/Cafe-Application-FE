@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  DollarSign, 
-  ShoppingBag, 
-  CreditCard, 
-  Printer, 
-  Calendar, 
-  PieChart, 
-  Award, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  ShoppingBag,
+  CreditCard,
+  Printer,
+  Calendar,
+  PieChart,
+  Award,
   ArrowUpRight,
   BookOpen,
   Search,
@@ -23,12 +23,14 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import styles from './ReportsSuite.module.css';
+import { printOrderBill } from '../utils/billPrinter';
 
 export default function ReportsSuite({ initialOrders = [] }) {
   const [orders, setOrders] = useState(() => (Array.isArray(initialOrders) && initialOrders.length > 0 ? initialOrders : []));
   const [khataRecords, setKhataRecords] = useState([]);
+  const [dbTables, setDbTables] = useState([]);
   const [loading, setLoading] = useState(() => !(Array.isArray(initialOrders) && initialOrders.length > 0));
-  const [timeFilter, setTimeFilter] = useState('all'); // 'today', '7d', '30d', 'all'
+  const [timeFilter, setTimeFilter] = useState('today'); // Default to 'today' (Item 1 & 28)
   const [orderSearch, setOrderSearch] = useState('');
   const [tableFilter, setTableFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -55,14 +57,15 @@ export default function ReportsSuite({ initialOrders = [] }) {
     try {
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
-      const headers = { 
+      const headers = {
         'x-auth-token': token,
-        Authorization: `Bearer ${token}` 
+        Authorization: `Bearer ${token}`
       };
 
-      const [ordersRes, khataRes] = await Promise.allSettled([
+      const [ordersRes, khataRes, tablesRes] = await Promise.allSettled([
         axios.get(`${API_URL}/orders`, { headers }),
-        axios.get(`${API_URL}/khata`, { headers })
+        axios.get(`${API_URL}/khata`, { headers }),
+        axios.get(`${API_URL}/tables`, { headers })
       ]);
 
       if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
@@ -70,6 +73,9 @@ export default function ReportsSuite({ initialOrders = [] }) {
       }
       if (khataRes.status === 'fulfilled' && khataRes.value.data?.records) {
         setKhataRecords(khataRes.value.data.records);
+      }
+      if (tablesRes.status === 'fulfilled' && Array.isArray(tablesRes.value.data)) {
+        setDbTables(tablesRes.value.data);
       }
     } catch (err) {
       console.error('Failed to load report data:', err);
@@ -110,11 +116,13 @@ export default function ReportsSuite({ initialOrders = [] }) {
     return 0;
   };
 
-  // Calculate metrics
+  // Calculate metrics matching Dashboard accounting
   const completedOrders = filteredOrders.filter(o => o.status === 'completed');
   const totalGrossRevenue = completedOrders.reduce((acc, o) => acc + getOrderAmount(o), 0);
-  const totalOrdersCount = completedOrders.length;
-  const avgTicketSize = totalOrdersCount > 0 ? Math.round(totalGrossRevenue / totalOrdersCount) : 0;
+  const totalCompletedCount = completedOrders.length;
+  const activeOrdersCount = filteredOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
+  const totalOrdersCount = filteredOrders.length;
+  const avgTicketSize = totalCompletedCount > 0 ? Math.round(totalGrossRevenue / totalCompletedCount) : 0;
 
   // Payment Breakdown
   const paymentBreakdown = {
@@ -173,9 +181,8 @@ export default function ReportsSuite({ initialOrders = [] }) {
         <div className={styles.titleGroup}>
           <h2>
             <BarChart3 size={26} color="#2563eb" />
-            Revenue & Sales Reports Suite
+            Revenue & Sales Reports
           </h2>
-          <p>Comprehensive financial intelligence, payment mode settlements, peak metrics, and dish performance.</p>
         </div>
 
         <div className={styles.controlsGroup}>
@@ -205,11 +212,11 @@ export default function ReportsSuite({ initialOrders = [] }) {
             <div className={styles.kpiValue}>₹{totalGrossRevenue.toLocaleString()}</div>
             <div className={styles.kpiSubtitle}>
               <ArrowUpRight size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
-              From {totalOrdersCount} Completed Orders
+              From {totalCompletedCount} Completed Orders
             </div>
           </div>
           <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
-            <DollarSign size={22} />
+            <DollarSign size={18} />
           </div>
         </div>
 
@@ -222,7 +229,7 @@ export default function ReportsSuite({ initialOrders = [] }) {
             </div>
           </div>
           <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#16a34a' }}>
-            <TrendingUp size={22} />
+            <TrendingUp size={18} />
           </div>
         </div>
 
@@ -231,11 +238,11 @@ export default function ReportsSuite({ initialOrders = [] }) {
             <div className={styles.kpiTitle}>Total Orders Volume</div>
             <div className={styles.kpiValue}>{totalOrdersCount}</div>
             <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
-              {filteredOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length} Currently Active
+              {totalCompletedCount} Settled • {activeOrdersCount} in Kitchen/Active
             </div>
           </div>
           <div className={styles.kpiIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
-            <ShoppingBag size={22} />
+            <ShoppingBag size={18} />
           </div>
         </div>
 
@@ -248,7 +255,7 @@ export default function ReportsSuite({ initialOrders = [] }) {
             </div>
           </div>
           <div className={styles.kpiIcon} style={{ background: '#fee2e2', color: '#dc2626' }}>
-            <BookOpen size={22} />
+            <BookOpen size={18} />
           </div>
         </div>
       </div>
@@ -322,18 +329,36 @@ export default function ReportsSuite({ initialOrders = [] }) {
 
       {/* Order History & Details Section */}
       {(() => {
-        const uniqueTables = Array.from(new Set(orders.map(o => o.tableNumber).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
-        const q = orderSearch.toLowerCase();
+        // Collect all tables from DB and from orders so user can see all tables (Item 31)
+        const fromDb = (dbTables || []).map(t => String(t.tableNumber || '').replace(/^Table\s*/i, '').trim()).filter(Boolean);
+        const fromOrders = (orders || []).map(o => String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim()).filter(Boolean);
+        const uniqueTables = Array.from(new Set([...fromDb, ...fromOrders])).sort((a, b) => {
+          return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        const q = orderSearch.trim().toLowerCase();
+        const numQ = q.replace(/\D/g, '');
+
         const displayedOrders = completedOrders.filter(ord => {
+          const ordNum = String(ord.orderNumber || ord._id?.slice(-5) || '').toLowerCase();
+          const ordId = String(ord._id || '').toLowerCase();
+          const custName = String(ord.customerName || ord.customerDetails?.name || '').toLowerCase();
+          const rawPhone = String(ord.customerPhone || ord.customerDetails?.phone || '');
+          const cleanPhone = rawPhone.replace(/\D/g, '');
+          const itemsMatch = (ord.items || []).some(it => String(it.name || it.item?.name || '').toLowerCase().includes(q));
+
+          // Mobile number search & keyword search (Item 32)
           const matchesSearch = q ? (
-            (ord.orderNumber && String(ord.orderNumber).toLowerCase().includes(q)) ||
-            (ord._id && ord._id.toLowerCase().includes(q)) ||
-            (ord.customerName && ord.customerName.toLowerCase().includes(q)) ||
-            (ord.customerPhone && ord.customerPhone.includes(q)) ||
-            ((ord.items || []).some(it => (it.name || it.item?.name || '').toLowerCase().includes(q)))
+            ordNum.includes(q) ||
+            ordId.includes(q) ||
+            custName.includes(q) ||
+            rawPhone.includes(q) ||
+            (numQ.length >= 3 && cleanPhone.includes(numQ)) ||
+            itemsMatch
           ) : true;
 
-          const matchesTable = tableFilter !== 'all' ? (String(ord.tableNumber) === String(tableFilter)) : true;
+          const ordTbl = String(ord.tableNumber || ord.table || '').replace(/^Table\s*/i, '').trim();
+          const matchesTable = tableFilter !== 'all' ? (ordTbl === String(tableFilter).replace(/^Table\s*/i, '').trim()) : true;
           return matchesSearch && matchesTable;
         });
 
@@ -677,47 +702,32 @@ export default function ReportsSuite({ initialOrders = [] }) {
                       </div>
                     </div>
 
-                    {/* Action: Reprint Bill */}
+                    {/* Action: Reprint Bill (Clean Receipt Printing) */}
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button
                         type="button"
                         onClick={() => {
-                          toast.success('Reprinting bill...');
-                          window.print();
+                          toast.success('Printing customer bill receipt...');
+                          printOrderBill(selectedOrder);
                         }}
                         style={{
                           flex: 1,
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          background: '#ffffff',
-                          color: '#0f172a',
+                          padding: '11px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: '#0f172a',
+                          color: '#ffffff',
                           fontWeight: 800,
-                          fontSize: '0.85rem',
+                          fontSize: '0.88rem',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '6px'
+                          gap: '8px',
+                          boxShadow: '0 2px 8px rgba(15, 23, 42, 0.2)'
                         }}
                       >
-                        <Printer size={15} /> Reprint Bill
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOrder(null)}
-                        style={{
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: '#f1f5f9',
-                          color: '#475569',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Close
+                        <Printer size={16} /> Reprint Bill
                       </button>
                     </div>
                   </motion.div>
