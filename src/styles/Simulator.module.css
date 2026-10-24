@@ -291,5 +291,66 @@
 @media (max-width: 1024px) {
   .dualGrid {
     grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .guidanceBanner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .guidanceLeft {
+    gap: 10px;
+  }
+
+  .guidanceDesc {
+    font-size: 11px;
+  }
+
+  .phoneFrame {
+    max-width: 100%;
+    height: 480px;
+    border-radius: 28px;
+    border-width: 3px;
+  }
+
+  .foodCard {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .foodImg {
+    width: 52px;
+    height: 52px;
+  }
+
+  .foodName {
+    font-size: 11px;
+  }
+
+  .foodPrice {
+    font-size: 11px;
+  }
+
+  .kdsBoard {
+    height: auto;
+    min-height: 440px;
+    max-height: none;
+    padding: 14px;
+    border-radius: var(--radius-lg);
+  }
+
+  .kdsColumns {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-height: 520px;
+  }
+
+  .ticketCard {
+    padding: 10px;
   }
 }

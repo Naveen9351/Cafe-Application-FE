@@ -55,16 +55,17 @@
 }
 
 .heroContent {
-  height: 80vh;
+  min-height: auto;
   position: relative;
   z-index: 2;
   text-align: center;
   max-width: 960px;
-  margin: 2rem auto 36px auto;
+  margin: 1.5rem auto 36px auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
+  padding: 0 10px;
 }
 
 /* Hero badge — emerald */
@@ -81,6 +82,7 @@
   color: var(--color-primary);
   letter-spacing: 0.04em;
   box-shadow: 0 2px 8px rgba(5, 150, 105, 0.10);
+  max-width: 100%;
 }
 
 .pulseDot {
@@ -90,17 +92,19 @@
   background: var(--color-primary);
   box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.22);
   animation: pulseSubtle 2s infinite ease-in-out;
+  flex-shrink: 0;
 }
 
 .heroTitle {
   font-family: var(--font-display);
-  font-size: clamp(26px, 4vw, 50px);
+  font-size: clamp(26px, 4.5vw, 54px);
   font-weight: 900;
   color: var(--text-main);
   letter-spacing: -0.025em;
   line-height: 1.2;
   margin: 0;
   text-align: center;
+  width: 100%;
 }
 
 .typingPhrase {
@@ -118,12 +122,10 @@
 }
 
 @keyframes cursorBlink {
-
   0%,
   100% {
     opacity: 1;
   }
-
   50% {
     opacity: 0;
   }
@@ -173,7 +175,7 @@
 /* Hero Visual Showcase Cards */
 .heroShowcaseGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 32px;
   margin-bottom: 24px;
@@ -228,7 +230,7 @@
   text-transform: uppercase;
 }
 
-/* Card pill — emerald instead of blue */
+/* Card pill — emerald */
 .heroCardPill {
   font-size: 10px;
   font-weight: 800;
@@ -249,7 +251,7 @@
   margin-top: 3rem;
 }
 
-/* Simulator ribbon — emerald → amber gradient */
+/* Simulator ribbon */
 .simulatorTopRibbon {
   position: absolute;
   top: -14px;
@@ -352,21 +354,129 @@
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: 0 20px 48px -8px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
-  height: 80vh;
+  height: 55vh;
+  max-height: 560px;
   width: 100%;
 }
 
+/* Extra-large / 4K monitors */
+@media (min-width: 1600px) {
+  .heroContent {
+    max-width: 1100px;
+    gap: 22px;
+  }
+  .heroTitle {
+    font-size: 58px;
+  }
+  .heroSubtitle {
+    font-size: 19px;
+    max-width: 780px;
+  }
+}
+
+/* Tablets (landscape and portrait) */
+@media (max-width: 1024px) {
+  .heroCardImg {
+    height: 150px;
+  }
+  .animationWrapper {
+    height: 40vh;
+    max-height: 400px;
+    margin-top: 24px;
+  }
+}
+
+/* Mobile Screens */
 @media (max-width: 768px) {
-  .heroShowcaseGrid {
-    grid-template-columns: 1fr;
+  .heroSection {
+    padding-top: 90px;
+    padding-bottom: 40px;
+  }
+
+  .heroContent {
+    margin: 0.5rem auto 20px auto;
+    gap: 14px;
+    padding: 0 4px;
+  }
+
+  .heroBadge {
+    font-size: 10px;
+    padding: 5px 12px;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .heroTitle {
+    font-size: clamp(23px, 6.8vw, 34px);
+    line-height: 1.25;
   }
 
   .typingPhrase {
     white-space: normal;
   }
 
-  .animationWrapper {
+  .heroSubtitle {
+    font-size: 13.5px;
+    line-height: 1.5;
+    padding: 0 4px;
+  }
+
+  .heroCtas {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .heroCtas > * {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .trustMetrics {
+    gap: 10px 14px;
+    font-size: 11px;
+  }
+
+  .heroShowcaseGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
     margin-top: 20px;
-    height: 45vh;
+  }
+
+  .heroCardImg {
+    height: 150px;
+  }
+
+  .animationWrapper {
+    margin-top: 16px;
+    height: 28vh;
+    min-height: 190px;
+    max-height: 260px;
+    border-radius: var(--radius-lg);
+  }
+
+  .simulatorWrapper {
+    padding: 16px 10px;
+    margin-top: 2rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .simulatorTopRibbon {
+    font-size: 10px;
+    padding: 4px 12px;
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .marqueeBar {
+    margin-top: 24px;
+    padding: 8px 0;
+  }
+
+  .marqueeChip {
+    padding: 4px 14px;
+    font-size: 11px;
   }
 }

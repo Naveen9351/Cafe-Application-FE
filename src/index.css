@@ -162,12 +162,30 @@ img, svg {
   gap: 20px;
 }
 
+/* Extra-large / 4K Monitors */
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1380px;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+}
+
 @media (max-width: 1024px) {
+  .grid-2 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
+  .container {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .container-narrow {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
   .grid-2 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
   .grid-4 { grid-template-columns: 1fr; }

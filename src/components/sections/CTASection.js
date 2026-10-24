@@ -96,13 +96,13 @@ export default function CTASection({ onOpenDemo }) {
   }, []);
 
   return (
-    <section ref={sectionRef} style={{ padding: "100px 0", background: "#ffffff", borderTop: "1px solid var(--border-subtle)" }}>
+    <section ref={sectionRef} style={{ padding: "clamp(50px, 7vw, 100px) 0", background: "#ffffff", borderTop: "1px solid var(--border-subtle)" }}>
       <div className="container">
         <div
           ref={cardRef}
           style={{
             borderRadius: "var(--radius-xl)",
-            padding: "64px 48px",
+            padding: "clamp(36px, 6vw, 64px) clamp(16px, 5vw, 48px)",
             background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #047857 100%)",
             color: "#ffffff",
             textAlign: "center",
@@ -278,12 +278,12 @@ export default function CTASection({ onOpenDemo }) {
             <div
               ref={propsRef}
               style={{
-                marginTop: 52,
-                paddingTop: 28,
+                marginTop: "clamp(28px, 4vw, 52px)",
+                paddingTop: 24,
                 borderTop: "1px solid rgba(255, 255, 255, 0.2)",
                 display: "flex",
                 justifyContent: "center",
-                gap: 32,
+                gap: "clamp(12px, 3vw, 32px)",
                 flexWrap: "wrap",
                 fontSize: 13,
                 fontWeight: 600,

@@ -5,6 +5,7 @@ import {
   Sparkles,
   ArrowRight
 } from "lucide-react";
+import styles from "../../styles/FlagshipSections.module.css";
 
 export default function ROICalculator({ onOpenDemoModal }) {
   const [tables, setTables] = useState(20);
@@ -21,7 +22,7 @@ export default function ROICalculator({ onOpenDemoModal }) {
   const hoursSavedPerMonth = Math.round((tables * turns * 30 * 12) / 60);
 
   return (
-    <div className="card-luxury" style={{ padding: 32, display: "flex", flexDirection: "column", gap: 28 }}>
+    <div className="card-luxury" style={{ padding: "clamp(18px, 4vw, 32px)", display: "flex", flexDirection: "column", gap: 28 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 16, borderBottom: "1px solid var(--border-subtle)", flexWrap: "wrap", gap: 14 }}>
         <div>
@@ -39,7 +40,7 @@ export default function ROICalculator({ onOpenDemoModal }) {
         </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
+      <div className={styles.roiGrid}>
         {/* Left: 3 Interactive Sliders */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {/* Slider 1: Tables */}

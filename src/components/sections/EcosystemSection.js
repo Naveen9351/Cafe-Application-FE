@@ -207,16 +207,16 @@ export default function EcosystemSection() {
   const currentPillar = pillars[activeCategory];
 
   return (
-    <section ref={sectionRef} style={{ padding: "100px 0", background: "#ffffff", borderTop: "1px solid var(--border-subtle)" }}>
+    <section ref={sectionRef} style={{ padding: "clamp(50px, 7vw, 100px) 0", background: "#ffffff", borderTop: "1px solid var(--border-subtle)" }}>
       <div className="container">
         
         {/* Section Header */}
-        <div ref={headerRef} style={{ textAlign: "center", maxWidth: 760, margin: "0 auto 50px auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <div ref={headerRef} style={{ textAlign: "center", maxWidth: 760, margin: "0 auto clamp(24px, 4vw, 50px) auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
           <div className="badge-pill badge-blue">
             <Layers style={{ width: 14, height: 14 }} />
             <span>Unified Product Ecosystem</span>
           </div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
             A Complete Suite Designed to <span className="gradient-text">Grow with Your Restaurant</span>
           </h2>
           <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
@@ -225,7 +225,7 @@ export default function EcosystemSection() {
         </div>
 
         {/* 3 Pillar Tab Switcher */}
-        <div ref={tabsRef} style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
+        <div ref={tabsRef} style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap", marginBottom: 36 }}>
           {Object.values(pillars).map((pillar) => {
             const Icon = pillar.icon;
             const isActive = activeCategory === pillar.id;
@@ -237,16 +237,16 @@ export default function EcosystemSection() {
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  padding: "12px 24px",
+                  padding: "clamp(9px, 2vw, 12px) clamp(14px, 3vw, 24px)",
                   borderRadius: "var(--radius-lg)",
-                  fontSize: 13,
+                  fontSize: "clamp(12px, 1.4vw, 13px)",
                   fontWeight: 800,
                   cursor: "pointer",
                   border: `1.5px solid ${isActive ? "var(--color-primary)" : "var(--border-subtle)"}`,
                   background: isActive ? "var(--color-primary)" : "var(--bg-card-subtle)",
                   color: isActive ? "#ffffff" : "var(--text-main)",
-                  boxShadow: isActive ? "0 8px 24px rgba(37,99,235,0.25)" : "none",
-                  transform: isActive ? "scale(1.03)" : "scale(1)",
+                  boxShadow: isActive ? "0 8px 24px rgba(5,150,105,0.22)" : "none",
+                  transform: isActive ? "scale(1.02)" : "scale(1)",
                   transition: "all 0.25s ease"
                 }}
               >
@@ -266,7 +266,7 @@ export default function EcosystemSection() {
                 key={idx}
                 className="card-luxury"
                 style={{
-                  padding: 28,
+                  padding: "clamp(18px, 3.5vw, 28px)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -275,7 +275,7 @@ export default function EcosystemSection() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-5px)";
-                  e.currentTarget.style.boxShadow = "0 18px 40px -10px rgba(37,99,235,0.18)";
+                  e.currentTarget.style.boxShadow = "0 18px 40px -10px rgba(5,150,105,0.18)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
@@ -305,11 +305,11 @@ export default function EcosystemSection() {
                   <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "var(--text-light)", marginBottom: 8 }}>
                     Capabilities
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8, fontSize: 12, fontWeight: 600, color: "var(--text-main)" }}>
                     {mod.features.map((feat, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <CheckCircle2 style={{ width: 14, height: 14, color: "var(--color-emerald)", flexShrink: 0 }} />
-                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{feat}</span>
+                        <span style={{ fontSize: 12, lineHeight: 1.3 }}>{feat}</span>
                       </div>
                     ))}
                   </div>

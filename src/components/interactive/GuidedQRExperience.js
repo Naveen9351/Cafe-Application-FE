@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Smartphone
 } from "lucide-react";
+import styles from "../../styles/FlagshipSections.module.css";
 
 const SAMPLE_MENU = [
   {
@@ -109,7 +110,7 @@ export default function GuidedQRExperience() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* 2-Column Interactive Walkthrough */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 28 }}>
+      <div className={styles.stepperGrid}>
         
         {/* Left Column: 4 Interactive Stage Steps */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -183,6 +184,9 @@ export default function GuidedQRExperience() {
             border: "4px solid #0f172a",
             borderRadius: 36,
             height: 480,
+            maxWidth: 360,
+            width: "100%",
+            margin: "0 auto",
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",

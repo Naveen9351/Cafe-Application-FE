@@ -250,3 +250,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 540px) {
+  .container {
+    padding: 14px 12px;
+  }
+  .kpiCard {
+    padding: 10px 12px;
+  }
+  .kpiValue {
+    font-size: 17px;
+  }
+  .chartBarsContainer {
+    overflow-x: auto;
+    gap: 4px;
+    padding: 10px 4px 4px 4px;
+  }
+  .barHour {
+    font-size: 8px;
+  }
+}

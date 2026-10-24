@@ -170,7 +170,7 @@ export default function BeforeAfterSection() {
     <section
       ref={sectionRef}
       style={{
-        padding: "100px 0",
+        padding: "clamp(50px, 7vw, 100px) 0",
         background: "var(--bg-card-subtle)",
         borderTop: "1px solid var(--border-subtle)",
         position: "relative",
@@ -215,7 +215,7 @@ export default function BeforeAfterSection() {
             <Sparkles style={{ width: 14, height: 14 }} />
             <span>Operational Shift</span>
           </div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
             Traditional Dining Chaos <span style={{ color: "var(--text-light)" }}>vs</span> <span className="gradient-text">DINEVIQ Velocity</span>
           </h2>
           <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
@@ -231,7 +231,7 @@ export default function BeforeAfterSection() {
             ref={leftCardRef}
             className="card-luxury"
             style={{
-              padding: 32,
+              padding: "clamp(20px, 4vw, 32px)",
               borderColor: "var(--color-rose-border)",
               display: "flex",
               flexDirection: "column",
@@ -249,7 +249,7 @@ export default function BeforeAfterSection() {
             }}
           >
             <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 16, borderBottom: "1px solid var(--color-rose-border)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, paddingBottom: 16, borderBottom: "1px solid var(--color-rose-border)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--color-rose-light)", color: "var(--color-rose)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <XCircle style={{ width: 18, height: 18 }} />
@@ -270,7 +270,7 @@ export default function BeforeAfterSection() {
                     onMouseEnter={(e) => { e.currentTarget.style.transform = "translateX(4px)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.transform = "translateX(0)"; }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text-main)" }}>{item.title}</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: "var(--color-rose)", background: "#ffffff", padding: "2px 6px", borderRadius: 4 }}>{item.stat}</span>
                     </div>
@@ -285,12 +285,12 @@ export default function BeforeAfterSection() {
             </div>
           </div>
 
-          {/* Column 2: SERVIQ Autonomous OS */}
+          {/* Column 2: DINEVIQ Autonomous OS */}
           <div
             ref={rightCardRef}
             className="card-luxury"
             style={{
-              padding: 32,
+              padding: "clamp(20px, 4vw, 32px)",
               border: "2px solid var(--color-primary)",
               boxShadow: "0 16px 40px rgba(5,150,105,0.15)",
               display: "flex",
@@ -309,7 +309,7 @@ export default function BeforeAfterSection() {
             }}
           >
             <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 16, borderBottom: "1px solid var(--color-primary-border)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, paddingBottom: 16, borderBottom: "1px solid var(--color-primary-border)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--color-primary-light)", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <CheckCircle2 style={{ width: 18, height: 18 }} />
@@ -330,7 +330,7 @@ export default function BeforeAfterSection() {
                     onMouseEnter={(e) => { e.currentTarget.style.transform = "translateX(-4px)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.transform = "translateX(0)"; }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text-main)" }}>{item.title}</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: "var(--color-primary)", background: "#ffffff", padding: "2px 6px", borderRadius: 4 }}>{item.stat}</span>
                     </div>

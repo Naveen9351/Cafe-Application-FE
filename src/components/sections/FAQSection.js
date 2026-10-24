@@ -117,7 +117,7 @@ export default function FAQSection({ onOpenDemo }) {
     <section
       ref={sectionRef}
       id="faq"
-      style={{ padding: "100px 0", background: "var(--bg-card-subtle)", borderTop: "1px solid var(--border-subtle)", position: "relative", overflow: "hidden" }}
+      style={{ padding: "clamp(50px, 7vw, 100px) 0", background: "var(--bg-card-subtle)", borderTop: "1px solid var(--border-subtle)", position: "relative", overflow: "hidden" }}
     >
       {/* Decorative background orbs */}
       <div style={{
@@ -131,12 +131,12 @@ export default function FAQSection({ onOpenDemo }) {
       <div className="container-narrow">
         
         {/* Header */}
-        <div ref={headerRef} style={{ textAlign: "center", marginBottom: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <div ref={headerRef} style={{ textAlign: "center", marginBottom: 36, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
           <div className="badge-pill badge-blue">
             <HelpCircle style={{ width: 14, height: 14 }} />
             <span>Frequently Asked Questions</span>
           </div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
             Got Questions? We Have Answers.
           </h2>
           <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
@@ -161,7 +161,7 @@ export default function FAQSection({ onOpenDemo }) {
                 color: activeCategory === cat ? "#ffffff" : "var(--text-main)",
                 transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
                 transform: activeCategory === cat ? "scale(1.04)" : "scale(1)",
-                boxShadow: activeCategory === cat ? "0 4px 14px rgba(37,99,235,0.3)" : "none"
+                boxShadow: activeCategory === cat ? "0 4px 14px rgba(5,150,105,0.25)" : "none"
               }}
             >
               {cat}
@@ -182,7 +182,7 @@ export default function FAQSection({ onOpenDemo }) {
                   borderColor: isOpen ? "var(--color-primary)" : "var(--border-subtle)",
                   overflow: "hidden",
                   transition: "border-color 0.25s ease, box-shadow 0.25s ease",
-                  boxShadow: isOpen ? "0 8px 24px rgba(37,99,235,0.12)" : "var(--shadow-sm)"
+                  boxShadow: isOpen ? "0 8px 24px rgba(5,150,105,0.12)" : "var(--shadow-sm)"
                 }}
               >
                 <button
@@ -190,13 +190,13 @@ export default function FAQSection({ onOpenDemo }) {
                   style={{
                     width: "100%",
                     textAlign: "left",
-                    padding: "18px 24px",
+                    padding: "clamp(14px, 2.5vw, 18px) clamp(16px, 3.5vw, 24px)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
                     gap: 16,
                     fontWeight: 800,
-                    fontSize: 15,
+                    fontSize: "clamp(13px, 2vw, 15px)",
                     color: isOpen ? "var(--color-primary)" : "var(--text-main)",
                     background: isOpen ? "var(--color-primary-light)" : "#ffffff",
                     border: "none",
@@ -204,7 +204,7 @@ export default function FAQSection({ onOpenDemo }) {
                     transition: "background 0.25s ease, color 0.25s ease"
                   }}
                 >
-                  <span>{faq.question}</span>
+                  <span style={{ lineHeight: 1.4 }}>{faq.question}</span>
                   <div
                     style={{
                       width: 28,
@@ -228,12 +228,11 @@ export default function FAQSection({ onOpenDemo }) {
                   <div
                     ref={(el) => { answerRefs.current[idx] = el; }}
                     style={{
-                      padding: "0 24px 20px 24px",
+                      padding: "14px clamp(16px, 3.5vw, 24px) 18px clamp(16px, 3.5vw, 24px)",
                       fontSize: 14,
                       color: "var(--text-muted)",
                       lineHeight: 1.65,
                       borderTop: "1px solid var(--color-primary-border)",
-                      paddingTop: 16,
                       background: "var(--color-primary-light)"
                     }}
                   >
@@ -249,7 +248,7 @@ export default function FAQSection({ onOpenDemo }) {
         <div
           className="card-luxury shimmer-on-hover"
           style={{
-            padding: 24,
+            padding: "clamp(16px, 3.5vw, 24px)",
             marginTop: 36,
             display: "flex",
             alignItems: "center",
@@ -260,7 +259,7 @@ export default function FAQSection({ onOpenDemo }) {
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = "translateY(-4px)";
-            e.currentTarget.style.boxShadow = "0 12px 30px rgba(37,99,235,0.12)";
+            e.currentTarget.style.boxShadow = "0 12px 30px rgba(5,150,105,0.12)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
@@ -268,7 +267,7 @@ export default function FAQSection({ onOpenDemo }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-primary-light)", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-primary-light)", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <MessageSquare style={{ width: 20, height: 20 }} />
             </div>
             <div>

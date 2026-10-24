@@ -1,6 +1,6 @@
 /* FlagshipSections CSS Module */
 .section {
-  padding: 100px 0;
+  padding: clamp(50px, 7vw, 100px) 0;
   position: relative;
   overflow: hidden;
   border-top: 1px solid var(--border-subtle);
@@ -19,7 +19,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 32px;
-  margin-bottom: 50px;
+  margin-bottom: clamp(28px, 4vw, 50px);
 }
 
 .headerLeft {
@@ -28,7 +28,7 @@
 
 .title {
   font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 44px);
+  font-size: clamp(26px, 4vw, 44px);
   font-weight: 900;
   color: var(--text-main);
   letter-spacing: -0.02em;
@@ -37,7 +37,7 @@
 }
 
 .desc {
-  font-size: 15px;
+  font-size: clamp(13.5px, 1.5vw, 15px);
   color: var(--text-muted);
   line-height: 1.6;
 }
@@ -67,7 +67,7 @@
   background: var(--bg-card-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 22px;
+  padding: clamp(16px, 2.5vw, 22px);
   box-shadow: var(--shadow-sm);
   transition: all 0.25s ease;
 }
@@ -81,7 +81,7 @@
 
 .metricValue {
   font-family: var(--font-mono);
-  font-size: 26px;
+  font-size: clamp(22px, 3vw, 28px);
   font-weight: 900;
   color: var(--color-primary);
   margin-bottom: 6px;
@@ -104,7 +104,7 @@
   background: #ffffff;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  padding: 28px;
+  padding: clamp(16px, 3.5vw, 28px);
   box-shadow: var(--shadow-lg);
 }
 
@@ -115,10 +115,91 @@
   padding-bottom: 16px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
+/* Responsive helper classes for interactive inner components */
+.qrWidgetGrid {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 24px;
+  align-items: center;
+}
+
+.stepperGrid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+}
+
+.roiGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+/* Extra-large / 4K Monitors */
+@media (min-width: 1600px) {
+  .title {
+    font-size: 48px;
+  }
+}
+
+/* Tablets */
 @media (max-width: 1024px) {
-  .headerRow { flex-direction: column; align-items: flex-start; }
-  .showcaseGrid { grid-template-columns: 1fr; }
-  .metricsRow { grid-template-columns: 1fr; }
+  .headerRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .headerActions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .showcaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricsRow {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .stepperGrid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* Small Tablets and Mobile */
+@media (max-width: 768px) {
+  .headerActions {
+    flex-direction: column;
+  }
+
+  .headerActions > * {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .metricsRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .qrWidgetGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .roiGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 }
