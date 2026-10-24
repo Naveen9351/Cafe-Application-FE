@@ -9,6 +9,7 @@ import {
   Sparkles
 } from "lucide-react";
 import ServiqLogo from "../brand/ServiqLogo";
+import { getBillingPortalUrl } from "../../utils/subdomain";
 
 export default function Footer({ onOpenDemoModal, onOpenDemo }) {
   const triggerDemo = onOpenDemo || onOpenDemoModal;
@@ -122,9 +123,9 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
               <Link to="/careers" style={{ color: "#94a3b8", textDecoration: "none" }}>
                 Careers
               </Link>
-              <Link to="/login" style={{ color: "#94a3b8", textDecoration: "none" }}>
+              <a href={getBillingPortalUrl()} style={{ color: "#94a3b8", textDecoration: "none" }}>
                 Staff / Admin Login
-              </Link>
+              </a>
               <Link to="/register" style={{ color: "var(--color-primary)", fontWeight: 800, textDecoration: "none" }}>
                 Register Restaurant
               </Link>

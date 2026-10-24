@@ -53,14 +53,10 @@ export const isDesktopApp = () => {
   );
 };
 
-// Helper to detect if user is accessing via admin subdomain (e.g., admin.serviq.app, admin.domain.com)
-const isAdminSubdomain = () => {
-  const host = window.location.hostname.toLowerCase();
-  return host.startsWith('admin.') || host.startsWith('dashboard.') || host.startsWith('portal.') || host.startsWith('app.');
-};
+import { isBillingOrAdminSubdomain } from './utils/subdomain';
 
 // Home Route: Auto-redirect logged-in users directly to their Dashboard
-// If on desktop application or admin subdomain, redirect directly to Login if not logged in
+// If on desktop application or billing/admin subdomain (billing.dineviq.com), redirect directly to Login if not logged in
 const HomeRoute = () => {
   const { user, loading } = useAuth();
 
@@ -75,8 +71,8 @@ const HomeRoute = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
-  // If user is on Desktop App or admin subdomain, direct to staff login immediately
-  if (isDesktopApp() || isAdminSubdomain()) {
+  // If user is on Desktop App or billing subdomain (billing.dineviq.com), direct to staff login immediately
+  if (isDesktopApp() || isBillingOrAdminSubdomain()) {
     return <Navigate to="/login" replace />;
   }
 
@@ -101,10 +97,28 @@ const PublicOnlyRoute = ({ children }) => {
   return children;
 };
 
+// Dedicated Login Route:
+// If accessed via main domain (dineviq.com / www.dineviq.com) in production, route directly to billing.dineviq.com
+const LoginRoute = () => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host.includes('dineviq.com') && !host.startsWith('billing.') && !host.startsWith('admin.')) {
+      window.location.replace('https://billing.dineviq.com');
+      return <PageLoader duration={300} />;
+    }
+  }
+
+  return (
+    <PublicOnlyRoute>
+      <Login />
+    </PublicOnlyRoute>
+  );
+};
+
 function AppRoutes() {
   return (
     <Routes>
-      {/* Root Route: If logged in, opens Dashboard directly; else shows Landing Page */}
+      {/* Root Route: If on billing.dineviq.com, opens Login directly; else shows Landing Page */}
       <Route path="/" element={<HomeRoute />} />
 
       {/* Customer Ordering Routes */}
@@ -114,15 +128,8 @@ function AppRoutes() {
       <Route path="/profile" element={<CustomerProfilePage />} />
       <Route path="/order/status/:id" element={<OrderStatus />} />
 
-      {/* Auth Routes (Blocked for already logged-in users) */}
-      <Route
-        path="/login"
-        element={
-          <PublicOnlyRoute>
-            <Login />
-          </PublicOnlyRoute>
-        }
-      />
+      {/* Auth Routes */}
+      <Route path="/login" element={<LoginRoute />} />
       <Route path="/admin/login" element={<Navigate to="/login" replace />} />
       <Route
         path="/register"
