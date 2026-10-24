@@ -125,7 +125,7 @@ const Login = () => {
               {/* Badge 1: Orders */}
               <div className={styles.featureBadge}>
                 <div className={styles.featureIconWrap} style={{ background: "#ede9fe", color: "#7c3aed" }}>
-                  <UtensilsCrossed size={19} />
+                  <UtensilsCrossed size={16} />
                 </div>
                 <div className={styles.featureTitle}>Orders</div>
                 <div className={styles.featureDesc}>Faster service</div>
@@ -134,7 +134,7 @@ const Login = () => {
               {/* Badge 2: Inventory */}
               <div className={styles.featureBadge}>
                 <div className={styles.featureIconWrap} style={{ background: "#ffedd5", color: "#ea580c" }}>
-                  <Boxes size={19} />
+                  <Boxes size={16} />
                 </div>
                 <div className={styles.featureTitle}>Inventory</div>
                 <div className={styles.featureDesc}>Stay in control</div>
@@ -143,7 +143,7 @@ const Login = () => {
               {/* Badge 3: Staff */}
               <div className={styles.featureBadge}>
                 <div className={styles.featureIconWrap} style={{ background: "#dcfce7", color: "#16a34a" }}>
-                  <Users2 size={19} />
+                  <Users2 size={16} />
                 </div>
                 <div className={styles.featureTitle}>Staff</div>
                 <div className={styles.featureDesc}>Manage easily</div>
@@ -152,7 +152,7 @@ const Login = () => {
               {/* Badge 4: Reports */}
               <div className={styles.featureBadge}>
                 <div className={styles.featureIconWrap} style={{ background: "#e0f2fe", color: "#0284c7" }}>
-                  <TrendingUp size={19} />
+                  <TrendingUp size={16} />
                 </div>
                 <div className={styles.featureTitle}>Reports</div>
                 <div className={styles.featureDesc}>Grow smarter</div>
@@ -180,7 +180,7 @@ const Login = () => {
           >
             {/* Centered Brand Logo */}
             <div className={styles.logoArea}>
-              <DineviqLogo size="md" showSubtitle={false} showBadge={true} onClick={() => navigate('/')} />
+              <DineviqLogo size="sm" showSubtitle={false} showBadge={true} onClick={() => navigate('/')} />
             </div>
 
             {/* Header */}
