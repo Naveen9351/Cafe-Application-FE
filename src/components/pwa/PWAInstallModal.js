@@ -7,7 +7,10 @@ import {
   Apple,
   CheckCircle2,
   Share,
-  FileDown
+  Sparkles,
+  ExternalLink,
+  Laptop,
+  AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import styles from './PWAInstallModal.module.css';
@@ -21,29 +24,32 @@ export default function PWAInstallModal({
   isAndroid
 }) {
   const [activeTab, setActiveTab] = useState(
-    isIOS ? 'ios' : isAndroid ? 'android' : 'desktop'
+    isIOS ? 'ios' : isAndroid ? 'android' : 'windows'
   );
   const [isInstalling, setIsInstalling] = useState(false);
 
   if (!isOpen) return null;
 
-  const downloadShortcutFile = () => {
-    try {
-      const origin = window.location.origin || 'http://localhost:3000';
-      const shortcutContent = `[InternetShortcut]\r\nURL=${origin}/admin/dashboard\r\nIconIndex=0\r\nIconFile=${origin}/favicon.ico\r\n`;
-      const blob = new Blob([shortcutContent], { type: 'application/octet-stream' });
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = 'SERVIQ Admin.url';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-      toast.success('Shortcut file downloaded! Drag it onto your desktop.');
-    } catch (err) {
-      console.log('Download error:', err);
-    }
+  const handleDownloadWindowsExe = (type = 'setup') => {
+    const fileName = type === 'portable'
+      ? 'ServiQ-Staff-Terminal-Portable.exe'
+      : 'ServiQ-Staff-Terminal-Setup.exe';
+    const downloadUrl = `/downloads/${fileName}`;
+    
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`Downloading ${type === 'portable' ? 'Portable' : 'Installer'} (.exe)...`);
+  };
+
+  const handleDownloadMacDmg = () => {
+    const macUrl = 'https://github.com/Naveen9351/Cafe-Desktop/releases';
+    window.open(macUrl, '_blank');
+    toast.success('Opening macOS download page on GitHub Releases...');
   };
 
   const handleNativeInstall = async () => {
@@ -61,7 +67,6 @@ export default function PWAInstallModal({
         setIsInstalling(false);
       }
     } else {
-      downloadShortcutFile();
       onClose();
     }
   };
@@ -77,10 +82,10 @@ export default function PWAInstallModal({
               <img src="/icon-192.png" alt="SERVIQ App Icon" className={styles.appIconImg} />
             </div>
             <div className={styles.titleArea}>
-              <h3>Download SERVIQ Admin</h3>
+              <h3>Staff Terminal Downloads</h3>
               <div className={styles.badgeRow}>
-                <span className={styles.badgePWA}>Desktop PWA</span>
-                <span className={styles.versionTag}>v2.4 Pro</span>
+                <span className={styles.badgePWA}>Desktop & POS</span>
+                <span className={styles.versionTag}>v1.0 Pro</span>
               </div>
             </div>
           </div>
@@ -91,115 +96,146 @@ export default function PWAInstallModal({
             onClick={onClose}
             title="Close"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Modal Body */}
         <div className={styles.modalBody}>
           
-          {/* OS Guide Tabs */}
+          {/* OS Switcher Tabs */}
           <div className={styles.tabsNav}>
             <button
               type="button"
-              className={`${styles.tabBtn} ${activeTab === 'desktop' ? styles.tabBtnActive : ''}`}
-              onClick={() => setActiveTab('desktop')}
+              className={`${styles.tabBtn} ${activeTab === 'windows' ? styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab('windows')}
             >
-              <Monitor size={13} /> Windows / Desktop
+              <Monitor size={14} /> Windows
+            </button>
+            <button
+              type="button"
+              className={`${styles.tabBtn} ${activeTab === 'mac' ? styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab('mac')}
+            >
+              <Apple size={14} /> macOS
             </button>
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'android' ? styles.tabBtnActive : ''}`}
               onClick={() => setActiveTab('android')}
             >
-              <Smartphone size={13} /> Android / Chrome
+              <Smartphone size={14} /> Android
             </button>
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'ios' ? styles.tabBtnActive : ''}`}
               onClick={() => setActiveTab('ios')}
             >
-              <Apple size={13} /> iPhone / iPad
+              <Share size={14} /> iOS
             </button>
           </div>
 
-          {/* Instructions Box */}
+          {/* Instructions / Actions Box */}
           <div className={styles.instructionsBox}>
-            {activeTab === 'desktop' && (
+            {/* WINDOWS TAB */}
+            {activeTab === 'windows' && (
               <div>
-                <div className={styles.stepItem}>
-                  <span className={styles.stepNumber}>1</span>
-                  <p className={styles.stepDesc}>
-                    Click the <strong>Desktop App icon</strong> in your browser address bar (top right).
-                  </p>
-                </div>
-                <div className={styles.stepItem}>
-                  <span className={styles.stepNumber}>2</span>
-                  <p className={styles.stepDesc}>
-                    In the app window, click <strong>⋮ (3 dots) → "Create shortcut..."</strong> or pin to taskbar.
-                  </p>
-                </div>
-                <div className={styles.stepItem}>
-                  <span className={styles.stepNumber}>3</span>
-                  <p className={styles.stepDesc}>
-                    Or click below to download the shortcut file directly to your desktop.
-                  </p>
+                <div className={styles.cardSection}>
+                  <div className={styles.cardTitle}>
+                    <Sparkles size={16} style={{ color: '#60a5fa' }} />
+                    <span>Windows Staff & POS Desktop Terminal</span>
+                  </div>
+                  <div className={styles.cardSubtitle}>
+                    Silent thermal printing, F11 kiosk mode & instant cloud sync.
+                  </div>
+
+                  <div className={styles.actionButtonGroup}>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadWindowsExe('setup')}
+                      className={styles.btnPrimaryDownload}
+                    >
+                      <Download size={16} />
+                      <span>Download Windows Installer (.exe)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadWindowsExe('portable')}
+                      className={styles.btnSecondaryDownload}
+                    >
+                      <Laptop size={14} />
+                      <span>Download Portable Single-File (.exe)</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ marginTop: '0.65rem' }}>
-                  <button
-                    type="button"
-                    onClick={downloadShortcutFile}
-                    style={{
-                      width: '100%',
-                      background: '#eff6ff',
-                      color: '#2563eb',
-                      border: '1px solid #bfdbfe',
-                      borderRadius: 8,
-                      padding: '6px 10px',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6
-                    }}
-                  >
-                    <FileDown size={14} />
-                    <span>Download Desktop Shortcut File (.url)</span>
-                  </button>
-                </div>
-
-                <div className={styles.chromeTip}>
-                  💡 <em>Quick tip:</em> You can also visit <code>chrome://apps</code>, right-click <strong>SERVIQ</strong>, and select <strong>"Create shortcuts..."</strong>.
+                <div className={styles.defenderAlert}>
+                  <AlertCircle size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+                  <div className={styles.defenderAlertText}>
+                    <strong>First-time Windows launch:</strong> If Windows SmartScreen appears, simply click <u>More info</u> → <u>Run anyway</u>.
+                  </div>
                 </div>
               </div>
             )}
 
+            {/* MAC TAB */}
+            {activeTab === 'mac' && (
+              <div>
+                <div className={styles.cardSection}>
+                  <div className={styles.cardTitle}>
+                    <Apple size={16} />
+                    <span>macOS Staff Terminal (.dmg)</span>
+                  </div>
+                  <div className={styles.cardSubtitle}>
+                    Supports Apple Silicon (M1/M2/M3/M4) & Intel Macs.
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadMacDmg}
+                    className={styles.btnPrimaryDownload}
+                    style={{ background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)' }}
+                  >
+                    <Download size={16} />
+                    <span>Download macOS Installer (.dmg)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ANDROID TAB */}
             {activeTab === 'android' && (
               <div>
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>1</span>
                   <p className={styles.stepDesc}>
-                    Tap <span className={styles.highlightTag}>⋮ (Menu)</span> at the top right of Chrome.
+                    Tap <span className={styles.highlightTag}>⋮ (Menu)</span> in Chrome browser.
                   </p>
                 </div>
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>2</span>
                   <p className={styles.stepDesc}>
-                    Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.
+                    Select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.
                   </p>
                 </div>
               </div>
             )}
 
+            {/* IOS TAB */}
             {activeTab === 'ios' && (
               <div>
                 <div className={styles.stepItem}>
                   <span className={styles.stepNumber}>1</span>
                   <p className={styles.stepDesc}>
-                    In Safari, tap <Share size={12} style={{ display: 'inline', verticalAlign: 'middle', color: '#38bdf8' }} /> <strong>Share</strong> → <strong>"Add to Home Screen"</strong>.
+                    In Safari, tap <Share size={13} style={{ display: 'inline', verticalAlign: 'middle', color: '#60a5fa' }} /> <strong>Share</strong> icon.
+                  </p>
+                </div>
+                <div className={styles.stepItem}>
+                  <span className={styles.stepNumber}>2</span>
+                  <p className={styles.stepDesc}>
+                    Scroll and tap <strong>"Add to Home Screen"</strong>.
                   </p>
                 </div>
               </div>
@@ -209,26 +245,27 @@ export default function PWAInstallModal({
 
         {/* Modal Footer */}
         <div className={styles.modalFooter}>
-          {deferredPrompt ? (
+          {deferredPrompt && (
             <button
               type="button"
-              className={styles.primaryInstallBtn}
+              className={styles.btnSecondaryDownload}
               onClick={handleNativeInstall}
               disabled={isInstalling}
+              style={{ width: 'auto', padding: '8px 16px' }}
             >
               <Download size={14} />
-              <span>{isInstalling ? 'Installing...' : 'Install App'}</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles.primaryInstallBtn}
-              onClick={onClose}
-            >
-              <CheckCircle2 size={14} />
-              <span>Got It</span>
+              <span>{isInstalling ? 'Installing PWA...' : 'Quick Install PWA'}</span>
             </button>
           )}
+
+          <button
+            type="button"
+            className={styles.doneBtn}
+            onClick={onClose}
+          >
+            <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+            <span>Close</span>
+          </button>
         </div>
 
       </div>

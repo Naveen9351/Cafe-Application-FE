@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Menu from './components/Menu';
 import Cart from './components/Cart';
 import OrderStatus from './components/OrderStatus';
+import OrderHistoryPage from './components/OrderHistoryPage';
+import CustomerProfilePage from './components/CustomerProfilePage';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
@@ -16,6 +18,7 @@ import SolutionsPage from './components/SolutionsPage';
 import { POSBillingPage, KitchenOpsPage, InventoryPage, CRMLoyaltyPage, AICopilotPage } from './components/FeaturePages';
 import { AboutPage, CareersPage, PressKitPage, ContactPage } from './components/InfoPages';
 import PageLoader from './components/PageLoader';
+import ScrollToTop from './components/common/ScrollToTop';
 
 const ALL_STAFF_ROLES = ['admin', 'manager', 'cashier', 'chef', 'waiter', 'staff', 'kitchen', 'custom', 'super_admin'];
 
@@ -41,6 +44,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Helper to detect if app is running in Electron Desktop App
+export const isDesktopApp = () => {
+  return (
+    (typeof window !== 'undefined' && Boolean(window.electronAPI?.isElectron)) ||
+    (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron'))
+  );
+};
+
 // Helper to detect if user is accessing via admin subdomain (e.g., admin.serviq.app, admin.domain.com)
 const isAdminSubdomain = () => {
   const host = window.location.hostname.toLowerCase();
@@ -48,7 +59,7 @@ const isAdminSubdomain = () => {
 };
 
 // Home Route: Auto-redirect logged-in users directly to their Dashboard
-// If on admin subdomain, redirect directly to Login if not logged in
+// If on desktop application or admin subdomain, redirect directly to Login if not logged in
 const HomeRoute = () => {
   const { user, loading } = useAuth();
 
@@ -63,8 +74,8 @@ const HomeRoute = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
-  // If user is accessing via admin subdomain, direct to login immediately
-  if (isAdminSubdomain()) {
+  // If user is on Desktop App or admin subdomain, direct to staff login immediately
+  if (isDesktopApp() || isAdminSubdomain()) {
     return <Navigate to="/login" replace />;
   }
 
@@ -98,6 +109,8 @@ function AppRoutes() {
       {/* Customer Ordering Routes */}
       <Route path="/menu" element={<Menu />} />
       <Route path="/cart" element={<Cart />} />
+      <Route path="/history" element={<OrderHistoryPage />} />
+      <Route path="/profile" element={<CustomerProfilePage />} />
       <Route path="/order/status/:id" element={<OrderStatus />} />
 
       {/* Auth Routes (Blocked for already logged-in users) */}
@@ -186,6 +199,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <Router>
+          <ScrollToTop />
           <AppRoutes />
         </Router>
       </CartProvider>

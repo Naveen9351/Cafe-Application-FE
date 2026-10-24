@@ -8,16 +8,19 @@ import {
   Minus,
   Trash2,
   ShoppingBag,
-  ChevronLeft,
-  CreditCard,
-  Store,
-  Lock,
+  ChevronRight,
   Sun,
   Moon,
-  UserCheck
+  Receipt,
+  Utensils,
+  FileText
 } from "lucide-react";
+import TableBadge from "./common/TableBadge";
+import TrackOrderBadge from "./common/TrackOrderBadge";
+import CustomerBottomNav from "./common/CustomerBottomNav";
 import { motion, AnimatePresence } from "framer-motion";
 import CustomerVerificationModal from "./CustomerVerificationModal";
+import { FssaiDietaryBadge } from "./DishDetailsModal";
 import { decodeTableToken } from "../utils/tableToken";
 import styles from "./Cart.module.css";
 import { API_URL as API } from "../config/api";
@@ -36,10 +39,7 @@ export default function Cart() {
 
   const [tableNumber, setTableNumber] = useState(localStorage.getItem("tableNumber") || "");
   const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
-  const [step, setStep] = useState(1); // 1: Review, 2: Details/Payment
   const [isPlacing, setIsPlacing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("counter"); // counter or online
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
 
   // Customer verification profile
@@ -62,16 +62,18 @@ export default function Cart() {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
+  // Premium Gourmet Theme Tokens
   const theme = isDarkMode ? {
-    bgPage: '#090706',
-    bgContainer: '#14100c',
-    bgCard: '#18130e',
-    textMain: '#f5ebe0',
-    textMuted: '#a39282',
-    accent: '#e05c5c',
-    border: 'rgba(224, 92, 92, 0.2)',
-    cardBorder: 'rgba(255, 255, 255, 0.07)',
-    chipBg: '#1e1812',
+    bgPage: '#0d0b08',
+    bgContainer: '#16120e',
+    bgCard: '#1f1913',
+    textMain: '#f8fafc',
+    textMuted: '#a1a1aa',
+    accent: '#ea580c',
+    accentGlow: 'rgba(234, 88, 12, 0.35)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    cardBorder: 'rgba(255, 255, 255, 0.09)',
+    chipBg: '#261f18',
     inputBg: '#1f1913',
     inputText: '#ffffff'
   } : {
@@ -80,13 +82,19 @@ export default function Cart() {
     bgCard: '#ffffff',
     textMain: '#0f172a',
     textMuted: '#64748b',
-    accent: '#e05c5c',
+    accent: '#ea580c',
+    accentGlow: 'rgba(234, 88, 12, 0.25)',
     border: '#e2e8f0',
     cardBorder: '#e2e8f0',
-    chipBg: '#f1f5f9',
+    chipBg: '#f8fafc',
     inputBg: '#f8fafc',
     inputText: '#0f172a'
   };
+
+  // Ensure scroll is immediately reset to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     const tokenParam = searchParams.get("t") || searchParams.get("code") || searchParams.get("token");
@@ -111,30 +119,15 @@ export default function Cart() {
     }
   }, [searchParams]);
 
-  const handleProceedToCheckout = () => {
-    if (!customer?.verified) {
-      setIsVerificationOpen(true);
-    } else {
-      setStep(2);
-    }
-  };
-
-  const handleVerificationSuccess = (verifiedUser) => {
-    setCustomer(verifiedUser);
-    setIsVerificationOpen(false);
-    setStep(2);
-    toast.success(`Welcome, ${verifiedUser.name}!`);
-  };
-
-  const handlePlaceOrder = async () => {
+  const executeOrderPlacement = async (activeCustomer = customer) => {
     // 1. Validate Customer Verification
-    if (!customer?.verified) {
+    if (!activeCustomer?.verified) {
       setIsVerificationOpen(true);
       return;
     }
 
     // 2. Validate Table
-    if (!tableNumber && paymentMethod === "counter") {
+    if (!tableNumber) {
       toast.error("Please enter a table number");
       return;
     }
@@ -144,14 +137,6 @@ export default function Cart() {
     if (!tenantId) {
       toast.error("Invalid Cafe session. Please rescan QR code.");
       return;
-    }
-
-    if (paymentMethod === "online") {
-      setIsProcessingPayment(true);
-      // Simulate payment gateway delay
-      await new Promise(r => setTimeout(r, 2500));
-      setIsProcessingPayment(false);
-      toast.success("Payment Received!");
     }
 
     setIsPlacing(true);
@@ -173,37 +158,57 @@ export default function Cart() {
             specialNotes: i.specialNotes || i.notes || ''
           };
         }),
-        tenantId, // CRITICAL: Multi-tenant support
+        tenantId,
         tableNumber: tableNumber || "Online Order",
         status: "pending",
-        paymentStatus: paymentMethod === "online" ? "paid" : "pending",
+        paymentStatus: "pending",
         customerDetails: {
-          name: customer?.name || "Guest",
-          phone: customer?.phone || "",
-          email: customer?.email || "",
-          isPhoneVerified: Boolean(customer?.verified)
+          name: activeCustomer?.name || "Guest",
+          phone: activeCustomer?.phone || "",
+          email: activeCustomer?.email || "",
+          isPhoneVerified: Boolean(activeCustomer?.verified)
         }
       };
 
       const { data } = await axios.post(`${API}/orders`, payload);
 
-      // Save last active order id for customer dashboard banner
       try {
         localStorage.setItem('serviq_last_order_id', data._id);
         localStorage.setItem('serviq_last_table', String(tableNumber || ''));
+        const prevSession = JSON.parse(localStorage.getItem('serviq_session_orders') || '[]');
+        if (!prevSession.includes(data._id)) {
+          prevSession.push(data._id);
+        }
+        localStorage.setItem('serviq_session_orders', JSON.stringify(prevSession));
+
+        const prevHistory = JSON.parse(localStorage.getItem('serviq_order_history') || '[]');
+        const updatedHistory = [data, ...prevHistory.filter(o => o && o._id !== data._id)];
+        localStorage.setItem('serviq_order_history', JSON.stringify(updatedHistory));
       } catch (e) {}
 
       setItems([]);
       localStorage.removeItem("cartItems");
-      toast.success("Order placed successfully!");
-      // Replace history so hardware/browser back goes to Menu, NOT back to Cart
       navigate(`/order/status/${data._id}`, { replace: true });
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.error || "Failed to place order");
+      toast.error(err.response?.data?.error || "Failed to place order. Please check your internet connection.");
     } finally {
       setIsPlacing(false);
     }
+  };
+
+  const handlePlaceOrder = () => {
+    if (!customer?.verified) {
+      setIsVerificationOpen(true);
+      return;
+    }
+    executeOrderPlacement(customer);
+  };
+
+  const handleVerificationSuccess = (verifiedUser) => {
+    setCustomer(verifiedUser);
+    setIsVerificationOpen(false);
+    executeOrderPlacement(verifiedUser);
   };
 
   const total = getCartTotal();
@@ -213,249 +218,303 @@ export default function Cart() {
     <div className={styles.page} style={{ backgroundColor: theme.bgPage, color: theme.textMain }}>
       <Toaster position="top-center" />
 
-      <div className={styles.appContainer} style={{ backgroundColor: theme.bgContainer, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => step === 1 ? navigate(-1) : setStep(1)}
-            className={styles.backBtn}
-            style={{ color: theme.textMuted, margin: 0 }}
-          >
-            <ChevronLeft size={20} />
-            {step === 1 ? "Back to Menu" : "Back to Cart"}
-          </motion.button>
+      <div
+        className={styles.appContainer}
+        style={{
+          width: '100%',
+          maxWidth: '520px',
+          backgroundColor: theme.bgContainer,
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          paddingBottom: '6rem',
+          boxSizing: 'border-box',
+          borderLeft: `1px solid ${theme.border}`,
+          borderRight: `1px solid ${theme.border}`
+        }}
+      >
+        {/* Top Sticky Header */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 900,
+            backgroundColor: isDarkMode ? 'rgba(26, 19, 14, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(16px)',
+            borderBottom: `1px solid ${theme.border}`,
+            padding: '0.75rem 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxSizing: 'border-box',
+            width: '100%'
+          }}
+        >
+          {/* Screen Title & Icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: 'rgba(234, 88, 12, 0.15)', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ShoppingBag size={18} />
+            </div>
+            <h1 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 800, color: theme.textMain, letterSpacing: '-0.2px', lineHeight: 1.2 }}>
+              Your Cart
+            </h1>
+          </div>
 
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {isDarkMode ? <Sun size={19} color="#fbbe21" /> : <Moon size={19} color="#475569" />}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <TableBadge tableNumber={tableNumber} isDarkMode={isDarkMode} style={{ padding: '4px 9px', fontSize: '0.8rem' }} />
+
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              style={{
+                background: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                padding: 0
+              }}
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? <Sun size={16} color="#fbbe21" /> : <Moon size={16} color="#475569" />}
+            </button>
+          </div>
         </div>
 
-        <header className={styles.header}>
-          <h1 className={styles.title} style={{ color: theme.textMain }}>{step === 1 ? "Your Cart" : "Checkout"}</h1>
-          <p className={styles.subtitle} style={{ color: theme.textMuted }}>
-            {step === 1 ? `Review your selection (${cartTotalItems} items)` : "Complete your order"}
-          </p>
-        </header>
+        {/* Cart Content Body */}
+        <div style={{ padding: '16px 18px 0 18px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
 
-        {/* Steps Indicator */}
-        <div className={styles.steps}>
-          <div className={`${styles.step} ${styles.activeStep}`}>1</div>
-          <div className={`${styles.step} ${step === 2 ? styles.activeStep : ""}`} style={step !== 2 ? { backgroundColor: theme.chipBg, borderColor: theme.border, color: theme.textMuted } : {}}>2</div>
-        </div>
-
-        <AnimatePresence mode="wait">
+        <AnimatePresence
+          mode="wait"
+          onExitComplete={() => {
+            window.scrollTo(0, 0);
+            if (document.documentElement) document.documentElement.scrollTop = 0;
+            if (document.body) document.body.scrollTop = 0;
+          }}
+        >
           {items.length === 0 ? (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               className={styles.empty}
+              style={{
+                flex: 1,
+                minHeight: 'calc(100vh - 180px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 'auto 0'
+              }}
             >
-              <ShoppingBag size={64} className={styles.emptyIcon} />
-              <p>Your cart feels light. Let's add something!</p>
-              <Link to="/menu" className={styles.emptyLink}>Browse Menu</Link>
-            </motion.div>
-          ) : step === 1 ? (
-            <motion.div
-              key="cart-review"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 20, opacity: 0 }}
-            >
-              <div className={styles.itemsList}>
-                {items.map((item) => (
-                  <motion.div layout key={item.id} className={styles.card} style={{ backgroundColor: theme.bgCard, borderColor: theme.cardBorder }}>
-                    <img src={item.image || "/placeholder-food.jpg"} alt={item.name} className={styles.itemImg} />
-                    <div className={styles.cardBody}>
-                      <div>
-                        <h3 className={styles.itemName} style={{ color: theme.textMain }}>{item.name}</h3>
-                        <p className={styles.itemPrice}>₹{item.price} each</p>
-                      </div>
-                      <div className={styles.actions}>
-                        <div className={styles.qtyWrapper} style={{ backgroundColor: theme.chipBg, borderColor: theme.border }}>
-                          <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className={styles.qtyBtn} style={{ color: theme.textMuted }}>
-                            <Minus size={16} />
-                          </button>
-                          <span className={styles.qty} style={{ color: theme.textMain }}>{item.quantity}</span>
-                          <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={styles.qtyBtn} style={{ color: theme.textMuted }}>
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                        <button onClick={() => removeItem(item.id)} className={styles.removeBtn}>
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className={styles.summary} style={{ backgroundColor: theme.bgPage, borderColor: theme.border }}>
-                <div className={styles.row} style={{ color: theme.textMuted }}>
-                  <span>Subtotal</span>
-                  <span>₹{Math.round(total)}</span>
-                </div>
-                <div className={styles.row} style={{ color: theme.textMuted }}>
-                  <span>Service Fee</span>
-                  <span>₹0</span>
-                </div>
-                <div className={styles.totalRow} style={{ color: theme.textMain, borderColor: theme.border }}>
-                  <span>Total</span>
-                  <span>₹{Math.round(total)}</span>
-                </div>
-                <button
-                  onClick={handleProceedToCheckout}
-                  className={styles.checkoutBtn}
-                >
-                  Proceed to Checkout
-                </button>
-              </div>
+              <ShoppingBag size={64} className={styles.emptyIcon} color={theme.accent} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: theme.textMain, margin: '0 0 6px' }}>Your cart is empty</h3>
+              <p style={{ color: theme.textMuted, fontSize: '0.88rem', margin: '0 0 1.25rem' }}>Looks like you haven't added any dishes yet.</p>
+              <Link
+                to={`/menu?table=${tableNumber}`}
+                className={styles.emptyLink}
+                style={{ backgroundColor: theme.accent, boxShadow: `0 4px 15px ${theme.accentGlow}` }}
+              >
+                <Utensils size={16} />
+                <span>Explore Delicious Menu</span>
+              </Link>
             </motion.div>
           ) : (
             <motion.div
-              key="checkout-details"
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
+              key="cart-review"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className={styles.formSection}>
-                {/* Verified Customer Card */}
-                {customer?.verified && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    backgroundColor: theme.inputBg,
-                    border: `1px solid ${theme.border}`,
-                    marginBottom: '1.25rem'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '50%',
-                        backgroundColor: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        flexShrink: 0
-                      }}>
-                        <UserCheck size={18} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: theme.textMain }}>
-                          {customer.name} <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>● Verified</span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: theme.textMuted }}>
-                          {customer.phone ? `+91 ${customer.phone}` : (customer.email || 'Verified Guest')}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsVerificationOpen(true)}
+              {/* Cart Items List */}
+              <div className={styles.itemsList}>
+                {items.map((item) => {
+                  const varName = item.variant ? (typeof item.variant === 'object' ? (item.variant.name || item.variant.size) : String(item.variant)) : null;
+                  const itemAddons = Array.isArray(item.addons) ? item.addons : [];
+                  const notes = item.specialNotes || item.notes || '';
+                  const cleanItemName = item.name
+                    ? item.name.split(' + ')[0].replace(/\s*\((?:[^)(]+|\([^)(]*\))*\)+$/, '').trim()
+                    : item.name;
+
+                  return (
+                    <motion.div
+                      layout
+                      key={item.id}
+                      className={styles.card}
                       style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#e05c5c',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        padding: '4px 8px'
+                        backgroundColor: theme.bgCard,
+                        border: `1px solid ${theme.cardBorder}`,
+                        boxShadow: isDarkMode ? '0 4px 16px rgba(0,0,0,0.3)' : '0 2px 12px rgba(15,23,42,0.04)'
                       }}
                     >
-                      Change
-                    </button>
-                  </div>
-                )}
+                      <img
+                        src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500"}
+                        alt={cleanItemName}
+                        className={styles.itemImg}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=500";
+                        }}
+                      />
 
-                <div className={styles.formGroup}>
-                  <label className={styles.label} style={{ color: theme.textMain }}>Where are you sitting?</label>
-                  <input
-                    type="number"
-                    placeholder="Enter Table Number"
-                    className={styles.input}
-                    style={{ backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }}
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
-                  />
+                      <div className={styles.cardBody}>
+                        <div className={styles.cardTopRow}>
+                          <div className={styles.itemNameRow}>
+                            <FssaiDietaryBadge isVeg={item.isVeg !== false} size={14} />
+                            <h3 className={styles.itemName} style={{ color: theme.textMain }} title={cleanItemName}>
+                              {cleanItemName}
+                            </h3>
+                          </div>
+
+                          {/* Variant & Addons Tags at Top-Right (Above stepper / delete button) */}
+                          {(varName || itemAddons.length > 0) && (
+                            <div className={styles.customTagsRight}>
+                              {varName && (
+                                <span className={styles.tagPill} style={{ backgroundColor: `${theme.accent}18`, color: theme.accent, border: `1px solid ${theme.accent}30` }}>
+                                  {varName}
+                                </span>
+                              )}
+                              {itemAddons.map((a, aIdx) => (
+                                <span key={aIdx} className={styles.tagPill} style={{ backgroundColor: isDarkMode ? '#27201a' : '#f1f5f9', color: theme.textMuted }}>
+                                  +{a.name || a}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {notes && (
+                          <p className={styles.notePill} style={{ color: theme.textMuted }}>
+                            <FileText size={11} color={theme.accent} />
+                            <span>"{notes}"</span>
+                          </p>
+                        )}
+
+                        <div className={styles.actions}>
+                          <div className={styles.itemPrice} style={{ color: theme.accent }}>
+                            ₹{Number(item.price).toFixed(2)}
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.qtyWrapper} style={{ backgroundColor: theme.chipBg, border: `1px solid ${theme.border}` }}>
+                              <motion.button
+                                whileTap={{ scale: 0.8 }}
+                                onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
+                                className={styles.qtyBtn}
+                                style={{ color: theme.textMain }}
+                                title="Decrease"
+                              >
+                                <Minus size={13} strokeWidth={3} />
+                              </motion.button>
+                              <span className={styles.qty} style={{ color: theme.textMain }}>
+                                {item.quantity}
+                              </span>
+                              <motion.button
+                                whileTap={{ scale: 0.8 }}
+                                onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                                className={styles.qtyBtn}
+                                style={{ color: theme.textMain }}
+                                title="Increase"
+                              >
+                                <Plus size={13} strokeWidth={3} />
+                              </motion.button>
+                            </div>
+
+                            <motion.button
+                              whileTap={{ scale: 0.85 }}
+                              onClick={() => removeItem(item.id)}
+                              className={styles.removeBtn}
+                              style={{ backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fee2e2' }}
+                              title="Delete Item"
+                            >
+                              <Trash2 size={14} />
+                            </motion.button>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Add More Items Link */}
+              <Link
+                to={`/menu?table=${tableNumber}`}
+                className={styles.addMoreBanner}
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(234, 88, 12, 0.1)' : '#fff7ed',
+                  border: `1.5px dashed ${theme.accent}`,
+                  color: theme.accent
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={16} strokeWidth={3} />
+                  <span>Add more delicious items from menu</span>
+                </div>
+                <ChevronRight size={16} />
+              </Link>
+
+              {/* Bill Details Box */}
+              <div className={styles.summary} style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}>
+                <div className={styles.summaryHeader} style={{ color: theme.textMain }}>
+                  <Receipt size={16} color={theme.accent} />
+                  <span>Bill Summary</span>
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label className={styles.label} style={{ color: theme.textMain }}>Payment Method</label>
-                  <div className={styles.paymentTabs}>
-                    <div
-                      className={`${styles.payTab} ${paymentMethod === "counter" ? styles.activePayTab : ""}`}
-                      style={paymentMethod === "counter" ? { backgroundColor: 'rgba(224, 92, 92, 0.08)', color: theme.textMain, borderColor: '#e05c5c' } : { backgroundColor: theme.inputBg, color: theme.textMuted, borderColor: theme.border }}
-                      onClick={() => setPaymentMethod("counter")}
-                    >
-                      <Store className={styles.payIcon} />
-                      Pay at Counter
-                    </div>
-                    <div
-                      className={`${styles.payTab} ${paymentMethod === "online" ? styles.activePayTab : ""}`}
-                      style={paymentMethod === "online" ? { backgroundColor: 'rgba(224, 92, 92, 0.08)', color: theme.textMain, borderColor: '#e05c5c' } : { backgroundColor: theme.inputBg, color: theme.textMuted, borderColor: theme.border }}
-                      onClick={() => setPaymentMethod("online")}
-                    >
-                      <CreditCard className={styles.payIcon} />
-                      Pay Online
-                    </div>
-                  </div>
+                <div className={styles.row} style={{ color: theme.textMuted }}>
+                  <span>Item Subtotal</span>
+                  <span style={{ color: theme.textMain, fontWeight: 700 }}>₹{Math.round(total)}</span>
                 </div>
 
-                <button
+                <div className={styles.row} style={{ color: theme.textMuted }}>
+                  <span>Dining & Service Fee</span>
+                  <span className={styles.freeTag}>FREE</span>
+                </div>
+
+                <div className={styles.row} style={{ color: theme.textMuted }}>
+                  <span>Taxes & GST</span>
+                  <span style={{ color: theme.textMain, fontWeight: 700 }}>Included</span>
+                </div>
+
+                <div className={styles.totalRow} style={{ color: theme.textMain, borderColor: theme.border }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 900 }}>Total</span>
+                  <span style={{ fontSize: '1.35rem', fontWeight: 900, color: theme.accent }}>
+                    ₹{Math.round(total)}
+                  </span>
+                </div>
+
+                <motion.button
+                  whileHover={!isPlacing ? { scale: 1.02 } : {}}
+                  whileTap={!isPlacing ? { scale: 0.96 } : {}}
                   disabled={isPlacing}
                   onClick={handlePlaceOrder}
                   className={styles.checkoutBtn}
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.accent}, #c2410c)`,
+                    boxShadow: `0 4px 18px ${theme.accentGlow}`,
+                    cursor: isPlacing ? 'not-allowed' : 'pointer'
+                  }}
                 >
-                  {isPlacing ? "Placing Order..." : `Place Order (₹${Math.round(total)})`}
-                </button>
-
-                <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#64748b", marginTop: "1.5rem" }}>
-                  <Lock size={12} style={{ display: "inline", marginRight: "4px" }} />
-                  Secure SSL Encrypted Checkout
-                </p>
+                  <Utensils size={18} />
+                  <span>{isPlacing ? "Placing Your Order..." : `Place Order • ₹${Math.round(total)}`}</span>
+                </motion.button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
 
-      {/* Online Payment Animation Modal */}
-      <AnimatePresence>
-        {isProcessingPayment && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={styles.modal}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className={styles.modalContent}
-            >
-              <div className={styles.paymentHeader}>
-                <p>Payment to {tenantInfo.name}</p>
-                <div className={styles.paymentAmount}>₹{Math.round(total)}</div>
-              </div>
-              <div className={styles.paymentBody}>
-                <div className={styles.loadingSpinner}></div>
-                <p style={{ textAlign: "center", fontWeight: "600" }}>Securing connection to bank...</p>
-                <p style={{ textAlign: "center", fontStyle: "italic", fontSize: "0.8rem", marginTop: "1rem" }}>
-                  Please do not refresh or close this window
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Brand Footer inside Container */}
+        <footer style={{ marginTop: 'auto', paddingTop: '1.5rem', paddingBottom: '0.5rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.78rem', color: theme.textMuted, fontWeight: '700', margin: 0 }}>
+            Powered by <span style={{ color: theme.accent, fontWeight: '800' }}>SERVIQ OS</span>
+          </p>
+        </footer>
+        </div>
+      </div>
 
       {/* Customer Verification Modal */}
       <CustomerVerificationModal
@@ -465,11 +524,14 @@ export default function Cart() {
         initialName={customer?.name || ''}
       />
 
-      <footer style={{ marginTop: '4rem', padding: '2rem 1rem', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700' }}>
-          Powered by <span style={{ color: '#06b6d4', fontWeight: '800' }}>SERVIQ OS</span>
-        </p>
-      </footer>
+      {/* Customer Bottom Navigation Bar */}
+      <CustomerBottomNav
+        tableNumber={tableNumber}
+        tenantId={tenantInfo?.tenantId || ''}
+        tenantInfo={tenantInfo}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+      />
     </div>
   );
 }

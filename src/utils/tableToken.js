@@ -75,7 +75,17 @@ export function decodeTableToken(token) {
  * Build the full short menu QR / dine-in order URL.
  */
 export function buildTableMenuUrl(baseUrl, tableNumber, tenantId) {
-  const cleanBase = (baseUrl || 'https://cafe-application-fe.vercel.app').replace(/\/$/, '');
+  let defaultOrigin = 'https://cafe-application-fe.vercel.app';
+  if (typeof window !== 'undefined' && window.location) {
+    const saved = localStorage.getItem('serivq_qr_base_url');
+    if (saved) {
+      defaultOrigin = saved;
+    } else if (window.location.origin) {
+      defaultOrigin = window.location.origin;
+    }
+  }
+
+  const cleanBase = (baseUrl || defaultOrigin).replace(/\/$/, '');
   const token = encodeTableToken(tableNumber);
   
   const params = new URLSearchParams();

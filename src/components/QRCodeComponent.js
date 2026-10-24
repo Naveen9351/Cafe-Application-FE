@@ -29,11 +29,13 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'available' | 'occupied'
   
-  // Production Target Host Configuration for QR Codes
-  const defaultHost = 'https://cafe-application-fe.vercel.app';
+  // Target Host Configuration for QR Codes (Defaults to current local origin or saved host)
+  const defaultHost = (typeof window !== 'undefined' && window.location.origin)
+    ? window.location.origin
+    : 'https://cafe-application-fe.vercel.app';
   const [qrBaseUrl, setQrBaseUrl] = useState(() => {
     const saved = localStorage.getItem('serivq_qr_base_url');
-    if (saved && !saved.includes('localhost') && !saved.includes('192.168.')) return saved;
+    if (saved) return saved;
     return defaultHost;
   });
   const [isEditingHost, setIsEditingHost] = useState(false);
@@ -73,7 +75,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [] }) => {
   }, [initialTables]);
 
   const getTableQRUrl = (tableNum) => {
-    return buildTableMenuUrl(qrBaseUrl || 'https://cafe-application-fe.vercel.app', tableNum, effectiveTenantId);
+    return buildTableMenuUrl(qrBaseUrl, tableNum, effectiveTenantId);
   };
 
   const handleSaveHost = (newHost) => {

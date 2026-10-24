@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ChefHat, Clock, CheckCircle, RefreshCw, 
-  RotateCcw, Sparkles, Filter, ChevronRight, AlertCircle, 
+import {
+  ChefHat, Clock, CheckCircle, RefreshCw,
+  RotateCcw, Sparkles, Filter, ChevronRight, AlertCircle,
   Coffee, Utensils, Send, Check, Flame, ShoppingBag, Trash2, XCircle,
   LayoutGrid, Table as TableIcon, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './KOTMonitor.module.css';
+
+// Pipeline stage order for directional validation
+const STAGE_ORDER = {
+  pending: 0,
+  confirmed: 0,
+  preparing: 1,
+  ready: 2,
+  completed: 3,
+  served: 3
+};
+
+const STAGE_LABELS = {
+  pending: 'New Orders',
+  preparing: 'In Kitchen',
+  ready: 'Ready for Pass',
+  completed: 'Served (Completed)'
+};
 
 export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder, enableEstimatedPrepTime = false }) {
   const [viewMode, setViewMode] = useState('card'); // 'card' | 'table'
@@ -24,6 +41,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const [servedKanbanPage, setServedKanbanPage] = useState(1);
   const [tableOrdersPage, setTableOrdersPage] = useState(1);
   const servedLimit = 20;
+
+  // Drag & Drop State
+  const [draggedOrder, setDraggedOrder] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [revertConfirmModal, setRevertConfirmModal] = useState(null);
 
   // Live Timer ticker: updates every second with proper lifecycle cleanup
   useEffect(() => {
@@ -81,6 +103,71 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
       ...(estimatedTime ? { estimatedTime } : {})
     } : o));
     if (onUpdateStatus) onUpdateStatus(orderId, newStatus, estimatedTime);
+  };
+
+  // Drag & Drop Handlers
+  const handleDragStart = (e, order) => {
+    setDraggedOrder(order);
+    e.dataTransfer.setData('text/plain', order._id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    setDraggedOrder(null);
+    setDragOverCol(null);
+  };
+
+  const handleDragOver = (e, colKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCol !== colKey) {
+      setDragOverCol(colKey);
+    }
+  };
+
+  const handleDragLeave = (e, colKey) => {
+    if (dragOverCol === colKey) {
+      setDragOverCol(null);
+    }
+  };
+
+  const handleDrop = (e, targetStatus) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    if (!draggedOrder) return;
+
+    const currentStatus = (draggedOrder.status || 'pending').toLowerCase();
+    const curStageIdx = STAGE_ORDER[currentStatus] ?? 0;
+    const tgtStageIdx = STAGE_ORDER[targetStatus] ?? 0;
+
+    if (currentStatus === targetStatus || (curStageIdx === tgtStageIdx && (currentStatus === 'completed' || currentStatus === 'served'))) {
+      setDraggedOrder(null);
+      return;
+    }
+
+    if (tgtStageIdx > curStageIdx) {
+      // Forward drag -> directly update status!
+      handleUpdateStage(draggedOrder._id, targetStatus);
+      toast.success(`Order #${draggedOrder.orderNumber} moved to ${STAGE_LABELS[targetStatus]}`);
+    } else {
+      // Backward drag -> prompt with confirmation modal!
+      setRevertConfirmModal({
+        order: draggedOrder,
+        targetStatus,
+        sourceStatus: currentStatus,
+        sourceLabel: STAGE_LABELS[currentStatus] || currentStatus,
+        targetLabel: STAGE_LABELS[targetStatus] || targetStatus
+      });
+    }
+    setDraggedOrder(null);
+  };
+
+  const handleConfirmRevert = () => {
+    if (!revertConfirmModal) return;
+    const { order, targetStatus, targetLabel } = revertConfirmModal;
+    handleUpdateStage(order._id, targetStatus);
+    toast.success(`Order #${order.orderNumber} reverted back to ${targetLabel}`);
+    setRevertConfirmModal(null);
   };
 
   const handleConfirmPrep = () => {
@@ -157,7 +244,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
     <div className={styles.kdsWrapper}>
       <div className={styles.mainKdsLayout}>
         <div className={styles.kdsBoardColumn}>
-          
+
           {/* Top Bar: Channels & Refresh */}
           <div className={styles.channelBar}>
             <div className={styles.channelTabs}>
@@ -175,9 +262,9 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button 
-                type="button" 
-                className={styles.refreshIconBtn} 
+              <button
+                type="button"
+                className={styles.refreshIconBtn}
                 title="Refresh Board"
                 onClick={() => toast.success('Kitchen queue synced with live tickets')}
               >
@@ -187,152 +274,337 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
           </div>
 
           {viewMode === 'card' ? (
-            /* 4-STAGE KANBAN COLUMNS */
+            /* 4-STAGE KANBAN COLUMNS WITH DRAG & DROP */
             <div className={styles.kanbanGrid}>
-            
-            {/* COLUMN 1: NEW ORDERS */}
-            <div className={styles.kanbanCol}>
-              <div className={`${styles.colHeader} ${styles.colBlue}`}>
-                <div className={styles.colTitleWrap}>
-                  <span className={styles.colBullet}></span>
-                  <span className={styles.colName}>New Orders</span>
-                </div>
-                <span className={`${styles.countBadge} ${styles.blueBadge}`}>{newOrders.length}</span>
-              </div>
 
-              <div className={styles.ticketsList}>
-                {newOrders.map(order => {
-                  const elapsedMins = getElapsedMinutes(order.createdAt);
-                  const isLate = elapsedMins >= 15;
-
-                  return (
-                    <div key={order._id} className={`${styles.ticketCard} ${styles.cardNew}`}>
-                      <div className={styles.cardHeader}>
-                        <div>
-                          <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                          <div className={styles.stationTag}>{order.channel} • Table QR</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
-                            <Clock size={12} /> {formatElapsedTime(order.createdAt)}
-                          </span>
-                          <button 
-                            type="button"
-                            onClick={() => setOrderToDelete(order)}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                            title="Delete Order"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className={styles.orderItems}>
-                        {order.items.map((it, i) => (
-                          <div key={i} className={styles.itemRow}>
-                            <div className={styles.itemMain}>
-                              <span className={styles.itemName}>{it.name}</span>
-                              {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
-                            </div>
-                            <span className={styles.itemQty}>x{it.quantity}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {order.specialInstructions && (
-                        <div className={styles.specialInstructionsBox}>
-                          <span className={styles.instructionLabel}>ⓘ SPECIAL INSTRUCTIONS</span>
-                          <p>{order.specialInstructions}</p>
-                        </div>
-                      )}
-
-                      <div className={styles.cardFooter} style={{ gap: 6 }}>
-                        <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button 
-                            type="button"
-                            onClick={() => handleUpdateStage(order._id, 'cancelled')}
-                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                            title="Cancel Order"
-                          >
-                            Cancel
-                          </button>
-                          <button 
-                            type="button" 
-                            className={styles.acceptPrepBtn}
-                            onClick={() => {
-                              if (enableEstimatedPrepTime) {
-                                setOrderToPrep(order);
-                                setPrepTimeMinutes(order.estimatedTime || 20);
-                              } else {
-                                handleUpdateStage(order._id, 'preparing', 0);
-                                toast.success(`Order for Table ${order.tableNumber} sent to kitchen`);
-                              }
-                            }}
-                          >
-                            Accept & Prep →
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {newOrders.length === 0 && (
-                  <div className={styles.emptyCol}>
-                    <p>No new orders pending</p>
+              {/* COLUMN 1: NEW ORDERS */}
+              <div
+                className={`${styles.kanbanCol} ${dragOverCol === 'pending' ? styles.kanbanColDragOver : ''}`}
+                onDragOver={(e) => handleDragOver(e, 'pending')}
+                onDragLeave={(e) => handleDragLeave(e, 'pending')}
+                onDrop={(e) => handleDrop(e, 'pending')}
+              >
+                <div className={`${styles.colHeader} ${styles.colBlue}`}>
+                  <div className={styles.colTitleWrap}>
+                    <span className={styles.colBullet}></span>
+                    <span className={styles.colName}>New Orders</span>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* COLUMN 2: IN KITCHEN (PREPARING) */}
-            <div className={styles.kanbanCol}>
-              <div className={`${styles.colHeader} ${styles.colAmber}`}>
-                <div className={styles.colTitleWrap}>
-                  <span className={styles.colBullet}></span>
-                  <span className={styles.colName}>In Kitchen</span>
+                  <span className={`${styles.countBadge} ${styles.blueBadge}`}>{newOrders.length}</span>
                 </div>
-                <span className={`${styles.countBadge} ${styles.amberBadge}`}>{inKitchenOrders.length}</span>
-              </div>
 
-              <div className={styles.ticketsList}>
-                {inKitchenOrders.map(order => {
-                  const targetMins = order.estimatedTime || 20;
-                  const elapsedMins = getElapsedMinutes(order.createdAt);
-                  const isLate = elapsedMins >= targetMins;
-                  const progressPct = Math.min(100, Math.round((elapsedMins / targetMins) * 100));
+                <div className={styles.ticketsList}>
+                  {newOrders.map(order => {
+                    const elapsedMins = getElapsedMinutes(order.createdAt);
+                    const isLate = elapsedMins >= 15;
+                    const isDraggingThis = draggedOrder?._id === order._id;
 
-                  return (
-                    <div key={order._id} className={`${styles.ticketCard} ${styles.cardPreparing}`}>
-                      <div className={styles.cardHeader}>
-                        <div>
-                          <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {enableEstimatedPrepTime ? (
-                            <span 
-                              className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`} 
-                              title="Click to edit cooking target time"
-                              onClick={() => {
-                                setOrderToEdit(order);
-                                setEditTimeMinutes(order.estimatedTime || 20);
-                              }}
-                            >
-                              <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
-                            </span>
-                          ) : (
-                            <span className={styles.timerBadge}>
+                    return (
+                      <div
+                        key={order._id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, order)}
+                        onDragEnd={handleDragEnd}
+                        className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardNew}`}
+                        title="Drag and drop to move between stages"
+                      >
+                        <div className={styles.cardHeader}>
+                          <div>
+                            <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                            <div className={styles.stationTag}>{order.channel} • Table QR</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
                               <Clock size={12} /> {formatElapsedTime(order.createdAt)}
                             </span>
-                          )}
-                          <button 
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                              title="Delete Order"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={styles.orderItems}>
+                          {order.items.map((it, i) => (
+                            <div key={i} className={styles.itemRow}>
+                              <div className={styles.itemMain}>
+                                <span className={styles.itemName}>{it.name}</span>
+                                {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                              </div>
+                              <span className={styles.itemQty}>x{it.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {order.specialInstructions && (
+                          <div className={styles.specialInstructionsBox}>
+                            <span className={styles.instructionLabel}>ⓘ SPECIAL INSTRUCTIONS</span>
+                            <p>{order.specialInstructions}</p>
+                          </div>
+                        )}
+
+                        <div className={styles.cardFooter} style={{ gap: 6 }}>
+                          <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'cancelled'); }}
+                              style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                              title="Cancel Order"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.acceptPrepBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (enableEstimatedPrepTime) {
+                                  setOrderToPrep(order);
+                                  setPrepTimeMinutes(order.estimatedTime || 20);
+                                } else {
+                                  handleUpdateStage(order._id, 'preparing', 0);
+                                  toast.success(`Order for Table ${order.tableNumber} sent to kitchen`);
+                                }
+                              }}
+                            >
+                              Accept & Prep →
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {newOrders.length === 0 && (
+                    <div className={styles.emptyCol}>
+                      <p>No new orders pending</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* COLUMN 2: IN KITCHEN (PREPARING) */}
+              <div
+                className={`${styles.kanbanCol} ${dragOverCol === 'preparing' ? styles.kanbanColDragOver : ''}`}
+                onDragOver={(e) => handleDragOver(e, 'preparing')}
+                onDragLeave={(e) => handleDragLeave(e, 'preparing')}
+                onDrop={(e) => handleDrop(e, 'preparing')}
+              >
+                <div className={`${styles.colHeader} ${styles.colAmber}`}>
+                  <div className={styles.colTitleWrap}>
+                    <span className={styles.colBullet}></span>
+                    <span className={styles.colName}>In Kitchen</span>
+                  </div>
+                  <span className={`${styles.countBadge} ${styles.amberBadge}`}>{inKitchenOrders.length}</span>
+                </div>
+
+                <div className={styles.ticketsList}>
+                  {inKitchenOrders.map(order => {
+                    const targetMins = order.estimatedTime || 20;
+                    const elapsedMins = getElapsedMinutes(order.createdAt);
+                    const isLate = elapsedMins >= targetMins;
+                    const isDraggingThis = draggedOrder?._id === order._id;
+
+                    return (
+                      <div
+                        key={order._id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, order)}
+                        onDragEnd={handleDragEnd}
+                        className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardPreparing}`}
+                        title="Drag and drop to move between stages"
+                      >
+                        <div className={styles.cardHeader}>
+                          <div>
+                            <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {enableEstimatedPrepTime ? (
+                              <span
+                                className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`}
+                                title="Click to edit cooking target time"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOrderToEdit(order);
+                                  setEditTimeMinutes(order.estimatedTime || 20);
+                                }}
+                              >
+                                <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
+                              </span>
+                            ) : (
+                              <span className={styles.timerBadge}>
+                                <Clock size={12} /> {formatElapsedTime(order.createdAt)}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                              title="Delete Order"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={styles.orderItems}>
+                          {order.items.map((it, i) => (
+                            <div key={i} className={styles.itemRow}>
+                              <div className={styles.itemMain}>
+                                <span className={styles.itemName}>{it.name}</span>
+                                {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                              </div>
+                              <span className={styles.itemQty}>x{it.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {order.specialInstructions && (
+                          <div className={styles.specialInstructionsBox}>
+                            <span className={styles.instructionLabel}>ⓘ SPECIAL INSTRUCTIONS</span>
+                            <p>{order.specialInstructions}</p>
+                          </div>
+                        )}
+
+                        <div className={styles.cardFooter} style={{ gap: 6 }}>
+                          <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'cancelled'); }}
+                              style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                              title="Cancel Order"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.markReadyBtn}
+                              onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'ready'); }}
+                            >
+                              Mark Ready ✔
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {inKitchenOrders.length === 0 && (
+                    <div className={styles.emptyCol}>
+                      <p>No orders currently prepping</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* COLUMN 3: READY FOR PICKUP */}
+              <div
+                className={`${styles.kanbanCol} ${dragOverCol === 'ready' ? styles.kanbanColDragOver : ''}`}
+                onDragOver={(e) => handleDragOver(e, 'ready')}
+                onDragLeave={(e) => handleDragLeave(e, 'ready')}
+                onDrop={(e) => handleDrop(e, 'ready')}
+              >
+                <div className={`${styles.colHeader} ${styles.colGreen}`}>
+                  <div className={styles.colTitleWrap}>
+                    <span className={styles.colBullet}></span>
+                    <span className={styles.colName}>Ready for Pass</span>
+                  </div>
+                  <span className={`${styles.countBadge} ${styles.greenBadge}`}>{readyOrders.length}</span>
+                </div>
+
+                <div className={styles.ticketsList}>
+                  {readyOrders.map(order => {
+                    const isDraggingThis = draggedOrder?._id === order._id;
+                    return (
+                      <div
+                        key={order._id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, order)}
+                        onDragEnd={handleDragEnd}
+                        className={`${styles.ticketCard} ${styles.ticketCardDraggable} ${isDraggingThis ? styles.ticketCardDragging : ''} ${styles.cardReady}`}
+                        title="Drag and drop to move between stages"
+                      >
+                        <div className={styles.cardHeader}>
+                          <div>
+                            <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                            <div className={styles.stationTag}>{order.channel} • Ready to Serve</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className={`${styles.timerBadge} ${styles.timerReady}`}>
+                              <Check size={12} /> Plated
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
+                              title="Delete Order"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={styles.orderItems}>
+                          {order.items.map((it, i) => (
+                            <div key={i} className={styles.itemRow}>
+                              <div className={styles.itemMain}>
+                                <span className={styles.itemName}>{it.name}</span>
+                                {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                              </div>
+                              <span className={styles.itemQty}>x{it.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className={styles.cardFooter}>
+                          <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
+                          <button
                             type="button"
-                            onClick={() => handleDelete(order._id)}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                            title="Delete Order"
+                            className={styles.completeOrderBtn}
+                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'completed'); }}
                           >
-                            <Trash2 size={15} />
+                            Served to Guest ✓
                           </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {readyOrders.length === 0 && (
+                    <div className={styles.emptyCol}>
+                      <p>No dishes waiting on expo counter</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* COLUMN 4: SERVED */}
+              <div
+                className={`${styles.kanbanCol} ${dragOverCol === 'completed' ? styles.kanbanColDragOver : ''}`}
+                onDragOver={(e) => handleDragOver(e, 'completed')}
+                onDragLeave={(e) => handleDragLeave(e, 'completed')}
+                onDrop={(e) => handleDrop(e, 'completed')}
+              >
+                <div className={`${styles.colHeader} ${styles.colGray}`}>
+                  <div className={styles.colTitleWrap}>
+                    <span className={styles.colBullet}></span>
+                    <span className={styles.colName}>Served</span>
+                  </div>
+                  <span className={`${styles.countBadge} ${styles.grayBadge}`}>{servedOrders.length}</span>
+                </div>
+
+                <div className={styles.ticketsList}>
+                  {servedOrders.slice((servedKanbanPage - 1) * servedLimit, servedKanbanPage * servedLimit).map(order => (
+                    <div key={order._id} className={`${styles.ticketCard} ${styles.cardServed}`}>
+                      <div className={styles.cardHeader}>
+                        <div>
+                          <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                          <div className={styles.stationTag}>{order.channel} • Served</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={styles.completedPill}>Delivered</span>
                         </div>
                       </div>
 
@@ -341,221 +613,83 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           <div key={i} className={styles.itemRow}>
                             <div className={styles.itemMain}>
                               <span className={styles.itemName}>{it.name}</span>
-                              {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
                             </div>
                             <span className={styles.itemQty}>x{it.quantity}</span>
                           </div>
                         ))}
                       </div>
 
-                      {order.specialInstructions && (
-                        <div className={styles.specialInstructionsBox}>
-                          <span className={styles.instructionLabel}>ⓘ SPECIAL INSTRUCTIONS</span>
-                          <p>{order.specialInstructions}</p>
-                        </div>
-                      )}
-
-                      <div className={styles.cardFooter} style={{ gap: 6 }}>
+                      <div className={styles.cardFooter}>
                         <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button 
-                            type="button"
-                            onClick={() => handleUpdateStage(order._id, 'cancelled')}
-                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                            title="Cancel Order"
-                          >
-                            Cancel
-                          </button>
-                          <button 
-                            type="button" 
-                            className={styles.markReadyBtn}
-                            onClick={() => handleUpdateStage(order._id, 'ready')}
-                          >
-                            Mark Ready ✔
-                          </button>
-                        </div>
                       </div>
                     </div>
-                  );
-                })}
-                {inKitchenOrders.length === 0 && (
-                  <div className={styles.emptyCol}>
-                    <p>No orders currently prepping</p>
-                  </div>
-                )}
-              </div>
-            </div>
+                  ))}
 
-            {/* COLUMN 3: READY FOR PICKUP */}
-            <div className={styles.kanbanCol}>
-              <div className={`${styles.colHeader} ${styles.colGreen}`}>
-                <div className={styles.colTitleWrap}>
-                  <span className={styles.colBullet}></span>
-                  <span className={styles.colName}>Ready for Pass</span>
-                </div>
-                <span className={`${styles.countBadge} ${styles.greenBadge}`}>{readyOrders.length}</span>
-              </div>
-
-              <div className={styles.ticketsList}>
-                {readyOrders.map(order => (
-                  <div key={order._id} className={`${styles.ticketCard} ${styles.cardReady}`}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                        <div className={styles.stationTag}>{order.channel} • Ready to Serve</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className={`${styles.timerBadge} ${styles.timerReady}`}>
-                          <Check size={12} /> Plated
-                        </span>
-                        <button 
+                  {servedOrders.length > servedLimit && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      marginTop: '6px',
+                      fontSize: '11px',
+                      color: '#64748b'
+                    }}>
+                      <span>
+                        {((servedKanbanPage - 1) * servedLimit) + 1} - {Math.min(servedKanbanPage * servedLimit, servedOrders.length)} of {servedOrders.length}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <button
                           type="button"
-                          onClick={() => setOrderToDelete(order)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                          title="Delete Order"
+                          disabled={servedKanbanPage === 1}
+                          onClick={() => setServedKanbanPage(p => Math.max(1, p - 1))}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #cbd5e1',
+                            background: servedKanbanPage === 1 ? '#f8fafc' : '#ffffff',
+                            color: servedKanbanPage === 1 ? '#94a3b8' : '#0f172a',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: servedKanbanPage === 1 ? 'not-allowed' : 'pointer'
+                          }}
                         >
-                          <Trash2 size={15} />
+                          Prev
+                        </button>
+                        <span style={{ fontWeight: 700 }}>{servedKanbanPage} / {Math.ceil(servedOrders.length / servedLimit)}</span>
+                        <button
+                          type="button"
+                          disabled={servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit)}
+                          onClick={() => setServedKanbanPage(p => Math.min(Math.ceil(servedOrders.length / servedLimit), p + 1))}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #cbd5e1',
+                            background: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? '#f8fafc' : '#ffffff',
+                            color: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? '#94a3b8' : '#0f172a',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          Next
                         </button>
                       </div>
                     </div>
+                  )}
 
-                    <div className={styles.orderItems}>
-                      {order.items.map((it, i) => (
-                        <div key={i} className={styles.itemRow}>
-                          <div className={styles.itemMain}>
-                            <span className={styles.itemName}>{it.name}</span>
-                            {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
-                          </div>
-                          <span className={styles.itemQty}>x{it.quantity}</span>
-                        </div>
-                      ))}
+                  {servedOrders.length === 0 && (
+                    <div className={styles.emptyCol}>
+                      <p>Served orders will appear here</p>
                     </div>
-
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
-                      <button 
-                        type="button" 
-                        className={styles.completeOrderBtn}
-                        onClick={() => handleUpdateStage(order._id, 'completed')}
-                      >
-                        Served to Guest ✓
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {readyOrders.length === 0 && (
-                  <div className={styles.emptyCol}>
-                    <p>No dishes waiting on expo counter</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* COLUMN 4: SERVED */}
-            <div className={styles.kanbanCol}>
-              <div className={`${styles.colHeader} ${styles.colGray}`}>
-                <div className={styles.colTitleWrap}>
-                  <span className={styles.colBullet}></span>
-                  <span className={styles.colName}>Served</span>
+                  )}
                 </div>
-                <span className={`${styles.countBadge} ${styles.grayBadge}`}>{servedOrders.length}</span>
               </div>
 
-              <div className={styles.ticketsList}>
-                {servedOrders.slice((servedKanbanPage - 1) * servedLimit, servedKanbanPage * servedLimit).map(order => (
-                  <div key={order._id} className={`${styles.ticketCard} ${styles.cardServed}`}>
-                    <div className={styles.cardHeader}>
-                      <div>
-                        <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                        <div className={styles.stationTag}>{order.channel} • Served</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className={styles.completedPill}>Delivered</span>
-                      </div>
-                    </div>
-
-                    <div className={styles.orderItems}>
-                      {order.items.map((it, i) => (
-                        <div key={i} className={styles.itemRow}>
-                          <div className={styles.itemMain}>
-                            <span className={styles.itemName}>{it.name}</span>
-                          </div>
-                          <span className={styles.itemQty}>x{it.quantity}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>₹{Math.round(order.totalAmount || order.total || 0)}</span>
-                    </div>
-                  </div>
-                ))}
-
-                {servedOrders.length > servedLimit && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 10px',
-                    background: '#ffffff',
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
-                    marginTop: '6px',
-                    fontSize: '11px',
-                    color: '#64748b'
-                  }}>
-                    <span>
-                      {((servedKanbanPage - 1) * servedLimit) + 1} - {Math.min(servedKanbanPage * servedLimit, servedOrders.length)} of {servedOrders.length}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <button
-                        type="button"
-                        disabled={servedKanbanPage === 1}
-                        onClick={() => setServedKanbanPage(p => Math.max(1, p - 1))}
-                        style={{
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          border: '1px solid #cbd5e1',
-                          background: servedKanbanPage === 1 ? '#f8fafc' : '#ffffff',
-                          color: servedKanbanPage === 1 ? '#94a3b8' : '#0f172a',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: servedKanbanPage === 1 ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        Prev
-                      </button>
-                      <span style={{ fontWeight: 700 }}>{servedKanbanPage} / {Math.ceil(servedOrders.length / servedLimit)}</span>
-                      <button
-                        type="button"
-                        disabled={servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit)}
-                        onClick={() => setServedKanbanPage(p => Math.min(Math.ceil(servedOrders.length / servedLimit), p + 1))}
-                        style={{
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          border: '1px solid #cbd5e1',
-                          background: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? '#f8fafc' : '#ffffff',
-                          color: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? '#94a3b8' : '#0f172a',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: servedKanbanPage >= Math.ceil(servedOrders.length / servedLimit) ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {servedOrders.length === 0 && (
-                  <div className={styles.emptyCol}>
-                    <p>Served orders will appear here</p>
-                  </div>
-                )}
-              </div>
             </div>
-
-          </div>
           ) : (
             /* TABLE VIEW */
             <div className={styles.tableKdsContainer}>
@@ -576,7 +710,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                       onClick={() => { setTableStatusTab(tab.id); setTableOrdersPage(1); }}
                     >
                       <span>{tab.label}</span>
-                      <span 
+                      <span
                         className={styles.statusTabBadge}
                         style={{
                           backgroundColor: tableStatusTab === tab.id ? tab.color : '#e2e8f0',
@@ -641,7 +775,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                       <th>Table / Channel</th>
                       <th>Customer</th>
                       <th>Items & Modifiers</th>
-                      <th>Placed & Elapsed</th>
+                      <th>Date & Time</th>
                       <th>Total</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
@@ -706,13 +840,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                               </div>
                             </td>
                             <td>
-                              <div style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 600 }}>
-                                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <div style={{ fontSize: '0.78rem', color: '#0f172a', fontWeight: 700 }}>
+                                {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                               </div>
-                              <div style={{ marginTop: '2px' }}>
-                                <span className={`${styles.timerBadge} ${isLate && !isDone ? styles.timerLate : ''}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
-                                  <Clock size={10} /> {formatElapsedTime(order.createdAt)}
-                                </span>
+                              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, marginTop: '1px' }}>
+                                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </div>
                             </td>
                             <td>
@@ -935,7 +1067,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
                 Delete Order #{orderToDelete.orderNumber}?
               </h3>
-              
+
               <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 1.75rem 0', lineHeight: 1.5 }}>
                 Are you sure you want to remove this ticket from kitchen telemetry? This action cannot be undone.
               </p>
@@ -1307,6 +1439,61 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
           </div>
         )}
       </AnimatePresence>
+
+      {/* REVERT / BACKWARD DRAG CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {revertConfirmModal && (
+          <div
+            className={styles.revertModalOverlay}
+            onClick={() => setRevertConfirmModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className={styles.revertModalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.revertModalHeader}>
+                <div className={styles.revertModalIcon}>
+                  <RotateCcw size={22} />
+                </div>
+                <div>
+                  <h3 className={styles.revertModalTitle}>Revert Order Stage?</h3>
+                  <span className={styles.revertModalSubtitle}>
+                    Order #{revertConfirmModal.order.orderNumber} • Table {revertConfirmModal.order.tableNumber}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.revertModalBody}>
+                You are dragging this order backward from <strong>{revertConfirmModal.sourceLabel}</strong> back to <strong>{revertConfirmModal.targetLabel}</strong>.
+                <br /><br />
+                Do you really want to drag back this order?
+              </div>
+
+              <div className={styles.revertModalActions}>
+                <button
+                  type="button"
+                  className={styles.revertCancelBtn}
+                  onClick={() => setRevertConfirmModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.revertConfirmBtn}
+                  onClick={handleConfirmRevert}
+                >
+                  <RotateCcw size={14} /> Yes, Revert Stage
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
