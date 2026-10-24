@@ -100,121 +100,45 @@ const Login = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.glow1} />
-      <div className={styles.glow2} />
-
       <div className={styles.splitContainer}>
         
-        {/* ── LEFT HERO SIDE: High-Converting Visual Suite ── */}
+        {/* ── LEFT SIDE: Full Height Beautiful Art Illustration ── */}
         <div className={styles.heroSide}>
-          <div className={styles.heroContent}>
-            <div className={styles.accentBar} />
-            
-            <h1 className={styles.heroHeading}>
-              Simplify Your<br />
-              <span style={{ color: "#6366f1" }}>Restaurant</span>{" "}
-              <span style={{ color: "#f97316" }}>Business</span>
-            </h1>
-
-            <p className={styles.heroSubtitle}>
-              Manage orders, tables, inventory, staff and more — all in one powerful platform.
-            </p>
-
-            {/* 4 Feature Badges Row */}
-            <div className={styles.featureBadgesRow}>
-              {/* Badge 1: Orders */}
-              <div className={styles.featureBadge}>
-                <div className={styles.featureIconWrap} style={{ background: "#ede9fe", color: "#7c3aed" }}>
-                  <UtensilsCrossed size={16} />
-                </div>
-                <div className={styles.featureTitle}>Orders</div>
-                <div className={styles.featureDesc}>Faster service</div>
-              </div>
-
-              {/* Badge 2: Inventory */}
-              <div className={styles.featureBadge}>
-                <div className={styles.featureIconWrap} style={{ background: "#ffedd5", color: "#ea580c" }}>
-                  <Boxes size={16} />
-                </div>
-                <div className={styles.featureTitle}>Inventory</div>
-                <div className={styles.featureDesc}>Stay in control</div>
-              </div>
-
-              {/* Badge 3: Staff */}
-              <div className={styles.featureBadge}>
-                <div className={styles.featureIconWrap} style={{ background: "#dcfce7", color: "#16a34a" }}>
-                  <Users2 size={16} />
-                </div>
-                <div className={styles.featureTitle}>Staff</div>
-                <div className={styles.featureDesc}>Manage easily</div>
-              </div>
-
-              {/* Badge 4: Reports */}
-              <div className={styles.featureBadge}>
-                <div className={styles.featureIconWrap} style={{ background: "#e0f2fe", color: "#0284c7" }}>
-                  <TrendingUp size={16} />
-                </div>
-                <div className={styles.featureTitle}>Reports</div>
-                <div className={styles.featureDesc}>Grow smarter</div>
-              </div>
-            </div>
-          </div>
-
-          {/* High-Resolution Cafe Illustration */}
-          <div className={styles.illustrationWrapper}>
-            <img
-              src="/login-hero-illustration.jpg"
-              alt="Lively Modern Restaurant & Dining Room"
-              className={styles.illustrationImg}
-            />
-          </div>
+          <img
+            src="/login-art.jpg"
+            alt="Modern DineviQ Restaurant Management Experience"
+            className={styles.fullArtImage}
+          />
         </div>
 
-        {/* ── RIGHT SIDE: Floating Login Form Card ── */}
+        {/* ── RIGHT SIDE: Clean Minimalist Login Form ── */}
         <div className={styles.loginSide}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 14 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-            className={styles.loginCard}
-          >
-            {/* Centered Brand Logo */}
+          <div className={styles.loginCard}>
+            
+            {/* Top Logo */}
             <div className={styles.logoArea}>
-              <DineviqLogo size="sm" showSubtitle={false} showBadge={true} onClick={() => navigate('/')} />
-            </div>
-
-            {/* Header */}
-            <div className={styles.cardHeader}>
-              <h2>Welcome to DineviQ</h2>
-              <p>Enter your credentials to continue</p>
+              <DineviqLogo size="md" showSubtitle={false} showBadge={false} onClick={() => navigate('/')} />
             </div>
 
             {/* Error Banner */}
             {generalError && (
               <div className={styles.errorBanner}>
-                <AlertCircle size={17} style={{ flexShrink: 0 }} />
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{generalError}</span>
               </div>
             )}
 
-            {/* Form */}
+            {/* Form: Email, Password, Sign In Button */}
             <form onSubmit={handleSubmit} className={styles.form} noValidate>
               
-              {/* Identifier Field (Email / Mobile) */}
+              {/* Email / Mobile Field */}
               <div className={styles.fieldWrapper}>
                 <div className={`${styles.inputGroup} ${fieldErrors.identifier ? styles.inputError : ''}`}>
-                  {isNumericPhone ? (
-                    <div className={styles.prefixPill}>
-                      <span>🇮🇳 +91</span>
-                    </div>
-                  ) : (
-                    <Mail className={styles.icon} size={17} />
-                  )}
-                  
+                  <Mail className={styles.icon} size={18} />
                   <input
                     type="text"
-                    className={`${styles.inputField} ${isNumericPhone ? styles.inputWithPrefix : ''}`}
-                    placeholder="Enter your email or mobile number"
+                    className={styles.inputField}
+                    placeholder="Email or Mobile Number"
                     value={identifier}
                     onChange={handleIdentifierChange}
                     disabled={loading}
@@ -232,11 +156,11 @@ const Login = () => {
               {/* Password Field */}
               <div className={styles.fieldWrapper}>
                 <div className={`${styles.inputGroup} ${fieldErrors.password ? styles.inputError : ''}`}>
-                  <Lock className={styles.icon} size={17} />
+                  <Lock className={styles.icon} size={18} />
                   <input
                     type={showPassword ? "text" : "password"}
                     className={styles.inputField}
-                    placeholder="Enter password"
+                    placeholder="Password"
                     value={password}
                     onChange={handlePasswordChange}
                     disabled={loading}
@@ -260,52 +184,24 @@ const Login = () => {
                 )}
               </div>
 
-              {/* Purple Gradient Primary Action Button */}
+              {/* Sign In Button */}
               <button type="submit" className={styles.submitBtn} disabled={loading}>
                 {loading ? (
                   <>
                     <div className={styles.spinner} />
-                    <span>Signing in to OS...</span>
+                    <span>Signing in...</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign In to OS</span>
+                    <span>Sign In</span>
                     <ArrowRight size={17} />
                   </>
                 )}
               </button>
 
-              {/* Helper Note */}
-              <p className={styles.helperNote}>
-                We'll securely sign you into your restaurant terminal.
-              </p>
-
-              {/* Trust Divider */}
-              <div className={styles.trustDivider}>
-                <span>🔒 Secure</span>
-                <span>•</span>
-                <span>⚡ Fast</span>
-                <span>•</span>
-                <span>🛡️ Reliable</span>
-              </div>
-
-              {/* Terms Footer */}
-              <div className={styles.termsFooter}>
-                By continuing, you agree to our{" "}
-                <Link to="/contact" className={styles.termsLink}>Terms of Service</Link> and{" "}
-                <Link to="/contact" className={styles.termsLink}>Privacy Policy</Link>
-              </div>
-
-              {/* Register Outlet CTA */}
-              <div className={styles.registerLinkBox}>
-                New food outlet?
-                <Link to="/register" className={styles.registerLink}>
-                  Register Restaurant →
-                </Link>
-              </div>
-
             </form>
-          </motion.div>
+
+          </div>
         </div>
 
       </div>
