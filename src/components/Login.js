@@ -102,22 +102,36 @@ const Login = () => {
     <div className={styles.container}>
       <div className={styles.splitContainer}>
         
-        {/* ── LEFT SIDE: Full Height Beautiful Art Illustration ── */}
+        {/* ── LEFT SIDE: Editorial Luxury Restaurant Photography with Subtle Overlay ── */}
         <div className={styles.heroSide}>
           <img
-            src="/login-art.jpg"
-            alt="Modern DineviQ Restaurant Management Experience"
+            src="/login-premium.jpg"
+            alt="DineviQ Restaurant Operating System"
             className={styles.fullArtImage}
           />
+          <div className={styles.imageOverlayGradient} />
+          <div className={styles.heroOverlayContent}>
+            <div className={styles.heroBadge}>DINEVIQ RESTAURANT OS</div>
+            <h2 className={styles.heroQuote}>
+              "Everything you need to run high-volume service seamlessly."
+            </h2>
+            <p className={styles.heroSubquote}>
+              Trusted by leading cafes, fine dining, and multi-outlet restaurants.
+            </p>
+          </div>
         </div>
 
-        {/* ── RIGHT SIDE: Clean Minimalist Login Form ── */}
+        {/* ── RIGHT SIDE: Polished Enterprise SaaS Form ── */}
         <div className={styles.loginSide}>
-          <div className={styles.loginCard}>
+          <div className={styles.formContainer}>
             
-            {/* Top Logo */}
-            <div className={styles.logoArea}>
-              <DineviqLogo size="md" showSubtitle={false} showBadge={false} onClick={() => navigate('/')} />
+            {/* Top Brand Area */}
+            <div className={styles.brandHeader}>
+              <DineviqLogo size="md" showSubtitle={false} showBadge={true} onClick={() => navigate('/')} />
+              <div className={styles.headerText}>
+                <h1 className={styles.title}>Sign In</h1>
+                <p className={styles.subtitle}>Welcome back. Please enter your account details.</p>
+              </div>
             </div>
 
             {/* Error Banner */}
@@ -128,17 +142,18 @@ const Login = () => {
               </div>
             )}
 
-            {/* Form: Email, Password, Sign In Button */}
+            {/* Form */}
             <form onSubmit={handleSubmit} className={styles.form} noValidate>
               
               {/* Email / Mobile Field */}
               <div className={styles.fieldWrapper}>
+                <label className={styles.label}>Email or Phone Number</label>
                 <div className={`${styles.inputGroup} ${fieldErrors.identifier ? styles.inputError : ''}`}>
                   <Mail className={styles.icon} size={18} />
                   <input
                     type="text"
                     className={styles.inputField}
-                    placeholder="Email or Mobile Number"
+                    placeholder="name@restaurant.com"
                     value={identifier}
                     onChange={handleIdentifierChange}
                     disabled={loading}
@@ -155,12 +170,15 @@ const Login = () => {
 
               {/* Password Field */}
               <div className={styles.fieldWrapper}>
+                <div className={styles.passwordHeaderRow}>
+                  <label className={styles.label}>Password</label>
+                </div>
                 <div className={`${styles.inputGroup} ${fieldErrors.password ? styles.inputError : ''}`}>
                   <Lock className={styles.icon} size={18} />
                   <input
                     type={showPassword ? "text" : "password"}
                     className={styles.inputField}
-                    placeholder="Password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={handlePasswordChange}
                     disabled={loading}
@@ -189,17 +207,24 @@ const Login = () => {
                 {loading ? (
                   <>
                     <div className={styles.spinner} />
-                    <span>Signing in...</span>
+                    <span>Verifying session...</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign In</span>
+                    <span>Sign in to Terminal</span>
                     <ArrowRight size={17} />
                   </>
                 )}
               </button>
 
             </form>
+
+            {/* Footer Trust Bar */}
+            <div className={styles.footerNote}>
+              <span>🔒 256-bit SSL Encrypted</span>
+              <span>•</span>
+              <span>Cloud Synchronized</span>
+            </div>
 
           </div>
         </div>
