@@ -101,7 +101,7 @@ const Login = () => {
   return (
     <div className={styles.container}>
       <div className={styles.splitContainer}>
-        
+
         {/* ── LEFT SIDE: Editorial Luxury Restaurant Photography with Subtle Overlay ── */}
         <div className={styles.heroSide}>
           <img
@@ -124,7 +124,7 @@ const Login = () => {
         {/* ── RIGHT SIDE: Polished Enterprise SaaS Form ── */}
         <div className={styles.loginSide}>
           <div className={styles.formContainer}>
-            
+
             {/* Top Brand Area */}
             <div className={styles.brandHeader}>
               <DineviqLogo size="md" showSubtitle={false} showBadge={true} onClick={() => navigate('/')} />
@@ -144,7 +144,7 @@ const Login = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className={styles.form} noValidate>
-              
+
               {/* Email / Mobile Field */}
               <div className={styles.fieldWrapper}>
                 <label className={styles.label}>Email or Phone Number</label>
@@ -219,12 +219,7 @@ const Login = () => {
 
             </form>
 
-            {/* Footer Trust Bar */}
-            <div className={styles.footerNote}>
-              <span>🔒 256-bit SSL Encrypted</span>
-              <span>•</span>
-              <span>Cloud Synchronized</span>
-            </div>
+
 
           </div>
         </div>
