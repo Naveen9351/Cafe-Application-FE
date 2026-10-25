@@ -36,12 +36,12 @@
     <priority>0.9</priority>
   </url>
 
-  <!-- Staff & Store Billing Portal -->
+  <!-- Staff & Store Billing Portal Registration -->
   <url>
-    <loc>https://billing.dineviq.com/</loc>
+    <loc>https://www.dineviq.com/register</loc>
     <lastmod>2026-10-25</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.95</priority>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
 
   <!-- Feature: Cloud POS & Thermal Billing -->

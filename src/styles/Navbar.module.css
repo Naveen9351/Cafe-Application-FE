@@ -87,59 +87,243 @@
 
 .dropdownMenu {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  top: calc(100% + 10px);
   background: #ffffff;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  padding: 16px;
-  z-index: 1100;
-  animation: fadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 20px 48px -10px rgba(15, 23, 42, 0.16), 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+  padding: 16px 18px;
+  z-index: 1200;
+  animation: fadeInDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  white-space: normal;
+}
+
+.dropdownMenu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-left: 1px solid rgba(226, 232, 240, 0.95);
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
+  transform: rotate(45deg);
+  z-index: 1201;
 }
 
 .megaMenuProducts {
-  width: 500px;
+  left: -40px;
+  width: 700px;
+  max-width: calc(100vw - 32px);
+}
+
+.megaMenuProducts::before {
+  left: 78px;
 }
 
 .megaMenuSolutions {
-  width: 360px;
+  left: -130px;
+  width: 700px;
+  max-width: calc(100vw - 32px);
+}
+
+.megaMenuSolutions::before {
+  left: 172px;
 }
 
 .dropdownHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 10px;
+  padding: 8px 12px;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(79, 70, 229, 0.05) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 10px;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-primary);
 }
 
-.dropdownGrid {
+.dropdownSplit {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.dropdownCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dropdownColTitle {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: 2px;
+  padding-left: 2px;
 }
 
 .dropdownCard {
-  padding: 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-card-subtle);
-  border: 1px solid var(--border-subtle);
-  transition: all 0.2s ease;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(241, 245, 249, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
   display: block;
 }
 
 .dropdownCard:hover {
-  background: var(--color-primary-light);
-  border-color: rgba(37, 99, 235, 0.3);
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.09);
   transform: translateY(-2px);
+}
+
+.flagshipCard {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.flagshipCard:hover {
+  background: #fafcff;
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.1);
+  transform: translateY(-2px);
+}
+
+.iconBox {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.iconBoxBlue {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--color-primary);
+}
+
+.iconBoxEmerald {
+  background: rgba(5, 150, 105, 0.1);
+  color: var(--color-emerald);
+}
+
+.iconBoxIndigo {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+}
+
+.iconBoxAmber {
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+}
+
+.iconBoxRose {
+  background: rgba(225, 29, 72, 0.1);
+  color: #e11d48;
+}
+
+.iconBoxPurple {
+  background: rgba(147, 51, 234, 0.1);
+  color: #9333ea;
+}
+
+.iconBoxTeal {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0d9488;
+}
+
+.subCard {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid rgba(241, 245, 249, 1);
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subCard:hover {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  transform: translateX(2px);
+}
+
+.venueCard {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(241, 245, 249, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.venueCard:hover {
+  background: #ffffff;
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08);
+  transform: translateY(-2px);
+}
+
+.enterpriseCard {
+  grid-column: 1 / -1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(79, 70, 229, 0.06) 100%);
+  border: 1.5px solid rgba(37, 99, 235, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.enterpriseCard:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(79, 70, 229, 0.1) 100%);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.1);
+  transform: translateY(-2px);
+}
+
+.dropdownGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cardBadge {
@@ -149,21 +333,37 @@
   border-radius: 4px;
   background: rgba(37, 99, 235, 0.1);
   color: var(--color-primary);
-  margin-bottom: 6px;
   display: inline-block;
 }
 
+.cardBadgeEmerald {
+  background: rgba(5, 150, 105, 0.1);
+  color: var(--color-emerald);
+}
+
 .cardTitle {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--text-main);
+  line-height: 1.25;
 }
 
 .cardDesc {
   font-size: 11px;
-  color: var(--text-subtle);
-  margin-top: 4px;
+  color: var(--text-muted);
   line-height: 1.4;
+  margin: 0;
+}
+
+.dropdownFooter {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 700;
 }
 
 .rightActions {

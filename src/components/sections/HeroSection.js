@@ -248,6 +248,9 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
               src={img1}
               alt="Modern Restaurant Dining"
               loading="lazy"
+              decoding="async"
+              width="400"
+              height="260"
             />
             <div className={styles.heroCardOverlay}>
               <span className={styles.heroCardLabel}>Dine-In Atmosphere</span>
@@ -260,6 +263,9 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
               src={img2}
               alt="Restaurant Management System"
               loading="lazy"
+              decoding="async"
+              width="400"
+              height="260"
             />
             <div className={styles.heroCardOverlay}>
               <span className={styles.heroCardLabel}>Kitchen KDS Line</span>
@@ -272,6 +278,9 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
               src={img3}
               alt="Recipe & Inventory"
               loading="lazy"
+              decoding="async"
+              width="400"
+              height="260"
             />
             <div className={styles.heroCardOverlay}>
               <span className={styles.heroCardLabel}>Recipe Inventory</span>
@@ -288,6 +297,7 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
             loop
             muted
             playsInline
+            preload="metadata"
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }}
           />
         </div>
