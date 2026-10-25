@@ -13,11 +13,26 @@
   />
   <meta
     name="keywords"
-    content="DineviQ, dineviq, dineviq.com, restaurant management system, cafe management software, restaurant POS software India, QR code menu ordering, kitchen display system KDS, cloud billing POS, restaurant recipe inventory, Petpooja alternative, food tech India"
+    content="DineviQ, dineviq, dineviq restaurant login, restaurant login, cafe login, dineviq billing login, billing.dineviq.com, restaurant management system, cafe management software, restaurant POS software India, QR code menu ordering, kitchen display system KDS, cloud billing POS, restaurant recipe inventory, Petpooja alternative, food tech India"
   />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="author" content="DineviQ Technologies India Pvt. Ltd." />
   <link rel="canonical" href="https://www.dineviq.com/" />
+  <script>
+    (function() {
+      try {
+        var host = window.location.hostname.toLowerCase();
+        if (host.startsWith('billing.') || host.startsWith('admin.')) {
+          document.title = "Restaurant & Cafe Login | DineviQ Billing & POS Portal";
+          var can = document.querySelector('link[rel="canonical"]');
+          if (can) can.setAttribute('href', 'https://billing.dineviq.com/');
+          var desc = document.querySelector('meta[name="description"]');
+          if (desc) desc.setAttribute('content', 'Secure login portal for DineviQ Restaurant, Cafe & Bar management. Access Cloud POS billing, KDS kitchen orders, table management, and cashier billing.');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <meta name="google-site-verification" content="AaXlwZ4xUaYl-Ev_Rj7DA5bqvs1js__ZcKx1oVxYAYg" />
 
   <!-- ── 2. Favicons & Brand Marks ── -->
   <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />

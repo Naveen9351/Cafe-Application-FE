@@ -124,8 +124,8 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
               <Link to="/careers" className={styles.footerLink}>
                 Careers
               </Link>
-              <a href={getBillingPortalUrl()} className={styles.footerLink}>
-                Staff / Admin Login
+              <a href={getBillingPortalUrl()} className={styles.footerLink} title="DineviQ Restaurant & Cafe Login Portal">
+                Restaurant & Cafe Login
               </a>
               <Link to="/register" className={styles.footerLink} style={{ color: "var(--color-primary)", fontWeight: 800 }}>
                 Register Restaurant

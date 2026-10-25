@@ -1,10 +1,15 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { isBillingOrAdminSubdomain } from '../../utils/subdomain';
 
 const SEO_MAP = {
   '/': {
     title: 'DineviQ — Autonomous Restaurant & Cafe OS | QR Dining, KDS & POS',
     description: 'DineviQ (dineviq.com) is the premier autonomous AI restaurant management operating system in India. Zero-latency QR table ordering, live KDS, cloud POS, and UPI billing.'
+  },
+  '/login': {
+    title: 'Restaurant & Cafe Login | DineviQ Billing & POS Portal',
+    description: 'Secure login portal for DineviQ Restaurant, Cafe & Bar management. Access Cloud POS billing, KDS kitchen orders, table management, and cashier billing.'
   },
   '/products': {
     title: 'Products Suite | DineviQ — Dynamic QR, KDS & Cloud POS',
@@ -50,10 +55,6 @@ const SEO_MAP = {
     title: 'Live QR Customer Digital Menu | DineviQ',
     description: 'Instant contactless QR menu ordering with high-resolution imagery, modifier customizations, and UPI payment integration.'
   },
-  '/login': {
-    title: 'Staff & Manager Login | DineviQ OS',
-    description: 'Secure tenant portal login for restaurant managers, cashiers, chefs, and floor staff.'
-  },
   '/register': {
     title: 'Register Your Restaurant & Cafe | DineviQ',
     description: 'Join 500+ restaurants growing with DineviQ. Setup your brand, tables, and live digital menu in less than 5 minutes.'
@@ -64,11 +65,24 @@ export default function SEOManager() {
   const location = useLocation();
 
   useEffect(() => {
+    const isBilling = isBillingOrAdminSubdomain();
     const pathname = location.pathname;
-    const config = SEO_MAP[pathname] || {
+
+    let config = SEO_MAP[pathname] || {
       title: 'DineviQ — Autonomous Restaurant & Cafe OS',
       description: 'DineviQ (dineviq.com) is the autonomous AI restaurant management operating system.'
     };
+
+    if (isBilling || pathname === '/login') {
+      config = {
+        title: 'Restaurant & Cafe Login | DineviQ Billing & POS Portal',
+        description: 'Secure login portal for DineviQ Restaurant, Cafe & Bar management. Access Cloud POS billing, KDS kitchen orders, table management, and cashier billing.'
+      };
+    }
+
+    const canonicalHref = isBilling 
+      ? 'https://billing.dineviq.com/' 
+      : (pathname === '/login' ? 'https://billing.dineviq.com/' : `https://www.dineviq.com${pathname === '/' ? '' : pathname}`);
 
     // 1. Update Document Title
     document.title = config.title;
@@ -83,8 +97,11 @@ export default function SEOManager() {
     const ogTitle = document.querySelector('meta[property="og:title"]');
     if (ogTitle) ogTitle.setAttribute('content', config.title);
 
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', config.description);
+
     const ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) ogUrl.setAttribute('content', `https://www.dineviq.com${pathname === '/' ? '' : pathname}`);
+    if (ogUrl) ogUrl.setAttribute('content', canonicalHref);
 
     // 4. Update Canonical Link
     let canonical = document.querySelector('link[rel="canonical"]');
@@ -93,7 +110,7 @@ export default function SEOManager() {
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute('href', `https://www.dineviq.com${pathname === '/' ? '' : pathname}`);
+    canonical.setAttribute('href', canonicalHref);
   }, [location.pathname]);
 
   return null;

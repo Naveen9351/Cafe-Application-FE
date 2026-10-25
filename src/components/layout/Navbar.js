@@ -23,6 +23,7 @@ import {
 import { FLAGSHIP_PRODUCTS, ECOSYSTEM_PRODUCTS } from "../../data/productsData";
 import { SOLUTIONS } from "../../data/solutionsData";
 import ServiqLogo from "../brand/ServiqLogo";
+import { getBillingPortalUrl } from "../../utils/subdomain";
 import styles from "../../styles/Navbar.module.css";
 
 export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
@@ -482,6 +483,15 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
               <span>WhatsApp</span>
             </a>
 
+            <a
+              href={getBillingPortalUrl()}
+              className={styles.loginBtn}
+              title="DineviQ Restaurant & Cafe Login Portal"
+            >
+              <LogIn style={{ width: 12, height: 12 }} />
+              <span>Restaurant Login</span>
+            </a>
+
             {triggerDemo ? (
               <button
                 type="button"
@@ -529,6 +539,15 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
           </Link>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+            <a
+              href={getBillingPortalUrl()}
+              onClick={closeDropdowns}
+              className={styles.loginBtn}
+              style={{ justifyContent: 'center', padding: '9px 14px', fontSize: 13 }}
+            >
+              <LogIn style={{ width: 14, height: 14 }} />
+              <span>Restaurant Login</span>
+            </a>
             <button
               type="button"
               onClick={() => { closeDropdowns(); if (triggerDemo) triggerDemo(); }}
