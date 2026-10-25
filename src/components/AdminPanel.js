@@ -243,6 +243,8 @@ export default function AdminPanel() {
   const [dateRange, setDateRange] = useState('today'); // 'today', 'this_week', 'this_month', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [appliedCustomStartDate, setAppliedCustomStartDate] = useState('');
+  const [appliedCustomEndDate, setAppliedCustomEndDate] = useState('');
   const [isFilterLoading, setIsFilterLoading] = useState(false);
 
   // Dynamic Categories State (loaded from localStorage or defaults)
@@ -533,8 +535,8 @@ export default function AdminPanel() {
 
     const activeR = overrideRange || dateRange;
     if (activeR === 'custom') {
-      const start = overrideStart !== undefined ? overrideStart : customStartDate;
-      const end = overrideEnd !== undefined ? overrideEnd : customEndDate;
+      const start = overrideStart !== undefined ? overrideStart : appliedCustomStartDate;
+      const end = overrideEnd !== undefined ? overrideEnd : appliedCustomEndDate;
       if (!start || !end) {
         // Do not call API until user chooses both dates and clicks Apply Filter
         return;
@@ -545,10 +547,12 @@ export default function AdminPanel() {
 
     try {
       let url = `${API}/orders?range=${activeR}`;
-      if (activeR === 'custom') {
-        const start = overrideStart !== undefined ? overrideStart : customStartDate;
-        const end = overrideEnd !== undefined ? overrideEnd : customEndDate;
-        url += `&startDate=${start}&endDate=${end}`;
+      if (activeR === 'all') {
+        url += '&limit=all';
+      } else if (activeR === 'custom') {
+        const start = overrideStart !== undefined ? overrideStart : appliedCustomStartDate;
+        const end = overrideEnd !== undefined ? overrideEnd : appliedCustomEndDate;
+        url += `&startDate=${start}&endDate=${end}&limit=all`;
       }
 
       const res = await axios.get(url, { headers: { 'x-auth-token': token } });
@@ -962,13 +966,36 @@ export default function AdminPanel() {
     } else if (dateRange === 'all') {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const now = new Date();
-      timeBuckets = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+
+      // Find earliest order date so we span all historical data dynamically
+      let earliestDate = now;
+      if (targetOrders.length > 0) {
+        targetOrders.forEach(o => {
+          if (o.createdAt) {
+            const d = new Date(o.createdAt);
+            if (!isNaN(d.getTime()) && d < earliestDate) {
+              earliestDate = d;
+            }
+          }
+        });
+      }
+
+      const startYear = earliestDate.getFullYear();
+      const startMonth = earliestDate.getMonth();
+      const curYear = now.getFullYear();
+      const curMonth = now.getMonth();
+      const diffMonths = (curYear - startYear) * 12 + (curMonth - startMonth);
+      const totalMonths = Math.min(24, Math.max(6, diffMonths + 1));
+
+      timeBuckets = Array.from({ length: totalMonths }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (totalMonths - 1 - i), 1);
+        const mIdx = d.getMonth();
+        const y = d.getFullYear();
         return {
-          label: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
-          shortLabel: monthNames[d.getMonth()],
-          year: d.getFullYear(),
-          month: d.getMonth(),
+          label: `${monthNames[mIdx]} ${y}`,
+          shortLabel: totalMonths > 12 ? `${monthNames[mIdx]} '${String(y).slice(2)}` : monthNames[mIdx],
+          year: y,
+          month: mIdx,
           revenue: 0,
           orders: 0
         };
@@ -987,7 +1014,73 @@ export default function AdminPanel() {
         }
       });
     } else if (dateRange === 'custom') {
-      if (customStartDate && customEndDate && customStartDate === customEndDate) {
+      if (appliedCustomStartDate && appliedCustomEndDate) {
+        if (appliedCustomStartDate === appliedCustomEndDate) {
+          timeBuckets = [
+            { label: '12:00 AM - 04:00 AM', shortLabel: '12:00 AM', startH: 0, endH: 3, revenue: 0, orders: 0 },
+            { label: '04:00 AM - 08:00 AM', shortLabel: '04:00 AM', startH: 4, endH: 7, revenue: 0, orders: 0 },
+            { label: '08:00 AM - 12:00 PM', shortLabel: '08:00 AM', startH: 8, endH: 11, revenue: 0, orders: 0 },
+            { label: '12:00 PM - 04:00 PM', shortLabel: '12:00 PM', startH: 12, endH: 15, revenue: 0, orders: 0 },
+            { label: '04:00 PM - 08:00 PM', shortLabel: '04:00 PM', startH: 16, endH: 19, revenue: 0, orders: 0 },
+            { label: '08:00 PM - 11:59 PM', shortLabel: '08:00 PM', startH: 20, endH: 23, revenue: 0, orders: 0 }
+          ];
+
+          targetOrders.forEach(o => {
+            const d = o.createdAt ? new Date(o.createdAt) : new Date();
+            const hour = d.getHours();
+            const amt = Number(o.total || o.totalAmount) || 0;
+            const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
+            b.revenue += amt;
+            b.orders += 1;
+          });
+        } else {
+          const s = new Date(appliedCustomStartDate);
+          const e = new Date(appliedCustomEndDate);
+          const diffDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+          if (diffDays <= 7) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            timeBuckets = Array.from({ length: diffDays }, (_, i) => {
+              const d = new Date(s);
+              d.setDate(s.getDate() + i);
+              const dayName = days[d.getDay()];
+              const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+              return {
+                label: `${dayName} (${dateStr})`,
+                shortLabel: `${d.getDate()}/${d.getMonth() + 1}`,
+                dateKey: d.toDateString(),
+                revenue: 0,
+                orders: 0
+              };
+            });
+
+            targetOrders.forEach(o => {
+              const d = o.createdAt ? new Date(o.createdAt) : new Date();
+              const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
+              if (b) {
+                b.revenue += Number(o.total || o.totalAmount) || 0;
+                b.orders += 1;
+              }
+            });
+          } else {
+            timeBuckets = [
+              { label: 'Period 1', shortLabel: 'P1', fraction: 0.25, revenue: 0, orders: 0 },
+              { label: 'Period 2', shortLabel: 'P2', fraction: 0.5, revenue: 0, orders: 0 },
+              { label: 'Period 3', shortLabel: 'P3', fraction: 0.75, revenue: 0, orders: 0 },
+              { label: 'Period 4', shortLabel: 'P4', fraction: 1.0, revenue: 0, orders: 0 }
+            ];
+            const totalSpan = Math.max(1, e.getTime() - s.getTime());
+            targetOrders.forEach(o => {
+              const d = o.createdAt ? new Date(o.createdAt) : new Date();
+              const progress = (d.getTime() - s.getTime()) / totalSpan;
+              const bIndex = Math.min(3, Math.max(0, Math.floor(progress * 4)));
+              timeBuckets[bIndex].revenue += Number(o.total || o.totalAmount) || 0;
+              timeBuckets[bIndex].orders += 1;
+            });
+          }
+        }
+      } else {
+        // Fallback: 24-Hour breakdown until user chooses both dates and clicks Apply Filter
         timeBuckets = [
           { label: '12:00 AM - 04:00 AM', shortLabel: '12:00 AM', startH: 0, endH: 3, revenue: 0, orders: 0 },
           { label: '04:00 AM - 08:00 AM', shortLabel: '04:00 AM', startH: 4, endH: 7, revenue: 0, orders: 0 },
@@ -1005,51 +1098,6 @@ export default function AdminPanel() {
           b.revenue += amt;
           b.orders += 1;
         });
-      } else {
-        const s = customStartDate ? new Date(customStartDate) : new Date();
-        const e = customEndDate ? new Date(customEndDate) : new Date();
-        const diffDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-        if (diffDays <= 7) {
-          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-          timeBuckets = Array.from({ length: diffDays }, (_, i) => {
-            const d = new Date(s);
-            d.setDate(s.getDate() + i);
-            const dayName = days[d.getDay()];
-            const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
-            return {
-              label: `${dayName} (${dateStr})`,
-              shortLabel: `${d.getDate()}/${d.getMonth() + 1}`,
-              dateKey: d.toDateString(),
-              revenue: 0,
-              orders: 0
-            };
-          });
-
-          targetOrders.forEach(o => {
-            const d = o.createdAt ? new Date(o.createdAt) : new Date();
-            const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
-            if (b) {
-              b.revenue += Number(o.total || o.totalAmount) || 0;
-              b.orders += 1;
-            }
-          });
-        } else {
-          timeBuckets = [
-            { label: 'Period 1', shortLabel: 'P1', fraction: 0.25, revenue: 0, orders: 0 },
-            { label: 'Period 2', shortLabel: 'P2', fraction: 0.5, revenue: 0, orders: 0 },
-            { label: 'Period 3', shortLabel: 'P3', fraction: 0.75, revenue: 0, orders: 0 },
-            { label: 'Period 4', shortLabel: 'P4', fraction: 1.0, revenue: 0, orders: 0 }
-          ];
-          const totalSpan = Math.max(1, e.getTime() - s.getTime());
-          targetOrders.forEach(o => {
-            const d = o.createdAt ? new Date(o.createdAt) : new Date();
-            const progress = (d.getTime() - s.getTime()) / totalSpan;
-            const bIndex = Math.min(3, Math.max(0, Math.floor(progress * 4)));
-            timeBuckets[bIndex].revenue += Number(o.total || o.totalAmount) || 0;
-            timeBuckets[bIndex].orders += 1;
-          });
-        }
       }
     } else {
       // Default: 'today' - 24-Hour Breakdown starting from 12:00 AM (Midnight)
@@ -1211,7 +1259,7 @@ export default function AdminPanel() {
       catList,
       peakInsight
     };
-  }, [orders, dashboardOrders, items, tables, dateRange, customStartDate, customEndDate, tenantInfo?.settings?.profitMargin]);
+  }, [orders, dashboardOrders, items, tables, dateRange, appliedCustomStartDate, appliedCustomEndDate, tenantInfo?.settings?.profitMargin]);
 
   // Drawer Handlers
   const handleOpenAddDrawer = () => {
@@ -2553,7 +2601,15 @@ export default function AdminPanel() {
                           </div>
                         )}
                       </div>
-                      <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>Showing metrics for {dateRange.replace('_', ' ')}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                        {dateRange === 'custom'
+                          ? appliedCustomStartDate && appliedCustomEndDate
+                            ? `Showing metrics for custom (${appliedCustomStartDate} to ${appliedCustomEndDate})`
+                            : 'Showing metrics for custom (Select dates & click Apply Filter)'
+                          : dateRange === 'all'
+                            ? 'Showing metrics for all time'
+                            : `Showing metrics for ${dateRange.replace('_', ' ')}`}
+                      </p>
                     </div>
 
                     <div className={styles.datePillsWrap}>
@@ -2561,6 +2617,7 @@ export default function AdminPanel() {
                         { id: 'today', label: 'Today' },
                         { id: 'this_week', label: 'This Week' },
                         { id: 'this_month', label: 'This Month' },
+                        { id: 'all', label: 'All Time' },
                         { id: 'custom', label: 'Custom' }
                       ].map(r => (
                         <button
@@ -2569,6 +2626,10 @@ export default function AdminPanel() {
                           onClick={() => {
                             if (dateRange !== r.id) {
                               setDateRange(r.id);
+                              if (r.id !== 'custom') {
+                                setAppliedCustomStartDate('');
+                                setAppliedCustomEndDate('');
+                              }
                             }
                           }}
                           className={`${styles.datePillBtn} ${dateRange === r.id ? styles.datePillBtnActive : ''}`}
@@ -2619,6 +2680,8 @@ export default function AdminPanel() {
                             toast.error('From date cannot be after To date');
                             return;
                           }
+                          setAppliedCustomStartDate(customStartDate);
+                          setAppliedCustomEndDate(customEndDate);
                           fetchDashboardOrders('custom', customStartDate, customEndDate);
                         }}
                         style={{
@@ -3034,7 +3097,9 @@ export default function AdminPanel() {
                               dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
                                 dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
                                   dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
-                                    `Custom range telemetry (${customStartDate || ''} to ${customEndDate || ''})`}
+                                    appliedCustomStartDate && appliedCustomEndDate
+                                      ? `Custom range telemetry (${appliedCustomStartDate} to ${appliedCustomEndDate})`
+                                      : 'Custom range telemetry (Select dates & click Apply Filter)'}
                           </p>
                         </div>
 

@@ -19,15 +19,20 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Filter States
+  // Applied Filter States
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all'); // 'all', 'paid', 'unpaid', 'upi', 'cash', 'card'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'preparing', 'ready', 'completed', 'cancelled'
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'highest_amount', 'lowest_amount'
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef(null);
+
+  // Draft Filter States (Used in Filter Modal - Only applied on clicking "Apply Filter")
+  const [draftSearch, setDraftSearch] = useState('');
+  const [draftPaymentFilter, setDraftPaymentFilter] = useState('all');
+  const [draftStatusFilter, setDraftStatusFilter] = useState('all');
+  const [draftSortBy, setDraftSortBy] = useState('newest');
 
   // Server-side Pagination State (20 Limit)
   const [ordersPage, setOrdersPage] = useState(1);
@@ -36,19 +41,10 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const [totalServerPages, setTotalServerPages] = useState(1);
   const [isServerPaginated, setIsServerPaginated] = useState(false);
 
-  // Debounce search query (300ms)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setOrdersPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
   // Fetch Orders with Database-wide Pagination & Filtering
   const fetchOrders = useCallback(async (
     page = ordersPage,
-    q = debouncedSearch,
+    q = search,
     pay = paymentFilter,
     st = statusFilter,
     sort = sortBy
@@ -101,17 +97,18 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       setIsServerPaginated(false);
     }
     setIsLoading(false);
-  }, [ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy, orders, ordersPageSize]);
+  }, [orders, ordersPageSize]);
 
-  // Fetch when filters or page change
+  // Initial load and pagination page-change listener (filters only fire explicitly on Apply Filter click)
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    fetchOrders(ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy);
-  }, [fetchOrders, ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy]);
-
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setOrdersPage(1);
-  }, [paymentFilter, statusFilter, sortBy]);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      fetchOrders(1, search, paymentFilter, statusFilter, sortBy);
+      return;
+    }
+    fetchOrders(ordersPage, search, paymentFilter, statusFilter, sortBy);
+  }, [ordersPage]);
 
   // Click outside listener for filter popover
   useEffect(() => {
@@ -383,11 +380,64 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const activeFilterCount = (search.trim() ? 1 : 0) + (paymentFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (sortBy !== 'newest' ? 1 : 0);
   const hasActiveFilters = activeFilterCount > 0;
 
+  const handleOpenFilterModal = () => {
+    setDraftSearch(search);
+    setDraftPaymentFilter(paymentFilter);
+    setDraftStatusFilter(statusFilter);
+    setDraftSortBy(sortBy);
+    setIsFilterModalOpen(true);
+  };
+
+  const handleApplyFilters = () => {
+    setSearch(draftSearch);
+    setPaymentFilter(draftPaymentFilter);
+    setStatusFilter(draftStatusFilter);
+    setSortBy(draftSortBy);
+    setOrdersPage(1);
+    fetchOrders(1, draftSearch, draftPaymentFilter, draftStatusFilter, draftSortBy);
+    setIsFilterModalOpen(false);
+  };
+
   const resetFilters = () => {
+    setDraftSearch('');
+    setDraftPaymentFilter('all');
+    setDraftStatusFilter('all');
+    setDraftSortBy('newest');
     setSearch('');
     setPaymentFilter('all');
     setStatusFilter('all');
     setSortBy('newest');
+    setOrdersPage(1);
+    fetchOrders(1, '', 'all', 'all', 'newest');
+    setIsFilterModalOpen(false);
+  };
+
+  const handleRemoveSearch = () => {
+    setSearch('');
+    setDraftSearch('');
+    setOrdersPage(1);
+    fetchOrders(1, '', paymentFilter, statusFilter, sortBy);
+  };
+
+  const handleRemovePayment = () => {
+    setPaymentFilter('all');
+    setDraftPaymentFilter('all');
+    setOrdersPage(1);
+    fetchOrders(1, search, 'all', statusFilter, sortBy);
+  };
+
+  const handleRemoveStatus = () => {
+    setStatusFilter('all');
+    setDraftStatusFilter('all');
+    setOrdersPage(1);
+    fetchOrders(1, search, paymentFilter, 'all', sortBy);
+  };
+
+  const handleRemoveSort = () => {
+    setSortBy('newest');
+    setDraftSortBy('newest');
+    setOrdersPage(1);
+    fetchOrders(1, search, paymentFilter, statusFilter, 'newest');
   };
 
   // Ellipsis Pagination Generator Helper
@@ -417,7 +467,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
           {/* Combined Filter Button */}
           <button
             className={`${styles.btnSecondary} ${hasActiveFilters ? styles.btnFilterActive : ''}`}
-            onClick={() => setIsFilterModalOpen(true)}
+            onClick={handleOpenFilterModal}
             title="Filter and Search Orders"
           >
             <Filter size={13} color={hasActiveFilters ? "#2563eb" : "#475569"} />
@@ -438,11 +488,10 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
           <button
             className={styles.btnSecondary}
-            onClick={() => fetchOrders(ordersPage, debouncedSearch, paymentFilter, statusFilter, sortBy)}
+            onClick={() => fetchOrders(ordersPage, search, paymentFilter, statusFilter, sortBy)}
             title="Refresh Orders"
           >
             <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
-
           </button>
 
           {onNavigateTab && (
@@ -526,7 +575,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
             {search && (
               <span className={styles.filterChip}>
                 Search: "{search}"
-                <button type="button" onClick={() => setSearch('')} className={styles.filterChipRemove}>
+                <button type="button" onClick={handleRemoveSearch} className={styles.filterChipRemove}>
                   <X size={10} />
                 </button>
               </span>
@@ -534,7 +583,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
             {paymentFilter !== 'all' && (
               <span className={styles.filterChip}>
                 Payment: {paymentFilter.toUpperCase()}
-                <button type="button" onClick={() => setPaymentFilter('all')} className={styles.filterChipRemove}>
+                <button type="button" onClick={handleRemovePayment} className={styles.filterChipRemove}>
                   <X size={10} />
                 </button>
               </span>
@@ -542,7 +591,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
             {statusFilter !== 'all' && (
               <span className={styles.filterChip}>
                 Status: {statusFilter.toUpperCase()}
-                <button type="button" onClick={() => setStatusFilter('all')} className={styles.filterChipRemove}>
+                <button type="button" onClick={handleRemoveStatus} className={styles.filterChipRemove}>
                   <X size={10} />
                 </button>
               </span>
@@ -550,7 +599,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
             {sortBy !== 'newest' && (
               <span className={styles.filterChip}>
                 Sort: {sortBy.replace('_', ' ').toUpperCase()}
-                <button type="button" onClick={() => setSortBy('newest')} className={styles.filterChipRemove}>
+                <button type="button" onClick={handleRemoveSort} className={styles.filterChipRemove}>
                   <X size={10} />
                 </button>
               </span>
@@ -1054,9 +1103,12 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Filter size={16} color="#2563eb" />
                               <h3 className={styles.filterModalTitle}>Filter Orders</h3>
-                              {activeFilterCount > 0 && (
-                                <span className={styles.filterBadgeCount}>{activeFilterCount} active</span>
-                              )}
+                              {(() => {
+                                const draftCount = (draftSearch.trim() ? 1 : 0) + (draftPaymentFilter !== 'all' ? 1 : 0) + (draftStatusFilter !== 'all' ? 1 : 0) + (draftSortBy !== 'newest' ? 1 : 0);
+                                return draftCount > 0 ? (
+                                  <span className={styles.filterBadgeCount}>{draftCount} active</span>
+                                ) : null;
+                              })()}
                             </div>
                             <button
                               type="button"
@@ -1076,12 +1128,12 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                 <input
                                   type="text"
                                   placeholder="Order #, Customer, Phone, Table..."
-                                  value={search}
-                                  onChange={(e) => setSearch(e.target.value)}
+                                  value={draftSearch}
+                                  onChange={(e) => setDraftSearch(e.target.value)}
                                   className={styles.modalSearchInput}
                                 />
-                                {search && (
-                                  <button type="button" onClick={() => setSearch('')} className={styles.clearBtn}>
+                                {draftSearch && (
+                                  <button type="button" onClick={() => setDraftSearch('')} className={styles.clearBtn}>
                                     <X size={12} />
                                   </button>
                                 )}
@@ -1094,8 +1146,8 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               <div className={styles.filterGroup}>
                                 <label className={styles.filterLabel}>Payment Status</label>
                                 <select
-                                  value={paymentFilter}
-                                  onChange={(e) => setPaymentFilter(e.target.value)}
+                                  value={draftPaymentFilter}
+                                  onChange={(e) => setDraftPaymentFilter(e.target.value)}
                                   className={styles.modalSelectField}
                                 >
                                   <option value="all">All Payments</option>
@@ -1111,8 +1163,8 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               <div className={styles.filterGroup}>
                                 <label className={styles.filterLabel}>Order Status</label>
                                 <select
-                                  value={statusFilter}
-                                  onChange={(e) => setStatusFilter(e.target.value)}
+                                  value={draftStatusFilter}
+                                  onChange={(e) => setDraftStatusFilter(e.target.value)}
                                   className={styles.modalSelectField}
                                 >
                                   <option value="all">All Status</option>
@@ -1128,8 +1180,8 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               <div className={styles.filterGroup} style={{ gridColumn: '1 / -1' }}>
                                 <label className={styles.filterLabel}>Sort By</label>
                                 <select
-                                  value={sortBy}
-                                  onChange={(e) => setSortBy(e.target.value)}
+                                  value={draftSortBy}
+                                  onChange={(e) => setDraftSortBy(e.target.value)}
                                   className={styles.modalSelectField}
                                 >
                                   <option value="newest">Newest First</option>
@@ -1146,16 +1198,23 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               type="button"
                               onClick={resetFilters}
                               className={styles.filterResetBtn}
-                              disabled={activeFilterCount === 0}
+                              disabled={!hasActiveFilters && !draftSearch && draftPaymentFilter === 'all' && draftStatusFilter === 'all' && draftSortBy === 'newest'}
                             >
                               Reset Filters
                             </button>
                             <button
                               type="button"
-                              onClick={() => setIsFilterModalOpen(false)}
+                              onClick={handleApplyFilters}
                               className={styles.filterApplyBtn}
+                              disabled={isLoading}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6
+                              }}
                             >
-                              Done
+                              {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <Filter size={13} />}
+                              <span>{isLoading ? 'Applying...' : 'Apply Filter'}</span>
                             </button>
                           </div>
                         </motion.div>
