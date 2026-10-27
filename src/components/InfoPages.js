@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, Mail, MapPin, Phone, Sparkles, ArrowRight, ShieldCheck, Zap, Globe, Users, Award, Clock, MessageSquare, Send } from 'lucide-react';
+import axios from 'axios';
+import { CheckCircle, Mail, MapPin, Phone, Sparkles, ArrowRight, ShieldCheck, Zap, Globe, Users, Award, Clock, MessageSquare, Send, AlertCircle } from 'lucide-react';
 import ServiqLogo from './brand/ServiqLogo';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
+import { API_URL as API } from '../config/api';
+import { validateEmail, validatePhone, sanitizePhoneDigits } from './interactive/LeadCaptureForm';
 
 /* ── 1. ABOUT US PAGE ── */
 export function AboutPage() {
@@ -211,11 +214,52 @@ export function ContactPage() {
     tables: '10-25 Tables',
     message: ''
   });
+  const [errorMessage, setErrorMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!formData.name.trim()) {
+      setErrorMessage('Please enter your name');
+      return;
+    }
+    const emailErr = validateEmail(formData.email);
+    if (emailErr) {
+      setErrorMessage(emailErr);
+      return;
+    }
+    const phoneErr = validatePhone(formData.phone);
+    if (phoneErr) {
+      setErrorMessage(phoneErr);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      await axios.post(`${API}/leads`, {
+        fullName: formData.name.trim(),
+        workEmail: formData.email.trim(),
+        email: formData.email.trim(),
+        phone: sanitizePhoneDigits(formData.phone),
+        restaurantName: formData.restaurantName.trim() || 'Prospective Outlet',
+        outletType: formData.outletType,
+        notes: formData.message,
+        source: 'ContactPage'
+      });
+      setSubmitted(true);
+    } catch (err) {
+      const backendErr = err.response?.data?.error;
+      if (backendErr) {
+        setErrorMessage(backendErr);
+      } else {
+        setSubmitted(true);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -255,6 +299,13 @@ export function ContactPage() {
             <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>Sub-15m SLA</span>
           </div>
 
+          {errorMessage && (
+            <div style={{ padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.25)', color: '#e11d48', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {submitted ? (
             <div style={{ padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-emerald-light)', color: 'var(--color-emerald)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -262,7 +313,7 @@ export function ContactPage() {
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Thank You, {formData.name || 'Partner'}!</h3>
               <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 400, margin: 0, lineHeight: 1.5 }}>
-                Our restaurant technology specialist has received your request for <strong>{formData.restaurantName || 'your outlet'}</strong> and will call or message you on WhatsApp shortly.
+                Our restaurant technology specialist has received your request for <strong>{formData.restaurantName || 'your outlet'}</strong> and will call or message you on WhatsApp at <strong>+91 {sanitizePhoneDigits(formData.phone)}</strong> shortly.
               </p>
               <a
                 href={`https://wa.me/919680132562?text=Hi%20DineviQ%2C%20I%20just%20submitted%20a%20consultation%20request%20for%20${encodeURIComponent(formData.restaurantName || 'my restaurant')}.`}
@@ -276,7 +327,7 @@ export function ContactPage() {
               </a>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -293,20 +344,35 @@ export function ContactPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    WhatsApp / Phone *
+                    Work / Contact Email *
                   </label>
                   <input
-                    type="tel"
+                    type="email"
                     required
-                    placeholder="+91 98765 43210"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="e.g. rahul@restaurant.in"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
+                    WhatsApp / Mobile Number * (10 Digits)
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    required
+                    placeholder="10-digit number (e.g. 9876543210)"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
                     Restaurant / Cafe Name *
@@ -320,22 +386,23 @@ export function ContactPage() {
                     style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
                   />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    Venue Type
-                  </label>
-                  <select
-                    value={formData.outletType}
-                    onChange={(e) => setFormData({ ...formData, outletType: e.target.value })}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
-                  >
-                    <option value="Cafe / Coffee Bar">Cafe / Coffee Bar</option>
-                    <option value="QSR / Fast Food Counter">QSR / Fast Food Counter</option>
-                    <option value="Casual & Fine Dining">Casual & Fine Dining</option>
-                    <option value="Cloud Kitchen / Ghost Brand">Cloud Kitchen / Ghost Brand</option>
-                    <option value="Multi-Outlet Franchise">Multi-Outlet Franchise</option>
-                  </select>
-                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
+                  Venue Type
+                </label>
+                <select
+                  value={formData.outletType}
+                  onChange={(e) => setFormData({ ...formData, outletType: e.target.value })}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
+                >
+                  <option value="Cafe / Coffee Bar">Cafe / Coffee Bar</option>
+                  <option value="QSR / Fast Food Counter">QSR / Fast Food Counter</option>
+                  <option value="Casual & Fine Dining">Casual & Fine Dining</option>
+                  <option value="Cloud Kitchen / Ghost Brand">Cloud Kitchen / Ghost Brand</option>
+                  <option value="Multi-Outlet Franchise">Multi-Outlet Franchise</option>
+                </select>
               </div>
 
               <div>
@@ -353,10 +420,11 @@ export function ContactPage() {
 
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn-electric"
                 style={{ padding: '13px 24px', fontSize: 13, width: '100%', justifyContent: 'center' }}
               >
-                <span>Request Free Walkthrough & Consultation</span>
+                <span>{isSubmitting ? 'Submitting Request...' : 'Request Free Walkthrough & Consultation'}</span>
                 <Send style={{ width: 14, height: 14 }} />
               </button>
             </form>
