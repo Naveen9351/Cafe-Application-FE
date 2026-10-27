@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isBillingOrAdminSubdomain } from '../../utils/subdomain';
+import { trackPageView } from '../../utils/activityTracker';
 
 const SEO_MAP = {
   '/': {
@@ -114,7 +115,8 @@ export default function SEOManager() {
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute('href', canonicalHref);
+    // 5. Automatically log visitor traffic & route activity
+    trackPageView(pathname);
   }, [location.pathname]);
 
   return null;

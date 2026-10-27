@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import styles from './SuperAdminDashboard.module.css';
 import {
     BarChart3, Users, CreditCard, Building, Plus, LogOut, Trash2, Zap,
-    ChevronLeft, ChevronRight, ShieldAlert, Clock, AlertTriangle, CheckCircle2, History, X, Lock, Image, User, Mail, Phone, MapPin, Upload
+    ChevronLeft, ChevronRight, ShieldAlert, Clock, AlertTriangle, CheckCircle2, History, X, Lock, Image, User, Mail, Phone, MapPin, Upload,
+    Activity, TrendingUp, Globe, Smartphone, Laptop, Search, RefreshCw, Eye, ArrowUpRight, Filter,
+    SlidersHorizontal, PowerOff, Power
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -20,15 +22,26 @@ const SuperAdminDashboard = () => {
 
     // Collapsible Sidebar State
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [activeTab, setActiveTab] = useState('businesses'); // 'businesses', 'inquiries', 'tickets', 'history'
+    const [activeTab, setActiveTab] = useState('businesses'); // 'businesses', 'inquiries', 'tickets', 'analytics', 'history'
+
+    // Analytics & Traffic State
+    const [analyticsStats, setAnalyticsStats] = useState(null);
+    const [activities, setActivities] = useState([]);
+    const [activitiesTotal, setActivitiesTotal] = useState(0);
+    const [activitiesPage, setActivitiesPage] = useState(1);
+    const [activitiesPages, setActivitiesPages] = useState(1);
+    const [activityCategory, setActivityCategory] = useState('all'); // 'all', 'Traffic', 'Lead', 'Orders', 'Auth'
+    const [activitySearch, setActivitySearch] = useState('');
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+    const [hoveredBarIndex, setHoveredBarIndex] = useState(null);
 
     // Pagination State
     const [tenantsPage, setTenantsPage] = useState(1);
-    const [tenantsPerPage, setTenantsPerPage] = useState(8);
+    const [tenantsPerPage, setTenantsPerPage] = useState(5);
     const [leadsPage, setLeadsPage] = useState(1);
-    const [leadsPerPage, setLeadsPerPage] = useState(10);
+    const [leadsPerPage, setLeadsPerPage] = useState(5);
     const [ticketsPage, setTicketsPage] = useState(1);
-    const [ticketsPerPage, setTicketsPerPage] = useState(10);
+    const [ticketsPerPage, setTicketsPerPage] = useState(5);
     const [ticketFilter, setTicketFilter] = useState('all'); // 'all', 'open', 'in_progress', 'resolved', 'closed'
 
     // Modals
@@ -36,12 +49,23 @@ const SuperAdminDashboard = () => {
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        type: 'danger', // 'danger' | 'warning'
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        onConfirm: () => { },
+        loading: false
+    });
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [viewingScreenshot, setViewingScreenshot] = useState(null);
 
     const [editingTenant, setEditingTenant] = useState(null);
     const [historyTenant, setHistoryTenant] = useState(null);
     const [tenantHistoryLogs, setTenantHistoryLogs] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Onboarding Form State
     const [onboardForm, setOnboardForm] = useState({
@@ -140,14 +164,101 @@ const SuperAdminDashboard = () => {
         }
     };
 
+    const fetchAnalyticsStats = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API}/analytics/stats`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.data?.success) {
+                setAnalyticsStats(res.data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch analytics stats", err);
+        }
+    };
+
+    const fetchActivities = async (page = 1, category = activityCategory, search = activitySearch) => {
+        setLoadingAnalytics(true);
+        try {
+            const token = localStorage.getItem('token');
+            const params = {
+                page,
+                limit: 12,
+                category: category !== 'all' ? category : undefined,
+                search: search.trim() ? search.trim() : undefined
+            };
+            const res = await axios.get(`${API}/analytics/activities`, {
+                headers: { 'x-auth-token': token },
+                params
+            });
+            if (res.data?.success) {
+                setActivities(res.data.activities || []);
+                setActivitiesTotal(res.data.pagination?.total || 0);
+                setActivitiesPage(res.data.pagination?.page || 1);
+                setActivitiesPages(res.data.pagination?.pages || 1);
+            }
+        } catch (err) {
+            console.error("Failed to fetch activities", err);
+        } finally {
+            setLoadingAnalytics(false);
+        }
+    };
+
     useEffect(() => {
         fetchTenantsAndLeads();
+        fetchAnalyticsStats();
         // Real-time polling for tickets every 10 seconds
         const pollTimer = setInterval(() => {
             fetchTenantsAndLeads(true);
         }, 10000);
         return () => clearInterval(pollTimer);
     }, [user]);
+
+    useEffect(() => {
+        if (activeTab === 'analytics') {
+            fetchAnalyticsStats();
+            fetchActivities(1, activityCategory, activitySearch);
+        }
+    }, [activeTab]);
+
+    const handleTabChange = (tab) => {
+        if (tab === activeTab) return;
+        setActiveTab(tab);
+        if (tab === 'businesses' || tab === 'inquiries' || tab === 'tickets') {
+            setLoading(true);
+            fetchTenantsAndLeads();
+        } else if (tab === 'analytics') {
+            fetchAnalyticsStats();
+            fetchActivities(1, activityCategory, activitySearch);
+        }
+    };
+
+    const formatActivityTime = (isoDate) => {
+        if (!isoDate) return '—';
+        try {
+            const d = new Date(isoDate);
+            return d.toLocaleString('en-IN', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return '—';
+        }
+    };
+
+    const getPageFriendlyTitle = (path = '') => {
+        if (path === '/' || path === '') return 'Homepage & Hero Showcase';
+        if (path.startsWith('/menu')) return 'Interactive QR Menu';
+        if (path.startsWith('/pricing')) return 'Subscription Pricing & Plans';
+        if (path.startsWith('/demo') || path.startsWith('/lead')) return 'Schedule Live Demo';
+        if (path.startsWith('/super-admin')) return 'SuperAdmin Platform Console';
+        if (path.startsWith('/admin')) return 'Cafe Management POS';
+        if (path.startsWith('/order-status')) return 'Live Order Tracking';
+        return path;
+    };
 
     const handleUpdateTicketStatus = async (ticketId, newStatus, adminNotes) => {
         try {
@@ -254,22 +365,35 @@ const SuperAdminDashboard = () => {
         }
     };
 
-    // Handle Deactivate Plan
-    const handleDeactivatePlan = async (tenantId) => {
-        if (!window.confirm("Are you sure you want to deactivate this cafe's plan? Cafe operations will be paused.")) return;
+    // Handle Deactivate Plan with Custom UI Popup
+    const handleDeactivatePlan = (tenantId, tenantName = 'this cafe') => {
+        setConfirmModal({
+            isOpen: true,
+            type: 'warning',
+            title: `Deactivate Plan?`,
+            message: `Are you sure you want to deactivate the plan for "${tenantName}"? Cafe ordering and active POS operations will be paused until reactivated.`,
+            confirmText: 'Yes, Deactivate',
+            cancelText: 'Cancel',
+            onConfirm: () => executeDeactivatePlan(tenantId)
+        });
+    };
 
+    const executeDeactivatePlan = async (tenantId) => {
         try {
+            setConfirmModal(prev => ({ ...prev, loading: true }));
             const token = localStorage.getItem('token');
             await axios.put(`${API}/tenants/${tenantId}/deactivate-subscription`, {}, {
                 headers: { 'x-auth-token': token }
             });
 
             toast.success("Plan deactivated successfully");
+            setConfirmModal(prev => ({ ...prev, isOpen: false, loading: false }));
             if (showPlanModal) setShowPlanModal(false);
             fetchTenantsAndLeads();
         } catch (err) {
             console.error(err);
             toast.error("Failed to deactivate plan");
+            setConfirmModal(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -277,6 +401,7 @@ const SuperAdminDashboard = () => {
     const handleViewHistory = async (tenant) => {
         setHistoryTenant(tenant);
         setShowHistoryModal(true);
+        setLoadingHistory(true);
 
         try {
             const token = localStorage.getItem('token');
@@ -287,36 +412,68 @@ const SuperAdminDashboard = () => {
         } catch (err) {
             console.error(err);
             setTenantHistoryLogs(tenant.subscriptionHistory || []);
+        } finally {
+            setLoadingHistory(false);
         }
     };
 
-    const handleDeleteTenant = async (id, name) => {
-        if (!window.confirm(`WARNING: Are you sure you want to delete "${name}"? All menu items, orders, and staff accounts will be permanently removed.`)) return;
+    // Handle Delete Tenant with Custom UI Popup
+    const handleDeleteTenant = (id, name) => {
+        setConfirmModal({
+            isOpen: true,
+            type: 'danger',
+            title: `Delete "${name}"?`,
+            message: `WARNING: Are you sure you want to permanently delete "${name}"? All menu items, active orders, and staff accounts will be permanently removed. This action cannot be undone.`,
+            confirmText: 'Yes, Delete Permanently',
+            cancelText: 'Cancel',
+            onConfirm: () => executeDeleteTenant(id)
+        });
+    };
 
+    const executeDeleteTenant = async (id) => {
         try {
+            setConfirmModal(prev => ({ ...prev, loading: true }));
             const token = localStorage.getItem('token');
             await axios.delete(`${API}/tenants/${id}`, {
                 headers: { 'x-auth-token': token }
             });
             toast.success("Business deleted successfully");
+            setConfirmModal(prev => ({ ...prev, isOpen: false, loading: false }));
             fetchTenantsAndLeads();
         } catch (err) {
             console.error(err);
             toast.error("Failed to delete business");
+            setConfirmModal(prev => ({ ...prev, loading: false }));
         }
     };
 
-    const handleDeleteLead = async (id) => {
+    // Handle Delete Lead with Custom UI Popup
+    const handleDeleteLead = (id, name = 'this lead') => {
+        setConfirmModal({
+            isOpen: true,
+            type: 'danger',
+            title: `Delete Lead Inquiry?`,
+            message: `Are you sure you want to permanently remove the inquiry from "${name}"?`,
+            confirmText: 'Delete Lead',
+            cancelText: 'Cancel',
+            onConfirm: () => executeDeleteLead(id)
+        });
+    };
+
+    const executeDeleteLead = async (id) => {
         try {
+            setConfirmModal(prev => ({ ...prev, loading: true }));
             const token = localStorage.getItem('token');
             await axios.delete(`${API}/leads/${id}`, {
                 headers: { 'x-auth-token': token }
             });
             toast.success("Lead inquiry deleted");
+            setConfirmModal(prev => ({ ...prev, isOpen: false, loading: false }));
             fetchTenantsAndLeads();
         } catch (err) {
             console.error(err);
             toast.error("Failed to delete lead inquiry");
+            setConfirmModal(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -335,7 +492,7 @@ const SuperAdminDashboard = () => {
                     <div className={styles.sidebarHeader}>
                         <div className={styles.sidebarBrand}>
                             <div className={styles.logo}>
-                                <Zap size={20} fill="#ffd700" />
+                                <Zap size={16} fill="#ffd700" />
                             </div>
                             {!sidebarCollapsed && <span>DINEVIQ <span style={{ color: '#6366f1' }}>SuperAdmin</span></span>}
                         </div>
@@ -345,7 +502,7 @@ const SuperAdminDashboard = () => {
                             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                             title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                         >
-                            {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </button>
                     </div>
 
@@ -353,45 +510,71 @@ const SuperAdminDashboard = () => {
                         <button
                             type="button"
                             className={`${styles.navItem} ${activeTab === 'businesses' ? styles.activeNavItem : ''}`}
-                            onClick={() => setActiveTab('businesses')}
+                            onClick={() => handleTabChange('businesses')}
                             title="Registered Cafes"
                         >
-                            <Building size={20} />
+                            <Building size={16} />
                             {!sidebarCollapsed && <span>Registered Cafes ({tenants.length})</span>}
                         </button>
 
                         <button
                             type="button"
                             className={`${styles.navItem} ${activeTab === 'inquiries' ? styles.activeNavItem : ''}`}
-                            onClick={() => setActiveTab('inquiries')}
+                            onClick={() => handleTabChange('inquiries')}
                             title="Demo Inquiries"
                         >
-                            <Users size={20} />
+                            <Users size={16} />
                             {!sidebarCollapsed && <span>Demo Leads ({leads.length})</span>}
                         </button>
 
                         <button
                             type="button"
                             className={`${styles.navItem} ${activeTab === 'tickets' ? styles.activeNavItem : ''}`}
-                            onClick={() => setActiveTab('tickets')}
+                            onClick={() => handleTabChange('tickets')}
                             title="Support & Issue Tickets"
                         >
-                            <ShieldAlert size={20} color={tickets.filter(t => t.status === 'open').length > 0 ? '#ef4444' : undefined} />
+                            <ShieldAlert size={16} color={tickets.filter(t => t.status === 'open').length > 0 ? '#ef4444' : undefined} />
                             {!sidebarCollapsed && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                     <span>Issue Tickets ({tickets.length})</span>
                                     {tickets.filter(t => t.status === 'open').length > 0 && (
-                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 900, padding: '2px 7px', borderRadius: '100px', marginLeft: 6 }}>
+                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '100px', marginLeft: 4 }}>
                                             {tickets.filter(t => t.status === 'open').length} NEW
                                         </span>
                                     )}
                                 </div>
                             )}
                         </button>
+
+                        <button
+                            type="button"
+                            className={`${styles.navItem} ${activeTab === 'analytics' ? styles.activeNavItem : ''}`}
+                            onClick={() => handleTabChange('analytics')}
+                            title="Traffic & User Activities"
+                        >
+                            <Activity size={16} color={activeTab === 'analytics' ? '#4f46e5' : '#059669'} />
+                            {!sidebarCollapsed && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                    <span>Traffic & Activities</span>
+                                    <span style={{
+                                        background: '#ecfdf5',
+                                        color: '#059669',
+                                        border: '1px solid #a7f3d0',
+                                        fontSize: '9px',
+                                        fontWeight: 900,
+                                        padding: '1px 5px',
+                                        borderRadius: '100px',
+                                        marginLeft: 4
+                                    }}>
+                                        LIVE
+                                    </span>
+                                </div>
+                            )}
+                        </button>
                     </nav>
                 </div>
 
-                <div style={{ padding: '1rem' }}>
+                <div style={{ padding: '0.75rem' }}>
                     <button
                         type="button"
                         onClick={() => setShowLogoutModal(true)}
@@ -399,7 +582,7 @@ const SuperAdminDashboard = () => {
                         style={{ width: '100%', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}
                         title="Sign Out"
                     >
-                        <LogOut size={18} />
+                        <LogOut size={15} />
                         {!sidebarCollapsed && <span>Sign Out</span>}
                     </button>
                 </div>
@@ -410,9 +593,9 @@ const SuperAdminDashboard = () => {
 
                 {/* TOP HEADER BAR */}
                 <header className={styles.navbar}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
-                            Platform Governance & SaaS Operations
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <h2 className={styles.navTitle}>
+                            {activeTab === 'analytics' ? 'Website Intelligence & SaaS Telemetry' : 'Platform Governance & SaaS Operations'}
                         </h2>
                     </div>
 
@@ -422,7 +605,7 @@ const SuperAdminDashboard = () => {
                             onClick={() => setShowOnboardModal(true)}
                             className={styles.addBtn}
                         >
-                            <Plus size={18} /> Onboard New Cafe
+                            <Plus size={15} /> Onboard New Cafe
                         </button>
                     </div>
                 </header>
@@ -430,56 +613,58 @@ const SuperAdminDashboard = () => {
                 <div className={styles.content}>
 
                     {/* STATS CARDS */}
-                    <div className={styles.statsGrid}>
-                        <div className={`${styles.statCard} ${styles.statCardBlue}`}>
-                            <div className={`${styles.iconBox} ${styles.blueIcon}`}>
-                                <Building size={24} />
+                    {activeTab !== 'analytics' && (
+                        <div className={styles.statsGrid}>
+                            <div className={`${styles.statCard} ${styles.statCardBlue}`}>
+                                <div className={`${styles.iconBox} ${styles.blueIcon}`}>
+                                    <Building size={16} />
+                                </div>
+                                <div className={styles.statInfo}>
+                                    <h3>Total Cafes</h3>
+                                    <p className={styles.statValue}>{tenants.length}</p>
+                                </div>
                             </div>
-                            <div className={styles.statInfo}>
-                                <h3>Total Cafes</h3>
-                                <p className={styles.statValue}>{tenants.length}</p>
-                            </div>
-                        </div>
 
-                        <div className={`${styles.statCard} ${styles.statCardGreen}`}>
-                            <div className={`${styles.iconBox} ${styles.greenIcon}`}>
-                                <CreditCard size={24} />
+                            <div className={`${styles.statCard} ${styles.statCardGreen}`}>
+                                <div className={`${styles.iconBox} ${styles.greenIcon}`}>
+                                    <CreditCard size={16} />
+                                </div>
+                                <div className={styles.statInfo}>
+                                    <h3>Active Plans</h3>
+                                    <p className={styles.statValue}>{stats.activesubs}</p>
+                                </div>
                             </div>
-                            <div className={styles.statInfo}>
-                                <h3>Active Plans</h3>
-                                <p className={styles.statValue}>{stats.activesubs}</p>
-                            </div>
-                        </div>
 
-                        <div className={`${styles.statCard} ${styles.statCardPurple}`}>
-                            <div className={`${styles.iconBox} ${styles.purpleIcon}`}>
-                                <BarChart3 size={24} />
+                            <div className={`${styles.statCard} ${styles.statCardPurple}`}>
+                                <div className={`${styles.iconBox} ${styles.purpleIcon}`}>
+                                    <BarChart3 size={16} />
+                                </div>
+                                <div className={styles.statInfo}>
+                                    <h3>Total Platform Revenue</h3>
+                                    <p className={styles.statValue}>₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
+                                </div>
                             </div>
-                            <div className={styles.statInfo}>
-                                <h3>Total Platform Revenue</h3>
-                                <p className={styles.statValue}>₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
-                            </div>
-                        </div>
 
-                        <div className={`${styles.statCard} ${styles.statCardAmber}`} style={{ borderColor: stats.expiringSoonCount > 0 ? '#f59e0b' : undefined }}>
-                            <div className={`${styles.iconBox} ${styles.amberIcon}`}>
-                                <AlertTriangle size={24} />
-                            </div>
-                            <div className={styles.statInfo}>
-                                <h3>Expiring in ≤ 3 Days</h3>
-                                <p className={styles.statValue} style={{ color: stats.expiringSoonCount > 0 ? '#d97706' : undefined }}>
-                                    {stats.expiringSoonCount}
-                                </p>
+                            <div className={`${styles.statCard} ${styles.statCardAmber}`} style={{ borderColor: stats.expiringSoonCount > 0 ? '#f59e0b' : undefined }}>
+                                <div className={`${styles.iconBox} ${styles.amberIcon}`}>
+                                    <AlertTriangle size={16} />
+                                </div>
+                                <div className={styles.statInfo}>
+                                    <h3>Expiring in ≤ 3 Days</h3>
+                                    <p className={styles.statValue} style={{ color: stats.expiringSoonCount > 0 ? '#d97706' : undefined }}>
+                                        {stats.expiringSoonCount}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* EXPIRING SOON WARNING BANNER */}
-                    {stats.expiringSoonCount > 0 && (
-                        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '14px 20px', borderRadius: '16px', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: 12, color: '#92400e', fontSize: '13px', fontWeight: 700 }}>
-                            <AlertTriangle size={20} color="#d97706" />
+                    {activeTab !== 'analytics' && stats.expiringSoonCount > 0 && (
+                        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '6px 12px', borderRadius: '8px', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: 8, color: '#92400e', fontSize: '12px', fontWeight: 700 }}>
+                            <AlertTriangle size={15} color="#d97706" />
                             <span>
-                                <strong>Notification Alert:</strong> {stats.expiringSoonCount} cafe subscription(s) will expire within the next 3 days. Please review and renew their plans to prevent service interruption.
+                                <strong>Alert:</strong> {stats.expiringSoonCount} cafe subscription(s) expire within 3 days.
                             </span>
                         </div>
                     )}
@@ -494,21 +679,16 @@ const SuperAdminDashboard = () => {
                                 <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div>
                                         <h2>Registered Cafes ({tenants.length})</h2>
-                                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>Manage cafe subscriptions, activation, and status in real-time</p>
                                     </div>
-                                    <button type="button" onClick={() => setShowOnboardModal(true)} className={styles.actionBtn}>
-                                        + Onboard Cafe
-                                    </button>
+
                                 </div>
 
                                 <div className={styles.tableWrapper}>
                                     <table className={styles.table}>
                                         <thead>
                                             <tr>
-                                                <th>Cafe Name</th>
-                                                <th>Owner / Contact</th>
-                                                <th>Email</th>
-                                                <th>Phone</th>
+                                                <th>Cafe & Owner</th>
+                                                <th>Contact</th>
                                                 <th>Current Plan</th>
                                                 <th>Status</th>
                                                 <th>Expiry Date</th>
@@ -516,9 +696,18 @@ const SuperAdminDashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {paginatedTenants.length === 0 ? (
+                                            {loading ? (
                                                 <tr>
-                                                    <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '0' }}>
+                                                        <div className={styles.tableLoaderContainer}>
+                                                            <div className={styles.tableSpinnerRing}></div>
+                                                            <span className={styles.tableLoaderText}>Loading registered cafes...</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ) : paginatedTenants.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b' }}>
                                                         No cafes registered yet.
                                                     </td>
                                                 </tr>
@@ -534,18 +723,22 @@ const SuperAdminDashboard = () => {
 
                                                     return (
                                                         <tr key={tenant._id}>
-                                                            <td className={styles.tenantName}>{tenant.name}</td>
-                                                            <td style={{ fontWeight: 600, color: '#334155' }}>
-                                                                {tenant.adminName || tenant.ownerName || 'Admin'}
-                                                            </td>
-                                                            <td style={{ color: '#475569' }}>{tenant.email}</td>
-                                                            <td style={{ color: '#475569' }}>{tenant.phone || '—'}</td>
                                                             <td>
-                                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                                <div className={styles.tenantName}>{tenant.name}</div>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                                                                    {tenant.adminName || tenant.ownerName || 'Admin'}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <div style={{ color: '#0f172a', fontWeight: 600, fontSize: '12px' }}>{tenant.email}</div>
+                                                                <div style={{ color: '#64748b', fontSize: '11px' }}>{tenant.phone || '—'}</div>
+                                                            </td>
+                                                            <td>
+                                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                                                                     <span className={`${styles.badge} ${styles.planBadge}`}>
                                                                         {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
                                                                     </span>
-                                                                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569' }}>
+                                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#334155' }}>
                                                                         ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
                                                                     </span>
                                                                 </div>
@@ -565,49 +758,50 @@ const SuperAdminDashboard = () => {
                                                                     </span>
                                                                 ) : (
                                                                     <span className={styles.badge} style={{ background: '#dcfce7', color: '#166534' }}>
-                                                                        Active ({daysLeft !== null ? `${daysLeft} days` : 'Unlimited'})
+                                                                        Active ({daysLeft !== null ? `${daysLeft}d` : 'Unlimited'})
                                                                     </span>
                                                                 )}
                                                             </td>
-                                                            <td style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                                                            <td style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
                                                                 {endDate ? endDate.toLocaleDateString('en-IN') : 'N/A'}
                                                             </td>
                                                             <td>
-                                                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                                                                <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
                                                                     <button
                                                                         type="button"
-                                                                        className={styles.actionBtn}
+                                                                        className={styles.managePlanBtn}
                                                                         onClick={() => {
                                                                             setEditingTenant(tenant);
                                                                             setSelectedPlan(sub.plan || '1_month');
                                                                             setCustomPriceVal(sub.price || 999);
                                                                             setShowPlanModal(true);
                                                                         }}
+                                                                        title="Manage Plan & Pricing"
                                                                     >
-                                                                        Manage Plan
+                                                                        <SlidersHorizontal size={13} />
                                                                     </button>
 
                                                                     {sub.isActive ? (
                                                                         <button
                                                                             type="button"
-                                                                            className={styles.deleteBtn}
-                                                                            style={{ color: '#d97706', borderColor: '#fcd34d', background: '#fffbeb' }}
+                                                                            className={styles.deactivateIconBtn}
                                                                             onClick={() => handleDeactivatePlan(tenant._id)}
+                                                                            title="Deactivate Plan"
                                                                         >
-                                                                            Deactivate
+                                                                            <PowerOff size={13} />
                                                                         </button>
                                                                     ) : (
                                                                         <button
                                                                             type="button"
-                                                                            className={styles.actionBtn}
-                                                                            style={{ color: '#166534', borderColor: '#86efac', background: '#f0fdf4' }}
+                                                                            className={styles.activateIconBtn}
                                                                             onClick={() => {
                                                                                 setEditingTenant(tenant);
                                                                                 setSelectedPlan(sub.plan || '1_month');
                                                                                 setShowPlanModal(true);
                                                                             }}
+                                                                            title="Activate Plan"
                                                                         >
-                                                                            Activate
+                                                                            <Zap size={13} />
                                                                         </button>
                                                                     )}
 
@@ -617,7 +811,7 @@ const SuperAdminDashboard = () => {
                                                                         onClick={() => handleViewHistory(tenant)}
                                                                         title="View Plan History"
                                                                     >
-                                                                        <History size={14} />
+                                                                        <History size={13} />
                                                                     </button>
 
                                                                     <button
@@ -626,7 +820,7 @@ const SuperAdminDashboard = () => {
                                                                         onClick={() => handleDeleteTenant(tenant._id, tenant.name)}
                                                                         title="Delete Tenant"
                                                                     >
-                                                                        <Trash2 size={14} />
+                                                                        <Trash2 size={13} />
                                                                     </button>
                                                                 </div>
                                                             </td>
@@ -705,9 +899,19 @@ const SuperAdminDashboard = () => {
 
                         return (
                             <div className={styles.tableSection}>
-                                <div className={styles.tableHeader}>
-                                    <h2>Website Demo Inquiries ({leads.length})</h2>
-                                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Requests submitted via the website demo form</p>
+                                <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <h2>Website Demo Inquiries ({leads.length})</h2>
+                                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Requests submitted via the website demo form</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setLoading(true); fetchTenantsAndLeads(); }}
+                                        className={styles.inlineRefreshBtn}
+                                        title="Refresh demo inquiries"
+                                    >
+                                        <RefreshCw size={13} className={loading ? styles.spin : ''} />
+                                    </button>
                                 </div>
 
                                 <div className={styles.tableWrapper}>
@@ -722,7 +926,16 @@ const SuperAdminDashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {paginatedLeads.length === 0 ? (
+                                            {loading ? (
+                                                <tr>
+                                                    <td colSpan={5} style={{ textAlign: 'center', padding: '0' }}>
+                                                        <div className={styles.tableLoaderContainer}>
+                                                            <div className={styles.tableSpinnerRing}></div>
+                                                            <span className={styles.tableLoaderText}>Loading demo inquiries...</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ) : paginatedLeads.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                                         No demo inquiries logged yet.
@@ -748,8 +961,9 @@ const SuperAdminDashboard = () => {
                                                                 type="button"
                                                                 className={styles.deleteBtn}
                                                                 onClick={() => handleDeleteLead(lead._id)}
+                                                                title="Delete Lead"
                                                             >
-                                                                Delete
+                                                                <Trash2 size={13} />
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -830,7 +1044,7 @@ const SuperAdminDashboard = () => {
                                     </div>
 
                                     {/* Filter Pills */}
-                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                                         {[
                                             { id: 'all', label: 'All' },
                                             { id: 'open', label: 'Open' },
@@ -859,6 +1073,15 @@ const SuperAdminDashboard = () => {
                                                 {f.label}
                                             </button>
                                         ))}
+
+                                        <button
+                                            type="button"
+                                            onClick={() => { setLoading(true); fetchTenantsAndLeads(); }}
+                                            className={styles.inlineRefreshBtn}
+                                            title="Refresh issue tickets"
+                                        >
+                                            <RefreshCw size={13} className={loading ? styles.spin : ''} />
+                                        </button>
                                     </div>
                                 </div>
 
@@ -877,7 +1100,16 @@ const SuperAdminDashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {paginatedTickets.length === 0 ? (
+                                            {loading ? (
+                                                <tr>
+                                                    <td colSpan={8} style={{ textAlign: 'center', padding: '0' }}>
+                                                        <div className={styles.tableLoaderContainer}>
+                                                            <div className={styles.tableSpinnerRing}></div>
+                                                            <span className={styles.tableLoaderText}>Loading support & issue tickets...</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ) : paginatedTickets.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={8} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
                                                         <CheckCircle2 size={32} color="#86efac" style={{ margin: '0 auto 8px auto', display: 'block' }} />
@@ -935,14 +1167,14 @@ const SuperAdminDashboard = () => {
                                                         <td>
                                                             <button
                                                                 type="button"
-                                                                className={styles.actionBtn}
+                                                                className={styles.reviewBtn}
                                                                 onClick={() => {
                                                                     setSelectedTicket(ticket);
                                                                     setTicketAdminNotes(ticket.adminNotes || '');
                                                                 }}
-                                                                style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 800 }}
+                                                                title="Review & Resolve Ticket"
                                                             >
-                                                                Review & Fix
+                                                                <Eye size={13} />
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -992,6 +1224,475 @@ const SuperAdminDashboard = () => {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* SECTION 4: TRAFFIC & USER ACTIVITIES INTELLIGENCE HUB */}
+                    {activeTab === 'analytics' && (() => {
+                        const summary = analyticsStats?.summary || {
+                            todayViews: 0,
+                            yesterdayViews: 0,
+                            todayUnique: 0,
+                            todayGrowth: 0,
+                            totalLogs: 0,
+                            todayLeads: 0,
+                            todayOrders: 0
+                        };
+
+                        const dailyStats = analyticsStats?.dailyStats || [];
+                        const maxDailyView = Math.max(1, ...dailyStats.map(d => Math.max(d.pageviews || 0, d.uniqueVisitors || 0)));
+                        const topPages = analyticsStats?.topPages || [];
+                        const devices = analyticsStats?.devices || { Mobile: 0, Desktop: 0, Tablet: 0 };
+                        const totalDevices = Math.max(1, (devices.Mobile || 0) + (devices.Desktop || 0) + (devices.Tablet || 0));
+                        const cities = analyticsStats?.cities || [];
+
+                        return (
+                            <div>
+                                {/* ANALYTICS HEADER */}
+                                <div className={styles.analyticsHeader}>
+                                    <div className={styles.analyticsHeaderTitle}>
+                                        <h2>
+                                            <Activity size={18} color="#4f46e5" />
+                                            Website Traffic & User Activity Intelligence
+                                        </h2>
+                                        <p>Real-time visitor telemetry, daily traffic volume, conversion checkpoints, and granular user audit trail</p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div className={styles.liveBadge}>
+                                            <span className={styles.pulseDot}></span>
+                                            Live Telemetry
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className={styles.refreshBtn}
+                                            onClick={() => {
+                                                fetchAnalyticsStats();
+                                                fetchActivities(activitiesPage, activityCategory, activitySearch);
+                                            }}
+                                            title="Refresh Analytics & Activity Feed"
+                                        >
+                                            <RefreshCw size={13} className={loadingAnalytics ? styles.spin : ''} />
+                                            <span>Refresh Data</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* 4 KPI METRIC CARDS */}
+                                <div className={styles.analyticsKpiGrid}>
+                                    <div className={styles.kpiCard}>
+                                        <div className={styles.kpiHeader}>
+                                            <h3>Today's Unique Visitors</h3>
+                                            <div className={styles.kpiIconBox} style={{ background: '#eef2ff', color: '#4f46e5' }}>
+                                                <Users size={16} />
+                                            </div>
+                                        </div>
+                                        <p className={styles.kpiValue}>{summary.todayUnique.toLocaleString('en-IN')}</p>
+                                        <p className={styles.kpiSubtext}>
+                                            <span className={`${styles.kpiTrendBadge} ${summary.todayGrowth >= 0 ? styles.trendUp : styles.trendDown}`}>
+                                                {summary.todayGrowth >= 0 ? '↑' : '↓'} {Math.abs(summary.todayGrowth)}%
+                                            </span>
+                                            vs yesterday ({summary.yesterdayViews || 0} hits)
+                                        </p>
+                                    </div>
+
+                                    <div className={styles.kpiCard}>
+                                        <div className={styles.kpiHeader}>
+                                            <h3>Today's Pageviews</h3>
+                                            <div className={styles.kpiIconBox} style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                                                <Eye size={16} />
+                                            </div>
+                                        </div>
+                                        <p className={styles.kpiValue}>{summary.todayViews.toLocaleString('en-IN')}</p>
+                                        <p className={styles.kpiSubtext}>
+                                            Total across homepage, demo & menus
+                                        </p>
+                                    </div>
+
+                                    <div className={styles.kpiCard}>
+                                        <div className={styles.kpiHeader}>
+                                            <h3>Platform Actions Logged</h3>
+                                            <div className={styles.kpiIconBox} style={{ background: '#ecfdf5', color: '#059669' }}>
+                                                <Activity size={16} />
+                                            </div>
+                                        </div>
+                                        <p className={styles.kpiValue}>{summary.totalLogs.toLocaleString('en-IN')}</p>
+                                        <p className={styles.kpiSubtext}>
+                                            Real-time user actions, clicks & orders
+                                        </p>
+                                    </div>
+
+                                    <div className={styles.kpiCard}>
+                                        <div className={styles.kpiHeader}>
+                                            <h3>Conversions Today</h3>
+                                            <div className={styles.kpiIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>
+                                                <TrendingUp size={16} />
+                                            </div>
+                                        </div>
+                                        <p className={styles.kpiValue}>{(summary.todayLeads + summary.todayOrders).toLocaleString('en-IN')}</p>
+                                        <p className={styles.kpiSubtext}>
+                                            <strong>{summary.todayLeads}</strong> Demo Leads · <strong>{summary.todayOrders}</strong> Orders
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* DAILY TRAFFIC TREND CHART */}
+                                <div className={styles.analyticsCard}>
+                                    <div className={styles.analyticsCardHeader}>
+                                        <div className={styles.analyticsCardHeaderTitle}>
+                                            <h3>
+                                                <BarChart3 size={15} color="#4f46e5" />
+                                                Daily Website Traffic & Visitor Volume (Last 7 Days)
+                                            </h3>
+                                            <p>Comparative volume of pageviews vs unique visitors navigating the platform</p>
+                                        </div>
+                                        <div className={styles.chartLegend}>
+                                            <div className={styles.legendPill}>
+                                                <span className={styles.legendDotViews}></span>
+                                                <span>Pageviews</span>
+                                            </div>
+                                            <div className={styles.legendPill}>
+                                                <span className={styles.legendDotVisitors}></span>
+                                                <span>Unique Visitors</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.chartCanvasWrapper}>
+                                        <div className={styles.barChartRow}>
+                                            {dailyStats.map((day, idx) => {
+                                                const viewsPct = Math.min(100, Math.max(10, Math.round((day.pageviews / maxDailyView) * 100)));
+                                                const visitorsPct = Math.min(100, Math.max(8, Math.round((day.uniqueVisitors / maxDailyView) * 100)));
+                                                const isHovered = hoveredBarIndex === idx;
+
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={styles.dayColumn}
+                                                        onMouseEnter={() => setHoveredBarIndex(idx)}
+                                                        onMouseLeave={() => setHoveredBarIndex(null)}
+                                                    >
+                                                        {isHovered && (
+                                                            <div className={styles.chartTooltip}>
+                                                                <span style={{ color: '#a5b4fc', fontSize: '11px' }}>{day.date}</span>
+                                                                <span>👁️ Pageviews: {day.pageviews}</span>
+                                                                <span>👤 Unique Visitors: {day.uniqueVisitors}</span>
+                                                            </div>
+                                                        )}
+                                                        <div className={styles.barsGroup}>
+                                                            <div
+                                                                className={`${styles.barFill} ${styles.barViews}`}
+                                                                style={{ height: `${viewsPct}%` }}
+                                                                title={`Pageviews: ${day.pageviews}`}
+                                                            />
+                                                            <div
+                                                                className={`${styles.barFill} ${styles.barVisitors}`}
+                                                                style={{ height: `${visitorsPct}%` }}
+                                                                title={`Unique Visitors: ${day.uniqueVisitors}`}
+                                                            />
+                                                        </div>
+                                                        <div className={styles.columnDateLabel}>{day.date.split(',')[0]}</div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* TWO COLUMN GRID: TOP PAGES & DEVICES / GEO */}
+                                <div className={styles.twoColGrid}>
+                                    {/* TOP PAGES */}
+                                    <div className={styles.analyticsCard} style={{ margin: 0 }}>
+                                        <div className={styles.analyticsCardHeader}>
+                                            <div className={styles.analyticsCardHeaderTitle}>
+                                                <h3>
+                                                    <Globe size={18} color="#4f46e5" />
+                                                    Top Visited Pages & Content Funnel
+                                                </h3>
+                                                <p>Most popular URLs and conversion checkpoints</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            {topPages.length === 0 ? (
+                                                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No pageview data recorded yet.</div>
+                                            ) : (
+                                                topPages.map((page, idx) => (
+                                                    <div key={idx} className={styles.pageVisitItem}>
+                                                        <div className={styles.pageVisitMeta}>
+                                                            <div>
+                                                                <span className={styles.pagePath}>{page.path}</span>
+                                                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                                                                    {getPageFriendlyTitle(page.path)}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ textAlign: 'right' }}>
+                                                                <span className={styles.pageViewsCount}>{page.count} visits</span>
+                                                                <div style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5' }}>
+                                                                    {page.percentage}%
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className={styles.progressBarTrack}>
+                                                            <div className={styles.progressBarFill} style={{ width: `${page.percentage}%` }} />
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* DEVICES & LOCATIONS */}
+                                    <div className={styles.analyticsCard} style={{ margin: 0 }}>
+                                        <div className={styles.analyticsCardHeader}>
+                                            <div className={styles.analyticsCardHeaderTitle}>
+                                                <h3>
+                                                    <Smartphone size={18} color="#0891b2" />
+                                                    Device & Audience Distribution
+                                                </h3>
+                                                <p>Breakdown across devices and active visitor metros</p>
+                                            </div>
+                                        </div>
+                                        <div className={styles.devicesList}>
+                                            <div className={styles.deviceRow}>
+                                                <div className={styles.deviceInfo}>
+                                                    <div className={styles.deviceIcon}>
+                                                        <Smartphone size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <div>Mobile Devices</div>
+                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>Smartphones & handheld QR scans</div>
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div className={styles.deviceStats}>{devices.Mobile || 0} visits</div>
+                                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>
+                                                        {Math.round(((devices.Mobile || 0) / totalDevices) * 100)}%
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className={styles.deviceRow}>
+                                                <div className={styles.deviceInfo}>
+                                                    <div className={styles.deviceIcon}>
+                                                        <Laptop size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <div>Desktop & Laptops</div>
+                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>SaaS portal & POS terminals</div>
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div className={styles.deviceStats}>{devices.Desktop || 0} visits</div>
+                                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5' }}>
+                                                        {Math.round(((devices.Desktop || 0) / totalDevices) * 100)}%
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* TOP CITIES PILLS */}
+                                            <div style={{ marginTop: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                                                <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '8px' }}>
+                                                    Top Visitor Hubs
+                                                </div>
+                                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                                    {cities.map((city, cIdx) => (
+                                                        <div key={cIdx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px 10px', fontSize: '12px', fontWeight: 700, color: '#334155', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                            <MapPin size={12} color="#6366f1" />
+                                                            {city.name} ({city.count})
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* GRANULAR USER ACTIVITY AUDIT LOG TABLE */}
+                                <div className={styles.tableSection}>
+                                    <div className={styles.tableHeader}>
+                                        <div>
+                                            <h2>User Activity & Event Audit Trail ({activitiesTotal})</h2>
+                                            <p>Granular chronological log of actions performed by visitors, registered cafes, and admins</p>
+                                        </div>
+                                    </div>
+
+                                    {/* SEARCH & CATEGORY FILTERS */}
+                                    <div className={styles.searchFilterBar}>
+                                        <div className={styles.searchInputWrapper}>
+                                            <Search size={15} className={styles.searchIcon} />
+                                            <input
+                                                type="text"
+                                                className={styles.searchInput}
+                                                placeholder="Search by user, email, cafe, IP, city, or action..."
+                                                value={activitySearch}
+                                                onChange={(e) => {
+                                                    setActivitySearch(e.target.value);
+                                                    fetchActivities(1, activityCategory, e.target.value);
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className={styles.categoryPills}>
+                                            {[
+                                                { id: 'all', label: 'All Activities' },
+                                                { id: 'Traffic', label: 'Traffic & Views' },
+                                                { id: 'Orders', label: 'Customer Orders' },
+                                                { id: 'Lead', label: 'Demo Leads' },
+                                                { id: 'Auth', label: 'Admin & Auth' },
+                                                { id: 'Operations', label: 'Operations' }
+                                            ].map(cat => (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    className={`${styles.categoryPill} ${activityCategory === cat.id ? styles.activeCategoryPill : ''}`}
+                                                    onClick={() => {
+                                                        setActivityCategory(cat.id);
+                                                        fetchActivities(1, cat.id, activitySearch);
+                                                    }}
+                                                >
+                                                    {cat.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* ACTIVITY STREAM TABLE */}
+                                    <div className={styles.tableWrapper}>
+                                        <table className={styles.table}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Timestamp</th>
+                                                    <th>User / Identity</th>
+                                                    <th>Category</th>
+                                                    <th>Action Performed</th>
+                                                    <th>Page / Context</th>
+                                                    <th>Device & Location</th>
+                                                    <th>IP Address</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {loadingAnalytics ? (
+                                                    <tr>
+                                                        <td colSpan={7} style={{ textAlign: 'center', padding: '0' }}>
+                                                            <div className={styles.tableLoaderContainer}>
+                                                                <div className={styles.tableSpinnerRing}></div>
+                                                                <span className={styles.tableLoaderText}>Loading activity telemetry audit log...</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ) : activities.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+                                                            No activity matches the current search or filter.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    activities.map(act => {
+                                                        const userObj = act.user || {};
+                                                        const isGuest = !userObj.role || userObj.role === 'guest';
+                                                        const isOrder = act.category === 'Orders';
+                                                        const isLead = act.category === 'Lead';
+                                                        const isAuth = act.category === 'Auth';
+
+                                                        let badgeClass = styles.badgeTraffic;
+                                                        if (isOrder) badgeClass = styles.badgeOrder;
+                                                        else if (isLead) badgeClass = styles.badgeLead;
+                                                        else if (isAuth) badgeClass = styles.badgeAuth;
+                                                        else if (act.category === 'Operations') badgeClass = styles.badgeOperations;
+
+                                                        return (
+                                                            <tr key={act._id}>
+                                                                <td style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                                        <Clock size={12} color="#94a3b8" />
+                                                                        {formatActivityTime(act.timestamp)}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div>
+                                                                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>
+                                                                            {userObj.name || (isGuest ? 'Guest Visitor' : 'User')}
+                                                                            {userObj.role && (
+                                                                                <span className={`${styles.userRoleBadge} ${userObj.role === 'super_admin' ? styles.roleSuperAdmin : userObj.role === 'admin' ? styles.roleOwner : styles.roleVisitor}`}>
+                                                                                    {userObj.role.replace('_', ' ')}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                            {userObj.tenantName && userObj.tenantName !== 'Public Web' ? (
+                                                                                <span>🏪 {userObj.tenantName}</span>
+                                                                            ) : (
+                                                                                <span>{userObj.email}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <span className={`${styles.eventBadge} ${badgeClass}`}>
+                                                                        {act.category || 'General'}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>
+                                                                        {act.action}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <span style={{ fontFamily: 'monospace', fontSize: '12px', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', color: '#475569' }}>
+                                                                        {act.path || '/'}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <div style={{ fontSize: '12px', color: '#334155' }}>
+                                                                        <div style={{ fontWeight: 600 }}>{act.city || 'Bangalore'}, {act.country || 'India'}</div>
+                                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                            {act.device || 'Desktop'} · {act.browser || 'Chrome'}
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ fontSize: '11px', fontFamily: 'monospace', color: '#64748b' }}>
+                                                                    {act.ip || '127.0.0.1'}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* ACTIVITIES PAGINATION */}
+                                    {activitiesTotal > 0 && (
+                                        <div className={styles.paginationBar}>
+                                            <div className={styles.paginationInfo}>
+                                                Showing <strong>{(activitiesPage - 1) * 12 + 1}</strong> to <strong>{Math.min(activitiesPage * 12, activitiesTotal)}</strong> of <strong>{activitiesTotal}</strong> events
+                                            </div>
+                                            <div className={styles.paginationControls}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.pageBtn}
+                                                    disabled={activitiesPage === 1}
+                                                    onClick={() => fetchActivities(Math.max(1, activitiesPage - 1), activityCategory, activitySearch)}
+                                                    title="Previous Page"
+                                                >
+                                                    <ChevronLeft size={16} />
+                                                </button>
+                                                <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', padding: '0 8px' }}>
+                                                    Page {activitiesPage} of {activitiesPages}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className={styles.pageBtn}
+                                                    disabled={activitiesPage === activitiesPages}
+                                                    onClick={() => fetchActivities(Math.min(activitiesPages, activitiesPage + 1), activityCategory, activitySearch)}
+                                                    title="Next Page"
+                                                >
+                                                    <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })()}
@@ -1274,7 +1975,16 @@ const SuperAdminDashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(!tenantHistoryLogs || tenantHistoryLogs.length === 0) ? (
+                                    {loadingHistory ? (
+                                        <tr>
+                                            <td colSpan={5} style={{ textAlign: 'center', padding: '0' }}>
+                                                <div className={styles.tableLoaderContainer}>
+                                                    <div className={styles.tableSpinnerRing}></div>
+                                                    <span className={styles.tableLoaderText}>Loading subscription history...</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (!tenantHistoryLogs || tenantHistoryLogs.length === 0) ? (
                                         <tr>
                                             <td colSpan={5} style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b' }}>
                                                 No subscription history logged yet.
@@ -1500,6 +2210,86 @@ const SuperAdminDashboard = () => {
                             <X size={18} />
                         </button>
                         <img src={viewingScreenshot} alt="Full screenshot preview" style={{ width: '100%', height: '100%', objectFit: 'contain', maxHeight: '85vh' }} />
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL 7: CUSTOM UI CONFIRMATION POPUP */}
+            {confirmModal.isOpen && (
+                <div className={styles.modalOverlay} onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}>
+                    <div
+                        className={styles.modalContent}
+                        style={{
+                            maxWidth: 420,
+                            textAlign: 'center',
+                            padding: '1.75rem 1.6rem',
+                            borderRadius: '16px',
+                            background: '#ffffff',
+                            boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.35)',
+                            border: '1px solid #e2e8f0'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: '50%',
+                            background: confirmModal.type === 'danger' ? '#fef2f2' : '#fffbeb',
+                            color: confirmModal.type === 'danger' ? '#dc2626' : '#d97706',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 1rem auto',
+                            border: confirmModal.type === 'danger' ? '4px solid #fee2e2' : '4px solid #fef3c7'
+                        }}>
+                            {confirmModal.type === 'danger' ? <Trash2 size={24} /> : <AlertTriangle size={24} />}
+                        </div>
+
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                            {confirmModal.title}
+                        </h3>
+
+                        <p style={{ margin: '0 0 1.5rem 0', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
+                            {confirmModal.message}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                            <button
+                                type="button"
+                                disabled={confirmModal.loading}
+                                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                className={styles.cancelBtn}
+                                style={{ flex: 1, padding: '9px 14px', fontSize: '13px', fontWeight: 700 }}
+                            >
+                                {confirmModal.cancelText || 'Cancel'}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={confirmModal.loading}
+                                onClick={confirmModal.onConfirm}
+                                style={{
+                                    flex: 1,
+                                    padding: '9px 14px',
+                                    background: confirmModal.type === 'danger' ? '#dc2626' : '#d97706',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontWeight: 800,
+                                    fontSize: '13px',
+                                    cursor: confirmModal.loading ? 'not-allowed' : 'pointer',
+                                    opacity: confirmModal.loading ? 0.7 : 1,
+                                    boxShadow: confirmModal.type === 'danger'
+                                        ? '0 4px 12px rgba(220, 38, 38, 0.3)'
+                                        : '0 4px 12px rgba(217, 119, 6, 0.3)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 6
+                                }}
+                            >
+                                {confirmModal.loading ? 'Processing...' : confirmModal.confirmText}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
