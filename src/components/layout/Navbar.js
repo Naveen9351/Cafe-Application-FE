@@ -472,21 +472,19 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
 
           {/* Right Action CTAs (Single Row) */}
           <div className={styles.rightActions}>
-            <a
-              href="https://wa.me/919680132562"
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              to="/whatsapp"
               className={styles.whatsappPill}
-              title="Chat with Tech Specialist"
+              title="WhatsApp CRM & Ordering Integration"
             >
               <Phone style={{ width: 12, height: 12 }} />
               <span>WhatsApp</span>
-            </a>
+            </Link>
 
             <a
               href={getBillingPortalUrl()}
               className={styles.loginBtn}
-              title="DineviQ Restaurant & Cafe Login Portal"
+              title="Restaurant Login Portal"
             >
               <LogIn style={{ width: 12, height: 12 }} />
               <span>Restaurant Login</span>
@@ -529,13 +527,14 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className={styles.mobileDrawer}>
-          <Link to="/products" onClick={closeDropdowns} className={styles.navBtn}>Products Suite</Link>
-          <Link to="/solutions" onClick={closeDropdowns} className={styles.navBtn}>Solutions for Outlets</Link>
-          <Link to="/pricing" onClick={closeDropdowns} className={styles.navBtn}>Pricing (₹)</Link>
-          <Link to="/about" onClick={closeDropdowns} className={styles.navBtn}>About DINEVIQ</Link>
-          <Link to="/contact" onClick={closeDropdowns} className={styles.navBtn}>Contact Support</Link>
+          <Link to="/products" onClick={closeDropdowns} className={styles.navBtn}>Products</Link>
+          <Link to="/pricing" onClick={closeDropdowns} className={styles.navBtn}>Pricing</Link>
+          <Link to="/whatsapp" onClick={closeDropdowns} className={styles.navBtn}>WhatsApp</Link>
+          <Link to="/contact" onClick={closeDropdowns} className={styles.navBtn}>Contact</Link>
+          <Link to="/solutions" onClick={closeDropdowns} className={styles.navBtn}>Solutions</Link>
+          <Link to="/about" onClick={closeDropdowns} className={styles.navBtn}>About</Link>
           <Link to="/menu" onClick={closeDropdowns} className="badge-pill badge-emerald" style={{ alignSelf: 'flex-start' }}>
-            <QrCode style={{ width: 14, height: 14 }} /> Live Customer QR Menu
+            <QrCode style={{ width: 14, height: 14 }} /> Live QR Menu Demo
           </Link>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>

@@ -32,7 +32,7 @@ const traditionalChaos = [
   }
 ];
 
-const sarviqVelocity = [
+const dineviqVelocity = [
   {
     title: "Instant Seated QR Visual Menu",
     desc: "Diners scan in 1 second. High-res imagery and AI modifiers trigger instant upselling with zero app download.",
@@ -65,102 +65,22 @@ export default function BeforeAfterSection() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header Animation — fires when section top hits 90% from viewport top
+      // Snappy non-blocking entrance
       gsap.fromTo(
         headerRef.current,
-        { opacity: 0, y: 30 },
+        { opacity: 0, y: 15 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 0.35,
+          ease: "power2.out",
           scrollTrigger: {
-            trigger: headerRef.current,
-            start: "top 90%",
-            toggleActions: "play none none reverse"
+            trigger: sectionRef.current,
+            start: "top 85%",
+            once: true
           }
         }
       );
-
-      // Left Column Slide-In (from left)
-      if (leftCardRef.current) {
-        gsap.fromTo(
-          leftCardRef.current,
-          { opacity: 0, x: -60, scale: 0.97 },
-          {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            duration: 0.9,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: leftCardRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
-
-      // Right Column Slide-In (from right)
-      if (rightCardRef.current) {
-        gsap.fromTo(
-          rightCardRef.current,
-          { opacity: 0, x: 60, scale: 0.97 },
-          {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            duration: 0.9,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: rightCardRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
-
-      // Stagger left items
-      if (leftItemsRef.current.length) {
-        gsap.fromTo(
-          leftItemsRef.current,
-          { opacity: 0, x: -20 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.5,
-            stagger: 0.12,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: leftCardRef.current,
-              start: "top 85%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
-
-      // Stagger right items
-      if (rightItemsRef.current.length) {
-        gsap.fromTo(
-          rightItemsRef.current,
-          { opacity: 0, x: 20 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.5,
-            stagger: 0.12,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: rightCardRef.current,
-              start: "top 85%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
     }, sectionRef);
 
     return () => ctx.revert();
@@ -322,7 +242,7 @@ export default function BeforeAfterSection() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 18 }}>
-                {sarviqVelocity.map((item, idx) => (
+                {dineviqVelocity.map((item, idx) => (
                   <div
                     key={idx}
                     ref={(el) => { rightItemsRef.current[idx] = el; }}

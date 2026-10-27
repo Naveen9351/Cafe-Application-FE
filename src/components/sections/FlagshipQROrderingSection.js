@@ -27,81 +27,22 @@ export default function FlagshipQROrderingSection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header Animation
+      // Snappy non-blocking entrance
       gsap.fromTo(
         headerRef.current,
-        { opacity: 0, y: 35 },
+        { opacity: 0, y: 15 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 0.35,
+          ease: "power2.out",
           scrollTrigger: {
-            trigger: headerRef.current,
-            start: "top 90%",
-            toggleActions: "play none none reverse"
+            trigger: sectionRef.current,
+            start: "top 85%",
+            once: true
           }
         }
       );
-
-      // Spotlight Image Cards Stagger & 3D tilt entrance
-      if (spotlightsRef.current) {
-        gsap.fromTo(
-          spotlightsRef.current.children,
-          { opacity: 0, y: 40, scale: 0.96 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.8,
-            stagger: 0.2,
-            ease: "back.out(1.4)",
-            scrollTrigger: {
-              trigger: spotlightsRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
-
-      // Live Scannable Widget
-      if (widgetRef.current) {
-        gsap.fromTo(
-          widgetRef.current,
-          { opacity: 0, y: 45 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.9,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: widgetRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
-
-      // Guided Simulator Box
-      if (guidedRef.current) {
-        gsap.fromTo(
-          guidedRef.current,
-          { opacity: 0, y: 50 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.9,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: guidedRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
     }, sectionRef);
 
     return () => ctx.revert();

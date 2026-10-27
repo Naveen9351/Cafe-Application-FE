@@ -8,12 +8,16 @@ const SEO_MAP = {
     description: 'DineviQ (dineviq.com) is the premier autonomous AI restaurant management operating system in India. Zero-latency QR table ordering, live KDS, cloud POS, and UPI billing.'
   },
   '/login': {
-    title: 'Restaurant & Cafe Login | DineviQ Billing & POS Portal',
-    description: 'Secure login portal for DineviQ Restaurant, Cafe & Bar management. Access Cloud POS billing, KDS kitchen orders, table management, and cashier billing.'
+    title: 'Restaurant Login | DineviQ Cloud Billing & POS Portal',
+    description: 'Restaurant Login. Secure access for restaurant cashiers, managers, and kitchen staff to Cloud POS billing, KDS orders, and table management.'
+  },
+  '/whatsapp': {
+    title: 'WhatsApp Ordering & Digital Bills | DineviQ',
+    description: 'WhatsApp Restaurant Integration. Send automated WhatsApp bills, loyalty points, and enable frictionless customer chat ordering.'
   },
   '/products': {
     title: 'Products Suite | DineviQ — Dynamic QR, KDS & Cloud POS',
-    description: 'Explore the DineviQ product suite: Contactless QR Table Menus, Multi-Station Kitchen Display System (KDS), Cloud POS Billing, and Recipe Inventory.'
+    description: 'Products Suite. Explore Contactless QR Table Menus, Multi-Station Kitchen Display System (KDS), Cloud POS Billing, and Recipe Inventory.'
   },
   '/solutions': {
     title: 'Industry Solutions | DineviQ — Cafes, QSRs, Fine Dining & Cloud Kitchens',
@@ -21,7 +25,7 @@ const SEO_MAP = {
   },
   '/pricing': {
     title: 'Pricing Plans in ₹ INR | DineviQ — Autonomous Restaurant Software',
-    description: 'Transparent restaurant tech pricing in Indian Rupees (₹). Start at ₹199/mo with zero hidden fees, unlimited tables, and 24/7 dedicated support.'
+    description: 'Pricing Plans. Transparent restaurant tech pricing in Indian Rupees (₹) starting at ₹199/mo with zero hidden fees and unlimited tables.'
   },
   '/demo': {
     title: 'Schedule a Live 1-on-1 Walkthrough | DineviQ Restaurant OS',
@@ -29,11 +33,11 @@ const SEO_MAP = {
   },
   '/about': {
     title: 'About DineviQ — Building the Future of Restaurant Technology',
-    description: 'Meet the team behind DineviQ. Discover how autonomous AI eliminates restaurant friction, paper tickets, and inventory chaos.'
+    description: 'About DineviQ. Discover how autonomous AI eliminates restaurant friction, paper tickets, and inventory chaos.'
   },
   '/contact': {
     title: 'Contact Support & Enterprise Sales | DineviQ',
-    description: 'Get 24/7 support for DineviQ. Email support@dineviq.com or connect via WhatsApp +91 96801 32562 for setup and billing assistance.'
+    description: 'Contact Us. 24/7 dedicated support and enterprise sales assistance. Connect via phone, email, or direct WhatsApp support.'
   },
   '/features/pos-billing': {
     title: 'Cloud POS & Thermal Receipt Printer | DineviQ',

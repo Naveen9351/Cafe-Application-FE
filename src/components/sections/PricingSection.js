@@ -13,42 +13,22 @@ export default function PricingSection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header Animation
+      // Snappy non-blocking entrance
       gsap.fromTo(
         headerRef.current,
-        { opacity: 0, y: 30 },
+        { opacity: 0, y: 15 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 0.35,
+          ease: "power2.out",
           scrollTrigger: {
-            trigger: headerRef.current,
+            trigger: sectionRef.current,
             start: "top 85%",
-            toggleActions: "play none none reverse"
+            once: true
           }
         }
       );
-
-      // Pricing Calculator Container Entrance
-      if (pricingCardRef.current) {
-        gsap.fromTo(
-          pricingCardRef.current,
-          { opacity: 0, y: 40, scale: 0.98 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.9,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: pricingCardRef.current,
-              start: "top 80%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
     }, sectionRef);
 
     return () => ctx.revert();

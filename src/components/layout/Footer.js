@@ -105,29 +105,29 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
           {/* Col 4: Platform & Support */}
           <div>
             <h4 className={styles.colTitle}>
-              Resources & Access
+              Platform & Sitelinks
             </h4>
             <div className={styles.linkList}>
-              <Link to="/pricing" className={styles.footerLink}>
-                Pricing Plans in ₹
+              <a href={getBillingPortalUrl()} className={styles.footerLink} title="Restaurant Login Portal" style={{ fontWeight: 800, color: 'var(--color-primary)' }}>
+                Restaurant Login
+              </a>
+              <Link to="/whatsapp" className={styles.footerLink} title="WhatsApp CRM & Ordering">
+                WhatsApp
               </Link>
-              <Link to="/menu" className={styles.footerLink} style={{ color: "var(--color-emerald)", fontWeight: 800 }}>
+              <Link to="/products" className={styles.footerLink}>
+                Products
+              </Link>
+              <Link to="/pricing" className={styles.footerLink}>
+                Pricing
+              </Link>
+              <Link to="/contact" className={styles.footerLink}>
+                Contact
+              </Link>
+              <Link to="/menu" className={styles.footerLink} style={{ color: "var(--color-emerald)", fontWeight: 700 }}>
                 <QrCode style={{ width: 14, height: 14 }} />
                 <span>Live Customer QR Menu</span>
               </Link>
-              <Link to="/about" className={styles.footerLink}>
-                About DINEVIQ
-              </Link>
-              <Link to="/contact" className={styles.footerLink}>
-                Contact Support
-              </Link>
-              <Link to="/careers" className={styles.footerLink}>
-                Careers
-              </Link>
-              <a href={getBillingPortalUrl()} className={styles.footerLink} title="DineviQ Restaurant & Cafe Login Portal">
-                Restaurant & Cafe Login
-              </a>
-              <Link to="/register" className={styles.footerLink} style={{ color: "var(--color-primary)", fontWeight: 800 }}>
+              <Link to="/register" className={styles.footerLink}>
                 Register Restaurant
               </Link>
             </div>

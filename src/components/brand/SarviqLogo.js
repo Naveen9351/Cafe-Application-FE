@@ -4,6 +4,7 @@ export default function ServiqLogo({
   size = 'md',
   theme = 'light',
   showSubtitle = true,
+  subtitle = 'The Art of Good Taste',
   showBadge = true,
   animated = true,
   className = '',
@@ -51,9 +52,9 @@ export default function ServiqLogo({
           style={{
             position: 'absolute',
             inset: -2,
-            background: 'radial-gradient(circle, rgba(37,99,235,0.35) 0%, rgba(79,70,229,0.15) 50%, transparent 75%)',
-            borderRadius: '14px',
-            filter: 'blur(6px)',
+            background: 'radial-gradient(circle, rgba(74,93,76,0.3) 0%, rgba(202,168,77,0.2) 60%, transparent 80%)',
+            borderRadius: '50%',
+            filter: 'blur(5px)',
             opacity: 0.8
           }}
         />
@@ -69,16 +70,14 @@ export default function ServiqLogo({
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: dimensions.iconSize >= 42 ? '12px' : '8px',
-            objectFit: 'cover',
+            borderRadius: '50%',
+            objectFit: 'contain',
             position: 'relative',
             zIndex: 2,
             boxShadow: isDark
-              ? '0 4px 16px rgba(6,182,212,0.35)'
-              : '0 4px 14px rgba(37,99,235,0.25)',
-            border: isDark
-              ? '1px solid rgba(6,182,212,0.4)'
-              : '1px solid rgba(37,99,235,0.25)'
+              ? '0 3px 12px rgba(0,0,0,0.4)'
+              : '0 3px 10px rgba(0,0,0,0.1)',
+            filter: isDark ? 'drop-shadow(0 2px 6px rgba(202,168,77,0.25))' : 'none'
           }}
         />
 
@@ -151,42 +150,10 @@ export default function ServiqLogo({
             DINEVIQ
           </span>
 
-          {showBadge && (
-            <span
-              style={{
-                fontSize: '9px',
-                fontWeight: 800,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                padding: '2px 6px',
-                borderRadius: '6px',
-                background: 'linear-gradient(135deg, rgba(37,99,235,0.12) 0%, rgba(79,70,229,0.12) 100%)',
-                color: '#2563eb',
-                border: '1px solid rgba(37,99,235,0.25)',
-                display: 'inline-flex',
-                alignItems: 'center'
-              }}
-            >
-              AI OS
-            </span>
-          )}
+
         </div>
 
-        {showSubtitle && (
-          <span
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontSize: dimensions.subClass,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: isDark ? '#94a3b8' : '#64748b',
-              marginTop: '3px'
-            }}
-          >
-            Autonomous Restaurant OS
-          </span>
-        )}
+
       </div>
     </div>
   );

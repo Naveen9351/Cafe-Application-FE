@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
@@ -7,6 +7,8 @@ import LandingPage from './components/LandingPage';
 import PageLoader from './components/PageLoader';
 import ScrollToTop from './components/common/ScrollToTop';
 import SEOManager from './components/common/SEOManager';
+import LandingChatbot from './components/LandingChatbot';
+import LeadCaptureModal from './components/interactive/LeadCaptureModal';
 import { isBillingOrAdminSubdomain } from './utils/subdomain';
 
 // Route-level code splitting for non-landing pages (reduces initial JS payload by ~70%)
@@ -179,6 +181,7 @@ function AppRoutes() {
         <Route path="/book-demo" element={<BookDemoPage />} />
 
         {/* Feature Pages */}
+        <Route path="/whatsapp" element={<CRMLoyaltyPage />} />
         <Route path="/features/pos-billing" element={<POSBillingPage />} />
         <Route path="/features/kitchen-ops" element={<KitchenOpsPage />} />
         <Route path="/features/inventory" element={<InventoryPage />} />
@@ -226,6 +229,52 @@ function AppRoutes() {
   );
 }
 
+// Global Public Chatbot Wrapper
+// Renders the Khushi AI Sales & Support Chatbot across all public screens / website pages
+const PublicChatbotWrapper = () => {
+  const location = useLocation();
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const pathname = (location.pathname || '').toLowerCase();
+
+  // Suppress on desktop Electron POS
+  if (isDesktopApp()) {
+    return null;
+  }
+
+  // Suppress on dedicated billing / admin subdomains (e.g. billing.dineviq.com)
+  if (isBillingOrAdminSubdomain()) {
+    return null;
+  }
+
+  // Hide on internal staff & super-admin operational dashboards
+  if (pathname.startsWith('/admin') || pathname.startsWith('/super-admin')) {
+    return null;
+  }
+
+  // Hide on customer table ordering and dining session screens
+  if (
+    pathname.startsWith('/menu') ||
+    pathname.startsWith('/cart') ||
+    pathname.startsWith('/order') ||
+    pathname.startsWith('/history') ||
+    pathname.startsWith('/profile')
+  ) {
+    return null;
+  }
+
+  return (
+    <>
+      <LandingChatbot onOpenDemo={() => setIsDemoModalOpen(true)} />
+      <LeadCaptureModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        title="Schedule a Personalized DINEVIQ Walkthrough"
+        subtitle="See how DINEVIQ cuts table turn times and automates your kitchen in under 15 minutes."
+      />
+    </>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -234,6 +283,7 @@ function App() {
           <SEOManager />
           <ScrollToTop />
           <AppRoutes />
+          <PublicChatbotWrapper />
         </Router>
       </CartProvider>
     </AuthProvider>

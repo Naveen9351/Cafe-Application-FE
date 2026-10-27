@@ -11,8 +11,6 @@ import PricingSection from './sections/PricingSection';
 import FAQSection from './sections/FAQSection';
 import CTASection from './sections/CTASection';
 import LeadCaptureModal from './interactive/LeadCaptureModal';
-import LiveActivityToast from './interactive/LiveActivityToast';
-import LandingChatbot from './LandingChatbot';
 
 export default function LandingPage() {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
@@ -58,16 +56,13 @@ export default function LandingPage() {
       {/* Footer */}
       <Footer onOpenDemo={handleOpenDemo} />
 
-      {/* Interactive Overlays & Dedicated AI Concierge (Zero Overlap) */}
+      {/* Interactive Overlays (Zero Overlap) */}
       <LeadCaptureModal
         isOpen={isDemoModalOpen}
         onClose={handleCloseDemo}
         title="Schedule a Personalized DINEVIQ Walkthrough"
         subtitle="See how DINEVIQ cuts table turn times and automates your kitchen in under 15 minutes."
       />
-
-      <LiveActivityToast />
-      <LandingChatbot onOpenDemo={handleOpenDemo} />
     </div>
   );
 }

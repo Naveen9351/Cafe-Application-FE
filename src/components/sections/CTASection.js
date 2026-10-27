@@ -36,50 +36,22 @@ export default function CTASection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: cardRef.current,
-          start: "top 90%",
-          toggleActions: "play none none reverse"
-        },
-        defaults: { ease: "power3.out" }
-      });
-
-      tl.fromTo(
+      // Snappy non-blocking entrance
+      gsap.fromTo(
         cardRef.current,
-        { opacity: 0, scale: 0.94, y: 50 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.9 }
-      )
-        .fromTo(
-          badgeRef.current,
-          { opacity: 0, y: -15, scale: 0.9 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.5 },
-          "-=0.5"
-        )
-        .fromTo(
-          titleRef.current,
-          { opacity: 0, y: 20 },
-          { opacity: 1, y: 0, duration: 0.6 },
-          "-=0.3"
-        )
-        .fromTo(
-          subtitleRef.current,
-          { opacity: 0, y: 15 },
-          { opacity: 1, y: 0, duration: 0.5 },
-          "-=0.3"
-        )
-        .fromTo(
-          actionsRef.current.children,
-          { opacity: 0, y: 20, scale: 0.92 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.12, ease: "back.out(1.5)" },
-          "-=0.25"
-        )
-        .fromTo(
-          propsRef.current.children,
-          { opacity: 0, y: 15 },
-          { opacity: 1, y: 0, duration: 0.5, stagger: 0.1 },
-          "-=0.2"
-        );
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.35,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: cardRef.current,
+            start: "top 85%",
+            once: true
+          }
+        }
+      );
 
       // Continuous subtle pulse on the card border glow
       gsap.to(cardRef.current, {

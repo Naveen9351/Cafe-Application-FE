@@ -30,43 +30,22 @@ export default function EcosystemSection() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header Animation
+      // Snappy non-blocking entrance
       gsap.fromTo(
         headerRef.current,
-        { opacity: 0, y: 30 },
+        { opacity: 0, y: 15 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 0.35,
+          ease: "power2.out",
           scrollTrigger: {
-            trigger: headerRef.current,
-            start: "top 90%",
-            toggleActions: "play none none reverse"
+            trigger: sectionRef.current,
+            start: "top 85%",
+            once: true
           }
         }
       );
-
-      // Tab switcher entrance
-      if (tabsRef.current) {
-        gsap.fromTo(
-          tabsRef.current.children,
-          { opacity: 0, y: 20, scale: 0.95 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.6,
-            stagger: 0.1,
-            ease: "back.out(1.4)",
-            scrollTrigger: {
-              trigger: tabsRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
     }, sectionRef);
 
     return () => ctx.revert();

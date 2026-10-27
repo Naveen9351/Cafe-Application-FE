@@ -25,63 +25,22 @@ export default function FlagshipKDSSection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header Animation
+      // Snappy non-blocking entrance
       gsap.fromTo(
         headerRef.current,
-        { opacity: 0, y: 35 },
+        { opacity: 0, y: 15 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 0.35,
+          ease: "power2.out",
           scrollTrigger: {
-            trigger: headerRef.current,
-            start: "top 90%",
-            toggleActions: "play none none reverse"
+            trigger: sectionRef.current,
+            start: "top 85%",
+            once: true
           }
         }
       );
-
-      // 3 Metric Cards Stagger Pop-in
-      if (metricsRef.current) {
-        gsap.fromTo(
-          metricsRef.current.children,
-          { opacity: 0, y: 30, scale: 0.94 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.7,
-            stagger: 0.15,
-            ease: "back.out(1.5)",
-            scrollTrigger: {
-              trigger: metricsRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
-
-      // KDS Simulator Slide-Up
-      if (simulatorCardRef.current) {
-        gsap.fromTo(
-          simulatorCardRef.current,
-          { opacity: 0, y: 45, scale: 0.98 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.9,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: simulatorCardRef.current,
-              start: "top 90%",
-              toggleActions: "play none none reverse"
-            }
-          }
-        );
-      }
     }, sectionRef);
 
     return () => ctx.revert();
