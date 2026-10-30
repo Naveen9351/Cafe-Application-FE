@@ -103,12 +103,14 @@ const Login = () => {
   const handleLoginSuccess = (user, token) => {
     const targetPath = user.role === "super_admin" ? "/super-admin" : "/admin/dashboard";
 
-    if (typeof window !== "undefined" && window.location.hostname.includes("dineviq.com")) {
+    // Only handoff cross-origin if logging in from billing/admin subdomain
+    if (typeof window !== "undefined" && isBillingOrAdminSubdomain()) {
       const storedToken = token || localStorage.getItem('token');
       window.location.href = buildAuthCallbackUrl(storedToken, user, targetPath);
       return;
     }
 
+    // On www.dineviq.com or local origin, navigate directly within SPA
     navigate(targetPath);
   };
 

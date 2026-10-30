@@ -24,7 +24,12 @@ export default function LandingPage() {
   const handleScrollToOnboard = () => {
     const el = document.getElementById('onboard') || document.getElementById('register');
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+      const navOffset = 75;
+      const elementPosition = el.getBoundingClientRect().top + window.pageYOffset;
+      window.scrollTo({
+        top: Math.max(0, elementPosition - navOffset),
+        behavior: 'smooth'
+      });
     }
   };
 
@@ -38,10 +43,14 @@ export default function LandingPage() {
       location.hash === '#register' ||
       location.pathname === '/register'
     ) {
-      const timer = setTimeout(() => {
-        handleScrollToOnboard();
-      }, 400);
-      return () => clearTimeout(timer);
+      const t1 = setTimeout(handleScrollToOnboard, 150);
+      const t2 = setTimeout(handleScrollToOnboard, 500);
+      const t3 = setTimeout(handleScrollToOnboard, 900);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
   }, [location]);
 

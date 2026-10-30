@@ -182,13 +182,7 @@ const LoginRoute = () => {
     return <Navigate to={dest} replace />;
   }
 
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname.toLowerCase();
-    if (host.includes('dineviq.com') && !host.startsWith('billing.') && !host.startsWith('admin.')) {
-      window.location.replace('https://billing.dineviq.com/login');
-      return <PageLoader duration={300} />;
-    }
-  }
+
 
   return <Login />;
 };

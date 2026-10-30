@@ -12,6 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { API_URL as API } from '../config/api';
+import { getSharedAuth } from '../utils/authStorage';
 
 const SuperAdminDashboard = () => {
     const [tenants, setTenants] = useState([]);
@@ -397,9 +398,10 @@ const SuperAdminDashboard = () => {
         setLoadingExplore(true);
         setExploreData(null);
         try {
-            const token = localStorage.getItem('token');
+            const { token: sharedToken } = getSharedAuth();
+            const token = sharedToken || localStorage.getItem('token');
             const res = await axios.get(`${API}/tenants/${tenant._id}/explore-analytics`, {
-                headers: { 'x-auth-token': token }
+                headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
             });
             if (res.data?.success) {
                 setExploreData(res.data);
@@ -1187,9 +1189,7 @@ const SuperAdminDashboard = () => {
                                         <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div>
                                                 <h2>Submitted Applications ({filteredRequests.length})</h2>
-                                                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>
-                                                    Verified registrations from landing page & completed invitation forms awaiting Super Admin review
-                                                </p>
+
                                             </div>
 
                                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1384,9 +1384,7 @@ const SuperAdminDashboard = () => {
                                         <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div>
                                                 <h2>Sent Invitations ({sentInvitations.length})</h2>
-                                                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>
-                                                    Onboarding links dispatched by Super Admin where the cafe owner has not yet completed & submitted registration
-                                                </p>
+
                                             </div>
 
                                             <button
@@ -2372,11 +2370,9 @@ const SuperAdminDashboard = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                             <div>
                                 <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Send size={18} color="#4338ca" /> Generate Cafe Onboarding Link
+                                    <Send size={18} color="#4338ca" /> Cafe Onboarding Link
                                 </h2>
-                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
-                                    Create a personalized onboarding invitation and send it directly to prospective cafe owners
-                                </p>
+
                             </div>
                             <button
                                 type="button"
@@ -2414,34 +2410,7 @@ const SuperAdminDashboard = () => {
                                     </button>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setGeneratedInviteLink('');
-                                        setShowInviteModal(false);
-                                        fetchTenantsAndLeads(true);
-                                    }}
-                                    className={styles.inviteDoneBtn}
-                                    style={{
-                                        marginTop: 18,
-                                        width: '100%',
-                                        padding: '12px 24px',
-                                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                                        color: '#ffffff',
-                                        border: 'none',
-                                        borderRadius: '10px',
-                                        fontSize: '14px',
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8,
-                                        boxShadow: '0 4px 14px rgba(5, 150, 105, 0.35)'
-                                    }}
-                                >
-                                    <CheckCircle2 size={16} /> Done & Close
-                                </button>
+
                             </div>
                         ) : (
                             <form onSubmit={handleGenerateInvite} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

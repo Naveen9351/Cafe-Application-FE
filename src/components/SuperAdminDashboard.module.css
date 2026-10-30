@@ -1968,6 +1968,7 @@
     border-radius: 20px;
     width: 100%;
     max-width: 900px;
+    min-height: 480px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
@@ -2010,6 +2011,8 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 380px;
     gap: 1.25rem;
 }
 
@@ -2346,21 +2349,23 @@
 .inviteDoneBtn {
     margin-top: 18px;
     width: 100%;
+    min-height: 46px;
     padding: 12px 24px;
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: #ffffff !important;
     border: none !important;
     outline: none !important;
     border-radius: 10px;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     gap: 8px;
     box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    box-sizing: border-box !important;
+    flex-shrink: 0;
 }
 
 .inviteDoneBtn:hover {
@@ -2838,21 +2843,23 @@
 .inviteDoneBtn {
     margin-top: 18px;
     width: 100%;
+    min-height: 46px;
     padding: 12px 24px;
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: #ffffff !important;
     border: none !important;
     outline: none !important;
     border-radius: 10px;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     gap: 8px;
     box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    box-sizing: border-box !important;
+    flex-shrink: 0;
 }
 
 .inviteDoneBtn:hover {
