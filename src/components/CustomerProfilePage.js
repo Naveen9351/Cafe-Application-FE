@@ -428,31 +428,43 @@ export default function CustomerProfilePage() {
 
   // Complete Production Logout Flow
   const handlePerformLogout = () => {
-    // 1. Clear session and user identification
-    localStorage.removeItem('customer_name');
+    // 1. Clear session, customer verification, and user identification
+    localStorage.removeItem('verifiedCustomer');
+    localStorage.removeItem('customer_user');
+    localStorage.removeItem('verified_customer_phone');
     localStorage.removeItem('customer_phone');
+    localStorage.removeItem('customer_name');
     localStorage.removeItem('serviq_customer');
     localStorage.removeItem('serviq_dietary_pref');
     localStorage.removeItem('serviq_veg_only');
     try {
       localStorage.removeItem(getVegKey());
+      localStorage.removeItem(getFavKey());
     } catch (e) {}
     localStorage.removeItem('customer_birthday');
     localStorage.removeItem('customer_anniversary');
     localStorage.removeItem('serviq_session_orders');
+    localStorage.removeItem('serviq_order_history');
     localStorage.removeItem('serviq_last_order_id');
+    localStorage.removeItem('cart');
 
     // 2. Reset in-memory state
     setCustomerName('Guest Diner');
     setCustomerPhone('');
+    setNameInput('Guest Diner');
+    setPhoneInput('');
     setCustomerBirthday('');
     setCustomerAnniversary('');
     setIsVegOnly(false);
     setIsLogoutModalOpen(false);
 
+    // 3. Dispatch storage and cart events so other tabs and components update immediately
+    window.dispatchEvent(new Event('cartUpdated'));
+    window.dispatchEvent(new Event('storage'));
+
     toast.success('👋 Logged out successfully! Browsing as Guest Diner.');
     
-    // 3. Navigate back to menu with table token preserved
+    // 4. Navigate back to menu with table token preserved
     navigate(`/menu${tableTarget}`, { replace: true });
   };
 
