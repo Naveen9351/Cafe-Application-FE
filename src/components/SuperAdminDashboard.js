@@ -6,7 +6,8 @@ import {
     BarChart3, Users, CreditCard, Building, Plus, LogOut, Trash2, Zap,
     ChevronLeft, ChevronRight, ShieldAlert, Clock, AlertTriangle, CheckCircle2, History, X, Lock, Image, User, Mail, Phone, MapPin, Upload,
     Activity, TrendingUp, Globe, Smartphone, Laptop, Search, RefreshCw, Eye, ArrowUpRight, Filter,
-    SlidersHorizontal, PowerOff, Power
+    SlidersHorizontal, PowerOff, Power,
+    Compass, Send, Link as LinkIcon, Copy, UserCheck, DollarSign, Sparkles
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -43,6 +44,38 @@ const SuperAdminDashboard = () => {
     const [ticketsPage, setTicketsPage] = useState(1);
     const [ticketsPerPage, setTicketsPerPage] = useState(5);
     const [ticketFilter, setTicketFilter] = useState('all'); // 'all', 'open', 'in_progress', 'resolved', 'closed'
+
+    // Onboarding & Approval Queue State
+    const [onboardingRequests, setOnboardingRequests] = useState([]);
+    const [sentInvitations, setSentInvitations] = useState([]);
+    const [activeAppsSubTab, setActiveAppsSubTab] = useState('submitted'); // 'submitted' | 'invitations'
+    const [requestsPage, setRequestsPage] = useState(1);
+    const [requestsPerPage, setRequestsPerPage] = useState(5);
+    const [invitesPage, setInvitesPage] = useState(1);
+    const [invitesPerPage, setInvitesPerPage] = useState(5);
+    const [resendingInviteId, setResendingInviteId] = useState(null);
+    const [requestFilter, setRequestFilter] = useState('all'); // 'all', 'pending_approval', 'approved', 'rejected'
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [inviteForm, setInviteForm] = useState({
+        email: '',
+        businessName: '',
+        ownerName: '',
+        phone: '',
+        plan: 'free_trial'
+    });
+    const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+    const [generatedInviteLink, setGeneratedInviteLink] = useState('');
+    const [showApproveModal, setShowApproveModal] = useState(false);
+    const [approvingRequest, setApprovingRequest] = useState(null);
+    const [approvePlan, setApprovePlan] = useState('free_trial');
+    const [isApproving, setIsApproving] = useState(false);
+
+    // Cafe Explore Analytics State
+    const [showExploreModal, setShowExploreModal] = useState(false);
+    const [exploreCafe, setExploreCafe] = useState(null);
+    const [exploreData, setExploreData] = useState(null);
+    const [loadingExplore, setLoadingExplore] = useState(false);
+    const [exploreTimeRange, setExploreTimeRange] = useState('7d');
 
     // Modals
     const [showOnboardModal, setShowOnboardModal] = useState(false);
@@ -102,11 +135,23 @@ const SuperAdminDashboard = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const [tenantsRes, leadsRes, ticketsRes] = await Promise.allSettled([
+            const [tenantsRes, leadsRes, ticketsRes, requestsRes, invitesRes] = await Promise.allSettled([
                 axios.get(`${API}/tenants`, { headers: { 'x-auth-token': token } }),
                 axios.get(`${API}/leads`, { headers: { 'x-auth-token': token } }),
-                axios.get(`${API}/tickets/all`, { headers: { 'x-auth-token': token } })
+                axios.get(`${API}/tickets/all`, { headers: { 'x-auth-token': token } }),
+                axios.get(`${API}/tenants/onboarding-requests`, { headers: { 'x-auth-token': token } }),
+                axios.get(`${API}/tenants/onboarding-requests?type=invitations`, { headers: { 'x-auth-token': token } })
             ]);
+
+            if (requestsRes.status === 'fulfilled') {
+                const reqData = requestsRes.value.data;
+                setOnboardingRequests(Array.isArray(reqData) ? reqData : []);
+            }
+
+            if (invitesRes.status === 'fulfilled') {
+                const invData = invitesRes.value.data;
+                setSentInvitations(Array.isArray(invData) ? invData : []);
+            }
 
             if (tenantsRes.status === 'fulfilled') {
                 const resTenants = tenantsRes.value.data;
@@ -221,6 +266,151 @@ const SuperAdminDashboard = () => {
             fetchActivities(1, activityCategory, activitySearch);
         }
     }, [activeTab]);
+
+    // Onboarding Invite & Approval Handlers
+    const handleGenerateInvite = async (e) => {
+        e.preventDefault();
+        if (!inviteForm.email.trim()) {
+            toast.error('Email is required to send invitation');
+            return;
+        }
+        setIsGeneratingInvite(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API}/tenants/generate-invite`, inviteForm, {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.data?.success) {
+                setGeneratedInviteLink(res.data.inviteLink);
+                toast.success(`Invitation link generated & emailed to ${inviteForm.email}!`);
+                fetchTenantsAndLeads(true);
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to generate invitation');
+        } finally {
+            setIsGeneratingInvite(false);
+        }
+    };
+
+    const handleApproveRequest = async () => {
+        if (!approvingRequest) return;
+        setIsApproving(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.put(`${API}/tenants/onboarding-requests/${approvingRequest._id}/approve`, {
+                plan: approvePlan
+            }, { headers: { 'x-auth-token': token } });
+
+            if (res.data?.success) {
+                toast.success(res.data.message || 'Cafe approved and onboarded successfully!');
+                setShowApproveModal(false);
+                setApprovingRequest(null);
+                fetchTenantsAndLeads();
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to approve application');
+        } finally {
+            setIsApproving(false);
+        }
+    };
+
+    const handleRejectRequest = (request) => {
+        setConfirmModal({
+            isOpen: true,
+            type: 'danger',
+            title: `Reject Application: ${request.businessName}`,
+            message: `Are you sure you want to reject the application from ${request.email}? An official update email will be sent to the applicant.`,
+            confirmText: 'Reject Application',
+            cancelText: 'Cancel',
+            loading: false,
+            onConfirm: async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.put(`${API}/tenants/onboarding-requests/${request._id}/reject`, {
+                        reason: 'Onboarding verification details could not be validated.'
+                    }, { headers: { 'x-auth-token': token } });
+
+                    toast.success(res.data?.message || 'Application rejected.');
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    fetchTenantsAndLeads();
+                } catch (err) {
+                    toast.error(err.response?.data?.error || 'Failed to reject application');
+                }
+            }
+        });
+    };
+
+    // Resend Invitation Email
+    const handleResendInvite = async (invite) => {
+        try {
+            setResendingInviteId(invite._id);
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API}/tenants/onboarding-requests/${invite._id}/resend-invite`, {}, {
+                headers: { 'x-auth-token': token }
+            });
+            toast.success(res.data?.message || `Invitation re-dispatched to ${invite.email}`);
+        } catch (err) {
+            console.error('Resend error:', err);
+            toast.error(err.response?.data?.error || 'Failed to resend invitation email');
+        } finally {
+            setResendingInviteId(null);
+        }
+    };
+
+    // Revoke / Delete Sent Invitation
+    const handleRevokeInvite = (invite) => {
+        setConfirmModal({
+            isOpen: true,
+            type: 'danger',
+            title: `Revoke Invitation?`,
+            message: `Are you sure you want to revoke the invitation link sent to "${invite.email}"? The cafe owner will no longer be able to use this link.`,
+            confirmText: 'Yes, Revoke',
+            cancelText: 'Cancel',
+            loading: false,
+            onConfirm: async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    await axios.delete(`${API}/tenants/onboarding-requests/${invite._id}`, {
+                        headers: { 'x-auth-token': token }
+                    });
+                    toast.success('Invitation revoked successfully');
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    fetchTenantsAndLeads();
+                } catch (err) {
+                    toast.error(err.response?.data?.error || 'Failed to revoke invitation');
+                }
+            }
+        });
+    };
+
+    // Copy Invite Link to Clipboard
+    const handleCopyInviteLink = (inviteToken) => {
+        if (!inviteToken) return;
+        const url = `${window.location.origin}/register?invite=${inviteToken}`;
+        navigator.clipboard.writeText(url);
+        toast.success('Invitation link copied to clipboard!');
+    };
+
+    const handleExploreCafe = async (tenant) => {
+        setExploreCafe(tenant);
+        setShowExploreModal(true);
+        setLoadingExplore(true);
+        setExploreData(null);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API}/tenants/${tenant._id}/explore-analytics`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.data?.success) {
+                setExploreData(res.data);
+            }
+        } catch (err) {
+            console.error('Explore analytics error:', err);
+            toast.error(err.response?.data?.error || 'Failed to load cafe analytics');
+        } finally {
+            setLoadingExplore(false);
+        }
+    };
 
     const handleTabChange = (tab) => {
         if (tab === activeTab) return;
@@ -542,6 +732,25 @@ const SuperAdminDashboard = () => {
 
                         <button
                             type="button"
+                            className={`${styles.navItem} ${activeTab === 'onboarding' ? styles.activeNavItem : ''}`}
+                            onClick={() => handleTabChange('onboarding')}
+                            title="Onboarding Applications"
+                        >
+                            <UserCheck size={16} color={onboardingRequests.filter(r => r.status === 'pending_approval').length > 0 ? '#10b981' : undefined} />
+                            {!sidebarCollapsed && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                    <span>Applications ({onboardingRequests.length})</span>
+                                    {onboardingRequests.filter(r => r.status === 'pending_approval').length > 0 && (
+                                        <span style={{ background: '#059669', color: '#fff', fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '100px', marginLeft: 4 }}>
+                                            {onboardingRequests.filter(r => r.status === 'pending_approval').length} NEW
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </button>
+
+                        <button
+                            type="button"
                             className={`${styles.navItem} ${activeTab === 'inquiries' ? styles.activeNavItem : ''}`}
                             onClick={() => handleTabChange('inquiries')}
                             title="Demo Inquiries"
@@ -792,6 +1001,15 @@ const SuperAdminDashboard = () => {
                                                                 <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
                                                                     <button
                                                                         type="button"
+                                                                        className={styles.exploreBtn}
+                                                                        onClick={() => handleExploreCafe(tenant)}
+                                                                        title="Explore Cafe Revenue, Orders & Analytics"
+                                                                    >
+                                                                        <Compass size={13} />
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
                                                                         className={styles.managePlanBtn}
                                                                         onClick={() => {
                                                                             setEditingTenant(tenant);
@@ -910,6 +1128,435 @@ const SuperAdminDashboard = () => {
                                             </div>
                                         </div>
                                     </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* SECTION: ONBOARDING & CAFE APPLICATIONS QUEUE */}
+                    {activeTab === 'onboarding' && (() => {
+                        const filteredRequests = onboardingRequests.filter(r => {
+                            if (requestFilter === 'all') return true;
+                            return r.status === requestFilter;
+                        });
+                        const totalReqPages = Math.max(1, Math.ceil(filteredRequests.length / requestsPerPage));
+                        const paginatedRequests = filteredRequests.slice((requestsPage - 1) * requestsPerPage, requestsPage * requestsPerPage);
+
+                        const totalInvPages = Math.max(1, Math.ceil(sentInvitations.length / invitesPerPage));
+                        const paginatedInvites = sentInvitations.slice((invitesPage - 1) * invitesPerPage, invitesPage * invitesPerPage);
+
+                        const pendingCount = onboardingRequests.filter(r => r.status === 'pending_approval').length;
+
+                        return (
+                            <div className={styles.tableSection}>
+                                {/* SUB-TABS: Submitted Applications vs Sent Invitations */}
+                                <div className={styles.subTabContainer}>
+                                    <button
+                                        type="button"
+                                        className={`${styles.subTabBtn} ${activeAppsSubTab === 'submitted' ? styles.subTabBtnActive : ''}`}
+                                        onClick={() => setActiveAppsSubTab('submitted')}
+                                    >
+                                        <UserCheck size={15} />
+                                        <span>Submitted Applications</span>
+                                        <span className={`${styles.subTabBadge} ${activeAppsSubTab === 'submitted' ? (pendingCount > 0 ? styles.subTabBadgeAlert : styles.subTabBadgeActive) : ''}`}>
+                                            {onboardingRequests.length}
+                                        </span>
+                                        {pendingCount > 0 && (
+                                            <span style={{ background: '#059669', color: '#fff', fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '100px' }}>
+                                                {pendingCount} Pending Review
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className={`${styles.subTabBtn} ${activeAppsSubTab === 'invitations' ? styles.subTabBtnActive : ''}`}
+                                        onClick={() => setActiveAppsSubTab('invitations')}
+                                    >
+                                        <Send size={14} />
+                                        <span>Sent Invitations (Awaiting Submission)</span>
+                                        <span className={`${styles.subTabBadge} ${activeAppsSubTab === 'invitations' ? styles.subTabBadgeActive : ''}`}>
+                                            {sentInvitations.length}
+                                        </span>
+                                    </button>
+                                </div>
+
+                                {activeAppsSubTab === 'submitted' ? (
+                                    <>
+                                        {/* TABLE 1: SUBMITTED APPLICATIONS */}
+                                        <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <h2>Submitted Applications ({filteredRequests.length})</h2>
+                                                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>
+                                                    Verified registrations from landing page & completed invitation forms awaiting Super Admin review
+                                                </p>
+                                            </div>
+
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                <div className={styles.timeRangeTabs}>
+                                                    {['all', 'pending_approval', 'approved', 'rejected'].map(st => (
+                                                        <button
+                                                            key={st}
+                                                            type="button"
+                                                            className={`${styles.timeRangeBtn} ${requestFilter === st ? styles.timeRangeBtnActive : ''}`}
+                                                            onClick={() => { setRequestFilter(st); setRequestsPage(1); }}
+                                                        >
+                                                            {st === 'all' ? 'All' : st === 'pending_approval' ? 'Pending Approval' : st.toUpperCase()}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    className={styles.inviteTopBtn}
+                                                    onClick={() => {
+                                                        setGeneratedInviteLink('');
+                                                        setShowInviteModal(true);
+                                                    }}
+                                                >
+                                                    <Send size={13} /> New Invite Link
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className={styles.tableWrapper}>
+                                            <table className={styles.table}>
+                                                <thead>
+                                                    <tr>
+                                                        <th>ESTABLISHMENT & OWNER</th>
+                                                        <th>CONTACT INFO</th>
+                                                        <th>CITY / LOCATION</th>
+                                                        <th>SOURCE</th>
+                                                        <th>STATUS</th>
+                                                        <th>SUBMITTED</th>
+                                                        <th>ACTIONS</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedRequests.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+                                                                <UserCheck size={32} style={{ display: 'block', margin: '0 auto 8px', opacity: 0.4 }} />
+                                                                No submitted applications found matching filter.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        paginatedRequests.map(req => {
+                                                            const isPending = req.status === 'pending_approval';
+                                                            const isApproved = req.status === 'approved';
+                                                            const isRejected = req.status === 'rejected';
+
+                                                            return (
+                                                                <tr key={req._id}>
+                                                                    <td>
+                                                                        <div className={styles.tenantName}>{req.businessName}</div>
+                                                                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                                                                            {req.ownerName || 'Applicant'}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div style={{ color: '#0f172a', fontWeight: 600, fontSize: '12px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                                            {req.email}
+                                                                            {req.isEmailVerified && (
+                                                                                <CheckCircle2 size={12} color="#059669" title="Email Verified" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div style={{ color: '#64748b', fontSize: '11px' }}>
+                                                                            {req.phone ? `+91 ${req.phone}` : '—'}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>
+                                                                            {req.city || req.address || '—'}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={styles.badge} style={req.source === 'admin_invite' ? { background: '#eef2ff', color: '#4338ca' } : { background: '#f1f5f9', color: '#475569' }}>
+                                                                            {req.source === 'admin_invite' ? 'Admin Invite' : 'Public Sign-up'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        {isPending ? (
+                                                                            <span className={styles.badge} style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
+                                                                                Pending Review
+                                                                            </span>
+                                                                        ) : isApproved ? (
+                                                                            <span className={styles.badge} style={{ background: '#dcfce7', color: '#166534' }}>
+                                                                                Approved & Live
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className={styles.badge} style={{ background: '#fee2e2', color: '#dc2626' }}>
+                                                                                Rejected
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                        {req.submittedAt ? new Date(req.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—')}
+                                                                    </td>
+                                                                    <td>
+                                                                        <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
+                                                                            {isPending && (
+                                                                                <>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className={styles.approveActionBtn}
+                                                                                        onClick={() => {
+                                                                                            setApprovingRequest(req);
+                                                                                            setApprovePlan(req.requestedPlan || 'free_trial');
+                                                                                            setShowApproveModal(true);
+                                                                                        }}
+                                                                                        title="Approve & Onboard Cafe"
+                                                                                    >
+                                                                                        <CheckCircle2 size={13} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className={styles.rejectActionBtn}
+                                                                                        onClick={() => handleRejectRequest(req)}
+                                                                                        title="Reject Application"
+                                                                                    >
+                                                                                        <X size={13} />
+                                                                                    </button>
+                                                                                </>
+                                                                            )}
+                                                                            {isApproved && (
+                                                                                <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Active</span>
+                                                                            )}
+                                                                            {isRejected && (
+                                                                                <span style={{ fontSize: '11px', color: '#991b1b', fontWeight: 500 }} title={req.rejectionReason}>Declined</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Pagination for Submitted Applications */}
+                                        {filteredRequests.length > 0 && (
+                                            <div className={styles.pagination}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <span style={{ fontSize: '11px', color: '#64748b' }}>Per page:</span>
+                                                    <select
+                                                        value={requestsPerPage}
+                                                        onChange={(e) => {
+                                                            setRequestsPerPage(Number(e.target.value));
+                                                            setRequestsPage(1);
+                                                        }}
+                                                        className={styles.perPageSelect}
+                                                    >
+                                                        <option value={5}>5</option>
+                                                        <option value={10}>10</option>
+                                                        <option value={20}>20</option>
+                                                    </select>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.pageBtn}
+                                                        disabled={requestsPage === 1}
+                                                        onClick={() => setRequestsPage(prev => Math.max(1, prev - 1))}
+                                                    >
+                                                        <ChevronLeft size={13} />
+                                                    </button>
+                                                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '0 8px' }}>
+                                                        {requestsPage} / {totalReqPages}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.pageBtn}
+                                                        disabled={requestsPage >= totalReqPages}
+                                                        onClick={() => setRequestsPage(prev => prev + 1)}
+                                                    >
+                                                        <ChevronRight size={13} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* TABLE 2: SENT INVITATIONS (Awaiting Cafe Submission) */}
+                                        <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <h2>Sent Invitations ({sentInvitations.length})</h2>
+                                                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>
+                                                    Onboarding links dispatched by Super Admin where the cafe owner has not yet completed & submitted registration
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className={styles.inviteTopBtn}
+                                                onClick={() => {
+                                                    setGeneratedInviteLink('');
+                                                    setShowInviteModal(true);
+                                                }}
+                                            >
+                                                <Send size={13} /> Dispatch New Invite
+                                            </button>
+                                        </div>
+
+                                        <div className={styles.tableWrapper}>
+                                            <table className={styles.table}>
+                                                <thead>
+                                                    <tr>
+                                                        <th>INVITED RECIPIENT</th>
+                                                        <th>CAFE / BUSINESS</th>
+                                                        <th>ASSIGNED PLAN</th>
+                                                        <th>DATE SENT</th>
+                                                        <th>INVITATION LINK</th>
+                                                        <th>STATUS</th>
+                                                        <th>ACTIONS</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedInvites.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+                                                                <Send size={32} style={{ display: 'block', margin: '0 auto 8px', opacity: 0.4 }} />
+                                                                No pending invitations found. Click "+ Dispatch New Invite" to invite a cafe owner.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        paginatedInvites.map(inv => {
+                                                            const planLabels = {
+                                                                'free_trial': '14-Day Free Trial',
+                                                                '1_month': '1 Month Starter',
+                                                                '6_months': '6 Months Saver',
+                                                                '1_year': '1 Year Ultimate'
+                                                            };
+                                                            const isResending = resendingInviteId === inv._id;
+
+                                                            return (
+                                                                <tr key={inv._id}>
+                                                                    <td>
+                                                                        <div style={{ color: '#0f172a', fontWeight: 600, fontSize: '12px' }}>
+                                                                            {inv.email}
+                                                                        </div>
+                                                                        {inv.ownerName && (
+                                                                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                                {inv.ownerName}
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td>
+                                                                        <div className={styles.tenantName}>
+                                                                            {inv.businessName || 'Cafe Partner'}
+                                                                        </div>
+                                                                        {inv.phone && inv.phone !== '0000000000' && (
+                                                                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                                +91 {inv.phone}
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={styles.badge} style={{ background: '#f1f5f9', color: '#334155', fontWeight: 600 }}>
+                                                                            {planLabels[inv.requestedPlan] || inv.requestedPlan || 'Free Trial'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={{ fontSize: '11px', color: '#64748b' }}>
+                                                                        {new Date(inv.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                                    </td>
+                                                                    <td>
+                                                                        {inv.inviteToken ? (
+                                                                            <div className={styles.inviteUrlBox}>
+                                                                                <span>...{inv.inviteToken.slice(-10)}</span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className={styles.copyMiniBtn}
+                                                                                    onClick={() => handleCopyInviteLink(inv.inviteToken)}
+                                                                                    title="Copy full invite URL to clipboard"
+                                                                                >
+                                                                                    <Copy size={11} /> Copy
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>—</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={styles.badge} style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+                                                                            Awaiting Submission
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                                                                            <button
+                                                                                type="button"
+                                                                                className={styles.resendActionBtn}
+                                                                                onClick={() => handleResendInvite(inv)}
+                                                                                disabled={isResending}
+                                                                                title="Resend invitation email to this recipient"
+                                                                            >
+                                                                                <RefreshCw size={11} className={isResending ? styles.spin : ''} />
+                                                                                {isResending ? 'Sending...' : 'Resend'}
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className={styles.revokeActionBtn}
+                                                                                onClick={() => handleRevokeInvite(inv)}
+                                                                                title="Revoke / Delete this invite link"
+                                                                            >
+                                                                                <Trash2 size={11} />
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Pagination for Sent Invitations */}
+                                        {sentInvitations.length > 0 && (
+                                            <div className={styles.pagination}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <span style={{ fontSize: '11px', color: '#64748b' }}>Per page:</span>
+                                                    <select
+                                                        value={invitesPerPage}
+                                                        onChange={(e) => {
+                                                            setInvitesPerPage(Number(e.target.value));
+                                                            setInvitesPage(1);
+                                                        }}
+                                                        className={styles.perPageSelect}
+                                                    >
+                                                        <option value={5}>5</option>
+                                                        <option value={10}>10</option>
+                                                        <option value={20}>20</option>
+                                                    </select>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.pageBtn}
+                                                        disabled={invitesPage === 1}
+                                                        onClick={() => setInvitesPage(prev => Math.max(1, prev - 1))}
+                                                    >
+                                                        <ChevronLeft size={13} />
+                                                    </button>
+                                                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '0 8px' }}>
+                                                        {invitesPage} / {totalInvPages}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.pageBtn}
+                                                        disabled={invitesPage >= totalInvPages}
+                                                        onClick={() => setInvitesPage(prev => prev + 1)}
+                                                    >
+                                                        <ChevronRight size={13} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         );
@@ -1717,6 +2364,473 @@ const SuperAdminDashboard = () => {
 
                 </div>
             </main>
+
+            {/* 0. INVITE CAFE OWNER MODAL */}
+            {showInviteModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent} style={{ maxWidth: 520 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Send size={18} color="#4338ca" /> Generate Cafe Onboarding Link
+                                </h2>
+                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                    Create a personalized onboarding invitation and send it directly to prospective cafe owners
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowInviteModal(false)}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {generatedInviteLink ? (
+                            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 18, textAlign: 'center' }}>
+                                <CheckCircle2 size={36} color="#059669" style={{ margin: '0 auto 8px' }} />
+                                <h3 style={{ margin: '0 0 6px', color: '#065f46', fontSize: '15px' }}>Invitation Dispatched!</h3>
+                                <p style={{ margin: '0 0 14px', fontSize: '12px', color: '#1e293b' }}>
+                                    An official email has been sent to <strong>{inviteForm.email}</strong> with their custom onboarding link.
+                                </p>
+
+                                <div style={{ display: 'flex', gap: 6, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={generatedInviteLink}
+                                        style={{ border: 'none', width: '100%', fontSize: '12px', outline: 'none', color: '#334155' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(generatedInviteLink);
+                                            toast.success('Link copied to clipboard!');
+                                        }}
+                                        style={{ background: '#059669', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                    >
+                                        <Copy size={12} /> Copy
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setGeneratedInviteLink('');
+                                        setShowInviteModal(false);
+                                        fetchTenantsAndLeads(true);
+                                    }}
+                                    className={styles.inviteDoneBtn}
+                                    style={{
+                                        marginTop: 18,
+                                        width: '100%',
+                                        padding: '12px 24px',
+                                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        fontSize: '14px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 8,
+                                        boxShadow: '0 4px 14px rgba(5, 150, 105, 0.35)'
+                                    }}
+                                >
+                                    <CheckCircle2 size={16} /> Done & Close
+                                </button>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleGenerateInvite} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.inputLabel}>Cafe Owner / Business Email *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        className={styles.inputField}
+                                        placeholder="name@restaurant.com"
+                                        value={inviteForm.email}
+                                        onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.inputLabel}>Cafe / Restaurant Name</label>
+                                        <input
+                                            type="text"
+                                            className={styles.inputField}
+                                            placeholder="e.g. Blue Tokai Bistro"
+                                            value={inviteForm.businessName}
+                                            onChange={(e) => setInviteForm(prev => ({ ...prev, businessName: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.inputLabel}>Owner / Manager Name</label>
+                                        <input
+                                            type="text"
+                                            className={styles.inputField}
+                                            placeholder="e.g. Ramesh Verma"
+                                            value={inviteForm.ownerName}
+                                            onChange={(e) => setInviteForm(prev => ({ ...prev, ownerName: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.inputLabel}>Mobile Number (Optional)</label>
+                                        <input
+                                            type="tel"
+                                            className={styles.inputField}
+                                            placeholder="10-digit mobile"
+                                            value={inviteForm.phone}
+                                            maxLength={10}
+                                            onChange={(e) => setInviteForm(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
+                                        />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.inputLabel}>Assigned Plan</label>
+                                        <select
+                                            className={styles.select}
+                                            value={inviteForm.plan}
+                                            onChange={(e) => setInviteForm(prev => ({ ...prev, plan: e.target.value }))}
+                                        >
+                                            <option value="free_trial">14-Day Free Trial (₹0)</option>
+                                            <option value="1_month">1 Month Starter (₹999)</option>
+                                            <option value="6_months">6 Months Saver (₹4,999)</option>
+                                            <option value="1_year">1 Year Pro (₹10,999)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className={styles.modalActions}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowInviteModal(false)}
+                                        className={styles.cancelBtn}
+                                        disabled={isGeneratingInvite}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className={styles.saveBtn}
+                                        disabled={isGeneratingInvite}
+                                    >
+                                        {isGeneratingInvite ? 'Sending Invitation...' : 'Send Invitation Email →'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 0.1 APPROVE ONBOARDING REQUEST MODAL */}
+            {showApproveModal && approvingRequest && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent} style={{ maxWidth: 480 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#065f46' }}>
+                                    Approve Cafe Onboarding
+                                </h2>
+                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                    Activate store, create tenant credentials & dispatch official approval email
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowApproveModal(false)}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>{approvingRequest.businessName}</div>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: 2 }}>
+                                {approvingRequest.ownerName} • {approvingRequest.email} • +91 {approvingRequest.phone}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
+                                Location: {approvingRequest.city || approvingRequest.address || 'India'}
+                            </div>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label className={styles.inputLabel}>Choose Initial Subscription Plan</label>
+                            <select
+                                className={styles.select}
+                                value={approvePlan}
+                                onChange={(e) => setApprovePlan(e.target.value)}
+                            >
+                                <option value="free_trial">14-Day Free Trial (₹0) - Recommended</option>
+                                <option value="1_month">1 Month Starter (₹999 / 30 Days)</option>
+                                <option value="6_months">6 Months Saver (₹4,999 / 180 Days)</option>
+                                <option value="1_year">1 Year Ultimate Pro (₹10,999 / 365 Days)</option>
+                            </select>
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                type="button"
+                                onClick={() => setShowApproveModal(false)}
+                                className={styles.cancelBtn}
+                                disabled={isApproving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleApproveRequest}
+                                className={styles.saveBtn}
+                                disabled={isApproving}
+                                style={{ background: '#059669' }}
+                            >
+                                {isApproving ? 'Activating & Sending Email...' : 'Approve & Activate Cafe →'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 0.2 CAFE EXPLORE / DEEP DIVE ANALYTICS MODAL */}
+            {showExploreModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.exploreModalContent}>
+                        {/* Header */}
+                        <div className={styles.exploreHeader}>
+                            <div className={styles.exploreHeaderLeft}>
+                                <div className={styles.exploreCafeIcon}>
+                                    {exploreCafe?.name ? exploreCafe.name.charAt(0).toUpperCase() : 'C'}
+                                </div>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+                                        {exploreCafe?.name} — Performance Deep Dive
+                                    </h2>
+                                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                        {exploreCafe?.email} • +91 {exploreCafe?.phone || '—'} • Plan: {exploreCafe?.subscription?.plan ? exploreCafe.subscription.plan.replace('_', ' ').toUpperCase() : 'FREE TRIAL'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowExploreModal(false)}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className={styles.exploreBody}>
+                            {loadingExplore ? (
+                                <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#64748b' }}>
+                                    <RefreshCw size={28} className={styles.spinIcon} style={{ margin: '0 auto 12px' }} />
+                                    <p style={{ margin: 0, fontSize: '13px' }}>Aggregating live revenue and order metrics from database...</p>
+                                </div>
+                            ) : exploreData ? (
+                                <>
+                                    {/* Top KPI Cards */}
+                                    <div className={styles.exploreKpiGrid}>
+                                        <div className={styles.exploreKpiCard}>
+                                            <span className={styles.exploreKpiLabel}>Total Revenue</span>
+                                            <span className={styles.exploreKpiValue}>
+                                                ₹{Number(exploreData.summary?.totalRevenue || 0).toLocaleString('en-IN')}
+                                            </span>
+                                            <span className={styles.exploreKpiSub}>Lifetime Gross</span>
+                                        </div>
+                                        <div className={styles.exploreKpiCard}>
+                                            <span className={styles.exploreKpiLabel}>Total Orders</span>
+                                            <span className={styles.exploreKpiValue}>
+                                                {Number(exploreData.summary?.totalOrders || 0).toLocaleString('en-IN')}
+                                            </span>
+                                            <span className={styles.exploreKpiSub}>Completed Sessions</span>
+                                        </div>
+                                        <div className={styles.exploreKpiCard}>
+                                            <span className={styles.exploreKpiLabel}>Avg Order Value</span>
+                                            <span className={styles.exploreKpiValue}>
+                                                ₹{Number(exploreData.summary?.avgOrderValue || 0).toLocaleString('en-IN')}
+                                            </span>
+                                            <span className={styles.exploreKpiSub}>Per Dining Table</span>
+                                        </div>
+                                        <div className={styles.exploreKpiCard}>
+                                            <span className={styles.exploreKpiLabel}>Today's Revenue</span>
+                                            <span className={styles.exploreKpiValue} style={{ color: '#059669' }}>
+                                                ₹{Number(exploreData.summary?.todayRevenue || 0).toLocaleString('en-IN')}
+                                            </span>
+                                            <span className={styles.exploreKpiSub} style={{ color: '#64748b' }}>
+                                                {exploreData.summary?.todayOrders || 0} orders today
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Time Range Selector & Interactive Chart */}
+                                    <div className={styles.exploreChartBox}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                            <div>
+                                                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                                                    Revenue & Order Velocity Trends
+                                                </h3>
+                                                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>
+                                                    Day-wise, week-wise, and yearly historical progression
+                                                </p>
+                                            </div>
+
+                                            <div className={styles.timeRangeTabs}>
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.timeRangeBtn} ${exploreTimeRange === '7d' ? styles.timeRangeBtnActive : ''}`}
+                                                    onClick={() => setExploreTimeRange('7d')}
+                                                >
+                                                    Last 7 Days (Day-wise)
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.timeRangeBtn} ${exploreTimeRange === '30d' ? styles.timeRangeBtnActive : ''}`}
+                                                    onClick={() => setExploreTimeRange('30d')}
+                                                >
+                                                    Last 30 Days
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.timeRangeBtn} ${exploreTimeRange === 'yearly' ? styles.timeRangeBtnActive : ''}`}
+                                                    onClick={() => setExploreTimeRange('yearly')}
+                                                >
+                                                    Yearly
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Chart Visualization */}
+                                        {(() => {
+                                            const chartList = exploreTimeRange === '7d'
+                                                ? (exploreData.charts?.last7Days || [])
+                                                : exploreTimeRange === '30d'
+                                                    ? (exploreData.charts?.last30Days || [])
+                                                    : (exploreData.charts?.yearly || []);
+
+                                            const maxRev = Math.max(1, ...chartList.map(c => Number(c.revenue || 0)));
+
+                                            return chartList.length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8', fontSize: '12px' }}>
+                                                    No transaction records for this period yet.
+                                                </div>
+                                            ) : (
+                                                <div className={styles.barsContainer}>
+                                                    {chartList.map((item, idx) => {
+                                                        const rev = Number(item.revenue || 0);
+                                                        const heightPercent = Math.max(8, Math.round((rev / maxRev) * 100));
+
+                                                        return (
+                                                            <div key={idx} className={styles.barCol}>
+                                                                <div
+                                                                    className={styles.barPillar}
+                                                                    style={{ height: `${heightPercent}%` }}
+                                                                    title={`${item.label || item._id}: ₹${rev.toLocaleString('en-IN')} (${item.orders || 0} orders)`}
+                                                                />
+                                                                <span className={styles.barLabel}>
+                                                                    {item.label ? item.label.split(',')[0] : (item._id || '').slice(-5)}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Smart Plan Recommendation Card */}
+                                    {exploreData.recommendation && (
+                                        <div className={styles.recommendationCard}>
+                                            <div>
+                                                <div className={styles.recTitle}>
+                                                    💡 Subscription Pricing Recommendation: {exploreData.recommendation.recommendedPlanName} (₹{exploreData.recommendation.suggestedPrice?.toLocaleString('en-IN')})
+                                                </div>
+                                                <p className={styles.recText}>
+                                                    {exploreData.recommendation.reason} Estimated Monthly Run-rate: <strong>₹{exploreData.summary?.estimatedMonthlyRevenue?.toLocaleString('en-IN')}</strong> (~{exploreData.summary?.estimatedMonthlyOrders} orders/month).
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className={styles.applyPlanBtn}
+                                                onClick={() => {
+                                                    setEditingTenant(exploreCafe);
+                                                    setSelectedPlan(exploreData.recommendation.recommendedPlan);
+                                                    setCustomPriceVal(exploreData.recommendation.suggestedPrice);
+                                                    setShowExploreModal(false);
+                                                    setShowPlanModal(true);
+                                                }}
+                                            >
+                                                Apply Recommended Tier →
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Operational Breakdown */}
+                                    <div className={styles.exploreOpsGrid}>
+                                        {/* Top Selling Dishes */}
+                                        <div className={styles.exploreOpsCard}>
+                                            <div className={styles.exploreOpsTitle}>
+                                                <Sparkles size={14} color="#f59e0b" /> Top 5 Selling Dishes
+                                            </div>
+                                            {(exploreData.operational?.topDishes || []).length === 0 ? (
+                                                <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>No item data recorded yet</p>
+                                            ) : (
+                                                exploreData.operational.topDishes.map((dish, i) => (
+                                                    <div key={i} className={styles.opsRow}>
+                                                        <span style={{ fontWeight: 600, color: '#334155' }}>{dish._id || 'Unknown Item'}</span>
+                                                        <span style={{ color: '#059669', fontWeight: 700 }}>
+                                                            {dish.quantity} sold (₹{Math.round(dish.revenue || 0).toLocaleString('en-IN')})
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        {/* Payment Methods */}
+                                        <div className={styles.exploreOpsCard}>
+                                            <div className={styles.exploreOpsTitle}>
+                                                <CreditCard size={14} color="#4f46e5" /> Payment Method Breakdown
+                                            </div>
+                                            {(exploreData.operational?.paymentMethods || []).length === 0 ? (
+                                                <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>No payment records yet</p>
+                                            ) : (
+                                                exploreData.operational.paymentMethods.map((pm, i) => (
+                                                    <div key={i} className={styles.opsRow}>
+                                                        <span style={{ fontWeight: 600, color: '#334155' }}>{pm._id}</span>
+                                                        <span style={{ color: '#4f46e5', fontWeight: 700 }}>
+                                                            {pm.count} orders (₹{Math.round(pm.revenue || 0).toLocaleString('en-IN')})
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+                                    <AlertTriangle size={32} color="#f59e0b" style={{ margin: '0 auto 10px' }} />
+                                    <h4 style={{ margin: '0 0 6px', color: '#0f172a' }}>Analytics Temporarily Unavailable</h4>
+                                    <p style={{ margin: '0 0 16px', fontSize: '13px' }}>Could not load realtime metrics for this cafe.</p>
+                                    <button
+                                        type="button"
+                                        className={styles.saveBtn}
+                                        onClick={() => handleExploreCafe(exploreCafe)}
+                                    >
+                                        Retry Loading
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL 1: ONBOARD NEW CAFE */}
             {showOnboardModal && (

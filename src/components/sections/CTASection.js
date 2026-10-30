@@ -25,7 +25,7 @@ const PARTICLES = [
   { size: 7, top: "50%", left: "48%", delay: 4, dur: 8.5 }
 ];
 
-export default function CTASection({ onOpenDemo }) {
+export default function CTASection({ onOpenDemo, onScrollToOnboard }) {
   const sectionRef = useRef(null);
   const cardRef = useRef(null);
   const badgeRef = useRef(null);
@@ -215,8 +215,16 @@ export default function CTASection({ onOpenDemo }) {
                 <ArrowRight style={{ width: 16, height: 16 }} />
               </button>
 
-              <Link
-                to="/register"
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('onboard') || document.getElementById('register');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  } else if (onScrollToOnboard) {
+                    onScrollToOnboard();
+                  }
+                }}
                 style={{
                   padding: "15px 28px",
                   borderRadius: "var(--radius-md)",
@@ -228,7 +236,7 @@ export default function CTASection({ onOpenDemo }) {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
-                  textDecoration: "none",
+                  cursor: "pointer",
                   backdropFilter: "blur(8px)",
                   transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease"
                 }}
@@ -243,7 +251,7 @@ export default function CTASection({ onOpenDemo }) {
               >
                 <Zap style={{ width: 15, height: 15, color: "#fde047" }} />
                 <span>Create Restaurant Account</span>
-              </Link>
+              </button>
             </div>
 
             {/* Value Props Strip */}

@@ -451,6 +451,16 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
             {/* Direct Links */}
             <Link
               to="/pricing"
+              onClick={(e) => {
+                if (pathname === "/" || pathname === "/register") {
+                  const el = document.getElementById("pricing");
+                  if (el) {
+                    e.preventDefault();
+                    el.scrollIntoView({ behavior: "smooth" });
+                    closeDropdowns();
+                  }
+                }
+              }}
               className={`${styles.navBtn} ${pathname === "/pricing" ? styles.navBtnActive : ""}`}
             >
               Pricing
@@ -458,6 +468,16 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
 
             <Link
               to="/about"
+              onClick={(e) => {
+                if (pathname === "/" || pathname === "/register") {
+                  const el = document.getElementById("about");
+                  if (el) {
+                    e.preventDefault();
+                    el.scrollIntoView({ behavior: "smooth" });
+                    closeDropdowns();
+                  }
+                }
+              }}
               className={`${styles.navBtn} ${pathname === "/about" ? styles.navBtnActive : ""}`}
             >
               About
@@ -465,6 +485,18 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
 
             <Link
               to="/contact"
+              onClick={(e) => {
+                if (pathname === "/" || pathname === "/register") {
+                  e.preventDefault();
+                  if (onOpenDemoModal) {
+                    onOpenDemoModal();
+                  } else {
+                    const el = document.getElementById("contact") || document.getElementById("onboard");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }
+                  closeDropdowns();
+                }
+              }}
               className={`${styles.navBtn} ${pathname === "/contact" ? styles.navBtnActive : ""}`}
             >
               Contact

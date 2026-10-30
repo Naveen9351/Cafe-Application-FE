@@ -36,6 +36,8 @@ const AboutPage = lazy(() => import('./components/InfoPages').then(m => ({ defau
 const CareersPage = lazy(() => import('./components/InfoPages').then(m => ({ default: m.CareersPage })));
 const PressKitPage = lazy(() => import('./components/InfoPages').then(m => ({ default: m.PressKitPage })));
 const ContactPage = lazy(() => import('./components/InfoPages').then(m => ({ default: m.ContactPage })));
+const PrivacyPolicy = lazy(() => import('./components/legal/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./components/legal/TermsOfService'));
 
 const ALL_STAFF_ROLES = ['admin', 'manager', 'cashier', 'chef', 'waiter', 'staff', 'kitchen', 'custom', 'super_admin'];
 
@@ -215,7 +217,7 @@ function AppRoutes() {
           path="/register"
           element={
             <PublicOnlyRoute>
-              <TenantRegister />
+              <LandingPage />
             </PublicOnlyRoute>
           }
         />
@@ -223,7 +225,7 @@ function AppRoutes() {
           path="/register-business"
           element={
             <PublicOnlyRoute>
-              <TenantRegister />
+              <LandingPage />
             </PublicOnlyRoute>
           }
         />
@@ -243,11 +245,15 @@ function AppRoutes() {
         <Route path="/features/crm-loyalty" element={<CRMLoyaltyPage />} />
         <Route path="/features/ai-copilot" element={<AICopilotPage />} />
 
-        {/* Info / Company Pages */}
+        {/* Info / Company & Legal Pages */}
         <Route path="/about" element={<AboutPage />} />
         <Route path="/careers" element={<CareersPage />} />
         <Route path="/press-kit" element={<PressKitPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/terms" element={<TermsOfService />} />
 
         {/* Protected Admin Routes with Real Dynamic URLs (/admin/dashboard, /admin/pos, /admin/kds, /admin/menu, etc.) */}
         <Route

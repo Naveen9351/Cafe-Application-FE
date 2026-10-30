@@ -1,27 +1,103 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Store, Mail, Lock, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles, AlertCircle, Eye, EyeOff, Check, X } from 'lucide-react';
+import {
+    Store, Mail, Lock, Phone, MapPin, ArrowRight, CheckCircle2, Sparkles,
+    AlertCircle, Eye, EyeOff, Check, X, User, KeyRound, ShieldCheck, Clock,
+    HelpCircle, Home
+} from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import styles from './TenantRegister.module.css';
 import BrandLogo from './BrandLogo';
+import { API_URL as API } from '../config/api';
 
-const TenantRegister = () => {
+const TenantRegister = ({ embedded = false }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { registerTenant } = useAuth();
+
+    // Invite token from URL
+    const queryParams = new URLSearchParams(location.search);
+    const inviteParam = queryParams.get('invite') || queryParams.get('token') || '';
+
+    const [inviteToken, setInviteToken] = useState(inviteParam);
+    const [isInviteValid, setIsInviteValid] = useState(false);
+    const [verifyingInvite, setVerifyingInvite] = useState(Boolean(inviteParam));
+
+    // Form fields
     const [formData, setFormData] = useState({
         businessName: '',
+        ownerName: '',
         email: '',
         password: '',
         phone: '',
-        address: ''
+        address: '',
+        otp: ''
     });
+
     const [showPassword, setShowPassword] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [generalError, setGeneralError] = useState("");
-    const { registerTenant } = useAuth();
-    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
-    // Password validation rules
+    // Email OTP states
+    const [otpSent, setOtpSent] = useState(false);
+    const [sendingOtp, setSendingOtp] = useState(false);
+    const [verifyingOtp, setVerifyingOtp] = useState(false);
+    const [otpCountdown, setOtpCountdown] = useState(0);
+    const [isEmailOtpVerified, setIsEmailOtpVerified] = useState(false);
+
+    // Terms checkbox
+    const [agreedTerms, setAgreedTerms] = useState(true);
+
+    // Post-submission state
+    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [submittedApplication, setSubmittedApplication] = useState(null);
+
+    // 1. If an invitation token is in URL, verify and pre-fill details
+    useEffect(() => {
+        if (!inviteToken) return;
+
+        const verifyInvite = async () => {
+            try {
+                setVerifyingInvite(true);
+                const res = await axios.get(`${API}/auth/verify-invite/${inviteToken}`);
+                if (res.data && res.data.valid) {
+                    setIsInviteValid(true);
+                    setIsEmailOtpVerified(false); // Requires OTP verification for email ownership
+                    setFormData(prev => ({
+                        ...prev,
+                        email: res.data.email || prev.email,
+                        businessName: res.data.businessName || prev.businessName,
+                        phone: res.data.phone || prev.phone,
+                        address: res.data.address || res.data.city || prev.address
+                    }));
+                    toast.success('Invitation link verified! Please verify your email via OTP to continue.');
+                }
+            } catch (err) {
+                console.warn('Invite token invalid:', err.response?.data?.error);
+                toast.error(err.response?.data?.error || 'Invitation link is invalid or expired.');
+                setInviteToken('');
+            } finally {
+                setVerifyingInvite(false);
+            }
+        };
+
+        verifyInvite();
+    }, [inviteToken]);
+
+    // Timer for OTP resend countdown
+    useEffect(() => {
+        let timer;
+        if (otpCountdown > 0) {
+            timer = setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [otpCountdown]);
+
+    // Password criteria check
     const passwordCriteria = {
         length: formData.password.length >= 8,
         uppercase: /[A-Z]/.test(formData.password),
@@ -29,8 +105,65 @@ const TenantRegister = () => {
         number: /[0-9]/.test(formData.password),
         special: /[^A-Za-z0-9]/.test(formData.password)
     };
-
     const isPasswordValid = Object.values(passwordCriteria).every(Boolean);
+
+    // Send OTP to email
+    const handleSendOtp = async () => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email.trim() || !emailRegex.test(formData.email.trim())) {
+            setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address first.' }));
+            return;
+        }
+
+        try {
+            setSendingOtp(true);
+            setGeneralError('');
+            const res = await axios.post(`${API}/auth/send-register-otp`, {
+                email: formData.email.trim(),
+                businessName: formData.businessName.trim()
+            });
+
+            if (res.data && res.data.success) {
+                setOtpSent(true);
+                setOtpCountdown(60); // 60s cooldown
+                toast.success(res.data.message || 'Verification code sent to your email!');
+            }
+        } catch (err) {
+            const msg = err.response?.data?.error || 'Failed to send verification code. Please check your email.';
+            setGeneralError(msg);
+            toast.error(msg);
+        } finally {
+            setSendingOtp(false);
+        }
+    };
+
+    // Verify 6-digit OTP
+    const handleVerifyOtp = async () => {
+        if (!formData.otp || formData.otp.trim().length !== 6) {
+            setFieldErrors(prev => ({ ...prev, otp: 'Please enter the complete 6-digit verification code.' }));
+            return;
+        }
+
+        try {
+            setVerifyingOtp(true);
+            setFieldErrors(prev => ({ ...prev, otp: '' }));
+            const res = await axios.post(`${API}/auth/verify-register-otp`, {
+                email: formData.email.trim(),
+                otp: formData.otp.trim()
+            });
+
+            if (res.data?.success) {
+                setIsEmailOtpVerified(true);
+                toast.success('Email verified successfully! ✓');
+            }
+        } catch (err) {
+            const msg = err.response?.data?.error || 'Invalid or expired OTP code.';
+            setFieldErrors(prev => ({ ...prev, otp: msg }));
+            toast.error(msg);
+        } finally {
+            setVerifyingOtp(false);
+        }
+    };
 
     const validateForm = () => {
         const errors = {};
@@ -45,6 +178,13 @@ const TenantRegister = () => {
             errors.email = "Email address is required";
         } else if (!emailRegex.test(formData.email.trim())) {
             errors.email = "Please enter a valid email address";
+        }
+
+        if (!isEmailOtpVerified) {
+            errors.email = "Please verify your email address via OTP";
+            if (!formData.otp.trim()) {
+                errors.otp = "Email verification OTP code is required";
+            }
         }
 
         if (!formData.phone.trim()) {
@@ -63,17 +203,22 @@ const TenantRegister = () => {
             errors.address = "Branch location / City is required";
         }
 
+        if (!agreedTerms) {
+            errors.terms = "You must agree to the Terms of Service and Privacy Policy";
+        }
+
         setFieldErrors(errors);
         return Object.keys(errors).length === 0;
     };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
         if (name === 'phone') {
-            // Strictly allow integers only and limit to 10 digits
             const sanitizedPhone = value.replace(/\D/g, '').slice(0, 10);
             setFormData(prev => ({ ...prev, phone: sanitizedPhone }));
+        } else if (name === 'otp') {
+            const sanitizedOtp = value.replace(/\D/g, '').slice(0, 6);
+            setFormData(prev => ({ ...prev, otp: sanitizedOtp }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
@@ -95,19 +240,29 @@ const TenantRegister = () => {
         setLoading(true);
         const result = await registerTenant({
             businessName: formData.businessName.trim(),
+            ownerName: formData.ownerName.trim() || formData.businessName.trim(),
             email: formData.email.trim(),
             phone: formData.phone.trim(),
             password: formData.password,
-            address: formData.address.trim()
+            address: formData.address.trim(),
+            city: formData.address.trim(),
+            otp: formData.otp.trim(),
+            inviteToken: inviteToken || undefined
         });
         setLoading(false);
 
         if (result && result.success) {
-            navigate('/login');
+            setSubmittedApplication({
+                businessName: formData.businessName.trim(),
+                ownerName: formData.ownerName.trim() || formData.businessName.trim(),
+                email: formData.email.trim(),
+                phone: formData.phone.trim(),
+                address: formData.address.trim()
+            });
+            setIsSubmitted(true);
         } else {
-            const errorMsg = result?.error || "Registration failed. Please check your information.";
+            const errorMsg = result?.error || "Registration submission failed. Please review your details.";
             setGeneralError(errorMsg);
-
             if (result?.errors && Array.isArray(result.errors)) {
                 const newFieldErrors = {};
                 result.errors.forEach(err => {
@@ -120,9 +275,87 @@ const TenantRegister = () => {
         }
     };
 
+    // If submitted, show the dedicated "Application Under Review" screen
+    if (isSubmitted) {
+        return (
+            <div className={embedded ? styles.embeddedContainer : styles.container}>
+                <div className={styles.glow1} />
+                <div className={styles.glow2} />
+
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className={embedded ? styles.embeddedCard : styles.card}
+                    style={{ maxWidth: '640px', minHeight: 'auto' }}
+                >
+                    <div className={styles.submittedView}>
+                        <div className={styles.submittedIconGlow}>
+                            <ShieldCheck size={36} color="#059669" />
+                        </div>
+
+                        <div className={styles.submittedStatusBadge}>
+                            <Clock size={13} />
+                            <span>Pending Super Admin Approval</span>
+                        </div>
+
+                        <h2 className={styles.submittedTitle}>Application Received Successfully!</h2>
+                        
+                        <p className={styles.submittedText}>
+                            Thank you for submitting your onboarding details for <strong>{submittedApplication?.businessName}</strong>. To protect diners and maintain platform excellence, our administration team reviews and activates every establishment.
+                        </p>
+
+                        <div className={styles.submittedSummaryCard}>
+                            <div className={styles.summaryRow}>
+                                <span className={styles.summaryLabel}>Establishment:</span>
+                                <span className={styles.summaryVal}>{submittedApplication?.businessName}</span>
+                            </div>
+                            <div className={styles.summaryRow}>
+                                <span className={styles.summaryLabel}>Owner / Contact:</span>
+                                <span className={styles.summaryVal}>{submittedApplication?.ownerName}</span>
+                            </div>
+                            <div className={styles.summaryRow}>
+                                <span className={styles.summaryLabel}>Registered Email:</span>
+                                <span className={styles.summaryVal}>{submittedApplication?.email}</span>
+                            </div>
+                            <div className={styles.summaryRow}>
+                                <span className={styles.summaryLabel}>Phone:</span>
+                                <span className={styles.summaryVal}>+91 {submittedApplication?.phone}</span>
+                            </div>
+                            <div className={styles.summaryRow}>
+                                <span className={styles.summaryLabel}>Review SLA:</span>
+                                <span className={styles.summaryVal} style={{ color: '#059669' }}>Within 2 to 6 business hours</span>
+                            </div>
+                        </div>
+
+                        <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 1.5rem', maxWidth: '420px' }}>
+                            You will receive an official activation email in English with your login credentials as soon as the Super Admin approves your application.
+                        </p>
+
+                        <div className={styles.submittedActions}>
+                            <button
+                                type="button"
+                                className={styles.homeActionBtn}
+                                onClick={() => navigate('/')}
+                            >
+                                <Home size={15} /> Return to Home
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.portalActionBtn}
+                                onClick={() => navigate('/login')}
+                            >
+                                Portal Sign-In <ArrowRight size={15} />
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
+
     return (
-        <div className={styles.container}>
-            {/* Ambient glows */}
+        <div className={embedded ? styles.embeddedContainer : styles.container}>
             <div className={styles.glow1} />
             <div className={styles.glow2} />
 
@@ -130,7 +363,7 @@ const TenantRegister = () => {
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className={styles.card}
+                className={embedded ? styles.embeddedCard : styles.card}
             >
                 {/* Left Side: Gourmet Visual Banner */}
                 <div className={styles.visualSide}>
@@ -161,7 +394,7 @@ const TenantRegister = () => {
                                 </div>
                                 <div className={styles.perkItem}>
                                     <CheckCircle2 size={16} color="#10b981" />
-                                    <span>24/7 WhatsApp & priority onboarding</span>
+                                    <span>Super Admin verified onboarding & direct WhatsApp help</span>
                                 </div>
                             </div>
                         </div>
@@ -173,11 +406,15 @@ const TenantRegister = () => {
                     </div>
                 </div>
 
-                {/* Right Side: Streamlined Zero-Scroll Signup Form */}
+                {/* Right Side: Streamlined Signup Form */}
                 <div className={styles.formSide}>
                     <div className={styles.header}>
                         <h2>Create Cafe Account</h2>
-                        <p>Join 500+ restaurants growing with DINEVIQ</p>
+                        <p>
+                            {isInviteValid 
+                                ? '🎉 You are onboarding with an official Super Admin invitation' 
+                                : 'Join 500+ restaurants growing with DINEVIQ'}
+                        </p>
                     </div>
 
                     {generalError && (
@@ -188,6 +425,7 @@ const TenantRegister = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className={styles.form} noValidate>
+                        {/* Cafe / Business Name */}
                         <div className={styles.fieldWrapper}>
                             <div className={`${styles.inputGroup} ${fieldErrors.businessName ? styles.inputError : ''}`}>
                                 <Store className={styles.icon} size={16} />
@@ -207,28 +445,107 @@ const TenantRegister = () => {
                             )}
                         </div>
 
-                        <div className={styles.row}>
-                            <div className={styles.fieldWrapper}>
-                                <div className={`${styles.inputGroup} ${fieldErrors.email ? styles.inputError : ''}`}>
+                        {/* Owner / Admin Name */}
+                        <div className={styles.fieldWrapper}>
+                            <div className={styles.inputGroup}>
+                                <User className={styles.icon} size={16} />
+                                <input
+                                    name="ownerName"
+                                    placeholder="Owner / Manager Full Name"
+                                    value={formData.ownerName}
+                                    onChange={handleChange}
+                                    disabled={loading}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Email Address with OTP Verify Trigger */}
+                        <div className={styles.fieldWrapper}>
+                            <div className={styles.otpWrapper}>
+                                <div className={`${styles.inputGroup} ${fieldErrors.email ? styles.inputError : ''}`} style={{ flex: 1 }}>
                                     <Mail className={styles.icon} size={16} />
                                     <input
                                         name="email"
                                         type="email"
-                                        placeholder="Email"
+                                        placeholder="Business Email"
                                         value={formData.email}
                                         onChange={handleChange}
-                                        disabled={loading}
+                                        disabled={loading || isInviteValid}
                                         autoComplete="email"
                                         required
                                     />
                                 </div>
-                                {fieldErrors.email && (
+                                {isEmailOtpVerified ? (
+                                    <span className={styles.verifiedBadge}>
+                                        <CheckCircle2 size={13} color="#059669" /> Email Verified
+                                    </span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className={styles.otpBtn}
+                                        onClick={handleSendOtp}
+                                        disabled={sendingOtp || otpCountdown > 0 || !formData.email.trim()}
+                                    >
+                                        {sendingOtp 
+                                            ? 'Sending...' 
+                                            : otpCountdown > 0 
+                                                ? `Resend in ${otpCountdown}s` 
+                                                : (otpSent ? 'Resend Code' : 'Verify via OTP')}
+                                    </button>
+                                )}
+                            </div>
+                            {fieldErrors.email && (
+                                <span className={styles.errorText}>
+                                    <AlertCircle size={12} /> {fieldErrors.email}
+                                </span>
+                            )}
+                            {!isEmailOtpVerified && !otpSent && (
+                                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '3px', display: 'block' }}>
+                                    Click <strong>Verify via OTP</strong> to receive a 6-digit confirmation code on your email.
+                                </span>
+                            )}
+                        </div>
+
+                        {/* OTP Verification Input Row */}
+                        {!isEmailOtpVerified && otpSent && (
+                            <div className={styles.fieldWrapper}>
+                                <div className={styles.otpWrapper}>
+                                    <div className={`${styles.inputGroup} ${fieldErrors.otp ? styles.inputError : ''}`} style={{ flex: 1 }}>
+                                        <KeyRound className={styles.icon} size={16} />
+                                        <input
+                                            name="otp"
+                                            type="text"
+                                            inputMode="numeric"
+                                            placeholder="Enter 6-digit Email Verification OTP"
+                                            value={formData.otp}
+                                            onChange={handleChange}
+                                            maxLength={6}
+                                            disabled={loading || verifyingOtp}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={styles.verifyBtn}
+                                        onClick={handleVerifyOtp}
+                                        disabled={verifyingOtp || formData.otp.trim().length !== 6}
+                                    >
+                                        {verifyingOtp ? 'Verifying...' : 'Confirm OTP'}
+                                    </button>
+                                </div>
+                                {fieldErrors.otp ? (
                                     <span className={styles.errorText}>
-                                        <AlertCircle size={12} /> {fieldErrors.email}
+                                        <AlertCircle size={12} /> {fieldErrors.otp}
+                                    </span>
+                                ) : (
+                                    <span style={{ fontSize: '11px', color: '#059669', marginTop: '3px', display: 'block' }}>
+                                        Verification OTP has been sent to <strong>{formData.email}</strong>.
                                     </span>
                                 )}
                             </div>
+                        )}
 
+                        {/* Mobile and Branch */}
+                        <div className={styles.row}>
                             <div className={styles.fieldWrapper}>
                                 <div className={`${styles.inputGroup} ${fieldErrors.phone ? styles.inputError : ''}`}>
                                     <Phone className={styles.icon} size={16} />
@@ -239,11 +556,6 @@ const TenantRegister = () => {
                                         pattern="[0-9]*"
                                         placeholder="10-digit Mobile"
                                         value={formData.phone}
-                                        onKeyDown={(e) => {
-                                            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
-                                                e.preventDefault();
-                                            }
-                                        }}
                                         onChange={handleChange}
                                         disabled={loading}
                                         maxLength={10}
@@ -256,8 +568,28 @@ const TenantRegister = () => {
                                     </span>
                                 )}
                             </div>
+
+                            <div className={styles.fieldWrapper}>
+                                <div className={`${styles.inputGroup} ${fieldErrors.address ? styles.inputError : ''}`}>
+                                    <MapPin className={styles.icon} size={16} />
+                                    <input
+                                        name="address"
+                                        placeholder="City / Branch"
+                                        value={formData.address}
+                                        onChange={handleChange}
+                                        disabled={loading}
+                                        required
+                                    />
+                                </div>
+                                {fieldErrors.address && (
+                                    <span className={styles.errorText}>
+                                        <AlertCircle size={12} /> {fieldErrors.address}
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
+                        {/* Password Field */}
                         <div className={styles.fieldWrapper}>
                             <div className={`${styles.inputGroup} ${fieldErrors.password ? styles.inputError : ''}`}>
                                 <Lock className={styles.icon} size={16} />
@@ -308,41 +640,40 @@ const TenantRegister = () => {
                             )}
                         </div>
 
-                        <div className={styles.fieldWrapper}>
-                            <div className={`${styles.inputGroup} ${fieldErrors.address ? styles.inputError : ''}`}>
-                                <MapPin className={styles.icon} size={16} />
-                                <input
-                                    name="address"
-                                    placeholder="City / Branch Location"
-                                    value={formData.address}
-                                    onChange={handleChange}
-                                    disabled={loading}
-                                    required
-                                />
-                            </div>
-                            {fieldErrors.address && (
-                                <span className={styles.errorText}>
-                                    <AlertCircle size={12} /> {fieldErrors.address}
-                                </span>
-                            )}
+                        {/* Terms of Service & Privacy Policy Checkbox */}
+                        <div className={styles.termsCheckboxWrapper}>
+                            <input
+                                type="checkbox"
+                                id="termsCheckbox"
+                                checked={agreedTerms}
+                                onChange={(e) => setAgreedTerms(e.target.checked)}
+                            />
+                            <label htmlFor="termsCheckbox">
+                                I agree to DINEVIQ's <Link to="/terms-of-service" target="_blank">Terms of Service</Link> and <Link to="/privacy-policy" target="_blank">Privacy Policy</Link>. My cafe application is subject to Super Admin approval.
+                            </label>
                         </div>
+                        {fieldErrors.terms && (
+                            <span className={styles.errorText} style={{ display: 'block', marginBottom: '8px' }}>
+                                <AlertCircle size={12} /> {fieldErrors.terms}
+                            </span>
+                        )}
 
                         <button type="submit" className={styles.submitBtn} disabled={loading}>
                             {loading ? (
                                 <>
                                     <div className={styles.spinner} />
-                                    <span>Setting up Cafe Account...</span>
+                                    <span>Submitting Application...</span>
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles size={16} /> Launch 14-Day Free Trial <ArrowRight size={16} />
+                                    <Sparkles size={16} /> Submit Onboarding Application <ArrowRight size={16} />
                                 </>
                             )}
                         </button>
                     </form>
 
                     <div className={styles.footer}>
-                        <span>Already registered?</span>
+                        <span>Already have an active account?</span>
                         <Link to="/login" className={styles.link}>
                             Sign In to Portal
                         </Link>
