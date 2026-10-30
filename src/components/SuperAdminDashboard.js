@@ -1337,43 +1337,57 @@ const SuperAdminDashboard = () => {
 
                                         {/* Pagination for Submitted Applications */}
                                         {filteredRequests.length > 0 && (
-                                            <div className={styles.pagination}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <span style={{ fontSize: '11px', color: '#64748b' }}>Per page:</span>
-                                                    <select
-                                                        value={requestsPerPage}
-                                                        onChange={(e) => {
-                                                            setRequestsPerPage(Number(e.target.value));
-                                                            setRequestsPage(1);
-                                                        }}
-                                                        className={styles.perPageSelect}
-                                                    >
-                                                        <option value={5}>5</option>
-                                                        <option value={10}>10</option>
-                                                        <option value={20}>20</option>
-                                                    </select>
+                                            <div className={styles.paginationBar}>
+                                                <div className={styles.paginationInfo}>
+                                                    Showing <strong>{Math.min((requestsPage - 1) * requestsPerPage + 1, filteredRequests.length)}</strong> to <strong>{Math.min(requestsPage * requestsPerPage, filteredRequests.length)}</strong> of <strong>{filteredRequests.length}</strong> applications
                                                 </div>
-
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                                    <button
-                                                        type="button"
-                                                        className={styles.pageBtn}
-                                                        disabled={requestsPage === 1}
-                                                        onClick={() => setRequestsPage(prev => Math.max(1, prev - 1))}
-                                                    >
-                                                        <ChevronLeft size={13} />
-                                                    </button>
-                                                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '0 8px' }}>
-                                                        {requestsPage} / {totalReqPages}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        className={styles.pageBtn}
-                                                        disabled={requestsPage >= totalReqPages}
-                                                        onClick={() => setRequestsPage(prev => prev + 1)}
-                                                    >
-                                                        <ChevronRight size={13} />
-                                                    </button>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#64748b' }}>
+                                                        <span>Per page:</span>
+                                                        <select
+                                                            className={styles.pageSizeSelect}
+                                                            value={requestsPerPage}
+                                                            onChange={(e) => {
+                                                                setRequestsPerPage(Number(e.target.value));
+                                                                setRequestsPage(1);
+                                                            }}
+                                                        >
+                                                            <option value={5}>5</option>
+                                                            <option value={8}>8</option>
+                                                            <option value={10}>10</option>
+                                                            <option value={20}>20</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className={styles.paginationControls}>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.pageBtn}
+                                                            disabled={requestsPage === 1}
+                                                            onClick={() => setRequestsPage(p => Math.max(1, p - 1))}
+                                                            title="Previous Page"
+                                                        >
+                                                            <ChevronLeft size={16} />
+                                                        </button>
+                                                        {Array.from({ length: totalReqPages }, (_, i) => i + 1).map(page => (
+                                                            <button
+                                                                key={page}
+                                                                type="button"
+                                                                className={`${styles.pageBtn} ${requestsPage === page ? styles.activePageBtn : ''}`}
+                                                                onClick={() => setRequestsPage(page)}
+                                                            >
+                                                                {page}
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            className={styles.pageBtn}
+                                                            disabled={requestsPage === totalReqPages}
+                                                            onClick={() => setRequestsPage(p => Math.min(totalReqPages, p + 1))}
+                                                            title="Next Page"
+                                                        >
+                                                            <ChevronRight size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -1514,43 +1528,57 @@ const SuperAdminDashboard = () => {
 
                                         {/* Pagination for Sent Invitations */}
                                         {sentInvitations.length > 0 && (
-                                            <div className={styles.pagination}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <span style={{ fontSize: '11px', color: '#64748b' }}>Per page:</span>
-                                                    <select
-                                                        value={invitesPerPage}
-                                                        onChange={(e) => {
-                                                            setInvitesPerPage(Number(e.target.value));
-                                                            setInvitesPage(1);
-                                                        }}
-                                                        className={styles.perPageSelect}
-                                                    >
-                                                        <option value={5}>5</option>
-                                                        <option value={10}>10</option>
-                                                        <option value={20}>20</option>
-                                                    </select>
+                                            <div className={styles.paginationBar}>
+                                                <div className={styles.paginationInfo}>
+                                                    Showing <strong>{Math.min((invitesPage - 1) * invitesPerPage + 1, sentInvitations.length)}</strong> to <strong>{Math.min(invitesPage * invitesPerPage, sentInvitations.length)}</strong> of <strong>{sentInvitations.length}</strong> invitations
                                                 </div>
-
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                                    <button
-                                                        type="button"
-                                                        className={styles.pageBtn}
-                                                        disabled={invitesPage === 1}
-                                                        onClick={() => setInvitesPage(prev => Math.max(1, prev - 1))}
-                                                    >
-                                                        <ChevronLeft size={13} />
-                                                    </button>
-                                                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '0 8px' }}>
-                                                        {invitesPage} / {totalInvPages}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        className={styles.pageBtn}
-                                                        disabled={invitesPage >= totalInvPages}
-                                                        onClick={() => setInvitesPage(prev => prev + 1)}
-                                                    >
-                                                        <ChevronRight size={13} />
-                                                    </button>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#64748b' }}>
+                                                        <span>Per page:</span>
+                                                        <select
+                                                            className={styles.pageSizeSelect}
+                                                            value={invitesPerPage}
+                                                            onChange={(e) => {
+                                                                setInvitesPerPage(Number(e.target.value));
+                                                                setInvitesPage(1);
+                                                            }}
+                                                        >
+                                                            <option value={5}>5</option>
+                                                            <option value={8}>8</option>
+                                                            <option value={10}>10</option>
+                                                            <option value={20}>20</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className={styles.paginationControls}>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.pageBtn}
+                                                            disabled={invitesPage === 1}
+                                                            onClick={() => setInvitesPage(p => Math.max(1, p - 1))}
+                                                            title="Previous Page"
+                                                        >
+                                                            <ChevronLeft size={16} />
+                                                        </button>
+                                                        {Array.from({ length: totalInvPages }, (_, i) => i + 1).map(page => (
+                                                            <button
+                                                                key={page}
+                                                                type="button"
+                                                                className={`${styles.pageBtn} ${invitesPage === page ? styles.activePageBtn : ''}`}
+                                                                onClick={() => setInvitesPage(page)}
+                                                            >
+                                                                {page}
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            className={styles.pageBtn}
+                                                            disabled={invitesPage === totalInvPages}
+                                                            onClick={() => setInvitesPage(p => Math.min(totalInvPages, p + 1))}
+                                                            title="Next Page"
+                                                        >
+                                                            <ChevronRight size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
