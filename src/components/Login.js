@@ -1,24 +1,17 @@
 import React, { useState } from "react";
 import styles from "./Login.module.css";
 import { useAuth } from "../context/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Lock,
   Mail,
   ArrowRight,
   Eye,
   EyeOff,
-  AlertCircle,
-  UtensilsCrossed,
-  Boxes,
-  Users2,
-  TrendingUp,
-  ShieldCheck,
-  Zap,
-  Sparkles
+  AlertCircle
 } from "lucide-react";
-import { motion } from "framer-motion";
 import DineviqLogo from "./brand/DineviqLogo";
+import { buildAuthCallbackUrl } from "../utils/subdomain";
 
 const Login = () => {
   const [identifier, setIdentifier] = useState("");
@@ -58,6 +51,14 @@ const Login = () => {
     if (generalError) setGeneralError("");
   };
 
+  const handleLogoClick = () => {
+    if (typeof window !== 'undefined' && window.location.hostname.includes('dineviq.com')) {
+      window.location.href = 'https://www.dineviq.com';
+    } else {
+      navigate('/');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneralError("");
@@ -70,11 +71,16 @@ const Login = () => {
 
     if (result && result.success && result.user) {
       const user = result.user;
-      if (user.role === "super_admin") {
-        navigate("/super-admin");
-      } else {
-        navigate("/admin/dashboard");
+      const targetPath = user.role === "super_admin" ? "/super-admin" : "/admin/dashboard";
+
+      // If on billing.dineviq.com or any dineviq.com subdomain, redirect to www.dineviq.com
+      if (typeof window !== "undefined" && window.location.hostname.includes("dineviq.com")) {
+        const token = result.token || localStorage.getItem('token');
+        window.location.href = buildAuthCallbackUrl(token, user, targetPath);
+        return;
       }
+
+      navigate(targetPath);
     } else {
       const errorMsg = result?.error || "Invalid credentials. Please verify your email/phone and password.";
       setGeneralError(errorMsg);
@@ -95,8 +101,6 @@ const Login = () => {
       }
     }
   };
-
-  const isNumericPhone = /^[0-9+\s]+$/.test(identifier.trim()) && identifier.trim().length > 3;
 
   return (
     <div className={styles.container}>
@@ -127,7 +131,7 @@ const Login = () => {
 
             {/* Top Brand Area */}
             <div className={styles.brandHeader}>
-              <DineviqLogo size="md" showSubtitle={false} showBadge={true} onClick={() => navigate('/')} />
+              <DineviqLogo size="md" showSubtitle={false} showBadge={true} onClick={handleLogoClick} />
               <div className={styles.headerText}>
                 <h1 className={styles.title}>Sign In</h1>
                 <p className={styles.subtitle}>Welcome back. Please enter your account details.</p>
@@ -218,8 +222,6 @@ const Login = () => {
               </button>
 
             </form>
-
-
 
           </div>
         </div>

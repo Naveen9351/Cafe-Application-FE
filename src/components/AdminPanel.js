@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Plus, Search, Trash2, Edit3, LayoutDashboard, ShoppingBag, QrCode, BarChart3, X, LogOut, Loader, TrendingUp, IndianRupee,
+  Camera, FileText, Plus, Search, Trash2, Edit3, LayoutDashboard, ShoppingBag, QrCode, BarChart3, X, LogOut, Loader, TrendingUp, IndianRupee,
   UtensilsCrossed, Coffee, Pizza, Sandwich, IceCream, GlassWater, Martini, Cake, Soup, Cookie, Grid,
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
@@ -28,6 +28,7 @@ import CafeAICopilotChatbot, { KHUSHI_AVATAR_URL } from './CafeAICopilotChatbot'
 import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton } from './common/SkeletonLoader';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
+import { resolveFoodImage, getSafeDishImage } from '../utils/foodImageResolver';
 import usePWAInstall from '../hooks/usePWAInstall';
 import PWAInstallModal from './pwa/PWAInstallModal';
 import { API_URL as API } from '../config/api';
@@ -246,6 +247,18 @@ export default function AdminPanel() {
   const [appliedCustomStartDate, setAppliedCustomStartDate] = useState('');
   const [appliedCustomEndDate, setAppliedCustomEndDate] = useState('');
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+
+  // AI Menu Card Scan & Bulk Import State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importingFile, setImportingFile] = useState(null);
+  const [importingPreviewUrl, setImportingPreviewUrl] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedItems, setExtractedItems] = useState([]);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionStageText, setExtractionStageText] = useState('');
+  const [patienceMessage, setPatienceMessage] = useState('');
+  const [isSavingExtracted, setIsSavingExtracted] = useState(false);
+  const menuCardInputRef = useRef(null);
 
   // Dynamic Categories State (loaded from localStorage or defaults)
   const [categories, setCategories] = useState(() => {
@@ -489,6 +502,7 @@ export default function AdminPanel() {
       if (res.data && Array.isArray(res.data)) {
         const enriched = res.data.map(d => ({
           ...d,
+          image: getSafeDishImage(d.image, d.name, d.category),
           price: Number(d.price) || 0,
           category: d.category || 'main-courses',
           prepTime: d.prepTime || '15-20 min',
@@ -1778,6 +1792,241 @@ export default function AdminPanel() {
     setIsQuickAddCatOpen(false);
     setQuickCatName('');
     toast.success(`Category "${clean}" created & added to your prelist!`);
+  };
+
+  // ==========================================
+  // AI MENU CARD SCAN & BULK IMPORT HANDLERS
+  // ==========================================
+  const handleSelectMenuCardFile = (file) => {
+    if (!file) return;
+    const isImage = file.type && file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || (file.name && file.name.toLowerCase().endsWith('.pdf'));
+
+    if (!isImage && !isPdf) {
+      toast.error('Please upload a valid Menu Image (JPG, PNG, WebP) or PDF file');
+      return;
+    }
+    setImportingFile(file);
+    if (isImage) {
+      try {
+        const url = URL.createObjectURL(file);
+        setImportingPreviewUrl(url);
+      } catch (e) {
+        setImportingPreviewUrl('');
+      }
+    } else {
+      setImportingPreviewUrl('pdf');
+    }
+  };
+
+  const handleImportMenu = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!importingFile) {
+      toast.error('Please select or upload a menu image or PDF first');
+      return;
+    }
+
+    const isPdf = importingFile.type === 'application/pdf' || (importingFile.name && importingFile.name.toLowerCase().endsWith('.pdf'));
+
+    setIsExtracting(true);
+    setExtractionProgress(8);
+    setExtractionStageText(isPdf ? 'Preparing menu PDF pages for document upload...' : 'Uploading & preprocessing menu card image...');
+
+    let progressTimer = null;
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('image', importingFile);
+
+      setPatienceMessage('Analyzing menu card... thanks for your patience');
+
+      // Real-time dynamic stage ticker while AI model processes document layout
+      let currentPct = 12;
+      let elapsedMs = 0;
+      progressTimer = setInterval(() => {
+        elapsedMs += 350;
+        currentPct += Math.max(1, Math.floor((92 - currentPct) * 0.08));
+        if (currentPct > 93) currentPct = 93;
+
+        setExtractionProgress(currentPct);
+
+        if (currentPct < 28) {
+          setExtractionStageText(isPdf ? 'Uploading menu PDF document to cloud processor...' : 'Uploading menu photo & running contrast enhancement...');
+        } else if (currentPct < 52) {
+          setExtractionStageText(isPdf ? 'Document AI scanning pages, columns & menu layout...' : 'Vision AI analyzing menu columns, headers & bounding boxes...');
+        } else if (currentPct < 72) {
+          setExtractionStageText('Extracting dish names, item descriptions & prices in ₹...');
+        } else if (currentPct < 86) {
+          setExtractionStageText('Detecting dietary flags (Veg / Non-Veg) & categories...');
+        } else {
+          setExtractionStageText('Enriching dish visual previews & compiling review table...');
+        }
+
+        // Friendly reassuring messages during processing
+        if (elapsedMs < 3500) {
+          setPatienceMessage('Analyzing menu layout... thanks for your patience');
+        } else if (elapsedMs < 7500) {
+          setPatienceMessage('It may take a little more time for complex menus...');
+        } else if (elapsedMs < 12000) {
+          setPatienceMessage('Almost there! Extracting dish prices & options...');
+        } else if (elapsedMs < 17000) {
+          setPatienceMessage('Finalizing item details... thanks for your patience!');
+        } else {
+          setPatienceMessage('Almost there, preparing your menu review table...');
+        }
+      }, 350);
+
+      const response = await axios.post(`${API}/ai/extract-menu`, formData, {
+        headers: {
+          'x-auth-token': token,
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const uploadPct = Math.round((progressEvent.loaded / progressEvent.total) * 20);
+            setExtractionProgress(Math.max(8, uploadPct));
+          }
+        }
+      });
+
+      if (progressTimer) clearInterval(progressTimer);
+
+      const rawItems = response.data?.menu?.items || response.data?.items || [];
+
+      if (!rawItems || rawItems.length === 0) {
+        toast.error('Could not detect dishes. Please try a clearer or higher resolution menu photo.');
+        setIsExtracting(false);
+        setExtractionProgress(0);
+        return;
+      }
+
+      setExtractionProgress(96);
+      setExtractionStageText(`Detected ${rawItems.length} dishes! Compiling review table...`);
+
+      const enriched = rawItems.map((item, idx) => ({
+        id: item.id || `dish_${Date.now()}_${idx}`,
+        name: (item.name || `Dish ${idx + 1}`).trim(),
+        price: Number(item.price) || 0,
+        type: item.type === 'non-veg' ? 'non-veg' : 'veg',
+        category: (item.category || 'snacks').toLowerCase().trim(),
+        description: item.description || `Fresh and delicious ${(item.name || '').trim()} prepared to order.`,
+        image: (item.image && !item.image.includes('pollinations.ai')) ? item.image : resolveFoodImage(item.name, item.category)
+      }));
+
+      // Final complete step
+      setTimeout(() => {
+        setExtractionProgress(100);
+        setExtractionStageText(`Extraction complete! ${enriched.length} dishes detected. Review below.`);
+        setExtractedItems(enriched);
+        setIsExtracting(false);
+        toast.success(`🎉 Detected ${enriched.length} dishes from your menu!`);
+      }, 400);
+
+    } catch (err) {
+      if (progressTimer) clearInterval(progressTimer);
+      console.error('Menu card extraction error:', err);
+      toast.error(err?.response?.data?.error || 'AI menu card extraction failed. Please try again.');
+      setExtractionProgress(0);
+      setIsExtracting(false);
+    }
+  };
+
+  const handleUpdateExtractedItem = (index, field, value) => {
+    setExtractedItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleRemoveExtractedItem = (index) => {
+    setExtractedItems(prev => prev.filter((_, idx) => idx !== index));
+    toast.success('Dish removed from import batch');
+  };
+
+  const handleAddManualExtractedItem = () => {
+    const newItem = {
+      id: `dish_${Date.now()}_${extractedItems.length}`,
+      name: 'New Dish',
+      price: 150,
+      type: 'veg',
+      category: categories[1]?.id || 'snacks',
+      description: 'Delicious dish freshly made to order.',
+      image: resolveFoodImage('dish', categories[1]?.id || 'snacks')
+    };
+    setExtractedItems(prev => [newItem, ...prev]);
+    toast.success('Added new dish to import batch');
+  };
+
+  const handleSaveExtracted = async () => {
+    if (!extractedItems || extractedItems.length === 0) {
+      toast.error('No items in batch to import');
+      return;
+    }
+
+    setIsSavingExtracted(true);
+    const toastId = toast.loading(`Publishing ${extractedItems.length} dishes to your menu catalog...`);
+
+    try {
+      const token = localStorage.getItem('token');
+      const payload = extractedItems.map(it => ({
+        name: it.name.trim(),
+        price: Number(it.price) || 0,
+        category: (it.category || 'snacks').toLowerCase().trim(),
+        type: it.type || 'veg',
+        isVeg: it.type !== 'non-veg',
+        description: it.description ? it.description.trim() : `Fresh and delicious ${it.name.trim()}`,
+        image: it.image
+      }));
+
+      const res = await axios.post(`${API}/menu/bulk`, { items: payload }, {
+        headers: { 'x-auth-token': token }
+      });
+
+      if (res.data?.success) {
+        // Automatically check if any category from extracted items is new, and persist it
+        const currentCatIds = new Set(categories.map(c => c.id.toLowerCase()));
+        const newCatNames = [];
+
+        payload.forEach(item => {
+          const catId = item.category.toLowerCase();
+          if (catId && !currentCatIds.has(catId)) {
+            currentCatIds.add(catId);
+            const displayName = catId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            newCatNames.push({
+              id: catId,
+              name: displayName,
+              icon: 'UtensilsCrossed',
+              Component: UtensilsCrossed,
+              aliases: [catId, displayName.toLowerCase()],
+              isCustom: true
+            });
+          }
+        });
+
+        if (newCatNames.length > 0) {
+          const updatedCats = [...categories, ...newCatNames];
+          setCategories(updatedCats);
+          await persistCategories(updatedCats);
+        }
+
+        await fetchMenu();
+        setIsImportModalOpen(false);
+        setExtractedItems([]);
+        setImportingFile(null);
+        setImportingPreviewUrl('');
+        setExtractionProgress(0);
+        toast.success(`🎉 Successfully imported ${payload.length} dishes to your menu!`, { id: toastId });
+      } else {
+        toast.error('Could not import menu items', { id: toastId });
+      }
+    } catch (err) {
+      console.error('Failed to bulk save menu items:', err);
+      toast.error(err?.response?.data?.error || 'Failed to import menu dishes', { id: toastId });
+    } finally {
+      setIsSavingExtracted(false);
+    }
   };
 
   const handleSaveCategory = (e) => {
@@ -4315,6 +4564,29 @@ export default function AdminPanel() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setIsImportModalOpen(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 7,
+                          padding: '7px 15px',
+                          borderRadius: '8px',
+                          border: '1px solid #c7d2fe',
+                          background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                          color: '#4338ca',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 1px 3px rgba(79, 70, 229, 0.08)'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#e0e7ff'; e.currentTarget.style.borderColor = '#a5b4fc'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)'; e.currentTarget.style.borderColor = '#c7d2fe'; }}
+                      >
+                        <Sparkles size={14} color="#4f46e5" /> AI Menu Import (Image/PDF)
+                      </button>
+                      <button
+                        type="button"
                         onClick={handleOpenAddDrawer}
                         className={styles.addNewItemBtn}
                       >
@@ -4398,7 +4670,7 @@ export default function AdminPanel() {
 
                   {/* Items Grid */}
                   <div className={styles.menuItemsGrid}>
-                    {paginatedMenuItems.map((item) => {
+                    {filteredMenuItems.map((item) => {
                       const isSelected = selectedItemIds.includes(item._id);
                       const discount = item.discount || {};
                       const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -4563,50 +4835,49 @@ export default function AdminPanel() {
                     })}
                   </div>
 
-                  {/* Menu Pagination Controls */}
-                  {totalMenuPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '12px 18px', background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                        Showing {((menuPage - 1) * menuPageSize) + 1} - {Math.min(menuPage * menuPageSize, filteredMenuItems.length)} of {filteredMenuItems.length} dishes
-                      </span>
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          disabled={menuPage === 1}
-                          onClick={() => setMenuPage(p => Math.max(1, p - 1))}
-                          style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === 1 ? '#f8fafc' : '#ffffff', color: menuPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === 1 ? 'not-allowed' : 'pointer' }}
-                        >
-                          Previous
-                        </button>
-                        {Array.from({ length: totalMenuPages }, (_, i) => i + 1).map(p => (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setMenuPage(p)}
-                            style={{ minWidth: '32px', height: '32px', padding: '0 6px', borderRadius: '8px', border: 'none', background: menuPage === p ? '#4f46e5' : '#f1f5f9', color: menuPage === p ? '#ffffff' : '#475569', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          disabled={menuPage === totalMenuPages}
-                          onClick={() => setMenuPage(p => Math.min(totalMenuPages, p + 1))}
-                          style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: menuPage === totalMenuPages ? '#f8fafc' : '#ffffff', color: menuPage === totalMenuPages ? '#cbd5e1' : '#0f172a', fontWeight: 700, fontSize: '12px', cursor: menuPage === totalMenuPages ? 'not-allowed' : 'pointer' }}
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
+
 
                   {filteredMenuItems.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-                      <UtensilsCrossed size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
-                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', margin: 0 }}>No dishes found</h4>
-                      <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>
-                        {menuSearchQuery ? `No items match "${menuSearchQuery}"` : 'Click "+ Add New Dish" above to create your first menu item.'}
-                      </p>
+                    <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", gap: '1rem' }}>
+                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
+                        <UtensilsCrossed size={28} color="#94a3b8" />
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>No dishes found</h4>
+                        <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: 4, maxWidth: 440 }}>
+                          {menuSearchQuery ? `No items match "${menuSearchQuery}"` : 'Your menu catalog is currently empty. Add dishes individually or scan a physical menu card to import all items automatically!'}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setIsImportModalOpen(true)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '9px 18px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+                            color: '#ffffff',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 14px rgba(79, 70, 229, 0.25)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Sparkles size={16} color="#ffffff" /> Import Menu (Image or PDF)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleOpenAddDrawer}
+                          className={styles.addNewItemBtn}
+                        >
+                          <Plus size={16} /> Add New Dish
+                        </button>
+                      </div>
                     </div>
                   )}
                 </motion.div>
@@ -5771,6 +6042,711 @@ export default function AdminPanel() {
                 >
                   <Trash2 size={14} /> Delete Category
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================= */}
+      {/* AI MENU CARD SCAN & BULK IMPORT MODAL                     */}
+      {/* ========================================================= */}
+      <AnimatePresence>
+        {isImportModalOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '1.25rem'
+            }}
+            onClick={() => {
+              if (!isExtracting && !isSavingExtracted) {
+                setIsImportModalOpen(false);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                width: '100%',
+                maxWidth: extractedItems.length > 0 ? '980px' : '640px',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.3)',
+                overflow: 'hidden',
+                border: '1px solid #e2e8f0',
+                transition: 'max-width 0.3s ease'
+              }}
+            >
+              {/* MODAL HEADER */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1.25rem 1.75rem',
+                borderBottom: '1px solid #f1f5f9',
+                background: '#fafafa'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #c7d2fe',
+                    color: '#4f46e5'
+                  }}>
+                    <Sparkles size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      AI Menu Card Scanner
+                      <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '12px', fontWeight: 800 }}>
+                        VISION OCR
+                      </span>
+                    </h3>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                      {extractedItems.length === 0
+                        ? 'Upload a photo of your paper menu to auto-import all dishes with prices & categories'
+                        : `Review and edit ${extractedItems.length} extracted dishes before publishing to catalog`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isExtracting && !isSavingExtracted) {
+                      setIsImportModalOpen(false);
+                      setExtractedItems([]);
+                      setImportingFile(null);
+                      setImportingPreviewUrl('');
+                      setExtractionProgress(0);
+                      setPatienceMessage('');
+                    }
+                  }}
+                  disabled={isExtracting || isSavingExtracted}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '10px',
+                    width: 34,
+                    height: 34,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#64748b',
+                    cursor: (isExtracting || isSavingExtracted) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* PROGRESS BAR (DURING EXTRACTION) */}
+              {(isExtracting || (extractionProgress > 0 && extractionProgress < 100)) && (
+                <div style={{ padding: '1.1rem 1.75rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: '12px', fontWeight: 700 }}>
+                    <span style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700 }}>
+                      <Loader size={14} className={styles.spin} /> {extractionStageText}
+                    </span>
+                    <span style={{ color: '#4338ca', fontWeight: 800, background: '#ede9fe', padding: '2px 9px', borderRadius: '12px', fontSize: '11px', letterSpacing: '0.02em' }}>
+                      {extractionProgress}%
+                    </span>
+                  </div>
+                  <div style={{ width: '100%', height: 8, background: '#e2e8f0', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+                    <div style={{
+                      width: `${extractionProgress}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%)',
+                      borderRadius: 6,
+                      transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 0 10px rgba(79, 70, 229, 0.35)'
+                    }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: '11px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4f46e5', fontWeight: 600 }}>
+                      <Clock size={12} color="#6366f1" /> {patienceMessage || 'Thanks for your patience...'}
+                    </span>
+                    <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                      Vision AI Engine
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL BODY */}
+              <div style={{ padding: '1.5rem 1.75rem', overflowY: 'auto', flex: 1 }}>
+                {extractedItems.length === 0 ? (
+                  // STAGE 1: FILE UPLOAD & PREVIEW
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <input
+                      type="file"
+                      ref={menuCardInputRef}
+                      onChange={(e) => handleSelectMenuCardFile(e.target.files[0])}
+                      accept="image/*,application/pdf,.pdf"
+                      style={{ display: 'none' }}
+                    />
+
+                    {!importingFile ? (
+                      <div
+                        onClick={() => menuCardInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#0284c7'; e.currentTarget.style.background = '#f0f9ff'; }}
+                        onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#fafafa'; }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                          e.currentTarget.style.background = '#fafafa';
+                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            handleSelectMenuCardFile(e.dataTransfer.files[0]);
+                          }
+                        }}
+                        style={{
+                          border: '2px dashed #cbd5e1',
+                          borderRadius: '16px',
+                          background: '#fafafa',
+                          padding: '2.5rem 1.5rem',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 12,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <div style={{ position: 'relative', width: 68, height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: 60, height: 60, borderRadius: '20px', background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', boxShadow: '0 8px 16px -4px rgba(79, 70, 229, 0.15)' }}>
+                            <Upload size={28} />
+                          </div>
+                          <div style={{ position: 'absolute', bottom: -2, right: -2, width: 26, height: 26, borderRadius: '8px', background: '#ffffff', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
+                            <Sparkles size={14} />
+                          </div>
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#1e293b' }}>
+                            Upload Menu Card (Image or PDF)
+                          </p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                            Drag & drop or browse physical menu photos (JPG, PNG, WebP) or multi-page PDF documents
+                          </p>
+                        </div>
+
+                        {/* DUAL ACTION BUTTONS: UPLOAD IMAGE OR UPLOAD PDF */}
+                        <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (menuCardInputRef.current) {
+                                menuCardInputRef.current.accept = 'image/*';
+                                menuCardInputRef.current.click();
+                              }
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 7,
+                              padding: '9px 18px',
+                              borderRadius: '10px',
+                              background: '#ffffff',
+                              border: '1.5px solid #e2e8f0',
+                              color: '#1e293b',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#4f46e5'; e.currentTarget.style.color = '#4f46e5'; e.currentTarget.style.background = '#f5f3ff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#1e293b'; e.currentTarget.style.background = '#ffffff'; }}
+                          >
+                            <Camera size={16} color="#4f46e5" /> Upload Menu Image
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (menuCardInputRef.current) {
+                                menuCardInputRef.current.accept = 'application/pdf,.pdf';
+                                menuCardInputRef.current.click();
+                              }
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 7,
+                              padding: '9px 18px',
+                              borderRadius: '10px',
+                              background: '#ffffff',
+                              border: '1.5px solid #e2e8f0',
+                              color: '#1e293b',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#fef2f2'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#1e293b'; e.currentTarget.style.background = '#ffffff'; }}
+                          >
+                            <FileText size={16} color="#ef4444" /> Upload Menu PDF
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '16px',
+                        padding: '1.25rem',
+                        background: '#f8fafc',
+                        display: 'flex',
+                        gap: '1.25rem',
+                        alignItems: 'center'
+                      }}>
+                        {importingPreviewUrl && importingPreviewUrl !== 'pdf' ? (
+                          <div style={{ width: 100, height: 100, borderRadius: 12, overflow: 'hidden', background: '#000000', flexShrink: 0, border: '1px solid #cbd5e1' }}>
+                            <img src={importingPreviewUrl} alt="Menu Card" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        ) : (
+                          <div style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: 12,
+                            background: '#fee2e2',
+                            border: '1px solid #fca5a5',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            color: '#dc2626',
+                            gap: 4
+                          }}>
+                            <FileText size={36} />
+                            <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase' }}>PDF Document</span>
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <CheckCircle2 size={18} color="#10b981" />
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                              {importingPreviewUrl === 'pdf' ? 'Menu PDF Ready' : 'Menu Photo Ready'}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '12px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                            {importingFile.name}
+                          </p>
+                          <p style={{ margin: '2px 0 10px 0', fontSize: '11px', color: '#94a3b8' }}>
+                            {(importingFile.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (menuCardInputRef.current) {
+                                  menuCardInputRef.current.accept = 'image/*,application/pdf,.pdf';
+                                  menuCardInputRef.current.click();
+                                }
+                              }}
+                              disabled={isExtracting}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                background: '#ffffff',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: '#475569',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Choose Different File
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setImportingFile(null); setImportingPreviewUrl(''); }}
+                              disabled={isExtracting}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                background: 'transparent',
+                                border: 'none',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: '#ef4444',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ACTION BUTTON */}
+                    <button
+                      type="button"
+                      onClick={handleImportMenu}
+                      disabled={!importingFile || isExtracting}
+                      style={{
+                        padding: '13px 22px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: (!importingFile || isExtracting) ? '#f1f5f9' : 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+                        color: (!importingFile || isExtracting) ? '#94a3b8' : '#ffffff',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        cursor: (!importingFile || isExtracting) ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        boxShadow: (!importingFile || isExtracting) ? 'none' : '0 4px 16px rgba(79, 70, 229, 0.3)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {isExtracting ? (
+                        <>
+                          <Loader size={18} className={styles.spin} /> Scanning & Extracting Dishes...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={18} /> Scan & Extract Menu Dishes
+                        </>
+                      )}
+                    </button>
+
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '12px',
+                      color: '#475569',
+                      lineHeight: 1.5,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10
+                    }}>
+                      <Sparkles size={16} color="#6366f1" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div>
+                        <strong style={{ color: '#0f172a' }}>Smart Layout Detection:</strong> Supports printed menu cards, chalkboard menus, flyers, and multi-page PDFs. Dish names, prices, categories, and dietary tags are detected automatically for your review.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // STAGE 2: REVIEW & EDIT EXTRACTED DISHES
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      padding: '10px 14px',
+                      background: '#ecfdf5',
+                      borderRadius: '12px',
+                      border: '1px solid #a7f3d0'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CheckCircle2 size={18} color="#059669" />
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#065f46' }}>
+                          Detected {extractedItems.length} dishes ready for import
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={handleAddManualExtractedItem}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: '#ffffff',
+                            border: '1px solid #10b981',
+                            color: '#059669',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <Plus size={13} /> Add Dish
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setExtractedItems([]); setExtractionProgress(0); }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            color: '#475569',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Re-scan Photo
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* EDITABLE DISH LIST */}
+                    <div style={{
+                      maxHeight: '440px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      paddingRight: 4
+                    }}>
+                      {extractedItems.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          style={{
+                            background: '#f8fafc',
+                            borderRadius: '14px',
+                            border: '1px solid #e2e8f0',
+                            padding: '12px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12
+                          }}
+                        >
+                          {/* Dish Image */}
+                          <div style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 10,
+                            overflow: 'hidden',
+                            background: '#e2e8f0',
+                            flexShrink: 0,
+                            border: '1px solid #cbd5e1'
+                          }}>
+                            <img
+                              src={item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'}
+                              alt={item.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.target.src = resolveFoodImage(item.name, item.category);
+                              }}
+                            />
+                          </div>
+
+                          {/* Name & Description */}
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => handleUpdateExtractedItem(idx, 'name', e.target.value)}
+                              placeholder="Dish Name"
+                              style={{
+                                width: '100%',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                border: '1px solid #cbd5e1',
+                                background: '#ffffff',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: '#0f172a',
+                                outline: 'none'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleUpdateExtractedItem(idx, 'description', e.target.value)}
+                              placeholder="Description"
+                              style={{
+                                width: '100%',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid #e2e8f0',
+                                background: '#ffffff',
+                                fontSize: '11px',
+                                color: '#64748b',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+
+                          {/* Category Select */}
+                          <div style={{ width: 130, flexShrink: 0 }}>
+                            <select
+                              value={item.category}
+                              onChange={(e) => handleUpdateExtractedItem(idx, 'category', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '6px 8px',
+                                borderRadius: '8px',
+                                border: '1px solid #cbd5e1',
+                                background: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: '#334155',
+                                outline: 'none',
+                                textTransform: 'capitalize'
+                              }}
+                            >
+                              {categories.filter(c => c.id !== 'all').map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                              ))}
+                              {!categories.some(c => c.id === item.category) && (
+                                <option value={item.category}>{item.category}</option>
+                              )}
+                            </select>
+                          </div>
+
+                          {/* Veg / Non-Veg Toggle Badge */}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateExtractedItem(idx, 'type', item.type === 'veg' ? 'non-veg' : 'veg')}
+                            style={{
+                              padding: '5px 9px',
+                              borderRadius: '8px',
+                              border: item.type === 'veg' ? '1px solid #10b981' : '1px solid #ef4444',
+                              background: item.type === 'veg' ? '#ecfdf5' : '#fef2f2',
+                              color: item.type === 'veg' ? '#059669' : '#dc2626',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            {item.type === 'veg' ? 'Veg' : 'Non-Veg'}
+                          </button>
+
+                          {/* Price input */}
+                          <div style={{ width: 85, position: 'relative', flexShrink: 0 }}>
+                            <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>₹</span>
+                            <input
+                              type="number"
+                              value={item.price}
+                              onChange={(e) => handleUpdateExtractedItem(idx, 'price', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '6px 8px 6px 20px',
+                                borderRadius: '8px',
+                                border: '1px solid #cbd5e1',
+                                background: '#ffffff',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: '#0f172a',
+                                textAlign: 'right',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+
+                          {/* Delete Item */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExtractedItem(idx)}
+                            title="Remove from batch"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              padding: 6,
+                              borderRadius: 6,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* PUBLISH ACTION BAR */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: '1rem',
+                      borderTop: '1px solid #e2e8f0'
+                    }}>
+                      <div style={{ fontSize: '13px', color: '#64748b' }}>
+                        Ready to save <strong style={{ color: '#0f172a' }}>{extractedItems.length} dishes</strong> directly to catalog
+                      </div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsImportModalOpen(false);
+                            setExtractedItems([]);
+                            setImportingFile(null);
+                          }}
+                          disabled={isSavingExtracted}
+                          style={{
+                            padding: '10px 18px',
+                            borderRadius: '10px',
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            color: '#475569',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveExtracted}
+                          disabled={isSavingExtracted || extractedItems.length === 0}
+                          style={{
+                            padding: '10px 22px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: isSavingExtracted ? '#94a3b8' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: '#ffffff',
+                            fontSize: '13px',
+                            fontWeight: 800,
+                            cursor: isSavingExtracted ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            boxShadow: isSavingExtracted ? 'none' : '0 4px 14px rgba(16, 185, 129, 0.35)'
+                          }}
+                        >
+                          {isSavingExtracted ? (
+                            <>
+                              <Loader size={16} className={styles.spin} /> Saving to Menu...
+                            </>
+                          ) : (
+                            <>
+                              <Check size={16} /> Publish {extractedItems.length} Dishes to Menu
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

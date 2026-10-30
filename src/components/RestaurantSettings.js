@@ -526,6 +526,30 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 </label>
               </div>
 
+              {/* Customer Khata & Borrow (Udhar Ledger) Feature Toggle */}
+              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <BookOpen size={16} color="#4f46e5" />
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Customer Khata & Borrow (Udhar Ledger)</strong>
+                    <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '100px' }}>
+                      UDHAR
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
+                    Enable customer borrowing/credit (Udhar) tracking at POS checkout, partial settlements, and access the dedicated Khata Ledger tab in your sidebar. (Default: OFF)
+                  </p>
+                </div>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.enableKhata)}
+                    onChange={(e) => handleToggleKhataDirect(e.target.checked)}
+                  />
+                  <span className={styles.slider}></span>
+                </label>
+              </div>
+
               {/* Target Net Profit Margin (%) */}
               <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>

@@ -10,10 +10,12 @@ import {
 } from "lucide-react";
 import ServiqLogo from "../brand/ServiqLogo";
 import { getBillingPortalUrl } from "../../utils/subdomain";
+import { useAuth } from "../../context/AuthContext";
 import styles from "../../styles/Footer.module.css";
 
 export default function Footer({ onOpenDemoModal, onOpenDemo }) {
   const triggerDemo = onOpenDemo || onOpenDemoModal;
+  const { user } = useAuth();
 
   return (
     <footer className={styles.footer}>
@@ -108,9 +110,24 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
               Platform & Sitelinks
             </h4>
             <div className={styles.linkList}>
-              <a href={getBillingPortalUrl()} className={styles.footerLink} title="Restaurant Login Portal" style={{ fontWeight: 800, color: 'var(--color-primary)' }}>
-                Restaurant Login
-              </a>
+              {user ? (
+                <Link
+                  to={user.role === 'super_admin' ? '/super-admin' : '/admin/dashboard'}
+                  className={styles.footerLink}
+                  style={{ fontWeight: 800, color: 'var(--color-primary)' }}
+                >
+                  Restaurant Dashboard
+                </Link>
+              ) : (
+                <a
+                  href={getBillingPortalUrl()}
+                  className={styles.footerLink}
+                  title="Restaurant Login Portal"
+                  style={{ fontWeight: 800, color: 'var(--color-primary)' }}
+                >
+                  Restaurant Login
+                </a>
+              )}
               <Link to="/whatsapp" className={styles.footerLink} title="WhatsApp CRM & Ordering">
                 WhatsApp
               </Link>

@@ -490,11 +490,34 @@ const SuperAdminDashboard = () => {
             <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
                 <div>
                     <div className={styles.sidebarHeader}>
-                        <div className={styles.sidebarBrand}>
-                            <div className={styles.logo}>
-                                <Zap size={16} fill="#ffd700" />
+                        <div className={styles.sidebarBrand} title="DineviQ Super Admin Console">
+                            <div className={styles.brandLogoWrap}>
+                                <img
+                                    src="/logos/logo-without-bg.png"
+                                    alt="DineviQ"
+                                    className={styles.brandLogoImg}
+                                    onError={(e) => {
+                                        if (e.target.src.includes('logo-without-bg.png')) {
+                                            e.target.src = '/logo.png';
+                                        } else {
+                                            e.target.style.display = 'none';
+                                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                                        }
+                                    }}
+                                />
+                                <div className={styles.brandIconFallback} style={{ display: 'none' }}>
+                                    DQ
+                                </div>
                             </div>
-                            {!sidebarCollapsed && <span>DINEVIQ <span style={{ color: '#6366f1' }}>SuperAdmin</span></span>}
+                            {!sidebarCollapsed && (
+                                <div className={styles.brandTextGroup}>
+                                    <div className={styles.brandTitleRow}>
+                                        <span className={styles.brandName}>DINEVIQ</span>
+                                        <span className={styles.superAdminBadge}>Super Admin</span>
+                                    </div>
+                                    <span className={styles.brandSubtext}>Platform Console</span>
+                                </div>
+                            )}
                         </div>
                         <button
                             type="button"
@@ -538,7 +561,7 @@ const SuperAdminDashboard = () => {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                     <span>Issue Tickets ({tickets.length})</span>
                                     {tickets.filter(t => t.status === 'open').length > 0 && (
-                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '100px', marginLeft: 4 }}>
+                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 600, padding: '1px 5px', borderRadius: '100px', marginLeft: 4 }}>
                                             {tickets.filter(t => t.status === 'open').length} NEW
                                         </span>
                                     )}
@@ -561,7 +584,7 @@ const SuperAdminDashboard = () => {
                                         color: '#059669',
                                         border: '1px solid #a7f3d0',
                                         fontSize: '9px',
-                                        fontWeight: 900,
+                                        fontWeight: 600,
                                         padding: '1px 5px',
                                         borderRadius: '100px',
                                         marginLeft: 4
@@ -661,7 +684,7 @@ const SuperAdminDashboard = () => {
 
                     {/* EXPIRING SOON WARNING BANNER */}
                     {activeTab !== 'analytics' && stats.expiringSoonCount > 0 && (
-                        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '6px 12px', borderRadius: '8px', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: 8, color: '#92400e', fontSize: '12px', fontWeight: 700 }}>
+                        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '6px 12px', borderRadius: '8px', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: 8, color: '#92400e', fontSize: '12px', fontWeight: 500 }}>
                             <AlertTriangle size={15} color="#d97706" />
                             <span>
                                 <strong>Alert:</strong> {stats.expiringSoonCount} cafe subscription(s) expire within 3 days.
@@ -738,7 +761,7 @@ const SuperAdminDashboard = () => {
                                                                     <span className={`${styles.badge} ${styles.planBadge}`}>
                                                                         {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
                                                                     </span>
-                                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#334155' }}>
+                                                                    <span style={{ fontSize: '11px', fontWeight: 550, color: '#334155' }}>
                                                                         ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
                                                                     </span>
                                                                 </div>
@@ -902,7 +925,6 @@ const SuperAdminDashboard = () => {
                                 <div className={styles.tableHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div>
                                         <h2>Website Demo Inquiries ({leads.length})</h2>
-                                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Requests submitted via the website demo form</p>
                                     </div>
                                     <button
                                         type="button"
@@ -944,12 +966,12 @@ const SuperAdminDashboard = () => {
                                             ) : (
                                                 paginatedLeads.map(lead => (
                                                     <tr key={lead._id}>
-                                                        <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                                                        <td style={{ fontWeight: 500, color: '#0f172a' }}>
                                                             {lead.fullName || lead.contactName || 'Lead'}
                                                         </td>
                                                         <td>{lead.workEmail || lead.email}</td>
                                                         <td>
-                                                            <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', fontWeight: 800, textDecoration: 'none' }}>
+                                                            <a href={`tel:${lead.phone}`} style={{ color: '#4f46e5', fontWeight: 550, textDecoration: 'none' }}>
                                                                 {lead.phone}
                                                             </a>
                                                         </td>
@@ -1033,14 +1055,12 @@ const SuperAdminDashboard = () => {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <h2>Support & Issue Tickets ({tickets.length})</h2>
                                             {stats.openTicketsCount > 0 && (
-                                                <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: '11px', fontWeight: 900, padding: '2px 8px', borderRadius: '100px', border: '1px solid #fecaca' }}>
+                                                <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '100px', border: '1px solid #fecaca' }}>
                                                     {stats.openTicketsCount} Active
                                                 </span>
                                             )}
                                         </div>
-                                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '2px 0 0 0' }}>
-                                            Real-time issues, bug reports, and assistance requests submitted by cafe admins & staff via AI Copilot
-                                        </p>
+
                                     </div>
 
                                     {/* Filter Pills */}
@@ -1066,7 +1086,7 @@ const SuperAdminDashboard = () => {
                                                     background: ticketFilter === f.id ? '#eef2ff' : '#ffffff',
                                                     color: ticketFilter === f.id ? '#4338ca' : '#475569',
                                                     fontSize: '12px',
-                                                    fontWeight: 700,
+                                                    fontWeight: 500,
                                                     cursor: 'pointer'
                                                 }}
                                             >
@@ -1119,11 +1139,11 @@ const SuperAdminDashboard = () => {
                                             ) : (
                                                 paginatedTickets.map(ticket => (
                                                     <tr key={ticket._id}>
-                                                        <td style={{ fontWeight: 800, color: '#4f46e5' }}>
+                                                        <td style={{ fontWeight: 550, color: '#4f46e5' }}>
                                                             #{ticket.ticketNumber}
                                                         </td>
                                                         <td>
-                                                            <div style={{ fontWeight: 800, color: '#0f172a' }}>{ticket.tenantName || 'Cafe Outlet'}</div>
+                                                            <div style={{ fontWeight: 550, color: '#0f172a' }}>{ticket.tenantName || 'Cafe Outlet'}</div>
                                                             {ticket.contactPhone && (
                                                                 <div style={{ fontSize: '11px', color: '#64748b' }}>{ticket.contactPhone}</div>
                                                             )}
@@ -1134,7 +1154,7 @@ const SuperAdminDashboard = () => {
                                                             </span>
                                                         </td>
                                                         <td style={{ maxWidth: 260 }}>
-                                                            <div style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            <div style={{ fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 {ticket.subject}
                                                             </div>
                                                             <div style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1144,7 +1164,7 @@ const SuperAdminDashboard = () => {
                                                         <td>
                                                             <span style={{
                                                                 fontSize: '11px',
-                                                                fontWeight: 800,
+                                                                fontWeight: 550,
                                                                 padding: '2px 8px',
                                                                 borderRadius: '100px',
                                                                 background: ticket.priority === 'urgent' ? '#fee2e2' : ticket.priority === 'high' ? '#fef3c7' : '#f0fdf4',
@@ -1256,7 +1276,6 @@ const SuperAdminDashboard = () => {
                                             <Activity size={18} color="#4f46e5" />
                                             Website Traffic & User Activity Intelligence
                                         </h2>
-                                        <p>Real-time visitor telemetry, daily traffic volume, conversion checkpoints, and granular user audit trail</p>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <div className={styles.liveBadge}>
@@ -1344,7 +1363,6 @@ const SuperAdminDashboard = () => {
                                                 <BarChart3 size={15} color="#4f46e5" />
                                                 Daily Website Traffic & Visitor Volume (Last 7 Days)
                                             </h3>
-                                            <p>Comparative volume of pageviews vs unique visitors navigating the platform</p>
                                         </div>
                                         <div className={styles.chartLegend}>
                                             <div className={styles.legendPill}>
@@ -1427,7 +1445,7 @@ const SuperAdminDashboard = () => {
                                                             </div>
                                                             <div style={{ textAlign: 'right' }}>
                                                                 <span className={styles.pageViewsCount}>{page.count} visits</span>
-                                                                <div style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5' }}>
+                                                                <div style={{ fontSize: '11px', fontWeight: 550, color: '#4f46e5' }}>
                                                                     {page.percentage}%
                                                                 </div>
                                                             </div>
@@ -1465,7 +1483,7 @@ const SuperAdminDashboard = () => {
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <div className={styles.deviceStats}>{devices.Mobile || 0} visits</div>
-                                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>
+                                                    <div style={{ fontSize: '11px', fontWeight: 550, color: '#059669' }}>
                                                         {Math.round(((devices.Mobile || 0) / totalDevices) * 100)}%
                                                     </div>
                                                 </div>
@@ -1483,7 +1501,7 @@ const SuperAdminDashboard = () => {
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <div className={styles.deviceStats}>{devices.Desktop || 0} visits</div>
-                                                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#4f46e5' }}>
+                                                    <div style={{ fontSize: '11px', fontWeight: 550, color: '#4f46e5' }}>
                                                         {Math.round(((devices.Desktop || 0) / totalDevices) * 100)}%
                                                     </div>
                                                 </div>
@@ -1491,12 +1509,12 @@ const SuperAdminDashboard = () => {
 
                                             {/* TOP CITIES PILLS */}
                                             <div style={{ marginTop: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-                                                <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '8px' }}>
+                                                <div style={{ fontSize: '0.75rem', fontWeight: 550, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '8px' }}>
                                                     Top Visitor Hubs
                                                 </div>
                                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                                     {cities.map((city, cIdx) => (
-                                                        <div key={cIdx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px 10px', fontSize: '12px', fontWeight: 700, color: '#334155', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        <div key={cIdx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px 10px', fontSize: '12px', fontWeight: 500, color: '#334155', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                                             <MapPin size={12} color="#6366f1" />
                                                             {city.name} ({city.count})
                                                         </div>
@@ -1602,7 +1620,7 @@ const SuperAdminDashboard = () => {
 
                                                         return (
                                                             <tr key={act._id}>
-                                                                <td style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+                                                                <td style={{ fontSize: '12px', fontWeight: 500, color: '#64748b', whiteSpace: 'nowrap' }}>
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                                                                         <Clock size={12} color="#94a3b8" />
                                                                         {formatActivityTime(act.timestamp)}
@@ -1610,7 +1628,7 @@ const SuperAdminDashboard = () => {
                                                                 </td>
                                                                 <td>
                                                                     <div>
-                                                                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>
+                                                                        <div style={{ fontWeight: 550, color: '#0f172a', fontSize: '13px' }}>
                                                                             {userObj.name || (isGuest ? 'Guest Visitor' : 'User')}
                                                                             {userObj.role && (
                                                                                 <span className={`${styles.userRoleBadge} ${userObj.role === 'super_admin' ? styles.roleSuperAdmin : userObj.role === 'admin' ? styles.roleOwner : styles.roleVisitor}`}>
@@ -1633,7 +1651,7 @@ const SuperAdminDashboard = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td>
-                                                                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>
+                                                                    <div style={{ fontWeight: 500, color: '#1e293b', fontSize: '13px' }}>
                                                                         {act.action}
                                                                     </div>
                                                                 </td>
@@ -1677,7 +1695,7 @@ const SuperAdminDashboard = () => {
                                                 >
                                                     <ChevronLeft size={16} />
                                                 </button>
-                                                <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', padding: '0 8px' }}>
+                                                <span style={{ fontSize: '12px', fontWeight: 550, color: '#475569', padding: '0 8px' }}>
                                                     Page {activitiesPage} of {activitiesPages}
                                                 </span>
                                                 <button
@@ -1706,7 +1724,7 @@ const SuperAdminDashboard = () => {
                     <div className={styles.modalContent} style={{ maxWidth: 540 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <div>
-                                <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 900 }}>Onboard New Cafe Outlet</h2>
+                                <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 600 }}>Onboard New Cafe Outlet</h2>
                                 <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>Setup cafe credentials, custom logo, and instant subscription</p>
                             </div>
                             <button type="button" onClick={() => setShowOnboardModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -1719,7 +1737,7 @@ const SuperAdminDashboard = () => {
                             {/* Cafe Name & Owner Name */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                         Cafe / Business Name *
                                     </label>
                                     <input
@@ -1732,7 +1750,7 @@ const SuperAdminDashboard = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                         Admin Owner Name *
                                     </label>
                                     <input
@@ -1749,7 +1767,7 @@ const SuperAdminDashboard = () => {
                             {/* Email & Password */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                         Admin Login Email *
                                     </label>
                                     <input
@@ -1762,7 +1780,7 @@ const SuperAdminDashboard = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                         Account Password *
                                     </label>
                                     <input
@@ -1779,7 +1797,7 @@ const SuperAdminDashboard = () => {
                             {/* Phone & Address */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                         Mobile Number
                                     </label>
                                     <input
@@ -1798,7 +1816,7 @@ const SuperAdminDashboard = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                         Address / Location
                                     </label>
                                     <input
@@ -1813,7 +1831,7 @@ const SuperAdminDashboard = () => {
 
                             {/* Cafe Logo Upload Dropzone (Replaces URL fields) */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                     Cafe Logo
                                 </label>
                                 <div className={styles.logoDropzone}>
@@ -1853,7 +1871,7 @@ const SuperAdminDashboard = () => {
 
                             {/* Subscription Plan Selection */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                     Initial Subscription Plan
                                 </label>
                                 <select
@@ -1892,7 +1910,7 @@ const SuperAdminDashboard = () => {
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900 }}>Manage Cafe Plan</h2>
+                            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600 }}>Manage Cafe Plan</h2>
                             <button type="button" onClick={() => setShowPlanModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                                 <X size={20} />
                             </button>
@@ -1903,7 +1921,7 @@ const SuperAdminDashboard = () => {
 
                         <form onSubmit={handleActivatePlan} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                     Select Plan Tier
                                 </label>
                                 <select
@@ -1927,7 +1945,7 @@ const SuperAdminDashboard = () => {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: 4 }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>
                                     Price (₹)
                                 </label>
                                 <input
@@ -1954,7 +1972,7 @@ const SuperAdminDashboard = () => {
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalContent} style={{ maxWidth: 640 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900 }}>Subscription History</h2>
+                            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600 }}>Subscription History</h2>
                             <button type="button" onClick={() => setShowHistoryModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                                 <X size={20} />
                             </button>
@@ -1993,7 +2011,7 @@ const SuperAdminDashboard = () => {
                                     ) : (
                                         tenantHistoryLogs.map((log, idx) => (
                                             <tr key={idx}>
-                                                <td style={{ fontWeight: 700 }}>{log.plan}</td>
+                                                <td style={{ fontWeight: 500 }}>{log.plan}</td>
                                                 <td>₹{log.price}</td>
                                                 <td>{log.startDate ? new Date(log.startDate).toLocaleDateString('en-IN') : 'N/A'}</td>
                                                 <td>{log.endDate ? new Date(log.endDate).toLocaleDateString('en-IN') : 'N/A'}</td>
@@ -2036,7 +2054,7 @@ const SuperAdminDashboard = () => {
                         }}>
                             <LogOut size={28} />
                         </div>
-                        <h2 style={{ margin: '0 0 8px 0', fontSize: '1.35rem', fontWeight: 900, color: '#0f172a' }}>
+                        <h2 style={{ margin: '0 0 8px 0', fontSize: '1.35rem', fontWeight: 600, color: '#0f172a' }}>
                             Confirm Sign Out
                         </h2>
                         <p style={{ margin: '0 0 1.75rem 0', fontSize: '13.5px', color: '#64748b', lineHeight: 1.5 }}>
@@ -2064,7 +2082,7 @@ const SuperAdminDashboard = () => {
                                     color: '#ffffff',
                                     border: 'none',
                                     borderRadius: '10px',
-                                    fontWeight: 800,
+                                    fontWeight: 550,
                                     fontSize: '0.85rem',
                                     cursor: 'pointer',
                                     boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
@@ -2084,12 +2102,12 @@ const SuperAdminDashboard = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
+                                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#0f172a' }}>
                                         Ticket #{selectedTicket.ticketNumber}
                                     </h2>
                                     <span style={{
                                         fontSize: '11px',
-                                        fontWeight: 800,
+                                        fontWeight: 550,
                                         padding: '2px 8px',
                                         borderRadius: '100px',
                                         background: selectedTicket.priority === 'urgent' ? '#fee2e2' : selectedTicket.priority === 'high' ? '#fef3c7' : '#f0fdf4',
@@ -2108,10 +2126,10 @@ const SuperAdminDashboard = () => {
                         </div>
 
                         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 500, color: '#475569', marginBottom: '4px' }}>
                                 CATEGORY: <span style={{ color: '#0f172a' }}>{selectedTicket.category}</span>
                             </div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 550, color: '#0f172a', marginBottom: '8px' }}>
                                 {selectedTicket.subject}
                             </div>
                             <div style={{ fontSize: '13px', color: '#334155', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
@@ -2132,7 +2150,7 @@ const SuperAdminDashboard = () => {
                         {/* Screenshot Attachment */}
                         {selectedTicket.screenshotUrl && (
                             <div style={{ marginBottom: '14px' }}>
-                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Attached Screenshot:</div>
+                                <div style={{ fontSize: '12px', fontWeight: 500, color: '#475569', marginBottom: '6px' }}>Attached Screenshot:</div>
                                 <div
                                     style={{ width: '120px', height: '90px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', cursor: 'pointer' }}
                                     onClick={() => setViewingScreenshot(selectedTicket.screenshotUrl)}
@@ -2144,7 +2162,7 @@ const SuperAdminDashboard = () => {
 
                         {/* Resolution & Status Update Box */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-                            <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 500, color: '#334155' }}>
                                 Platform Admin Resolution Notes
                             </label>
                             <textarea
@@ -2163,7 +2181,7 @@ const SuperAdminDashboard = () => {
                                     type="button"
                                     disabled={isUpdatingTicket}
                                     onClick={() => handleUpdateTicketStatus(selectedTicket._id, 'in_progress')}
-                                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #fcd34d', background: '#fffbeb', color: '#d97706', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #fcd34d', background: '#fffbeb', color: '#d97706', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
                                 >
                                     Mark In Progress
                                 </button>
@@ -2171,7 +2189,7 @@ const SuperAdminDashboard = () => {
                                     type="button"
                                     disabled={isUpdatingTicket}
                                     onClick={() => handleUpdateTicketStatus(selectedTicket._id, 'resolved')}
-                                    style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#ffffff', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+                                    style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#ffffff', fontSize: '12px', fontWeight: 550, cursor: 'pointer' }}
                                 >
                                     ✅ Mark Resolved
                                 </button>
@@ -2179,7 +2197,7 @@ const SuperAdminDashboard = () => {
                                     type="button"
                                     disabled={isUpdatingTicket}
                                     onClick={() => handleUpdateTicketStatus(selectedTicket._id, 'closed')}
-                                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#64748b', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#64748b', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
                                 >
                                     Close Ticket
                                 </button>
@@ -2245,7 +2263,7 @@ const SuperAdminDashboard = () => {
                             {confirmModal.type === 'danger' ? <Trash2 size={24} /> : <AlertTriangle size={24} />}
                         </div>
 
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 600, color: '#0f172a' }}>
                             {confirmModal.title}
                         </h3>
 
@@ -2259,7 +2277,7 @@ const SuperAdminDashboard = () => {
                                 disabled={confirmModal.loading}
                                 onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                                 className={styles.cancelBtn}
-                                style={{ flex: 1, padding: '9px 14px', fontSize: '13px', fontWeight: 700 }}
+                                style={{ flex: 1, padding: '9px 14px', fontSize: '13px', fontWeight: 500 }}
                             >
                                 {confirmModal.cancelText || 'Cancel'}
                             </button>
@@ -2274,7 +2292,7 @@ const SuperAdminDashboard = () => {
                                     color: '#ffffff',
                                     border: 'none',
                                     borderRadius: '8px',
-                                    fontWeight: 800,
+                                    fontWeight: 550,
                                     fontSize: '13px',
                                     cursor: confirmModal.loading ? 'not-allowed' : 'pointer',
                                     opacity: confirmModal.loading ? 0.7 : 1,

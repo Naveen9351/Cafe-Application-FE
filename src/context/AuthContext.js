@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
 import { API_URL as API, SOCKET_URL } from '../config/api';
+import { getSharedAuth, setSharedAuth, clearSharedAuth } from '../utils/authStorage';
 
 const AuthContext = createContext();
 
@@ -35,9 +36,7 @@ export const AuthProvider = ({ children }) => {
     const socketRef = useRef(null);
 
     const logout = useCallback((reason) => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('token_exp');
+        clearSharedAuth();
         setUser(null);
         setRole(null);
         setTenantId(null);
@@ -77,7 +76,7 @@ export const AuthProvider = ({ children }) => {
 
     // Proactive check if session token is still valid
     const checkSessionValidity = useCallback(() => {
-        const token = localStorage.getItem('token');
+        const { token } = getSharedAuth();
         if (!token) return false;
 
         const decoded = parseJwt(token);
@@ -97,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const requestInterceptor = axios.interceptors.request.use(
             (config) => {
-                const token = localStorage.getItem('token');
+                const { token } = getSharedAuth();
                 if (token) {
                     config.headers['x-auth-token'] = token;
                     config.headers['Authorization'] = `Bearer ${token}`;
@@ -119,7 +118,7 @@ export const AuthProvider = ({ children }) => {
                     !originalRequest.url.includes('/auth/login') &&
                     !originalRequest.url.includes('/auth/register-tenant')
                 ) {
-                    const token = localStorage.getItem('token');
+                    const { token } = getSharedAuth();
                     if (token) {
                         logout('Session expired or unauthorized. Please sign in again.');
                     }
@@ -134,22 +133,20 @@ export const AuthProvider = ({ children }) => {
         };
     }, [logout]);
 
-    // Initialize Auth state from LocalStorage on mount
+    // Initialize Auth state from LocalStorage & Shared Cookie on mount
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
+        const { token, user: storedUser } = getSharedAuth();
 
         if (token && storedUser) {
             const isValid = checkSessionValidity();
             if (isValid) {
                 try {
-                    const parsedUser = JSON.parse(storedUser);
-                    setUser(parsedUser);
-                    setRole(parsedUser.role);
-                    setTenantId(parsedUser.tenantId);
+                    setUser(storedUser);
+                    setRole(storedUser.role);
+                    setTenantId(storedUser.tenantId);
 
-                    if (parsedUser.tenantId) {
-                        setupSocket(parsedUser.tenantId);
+                    if (storedUser.tenantId) {
+                        setupSocket(storedUser.tenantId);
                     }
                 } catch (err) {
                     console.error('Auth initialization error:', err);
@@ -163,14 +160,18 @@ export const AuthProvider = ({ children }) => {
     // Periodic & Tab focus session expiry checks
     useEffect(() => {
         const interval = setInterval(() => {
-            if (localStorage.getItem('token')) {
+            const { token } = getSharedAuth();
+            if (token) {
                 checkSessionValidity();
             }
         }, 30000); // Check every 30 seconds
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && localStorage.getItem('token')) {
-                checkSessionValidity();
+            if (document.visibilityState === 'visible') {
+                const { token } = getSharedAuth();
+                if (token) {
+                    checkSessionValidity();
+                }
             }
         };
 
@@ -184,29 +185,31 @@ export const AuthProvider = ({ children }) => {
         };
     }, [checkSessionValidity]);
 
+    const setSessionDirect = useCallback((token, loggedInUser) => {
+        const decoded = parseJwt(token);
+        if (decoded && decoded.exp) {
+            localStorage.setItem('token_exp', decoded.exp);
+        }
+
+        setSharedAuth(token, loggedInUser);
+        setUser(loggedInUser);
+        setRole(loggedInUser.role);
+        setTenantId(loggedInUser.tenantId);
+
+        if (loggedInUser.tenantId) {
+            setupSocket(loggedInUser.tenantId);
+        }
+    }, [setupSocket]);
+
     const login = async (email, password) => {
         try {
             const res = await axios.post(`${API}/auth/login`, { email, password });
             const { token, user: loggedInUser } = res.data;
 
-            const decoded = parseJwt(token);
-            if (decoded && decoded.exp) {
-                localStorage.setItem('token_exp', decoded.exp);
-            }
-
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(loggedInUser));
-
-            setUser(loggedInUser);
-            setRole(loggedInUser.role);
-            setTenantId(loggedInUser.tenantId);
-
-            if (loggedInUser.tenantId) {
-                setupSocket(loggedInUser.tenantId);
-            }
+            setSessionDirect(token, loggedInUser);
 
             toast.success(`Welcome back, ${loggedInUser.name}!`);
-            return { success: true, user: loggedInUser };
+            return { success: true, user: loggedInUser, token };
         } catch (err) {
             console.error('Login error:', err);
             const errorMsg =
@@ -254,9 +257,10 @@ export const AuthProvider = ({ children }) => {
                 loading,
                 login,
                 logout,
+                setSessionDirect,
                 registerTenant,
                 checkSessionValidity,
-                isAuthenticated: !!user && !!localStorage.getItem('token')
+                isAuthenticated: !!user && !!getSharedAuth().token
             }}
         >
             {children}

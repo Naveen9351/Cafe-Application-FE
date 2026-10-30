@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -9,6 +9,7 @@ import ScrollToTop from './components/common/ScrollToTop';
 import SEOManager from './components/common/SEOManager';
 import LandingChatbot from './components/LandingChatbot';
 import LeadCaptureModal from './components/interactive/LeadCaptureModal';
+import AuthCallback from './components/AuthCallback';
 import { isBillingOrAdminSubdomain } from './utils/subdomain';
 
 // Route-level code splitting for non-landing pages (reduces initial JS payload by ~70%)
@@ -38,6 +39,32 @@ const ContactPage = lazy(() => import('./components/InfoPages').then(m => ({ def
 
 const ALL_STAFF_ROLES = ['admin', 'manager', 'cashier', 'chef', 'waiter', 'staff', 'kitchen', 'custom', 'super_admin'];
 
+// Helper to detect if app is running in Electron Desktop App
+export const isDesktopApp = () => {
+  return (
+    (typeof window !== 'undefined' && Boolean(window.electronAPI?.isElectron)) ||
+    (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron'))
+  );
+};
+
+// Subdomain Route Guard:
+// If accessed via billing.dineviq.com, only / and /login are allowed.
+// Any other route (e.g. /super-admin, /admin, /menu, /pricing) redirects to www.dineviq.com
+const SubdomainGuard = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isBillingOrAdminSubdomain()) {
+      const pathname = location.pathname.toLowerCase();
+      if (pathname !== '/' && pathname !== '/login') {
+        window.location.replace(`https://www.dineviq.com${location.pathname}${location.search}`);
+      }
+    }
+  }, [location]);
+
+  return null;
+};
+
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -46,10 +73,13 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <PageLoader duration={400} />;
   }
 
+  // If on billing.dineviq.com, all operational dashboards MUST run on www.dineviq.com
+  if (typeof window !== 'undefined' && isBillingOrAdminSubdomain()) {
+    window.location.replace(`https://www.dineviq.com${window.location.pathname}${window.location.search}`);
+    return <PageLoader duration={300} />;
+  }
+
   if (!user) {
-    if (isBillingOrAdminSubdomain()) {
-      return <Navigate to="/" replace />;
-    }
     return <Navigate to="/login" replace />;
   }
 
@@ -63,16 +93,13 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-// Helper to detect if app is running in Electron Desktop App
-export const isDesktopApp = () => {
-  return (
-    (typeof window !== 'undefined' && Boolean(window.electronAPI?.isElectron)) ||
-    (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron'))
-  );
-};
-
-// Home Route: Auto-redirect logged-in users directly to their Dashboard
-// If on desktop application or billing subdomain (billing.dineviq.com), render Login directly at root URL (clean URL, no /login)
+// Home Route:
+// 1. If on billing.dineviq.com:
+//    - If logged in -> redirect to www.dineviq.com/super-admin (or /admin/dashboard)
+//    - If not logged in -> render Login form at root
+// 2. If on main domain (www.dineviq.com / dineviq.com / localhost):
+//    - If logged in -> redirect to /super-admin (or /admin/dashboard)
+//    - If not logged in -> render LandingPage
 const HomeRoute = () => {
   const { user, loading } = useAuth();
 
@@ -80,20 +107,34 @@ const HomeRoute = () => {
     return <PageLoader duration={400} />;
   }
 
+  // On billing.dineviq.com
+  if (isBillingOrAdminSubdomain()) {
+    if (user) {
+      const dest = user.role === 'super_admin' ? '/super-admin' : '/admin/dashboard';
+      if (typeof window !== 'undefined') {
+        window.location.replace(`https://www.dineviq.com${dest}`);
+        return <PageLoader duration={300} />;
+      }
+      return <Navigate to={dest} replace />;
+    }
+    return <Login />;
+  }
+
+  // Desktop application
+  if (isDesktopApp()) {
+    if (user) {
+      return <Navigate to={user.role === 'super_admin' ? '/super-admin' : '/admin/dashboard'} replace />;
+    }
+    return <Login />;
+  }
+
+  // On main domain (www.dineviq.com / dineviq.com / localhost)
+  // If user is already logged in, go straight to their dashboard
   if (user) {
     if (user.role === 'super_admin') {
       return <Navigate to="/super-admin" replace />;
     }
     return <Navigate to="/admin/dashboard" replace />;
-  }
-
-  // On billing.dineviq.com, render Login immediately at the root URL / (No /login appended)
-  if (isDesktopApp() || isBillingOrAdminSubdomain()) {
-    return (
-      <PublicOnlyRoute>
-        <Login />
-      </PublicOnlyRoute>
-    );
   }
 
   return <LandingPage />;
@@ -108,43 +149,57 @@ const PublicOnlyRoute = ({ children }) => {
   }
 
   if (user) {
-    if (user.role === 'super_admin') {
-      return <Navigate to="/super-admin" replace />;
+    const dest = user.role === 'super_admin' ? '/super-admin' : '/admin/dashboard';
+    if (typeof window !== 'undefined' && isBillingOrAdminSubdomain()) {
+      window.location.replace(`https://www.dineviq.com${dest}`);
+      return <PageLoader duration={300} />;
     }
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to={dest} replace />;
   }
 
   return children;
 };
 
 // Dedicated Login Route:
-// If accessed via main domain (dineviq.com / www.dineviq.com) in production, route directly to billing.dineviq.com
-// If on billing.dineviq.com/login, redirect to root / so the browser URL stays clean: billing.dineviq.com
+// 1. If user already logged in -> redirect to dashboard on www.dineviq.com
+// 2. If on main domain in production -> redirect to billing.dineviq.com/login
+// 3. Otherwise (on billing subdomain or local dev) -> render Login
 const LoginRoute = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <PageLoader duration={400} />;
+  }
+
+  if (user) {
+    const dest = user.role === 'super_admin' ? '/super-admin' : '/admin/dashboard';
+    if (typeof window !== 'undefined' && isBillingOrAdminSubdomain()) {
+      window.location.replace(`https://www.dineviq.com${dest}`);
+      return <PageLoader duration={300} />;
+    }
+    return <Navigate to={dest} replace />;
+  }
+
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
     if (host.includes('dineviq.com') && !host.startsWith('billing.') && !host.startsWith('admin.')) {
-      window.location.replace('https://billing.dineviq.com');
+      window.location.replace('https://billing.dineviq.com/login');
       return <PageLoader duration={300} />;
-    }
-    if (isBillingOrAdminSubdomain()) {
-      return <Navigate to="/" replace />;
     }
   }
 
-  return (
-    <PublicOnlyRoute>
-      <Login />
-    </PublicOnlyRoute>
-  );
+  return <Login />;
 };
 
 function AppRoutes() {
   return (
     <Suspense fallback={<PageLoader duration={200} />}>
       <Routes>
-        {/* Root Route: If on billing.dineviq.com, opens Login directly; else shows Landing Page */}
+        {/* Root Route: If on billing.dineviq.com, opens Login directly; else shows Landing Page (or dashboard if logged in) */}
         <Route path="/" element={<HomeRoute />} />
+
+        {/* Cross-Domain Auth Token Handoff Callback */}
+        <Route path="/auth-callback" element={<AuthCallback />} />
 
         {/* Customer Ordering Routes */}
         <Route path="/menu" element={<Menu />} />
@@ -280,6 +335,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <Router>
+          <SubdomainGuard />
           <SEOManager />
           <ScrollToTop />
           <AppRoutes />

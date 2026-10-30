@@ -4,8 +4,8 @@ import {
   Grid, Plus, Minus, Search, Check, X, RefreshCw, CreditCard,
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
-  Utensils, ChefHat, Eye, CheckCircle2, AlertCircle, Sparkles, Filter,
-  User, Phone, BookOpen, StickyNote, Volume2, VolumeX
+  Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter,
+  User, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -666,18 +666,23 @@ export default function POSTerminal({
         itemIndex: it.itemIndex
       }));
 
+      const receivedNum = actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : null;
+
       const res = await axios.put(
         `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/pay-items`,
         {
           paymentMethod: payItemsMethod,
           itemsToPay,
           payAll: itemsToPay.length === 0,
+          actualAmount: receivedNum,
+          settledAmount: receivedNum,
           tenantId: effectiveTenantId
         },
         { headers: token ? { 'x-auth-token': token } : {} }
       );
 
-      toast.success(`✓ Marked items as paid (₹${formatAmount(res.data.totalNewlyPaid)}) via ${payItemsMethod}!`);
+      const paidDisplay = receivedNum !== null ? receivedNum : (selectedItemsSummary.count > 0 ? selectedItemsSummary.total : res.data.totalNewlyPaid);
+      toast.success(`✓ Marked items as paid (₹${formatAmount(paidDisplay)}) via ${payItemsMethod}!`);
       setShowPayItemsModal(false);
       setSelectedItemKeys(new Set());
 
@@ -803,18 +808,20 @@ export default function POSTerminal({
   // Confirm Khata / Borrow (Udhari) Record & Settlement
   const handleConfirmKhataSettlement = async (e) => {
     if (e) e.preventDefault();
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    if (!customerName.trim() || !cleanPhone) {
-      toast.error('Customer Name and Phone number are required to record Khata / Borrow');
+    const cleanPhone = (customerPhone || '').replace(/\D/g, '');
+    if (!customerName.trim()) {
+      toast.error('Customer Name is required to record Khata / Borrow');
       return;
     }
-    if (cleanPhone.length !== 10) {
-      toast.error('Customer phone number must be exactly 10 digits');
+    if (!cleanPhone || cleanPhone.length < 5) {
+      toast.error('Customer phone number must be at least 5 digits');
       return;
     }
 
+    const curDue = balanceDue > 0 ? balanceDue : grandTotal;
     const paidNum = Number(khataPaidAmount) || 0;
-    const borrowNum = Math.max(0, grandTotal - paidNum);
+    const borrowNum = Math.max(0, curDue - paidNum);
+    const totalRecordedBill = (grandTotal - curDue) + paidNum + borrowNum;
 
     setIsSubmittingKhata(true);
     const token = localStorage.getItem('token');
@@ -853,35 +860,53 @@ export default function POSTerminal({
 
       // 2. Record in Khata / Customer Credit Ledger
       await axios.post(`${API}/khata`, {
+        tenantId: effectiveTenantId,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
-        totalBill: grandTotal,
-        paidAmount: paidNum,
+        totalBill: totalRecordedBill,
+        paidAmount: (grandTotal - curDue) + paidNum,
         borrowAmount: borrowNum,
         notes: khataNotes || `Table ${tableNumber} order`
       }, {
-        headers: token ? { 'x-auth-token': token } : {}
+        headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
       });
 
-      // 3. Settle all existing orders on this table
-      if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
+      // 3. Settle all existing orders on this table & free table
+      const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
+      if (tableNumber !== 'Walk-in') {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { paymentMethod: 'Khata / Borrow', paymentStatus: borrowNum === 0 ? 'paid' : 'partial', tenantId: effectiveTenantId },
-          { headers: token ? { 'x-auth-token': token } : {} }
+          { 
+            paymentMethod: 'Khata / Borrow', 
+            paymentStatus: borrowNum === 0 ? 'paid' : 'partial', 
+            tenantId: effectiveTenantId,
+            mergedTables: allSettleTables,
+            actualAmount: paidNum,
+            settledAmount: paidNum
+          },
+          { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
         );
       }
 
-      toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNum}, Borrow: ₹${borrowNum}). Table cleared!`);
+      toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNum}, Borrow: ₹${borrowNum}). Table ${tableNumber} cleared!`);
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
+      setActualAmountReceived('');
+      setKhataPaidAmount('');
+      setKhataBorrowAmount(0);
+      setKhataNotes('');
+      setSelectedItemKeys(new Set());
+      setMergedTables([]);
       setShowKhataModal(false);
 
-      if (onOrderPlaced) onOrderPlaced({ tableNumber, status: 'completed', _refreshAll: true });
-      if (onOrderCreated) onOrderCreated({ tableNumber, status: 'completed', _refreshAll: true });
-      if (onSettleTable) onSettleTable(tableNumber);
+      allSettleTables.forEach(tNum => {
+        if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+        if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+        if (onSettleTable) onSettleTable(tNum);
+      });
 
+      // Crucial: Clear view and return to tables matrix
       setViewMode('tables');
     } catch (err) {
       console.error('Khata settlement error:', err);
@@ -1431,17 +1456,43 @@ export default function POSTerminal({
                         <button
                           type="button"
                           onClick={() => setSelectedItemKeys(new Set())}
-                          style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+                          style={{
+                            border: '1px solid #fecaca',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.15s ease'
+                          }}
                         >
-                          Clear Selection
+                          <X size={11} /> Clear Selection
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={handleSelectAllUnpaid}
-                          style={{ border: 'none', background: 'none', color: '#7c3aed', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+                          style={{
+                            border: '1px solid #c4b5fd',
+                            background: '#ede9fe',
+                            color: '#6d28d9',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.15s ease'
+                          }}
                         >
-                          Select All Unpaid
+                          <CheckSquare size={11} /> Select All Unpaid
                         </button>
                       )}
                     </div>
@@ -1487,19 +1538,64 @@ export default function POSTerminal({
                               const isSelected = selectedItemKeys.has(itemKey);
 
                               return (
-                                <div key={itemIdx} className={styles.cartItem} style={{ padding: '5px 0', borderBottom: itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : 'none', opacity: isPaid ? 0.88 : 1 }}>
+                                <div key={itemIdx} className={styles.cartItem} style={{
+                                    padding: '6px 8px',
+                                    borderRadius: '8px',
+                                    marginBottom: '4px',
+                                    border: isSelected ? '1.5px solid #c4b5fd' : (itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : '1px solid transparent'),
+                                    background: isSelected ? '#f5f3ff' : 'transparent',
+                                    transition: 'all 0.15s ease',
+                                    opacity: isPaid ? 0.78 : 1
+                                  }}>
                                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                     {!isPaid ? (
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => handleToggleItemSelect(itemKey)}
-                                        className={styles.itemCheckbox}
-                                        title="Select item for partial/paid payment"
-                                        style={{ marginTop: '3px' }}
-                                      />
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleItemSelect(itemKey);
+                                        }}
+                                        style={{
+                                          width: '20px',
+                                          height: '20px',
+                                          minWidth: '20px',
+                                          minHeight: '20px',
+                                          borderRadius: '5px',
+                                          border: isSelected ? '2px solid #7c3aed' : '2px solid #cbd5e1',
+                                          background: isSelected ? '#7c3aed' : '#ffffff',
+                                          color: '#ffffff',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer',
+                                          padding: 0,
+                                          marginTop: '2px',
+                                          transition: 'all 0.15s ease',
+                                          boxShadow: isSelected ? '0 2px 4px rgba(124, 58, 237, 0.25)' : 'none'
+                                        }}
+                                        title={isSelected ? "Item selected (click to uncheck)" : "Click to select item for payment"}
+                                      >
+                                        {isSelected && <Check size={13} strokeWidth={3.2} />}
+                                      </button>
                                     ) : (
-                                      <span style={{ color: '#16a34a', fontSize: '12px', fontWeight: 900, marginTop: '2px' }} title="Item is already paid">✓</span>
+                                      <div
+                                        style={{
+                                          width: '20px',
+                                          height: '20px',
+                                          minWidth: '20px',
+                                          borderRadius: '5px',
+                                          background: '#ecfdf5',
+                                          border: '1.5px solid #86efac',
+                                          color: '#16a34a',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          marginTop: '2px'
+                                        }}
+                                        title="Item is already paid"
+                                      >
+                                        <Check size={12} strokeWidth={3} />
+                                      </div>
                                     )}
                                     <div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
@@ -1595,25 +1691,6 @@ export default function POSTerminal({
 
               {/* Bottom Block: Payment Mode, Total & Action Buttons (Pinned Bottom) */}
               <div className={styles.drawerBottomBlock}>
-                <div className={styles.paymentSection}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-                    Payment Method
-                  </span>
-                  <div className={styles.paymentModeRow}>
-                    {['Cash', 'UPI / GPay', 'Card', ...(tenantInfo?.settings?.enableKhata ? ['Khata / Borrow'] : [])].map(m => (
-                      <button
-                        key={m}
-                        type="button"
-                        className={`${styles.payModeBtn} ${paymentMethod === m ? styles.payModeBtnActive : ''} ${m === 'Khata / Borrow' ? styles.khataPayBtn : ''}`}
-                        onClick={() => setPaymentMethod(m)}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bill Summary */}
                 <div className={styles.billSummary}>
                   <div className={styles.billRowSub}>
                     <span>Gross Total:</span>
@@ -1632,41 +1709,6 @@ export default function POSTerminal({
                     <span style={{ color: balanceDue > 0 ? '#ea580c' : '#16a34a', fontWeight: 900, fontSize: '0.95rem' }}>
                       ₹{formatAmount(balanceDue)}
                     </span>
-                  </div>
-
-                  {/* Actual Amount Received */}
-                  <div style={{ marginTop: '0.65rem', paddingTop: '0.65rem', borderTop: '1px dashed #e2e8f0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b' }}>Actual Amount Received:</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.85rem' }}>₹</span>
-                        <input
-                          type="number"
-                          placeholder={String(balanceDue > 0 ? balanceDue : grandTotal)}
-                          value={actualAmountReceived}
-                          onChange={(e) => setActualAmountReceived(e.target.value)}
-                          style={{
-                            width: '85px',
-                            padding: '4px 6px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontWeight: '800',
-                            fontSize: '0.82rem',
-                            textAlign: 'right'
-                          }}
-                        />
-                      </div>
-                    </div>
-                    {actualAmountReceived !== '' && Number(actualAmountReceived) > (balanceDue > 0 ? balanceDue : grandTotal) && (
-                      <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: '700', textAlign: 'right', marginTop: '3px' }}>
-                        Change to return: ₹{formatAmount(Number(actualAmountReceived) - (balanceDue > 0 ? balanceDue : grandTotal))}
-                      </div>
-                    )}
-                    {actualAmountReceived !== '' && Number(actualAmountReceived) < (balanceDue > 0 ? balanceDue : grandTotal) && (
-                      <div style={{ fontSize: '0.72rem', color: '#ea580c', fontWeight: '700', textAlign: 'right', marginTop: '3px' }}>
-                        Settled with adjustment: -₹{formatAmount((balanceDue > 0 ? balanceDue : grandTotal) - Number(actualAmountReceived))}
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1696,7 +1738,7 @@ export default function POSTerminal({
                     <span>{isSubmitting ? 'Processing...' : 'Direct (Counter)'}</span>
                   </button>
 
-                  {/* Button 3: Paid Order */}
+                  {/* Button 3: Pay Order */}
                   <button
                     type="button"
                     className={styles.paidOrderBtn}
@@ -1705,7 +1747,6 @@ export default function POSTerminal({
                         toast.error('All active items on this table are already paid!');
                         return;
                       }
-                      setPayItemsMethod(paymentMethod === 'Khata / Borrow' ? 'Cash' : paymentMethod);
                       setShowPayItemsModal(true);
                     }}
                     disabled={isSubmittingItemPay || (currentTableOrders.length === 0 && cart.length === 0) || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
@@ -1714,7 +1755,7 @@ export default function POSTerminal({
                     <CreditCard size={14} />
                     <span>
                       {selectedItemsSummary.count > 0 
-                        ? `Pay Selected (${selectedItemsSummary.count})` 
+                        ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})` 
                         : (balanceDue > 0 ? `Pay Unpaid (₹${formatAmount(balanceDue)})` : 'Paid Order')}
                     </span>
                   </button>
@@ -1724,10 +1765,8 @@ export default function POSTerminal({
                     type="button"
                     className={styles.clearTableBtn}
                     onClick={() => {
-                      if (paymentMethod === 'Khata / Borrow' && balanceDue > 0) {
-                        setKhataPaidAmount('');
-                        setKhataBorrowAmount(balanceDue);
-                        setShowKhataModal(true);
+                      if (balanceDue > 0) {
+                        setShowPayItemsModal(true);
                       } else {
                         handleClearTableClick();
                       }
@@ -1737,7 +1776,9 @@ export default function POSTerminal({
                   >
                     <CheckCircle2 size={14} />
                     <span>
-                      {isSettling ? 'Clearing...' : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
+                      {isSettling 
+                        ? 'Clearing...' 
+                        : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
                     </span>
                   </button>
                 </div>
@@ -1752,88 +1793,518 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 2.1 PAY ITEMS / PARTIAL ORDER MODAL                       */}
       {/* ========================================================= */}
-      {showPayItemsModal && (
-        <div className={styles.splitModalOverlay} onClick={() => setShowPayItemsModal(false)}>
-          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
-                {selectedItemsSummary.count > 0 ? `Pay Selected Items (${selectedItemsSummary.count})` : `Pay Unpaid Items - Table ${tableNumber}`}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowPayItemsModal(false)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {showPayItemsModal && (() => {
+        const tenderAmount = selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue;
+        const availableTenders = [
+          { id: 'Cash', label: 'Cash', icon: Banknote },
+          { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
+          { id: 'Card', label: 'Card', icon: CreditCard },
+          ...(tenantInfo?.settings?.enableKhata ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
+        ];
+        const paidNowNum = Number(khataPaidAmount) || 0;
+        const borrowDueNum = Math.max(0, tenderAmount - paidNowNum);
 
-            <div style={{ maxHeight: '180px', overflowY: 'auto', marginBottom: '1rem', padding: '8px 12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              {selectedItemsSummary.count > 0 ? (
-                selectedItemsSummary.itemsList.map((it, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '0.82rem', borderBottom: idx < selectedItemsSummary.itemsList.length - 1 ? '1px dashed #cbd5e1' : 'none' }}>
-                    <span style={{ fontWeight: 600, color: '#334155' }}>{it.name}</span>
-                    <span style={{ fontWeight: 800, color: '#0f172a' }}>₹{formatAmount(it.price)}</span>
+        const handleModalConfirm = async () => {
+          if (payItemsMethod === 'Khata / Borrow') {
+            const cleanPhone = (customerPhone || '').replace(/\D/g, '');
+            if (!customerName.trim()) {
+              toast.error('Customer Name is required to record Khata / Borrow');
+              return;
+            }
+            if (!cleanPhone || cleanPhone.length < 5) {
+              toast.error('Please enter a valid phone number (at least 5 digits)');
+              return;
+            }
+
+            setIsSubmittingKhata(true);
+            const token = localStorage.getItem('token');
+            const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+            try {
+              // 1. Record directly in Khata / Customer Credit Ledger
+              await axios.post(`${API}/khata`, {
+                tenantId: effectiveTenantId,
+                customerName: customerName.trim(),
+                customerPhone: customerPhone.trim(),
+                totalBill: tenderAmount,
+                paidAmount: paidNowNum,
+                borrowAmount: borrowDueNum,
+                notes: khataNotes || `Table ${tableNumber} order`
+              }, {
+                headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
+              });
+
+              // 2. Settle orders on this table & free table
+              const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
+              if (tableNumber !== 'Walk-in') {
+                await axios.put(
+                  `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
+                  { 
+                    paymentMethod: 'Khata / Borrow', 
+                    paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'), 
+                    tenantId: effectiveTenantId,
+                    mergedTables: allSettleTables,
+                    actualAmount: paidNowNum,
+                    settledAmount: paidNowNum
+                  },
+                  { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
+                );
+              }
+
+              toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNowNum}, Borrow: ₹${borrowDueNum}). Table ${tableNumber} cleared!`);
+              setCart([]);
+              setCustomerName('');
+              setCustomerPhone('');
+              setActualAmountReceived('');
+              setKhataPaidAmount('0');
+              setKhataBorrowAmount(0);
+              setKhataNotes('');
+              setSelectedItemKeys(new Set());
+              setMergedTables([]);
+              setShowPayItemsModal(false);
+
+              allSettleTables.forEach(tNum => {
+                if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+                if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+                if (onSettleTable) onSettleTable(tNum);
+              });
+
+              // Return to table matrix view - table is completely clear
+              setViewMode('tables');
+            } catch (err) {
+              console.error('Khata settlement error:', err);
+              toast.error('Failed to record Khata: ' + (err.response?.data?.error || err.message));
+            } finally {
+              setIsSubmittingKhata(false);
+            }
+            return;
+          }
+
+          // For standard Cash / UPI / Card payment
+          handleConfirmPayItems();
+        };
+
+        return (
+          <div className={styles.splitModalOverlay} onClick={() => setShowPayItemsModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className={styles.splitModalContent}
+              style={{
+                maxWidth: '470px',
+                width: '94%',
+                padding: '24px',
+                borderRadius: '16px',
+                background: '#ffffff',
+                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header with Icon Pill */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: payItemsMethod === 'Khata / Borrow' ? '#fef3c7' : '#f5f3ff',
+                    color: payItemsMethod === 'Khata / Borrow' ? '#d97706' : '#7c3aed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)'
+                  }}>
+                    {payItemsMethod === 'Khata / Borrow' ? <BookOpen size={20} /> : <Wallet size={20} />}
                   </div>
-                ))
-              ) : (
-                <div style={{ textAlign: 'center', padding: '10px 0', fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
-                  Marking all remaining unpaid items as Paid:
-                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#7c3aed', marginTop: '4px' }}>
-                    ₹{formatAmount(balanceDue)}
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>
+                      {selectedItemsSummary.count > 0 ? `Pay Selected (${selectedItemsSummary.count} items)` : `Table ${tableNumber} Settlement`}
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
+                      {payItemsMethod === 'Khata / Borrow' ? 'Customer Udhar Ledger & Table Release' : 'Choose payment method to complete order'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPayItemsModal(false)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#64748b',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Sleek Bill Hero Banner */}
+              <div style={{
+                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                marginBottom: '1.1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {selectedItemsSummary.count > 0 ? 'Selected Items Total' : 'Total Amount Due'}
+                  </span>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px', marginTop: '1px' }}>
+                    ₹{formatAmount(tenderAmount)}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '3px 9px',
+                    borderRadius: '20px',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    background: '#ecfdf5',
+                    color: '#15803d',
+                    border: '1px solid #bbf7d0'
+                  }}>
+                    Table {tableNumber}
+                  </span>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '3px', fontWeight: 600 }}>
+                    {selectedItemsSummary.count > 0 ? `${selectedItemsSummary.count} item(s)` : 'Full Order'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Segmented Payment Tender Selection */}
+              <div style={{ marginBottom: '1.1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Payment Method
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: availableTenders.length === 4 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '7px' }}>
+                  {availableTenders.map(t => {
+                    const IconComp = t.icon;
+                    const isSelected = payItemsMethod === t.id;
+                    const isKhata = t.id === 'Khata / Borrow';
+
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setPayItemsMethod(t.id)}
+                        style={{
+                          padding: '9px 4px',
+                          borderRadius: '10px',
+                          border: isSelected 
+                            ? (isKhata ? '2px solid #d97706' : '2px solid #7c3aed') 
+                            : '1.5px solid #e2e8f0',
+                          background: isSelected 
+                            ? (isKhata ? '#fffbeb' : '#f5f3ff') 
+                            : '#ffffff',
+                          color: isSelected 
+                            ? (isKhata ? '#92400e' : '#7c3aed') 
+                            : '#475569',
+                          fontWeight: isSelected ? 800 : 600,
+                          fontSize: '0.74rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '5px',
+                          boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <IconComp size={16} color={isSelected ? (isKhata ? '#d97706' : '#7c3aed') : '#64748b'} />
+                        <span style={{ lineHeight: '1.1' }}>{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* INLINE KHATA / BORROW MODERN SUITE */}
+              {payItemsMethod === 'Khata / Borrow' && (
+                <div style={{
+                  background: '#fafaf9',
+                  border: '1.5px solid #fde68a',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  marginBottom: '1.1rem',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)'
+                }}>
+                  {/* Subtle Accent Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <BookOpen size={14} color="#d97706" />
+                      <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        Customer Udhar Ledger
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>
+                      Live Balance Sync
+                    </span>
+                  </div>
+
+                  {/* Customer Info Inputs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#475569', marginBottom: '4px' }}>
+                        Customer Name <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <User size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
+                        <input
+                          type="text"
+                          placeholder="e.g. Rahul Sharma"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '7px 8px 7px 27px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #e2e8f0',
+                            background: '#ffffff',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            boxSizing: 'border-box',
+                            outline: 'none',
+                            transition: 'border-color 0.15s ease'
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#475569', marginBottom: '4px' }}>
+                        Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder="10-digit Phone"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                          style={{
+                            width: '100%',
+                            padding: '7px 8px 7px 27px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #e2e8f0',
+                            background: '#ffffff',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            boxSizing: 'border-box',
+                            outline: 'none',
+                            transition: 'border-color 0.15s ease'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amounts: Amount Paid Now & Read-Only Borrow Due */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '9px', marginBottom: '10px' }}>
+                    {/* Amount Paid Now (Editable) */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#15803d' }}>
+                          Amount Paid Now
+                        </label>
+                        <span style={{ fontSize: '0.64rem', color: '#16a34a', fontWeight: 700 }}>
+                          (Cash/UPI)
+                        </span>
+                      </div>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <span style={{ position: 'absolute', left: '10px', fontSize: '0.82rem', fontWeight: 900, color: '#15803d' }}>₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max={tenderAmount}
+                          placeholder="0"
+                          value={khataPaidAmount}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || Number(val) >= 0) {
+                              setKhataPaidAmount(val);
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 8px 7px 24px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #86efac',
+                            background: '#ffffff',
+                            fontSize: '0.9rem',
+                            fontWeight: 800,
+                            color: '#15803d',
+                            boxSizing: 'border-box',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Borrow / Udhar Due (Calculated & READ-ONLY / Locked) */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#b45309' }}>
+                          Udhar Due (Locked)
+                        </label>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#78350f', background: '#fef3c7', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                          <Lock size={9} /> Auto
+                        </span>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        padding: '7px 10px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #fde68a',
+                        background: '#fef3c7',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'not-allowed',
+                        userSelect: 'none'
+                      }} title="Automatically calculated: Total Bill minus Amount Paid Now (Non-editable)">
+                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#b45309' }}>
+                          ₹{formatAmount(borrowDueNum)}
+                        </span>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e', background: '#fde68a', padding: '2px 5px', borderRadius: '4px' }}>
+                          DUE
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes / Ledger Memo (Optional) */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#64748b', marginBottom: '4px' }}>
+                      Notes / Ledger Memo (Optional)
+                    </label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <StickyNote size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
+                      <input
+                        type="text"
+                        placeholder="e.g. Regular customer, will settle Friday"
+                        value={khataNotes}
+                        onChange={(e) => setKhataNotes(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 8px 7px 27px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #e2e8f0',
+                          background: '#ffffff',
+                          fontSize: '0.78rem',
+                          color: '#334155',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                          marginBottom: '6px'
+                        }}
+                      />
+                    </div>
+                    {/* Quick preset chips */}
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                      {['Regular Customer', 'Will Pay Tomorrow', 'Office Tab'].map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setKhataNotes(prev => prev ? `${prev} • ${tag}` : tag)}
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '5px',
+                            padding: '2px 7px',
+                            fontSize: '0.66rem',
+                            color: '#64748b',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            transition: 'all 0.12s ease'
+                          }}
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Payment Tender
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-                {['Cash', 'UPI / GPay', 'Card'].map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setPayItemsMethod(m)}
-                    style={{
-                      padding: '7px 4px',
-                      borderRadius: '8px',
-                      border: payItemsMethod === m ? '2px solid #7c3aed' : '1px solid #cbd5e1',
-                      background: payItemsMethod === m ? '#f5f3ff' : '#ffffff',
-                      color: payItemsMethod === m ? '#7c3aed' : '#334155',
-                      fontWeight: 700,
-                      fontSize: '0.78rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {m}
-                  </button>
-                ))}
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPayItemsModal(false)}
+                  style={{
+                    flex: 1,
+                    height: '42px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #e2e8f0',
+                    background: '#f8fafc',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleModalConfirm}
+                  disabled={isSubmittingItemPay || isSubmittingKhata}
+                  style={{
+                    flex: 2,
+                    height: '42px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: payItemsMethod === 'Khata / Borrow'
+                      ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
+                      : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: payItemsMethod === 'Khata / Borrow' 
+                      ? '0 4px 12px rgba(217, 119, 6, 0.3)' 
+                      : '0 4px 12px rgba(124, 58, 237, 0.3)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <CheckCircle2 size={16} />}
+                  <span>
+                    {isSubmittingItemPay || isSubmittingKhata
+                      ? 'Processing...' 
+                      : (payItemsMethod === 'Khata / Borrow' 
+                          ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`) 
+                          : `Confirm & Pay ₹${formatAmount(tenderAmount)}`)}
+                  </span>
+                </button>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.6rem' }}>
-              <button
-                type="button"
-                onClick={() => setShowPayItemsModal(false)}
-                style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', color: '#64748b' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmPayItems}
-                disabled={isSubmittingItemPay}
-                style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: '#7c3aed', color: '#ffffff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                <CheckCircle2 size={15} />
-                <span>{isSubmittingItemPay ? 'Processing...' : `Confirm (₹${formatAmount(selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue)})`}</span>
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================= */}
       {/* 2.2 CLEAR TABLE CONFIRMATION MODAL                        */}
@@ -1854,14 +2325,39 @@ export default function POSTerminal({
               </button>
             </div>
 
-            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '12px 14px', marginBottom: '1rem', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#c2410c' }}>
-                Table has an unpaid balance of:
-              </p>
-              <p style={{ margin: '4px 0 0', fontSize: '1.4rem', fontWeight: 900, color: '#ea580c' }}>
-                ₹{formatAmount(balanceDue)}
-              </p>
-              <span style={{ fontSize: '0.72rem', color: '#7c2d12' }}>Settle remaining amount to complete all orders and free the table.</span>
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '12px 14px', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.82rem' }}>
+                <span style={{ color: '#7c2d12', fontWeight: 600 }}>Total Unpaid Balance:</span>
+                <strong style={{ color: '#0f172a' }}>₹{formatAmount(balanceDue)}</strong>
+              </div>
+              {actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.82rem' }}>
+                    <span style={{ color: '#15803d', fontWeight: 700 }}>Actual Amount Received:</span>
+                    <strong style={{ color: '#15803d' }}>₹{formatAmount(Number(actualAmountReceived))}</strong>
+                  </div>
+                  {Number(actualAmountReceived) < balanceDue && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#c2410c', fontWeight: 700 }}>
+                      <span>Settled with Adjustment:</span>
+                      <span>-₹{formatAmount(balanceDue - Number(actualAmountReceived))}</span>
+                    </div>
+                  )}
+                  {Number(actualAmountReceived) > balanceDue && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#15803d', fontWeight: 700 }}>
+                      <span>Change to Return:</span>
+                      <span>₹{formatAmount(Number(actualAmountReceived) - balanceDue)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              <div style={{ borderTop: '1px dashed #fed7aa', marginTop: '8px', paddingTop: '6px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#c2410c' }}>
+                  Amount to Collect & Settle:
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: '1.4rem', fontWeight: 900, color: '#ea580c' }}>
+                  ₹{formatAmount(actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : balanceDue)}
+                </p>
+              </div>
             </div>
 
             <div style={{ marginBottom: '1.25rem' }}>
@@ -1906,7 +2402,7 @@ export default function POSTerminal({
                 style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#ffffff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
                 <CheckCircle2 size={15} />
-                <span>{isSettling ? 'Clearing...' : `Settle & Free Table (₹${formatAmount(balanceDue)})`}</span>
+                <span>{isSettling ? 'Clearing...' : `Settle & Free Table (₹${formatAmount(actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : balanceDue)})`}</span>
               </button>
             </div>
           </div>
