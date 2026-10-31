@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { X, CheckCircle2, ShieldCheck, User, Phone, ArrowLeft, RefreshCw, KeyRound } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import styles from './CustomerVerificationModal.module.css';
 import { API_URL as API } from '../config/api';
 
@@ -90,11 +90,6 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
       localStorage.setItem('customer_phone', cleanPhone);
 
       toast.success(res.data.message || `OTP sent to +91 ${cleanPhone}`);
-
-      // If in demo/dev mode (no SMS gateway active), show convenient demo toast
-      if (res.data.devOtp) {
-        toast(`Demo OTP: ${res.data.devOtp}`, { icon: '🔑', duration: 7000 });
-      }
 
       setStep('otp');
       setCountdown(30);
@@ -281,6 +276,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
+      <Toaster position="top-center" containerStyle={{ zIndex: 9999999 }} />
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
         
         {/* Step 1: Name & Mobile Number */}
@@ -404,7 +400,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
             <div className={styles.otpSentBanner}>
               <CheckCircle2 size={16} color="#15803d" style={{ flexShrink: 0 }} />
               <span style={{ flex: 1 }}>
-                Code sent to <strong>+91 {phone.slice(0, 2)}****{phone.slice(-4)}</strong>
+                Code sent to <strong>+91 ******{phone.replace(/[^0-9]/g, '').slice(-4)}</strong>
               </span>
               <button
                 type="button"
@@ -423,6 +419,10 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
                 Change
               </button>
             </div>
+
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 14px 0', lineHeight: 1.4 }}>
+              Enter the 6-digit verification code sent to your phone.
+            </p>
 
             {/* Error Banner */}
             {hasOtpError && (
