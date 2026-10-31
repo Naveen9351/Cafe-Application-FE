@@ -384,6 +384,34 @@ const SuperAdminDashboard = () => {
         });
     };
 
+    // Delete Submitted Onboarding Application (and any associated registered Cafe/User accounts)
+    const handleDeleteApplication = (req) => {
+        setConfirmModal({
+            isOpen: true,
+            type: 'danger',
+            title: `Delete Application for "${req.businessName || req.email}"?`,
+            message: `Are you sure you want to permanently delete this application? Any associated registered cafe and user accounts will also be permanently deleted from the platform. This action cannot be undone.`,
+            confirmText: 'Yes, Delete Permanently',
+            cancelText: 'Cancel',
+            loading: false,
+            onConfirm: async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    await axios.delete(`${API}/tenants/onboarding-requests/${req._id}`, {
+                        headers: { 'x-auth-token': token }
+                    });
+                    toast.success('Application and matching user records deleted');
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    fetchTenantsAndLeads();
+                } catch (err) {
+                    console.error('Delete application error:', err);
+                    toast.error(err.response?.data?.error || 'Failed to delete application');
+                    setConfirmModal(prev => ({ ...prev, loading: false }));
+                }
+            }
+        });
+    };
+
     // Copy Invite Link to Clipboard
     const handleCopyInviteLink = (inviteToken) => {
         if (!inviteToken) return;
@@ -1325,6 +1353,14 @@ const SuperAdminDashboard = () => {
                                                                             {isRejected && (
                                                                                 <span style={{ fontSize: '11px', color: '#991b1b', fontWeight: 500 }} title={req.rejectionReason}>Declined</span>
                                                                             )}
+                                                                            <button
+                                                                                type="button"
+                                                                                className={styles.deleteBtn}
+                                                                                onClick={() => handleDeleteApplication(req)}
+                                                                                title="Delete Application and Associated Records"
+                                                                            >
+                                                                                <Trash2 size={13} />
+                                                                            </button>
                                                                         </div>
                                                                     </td>
                                                                 </tr>
