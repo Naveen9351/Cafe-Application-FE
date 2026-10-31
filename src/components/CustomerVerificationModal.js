@@ -14,6 +14,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [hasOtpError, setHasOtpError] = useState(false);
+  const [devOtp, setDevOtp] = useState('');
 
   const otpInputsRef = useRef([]);
   const hasGoogleClientId = Boolean(process.env.REACT_APP_GOOGLE_CLIENT_ID);
@@ -24,6 +25,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
       setStep('info');
       setIsLoading(false);
       setHasOtpError(false);
+      setDevOtp('');
       setOtp(['', '', '', '', '', '']);
       const storedName = initialName || localStorage.getItem('customer_name') || '';
       const storedPhone = localStorage.getItem('customer_phone') || '';
@@ -91,9 +93,11 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
 
       toast.success(res.data.message || `OTP sent to +91 ${cleanPhone}`);
 
-      // If in demo/dev mode (no SMS gateway active), show convenient demo toast
+      // If in demo/dev mode or simulation, store OTP to display directly inside modal
       if (res.data.devOtp) {
-        toast(`Demo OTP: ${res.data.devOtp}`, { icon: '🔑', duration: 7000 });
+        setDevOtp(res.data.devOtp);
+      } else {
+        setDevOtp('');
       }
 
       setStep('otp');
@@ -404,7 +408,7 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
             <div className={styles.otpSentBanner}>
               <CheckCircle2 size={16} color="#15803d" style={{ flexShrink: 0 }} />
               <span style={{ flex: 1 }}>
-                Code sent to <strong>+91 {phone.slice(0, 2)}****{phone.slice(-4)}</strong>
+                Code sent to <strong>+91 ******{phone.replace(/[^0-9]/g, '').slice(-4)}</strong>
               </span>
               <button
                 type="button"
@@ -423,6 +427,48 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
                 Change
               </button>
             </div>
+
+            {/* In-Modal Direct OTP Box (visible right on screen, not hidden in background) */}
+            {devOtp && (
+              <div style={{
+                backgroundColor: '#eff6ff',
+                border: '1.5px dashed #3b82f6',
+                borderRadius: '12px',
+                padding: '10px 14px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxSizing: 'border-box'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <KeyRound size={18} color="#2563eb" style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.84rem', color: '#1e40af', fontWeight: 700 }}>
+                    OTP Code: <strong style={{ letterSpacing: '2px', fontSize: '1.05rem', color: '#1d4ed8' }}>{devOtp}</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const digits = devOtp.split('');
+                    setOtp(digits);
+                    triggerVerify(devOtp);
+                  }}
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Auto Fill
+                </button>
+              </div>
+            )}
 
             {/* Error Banner */}
             {hasOtpError && (
