@@ -160,8 +160,8 @@ export default function Footer({ onOpenDemoModal, onOpenDemo }) {
 
           <div className={styles.bottomLinks}>
             <Link to="/press-kit" style={{ color: "#64748b", textDecoration: "none" }}>Press Kit</Link>
-            <Link to="/contact" style={{ color: "#64748b", textDecoration: "none" }}>Privacy Policy</Link>
-            <Link to="/contact" style={{ color: "#64748b", textDecoration: "none" }}>Terms of Service</Link>
+            <Link to="/privacy-policy" style={{ color: "#64748b", textDecoration: "none" }}>Privacy Policy</Link>
+            <Link to="/terms-of-service" style={{ color: "#64748b", textDecoration: "none" }}>Terms of Service</Link>
           </div>
         </div>
 

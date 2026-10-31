@@ -224,11 +224,12 @@ export default function CTASection({ onOpenDemo }) {
                   color: "#ffffff",
                   fontSize: 13,
                   fontWeight: 800,
+                  textDecoration: "none",
                   border: "1px solid rgba(255, 255, 255, 0.3)",
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
-                  textDecoration: "none",
+                  cursor: "pointer",
                   backdropFilter: "blur(8px)",
                   transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease"
                 }}

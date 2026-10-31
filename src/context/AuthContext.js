@@ -229,7 +229,7 @@ export const AuthProvider = ({ children }) => {
     const registerTenant = async (data) => {
         try {
             const res = await axios.post(`${API}/auth/register-tenant`, data);
-            toast.success('Registration successful! Please sign in to your dashboard.');
+            toast.success(res.data?.message || 'Application submitted for Super Admin review!');
             return { success: true, data: res.data };
         } catch (err) {
             console.error('Registration error:', err);
@@ -242,7 +242,37 @@ export const AuthProvider = ({ children }) => {
             return {
                 success: false,
                 error: errorMsg,
-                errors: err.response?.data?.errors || []
+                errors: err.response?.data?.errors || [],
+                pendingApproval: err.response?.data?.pendingApproval
+            };
+        }
+    };
+
+    const googleLogin = async (googlePayload) => {
+        try {
+            const res = await axios.post(`${API}/auth/google-login`, googlePayload);
+            const { token, user: userData } = res.data;
+            if (token && userData) {
+                setSharedAuth(token, userData);
+                setUser(userData);
+                setRole(userData.role);
+                setTenantId(userData.tenantId);
+                toast.success(`Welcome back, ${userData.name}!`);
+                return { success: true, user: userData, token };
+            }
+            return { success: false, data: res.data };
+        } catch (err) {
+            console.error('Google login error:', err);
+            const errorMsg =
+                err.response?.data?.error ||
+                (err.message === 'Network Error' ? 'Unable to connect to server.' : 'Google sign-in failed');
+            return {
+                success: false,
+                error: errorMsg,
+                pendingApproval: err.response?.data?.pendingApproval,
+                isNewUser: err.response?.data?.isNewUser,
+                email: err.response?.data?.email,
+                name: err.response?.data?.name
             };
         }
     };
@@ -256,6 +286,7 @@ export const AuthProvider = ({ children }) => {
                 socket,
                 loading,
                 login,
+                googleLogin,
                 logout,
                 setSessionDirect,
                 registerTenant,

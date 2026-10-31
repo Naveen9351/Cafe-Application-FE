@@ -5,12 +5,13 @@
 export const isBillingOrAdminSubdomain = () => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname.toLowerCase();
+  const cleanHost = host.replace(/^www\./, '');
   return (
-    host.startsWith('billing.') ||
-    host.startsWith('admin.') ||
-    host.startsWith('dashboard.') ||
-    host.startsWith('portal.') ||
-    host.startsWith('app.')
+    cleanHost.startsWith('billing.') ||
+    cleanHost.startsWith('admin.') ||
+    cleanHost.startsWith('dashboard.') ||
+    cleanHost.startsWith('portal.') ||
+    cleanHost.startsWith('app.')
   );
 };
 
@@ -36,11 +37,6 @@ export const getMainDomainBase = () => {
 };
 
 export const getBillingPortalUrl = () => {
-  if (typeof window === 'undefined') return '/login';
-  const host = window.location.hostname.toLowerCase();
-  if (host.includes('dineviq.com')) {
-    return 'https://billing.dineviq.com/login';
-  }
   return '/login';
 };
 

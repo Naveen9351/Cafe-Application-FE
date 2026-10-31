@@ -451,6 +451,17 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
             {/* Direct Links */}
             <Link
               to="/pricing"
+              onClick={(e) => {
+                if (pathname === "/" || pathname === "/register") {
+                  const el = document.getElementById("pricing");
+                  if (el) {
+                    e.preventDefault();
+                    const y = el.getBoundingClientRect().top + window.pageYOffset - 70;
+                    window.scrollTo({ top: y, behavior: "smooth" });
+                    closeDropdowns();
+                  }
+                }
+              }}
               className={`${styles.navBtn} ${pathname === "/pricing" ? styles.navBtnActive : ""}`}
             >
               Pricing
@@ -458,6 +469,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
 
             <Link
               to="/about"
+              onClick={closeDropdowns}
               className={`${styles.navBtn} ${pathname === "/about" ? styles.navBtnActive : ""}`}
             >
               About
@@ -465,6 +477,7 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
 
             <Link
               to="/contact"
+              onClick={closeDropdowns}
               className={`${styles.navBtn} ${pathname === "/contact" ? styles.navBtnActive : ""}`}
             >
               Contact
@@ -493,14 +506,14 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
                 <span>Dashboard</span>
               </Link>
             ) : (
-              <a
-                href={getBillingPortalUrl()}
+              <Link
+                to="/login"
                 className={styles.loginBtn}
                 title="Restaurant Login Portal"
               >
                 <LogIn style={{ width: 12, height: 12 }} />
                 <span>Restaurant Login</span>
-              </a>
+              </Link>
             )}
 
             {triggerDemo ? (
@@ -562,15 +575,15 @@ export default function Navbar({ onOpenDemoModal, onOpenDemo }) {
                 <span>Restaurant Dashboard</span>
               </Link>
             ) : (
-              <a
-                href={getBillingPortalUrl()}
+              <Link
+                to="/login"
                 onClick={closeDropdowns}
                 className={styles.loginBtn}
                 style={{ justifyContent: 'center', padding: '9px 14px', fontSize: 13 }}
               >
                 <LogIn style={{ width: 14, height: 14 }} />
                 <span>Restaurant Login</span>
-              </a>
+              </Link>
             )}
             <button
               type="button"

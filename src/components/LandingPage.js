@@ -28,35 +28,39 @@ export default function LandingPage() {
         {/* 1. Hero Section with GSAP motion, Rotating Headline & Connected Simulator */}
         <HeroSection onOpenDemo={handleOpenDemo} />
 
-        {/* 3. Flagship QR Table Dining Showcase */}
+        {/* 2. Flagship QR Table Dining Showcase */}
         <FlagshipQROrderingSection onOpenDemo={handleOpenDemo} />
 
-        {/* 4. Flagship Zero-Latency Kitchen Display System (KDS) */}
+        {/* 3. Flagship Zero-Latency Kitchen Display System (KDS) */}
         <FlagshipKDSSection onOpenDemo={handleOpenDemo} />
 
-        {/* 5. Before vs After Comparison */}
-        <BeforeAfterSection />
+        {/* 4. Before vs After Comparison */}
+        <section id="about">
+          <BeforeAfterSection />
+        </section>
 
-        {/* 6. Comprehensive Ecosystem (FOH, BOH, AI Intelligence) */}
+        {/* 5. Comprehensive Ecosystem (FOH, BOH, AI Intelligence) */}
         <EcosystemSection />
 
-        {/* 7. Measurable ROI & Live Analytics Preview */}
+        {/* 6. Measurable ROI & Live Analytics Preview */}
         <TrustAndROISection onOpenDemo={handleOpenDemo} />
 
-        {/* 8. Transparent Indian Pricing */}
+        {/* 7. Transparent Indian Pricing */}
         <PricingSection onOpenDemo={handleOpenDemo} />
 
-        {/* 9. Frequently Asked Questions */}
+        {/* 8. Frequently Asked Questions */}
         <FAQSection onOpenDemo={handleOpenDemo} />
 
-        {/* 10. High-Impact Call to Action */}
+        {/* 9. High-Impact Call to Action */}
         <CTASection onOpenDemo={handleOpenDemo} />
       </main>
 
       {/* Footer */}
-      <Footer onOpenDemo={handleOpenDemo} />
+      <section id="contact">
+        <Footer onOpenDemo={handleOpenDemo} />
+      </section>
 
-      {/* Interactive Overlays (Zero Overlap) */}
+      {/* Interactive Overlays */}
       <LeadCaptureModal
         isOpen={isDemoModalOpen}
         onClose={handleCloseDemo}
