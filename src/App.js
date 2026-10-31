@@ -211,7 +211,7 @@ function AppRoutes() {
           path="/register"
           element={
             <PublicOnlyRoute>
-              <LandingPage />
+              <TenantRegister />
             </PublicOnlyRoute>
           }
         />
@@ -219,7 +219,7 @@ function AppRoutes() {
           path="/register-business"
           element={
             <PublicOnlyRoute>
-              <LandingPage />
+              <TenantRegister />
             </PublicOnlyRoute>
           }
         />

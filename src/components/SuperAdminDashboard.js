@@ -2474,6 +2474,38 @@ const SuperAdminDashboard = () => {
                                     </button>
                                 </div>
 
+                                <div style={{ marginTop: 14 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowInviteModal(false);
+                                            setGeneratedInviteLink('');
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            background: '#059669',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            borderRadius: 8,
+                                            padding: '10px 18px',
+                                            fontSize: '13px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 6,
+                                            boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
+                                            transition: 'background 0.2s ease, transform 0.15s ease'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = '#047857'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = '#059669'; }}
+                                    >
+                                        <CheckCircle2 size={16} />
+                                        <span>Done</span>
+                                    </button>
+                                </div>
+
 
                             </div>
                         ) : (
