@@ -48,8 +48,7 @@ const TenantRegister = ({ embedded = false }) => {
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const [otpCountdown, setOtpCountdown] = useState(0);
     const [isEmailOtpVerified, setIsEmailOtpVerified] = useState(false);
-    const [devOtp, setDevOtp] = useState('');
-
+    
     // Terms checkbox
     const [agreedTerms, setAgreedTerms] = useState(true);
 
@@ -132,10 +131,7 @@ const TenantRegister = ({ embedded = false }) => {
             if (res.data && res.data.success) {
                 setOtpSent(true);
                 setOtpCountdown(60);
-                if (res.data.devOtp) {
-                    setDevOtp(res.data.devOtp);
-                }
-                toast.success(res.data.message || 'Verification code sent! Please check your Inbox and Spam/Junk folder.');
+                                toast.success(res.data.message || 'Verification code sent! Please check your Inbox and Spam/Junk folder.');
             }
         } catch (err) {
             const msg = err.response?.data?.error || 'Failed to send verification code. Please check your email.';
@@ -147,18 +143,19 @@ const TenantRegister = ({ embedded = false }) => {
     };
 
     // Verify 6-digit OTP
-    const handleVerifyOtp = async () => {
-        if (!formData.otp || formData.otp.trim().length !== 6) {
+    const handleVerifyOtp = async (codeToVerify) => {
+        const otpCode = (typeof codeToVerify === 'string' ? codeToVerify : formData.otp || '').trim();
+        if (!otpCode || otpCode.length !== 6) {
             setFieldErrors(prev => ({ ...prev, otp: 'Please enter the complete 6-digit verification code.' }));
             return;
         }
 
         try {
             setVerifyingOtp(true);
-            setFieldErrors(prev => ({ ...prev, otp: '' }));
+            setFieldErrors(prev => ({ ...prev, otp: '', email: '' }));
             const res = await axios.post(`${API}/auth/verify-register-otp`, {
                 email: formData.email.trim(),
-                otp: formData.otp.trim()
+                otp: otpCode
             });
 
             if (res.data?.success) {
@@ -190,10 +187,12 @@ const TenantRegister = ({ embedded = false }) => {
         }
 
         if (!isEmailOtpVerified) {
-            errors.email = "Please verify your email address via OTP";
             if (!formData.otp.trim()) {
                 errors.otp = "Email verification OTP code is required";
+            } else {
+                errors.otp = "Please click 'Confirm OTP' to verify your code before submitting.";
             }
+            errors.email = "Please verify your email address via OTP";
         }
 
         if (!formData.phone.trim()) {
@@ -228,6 +227,7 @@ const TenantRegister = ({ embedded = false }) => {
         } else if (name === 'otp') {
             const sanitizedOtp = value.replace(/\D/g, '').slice(0, 6);
             setFormData(prev => ({ ...prev, otp: sanitizedOtp }));
+            setFieldErrors(prev => ({ ...prev, otp: '', email: '' }));
         } else if (name === 'address') {
             // Prevent browser autofill from dumping email into city/address
             if (value.includes('@')) return;
@@ -586,21 +586,6 @@ const TenantRegister = ({ embedded = false }) => {
                                             {verifyingOtp ? 'Verifying...' : 'Confirm OTP'}
                                         </button>
                                     </div>
-
-                                    {/* Test Code Fast-fill chip for local/dev testing */}
-                                    {devOtp && (
-                                        <div 
-                                            className={styles.devOtpHint}
-                                            onClick={() => {
-                                                setFormData(prev => ({ ...prev, otp: devOtp }));
-                                                toast.success('Test code filled!');
-                                            }}
-                                            title="Click to auto-fill test code"
-                                        >
-                                            <Sparkles size={12} color="#059669" />
-                                            <span>Test Code: <strong>{devOtp}</strong> (Click to auto-fill)</span>
-                                        </div>
-                                    )}
 
                                     {fieldErrors.otp && (
                                         <span className={styles.errorText}>
