@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import DineviqLogo from "./brand/DineviqLogo";
-import { buildAuthCallbackUrl } from "../utils/subdomain";
+import { buildAuthCallbackUrl, isBillingOrAdminSubdomain } from "../utils/subdomain";
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
@@ -274,7 +274,7 @@ const Login = () => {
 
             {/* Error / Approval Notice Banner */}
             {generalError && (
-              <div 
+              <div
                 className={styles.errorBanner}
                 style={isPendingApproval ? { background: '#fef3c7', borderColor: '#fde68a', color: '#92400e' } : {}}
               >

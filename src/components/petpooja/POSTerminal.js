@@ -1747,6 +1747,8 @@ export default function POSTerminal({
                         toast.error('All active items on this table are already paid!');
                         return;
                       }
+                      setKhataPaidAmount('0');
+                      setKhataBorrowAmount(0);
                       setShowPayItemsModal(true);
                     }}
                     disabled={isSubmittingItemPay || (currentTableOrders.length === 0 && cart.length === 0) || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
@@ -1766,6 +1768,8 @@ export default function POSTerminal({
                     className={styles.clearTableBtn}
                     onClick={() => {
                       if (balanceDue > 0) {
+                        setKhataPaidAmount('0');
+                        setKhataBorrowAmount(0);
                         setShowPayItemsModal(true);
                       } else {
                         handleClearTableClick();
@@ -1801,7 +1805,8 @@ export default function POSTerminal({
           { id: 'Card', label: 'Card', icon: CreditCard },
           ...(tenantInfo?.settings?.enableKhata ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
         ];
-        const paidNowNum = Number(khataPaidAmount) || 0;
+        const rawPaidNow = Number(khataPaidAmount) || 0;
+        const paidNowNum = Math.min(tenderAmount, Math.max(0, rawPaidNow));
         const borrowDueNum = Math.max(0, tenderAmount - paidNowNum);
 
         const handleModalConfirm = async () => {
@@ -2138,9 +2143,12 @@ export default function POSTerminal({
                           placeholder="0"
                           value={khataPaidAmount}
                           onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || Number(val) >= 0) {
-                              setKhataPaidAmount(val);
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              setKhataPaidAmount('');
+                            } else {
+                              const num = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
+                              setKhataPaidAmount(String(num));
                             }
                           }}
                           style={{

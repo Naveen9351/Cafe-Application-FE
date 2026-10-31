@@ -455,56 +455,119 @@
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .otpHeader {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.84rem;
+  gap: 7px;
+  font-size: 0.86rem;
   font-weight: 700;
   color: #065f46;
 }
 
 .otpSubtext {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #334155;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
-.otpInputRow {
+/* 6-Digit OTP Individual Boxes Row */
+.otpBoxesRow {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  justify-content: center;
   align-items: center;
+  width: 100%;
+  margin: 6px 0;
+}
+
+.otpBox {
+  flex: 1;
+  max-width: 48px;
+  height: 52px;
+  border-radius: 12px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  text-align: center;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.otpBox:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.18);
+  background: #ffffff;
+}
+
+.otpBoxFilled {
+  border-color: #059669;
+  background: #f0fdf4;
+  color: #047857;
+}
+
+.otpBoxError {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+.otpBoxError:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+.otpActionsRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
 }
 
 .verifyOtpBtn {
   background: #059669;
   color: #ffffff;
   border: none;
-  padding: 11px 18px;
+  width: 100%;
+  padding: 12px 20px;
   border-radius: 10px;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
 }
 
 .verifyOtpBtn:hover:not(:disabled) {
   background: #047857;
+  transform: translateY(-1px);
 }
 
 .verifyOtpBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
+@media (max-width: 480px) {
+  .otpBoxesRow {
+    gap: 6px;
+  }
+  .otpBox {
+    height: 46px;
+    font-size: 1.2rem;
+  }
+}
 
 /* Password Criteria Grid */
 .passwordRequirements {

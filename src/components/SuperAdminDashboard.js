@@ -585,28 +585,142 @@ const SuperAdminDashboard = () => {
         }
     };
 
-    // Handle Deactivate Plan with Custom UI Popup
-    const handleDeactivatePlan = (tenantId, tenantName = 'this cafe') => {
+        // Pro-rata refund calculator for any subscription or history log
+    const calculateRefundDetails = (subOrLog) => {
+        if (!subOrLog) return { remainingDays: 0, usedDays: 0, totalDays: 0, refundAmount: 0, dailyRate: 0 };
+
+        if (subOrLog.refundAmount !== undefined && subOrLog.remainingDays !== undefined && subOrLog.refundAmount > 0) {
+            return {
+                remainingDays: subOrLog.remainingDays,
+                usedDays: subOrLog.usedDays || 0,
+                totalDays: subOrLog.totalDays || 0,
+                refundAmount: subOrLog.refundAmount,
+                dailyRate: subOrLog.dailyRate || 0
+            };
+        }
+
+        const actionDate = subOrLog.actionDate ? new Date(subOrLog.actionDate) : new Date();
+        const start = subOrLog.startDate ? new Date(subOrLog.startDate) : actionDate;
+        const end = subOrLog.endDate ? new Date(subOrLog.endDate) : actionDate;
+        const price = Number(subOrLog.price) || 0;
+
+        const totalDurationMs = Math.max(0, end.getTime() - start.getTime());
+        const totalDays = Math.max(1, Math.ceil(totalDurationMs / (1000 * 60 * 60 * 24)));
+
+        const remainingMs = Math.max(0, end.getTime() - actionDate.getTime());
+        const remainingDays = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
+        const usedDays = Math.max(0, totalDays - remainingDays);
+
+        const dailyRate = price > 0 ? (price / totalDays) : 0;
+        const refundAmount = remainingDays > 0 && price > 0 ? Math.round(dailyRate * remainingDays) : 0;
+
+        return {
+            remainingDays,
+            usedDays,
+            totalDays,
+            refundAmount,
+            dailyRate: Math.round(dailyRate * 100) / 100
+        };
+    };
+
+    // Handle Deactivate Plan with Live Pro-Rata Refund Telemetry
+    const handleDeactivatePlan = (tenant) => {
+        if (!tenant) return;
+        const sub = tenant.subscription || {};
+        const refundInfo = calculateRefundDetails(sub);
+        const planDisplayName = (sub.plan || 'Plan').replace(/_/g, ' ').toUpperCase();
+
         setConfirmModal({
             isOpen: true,
             type: 'warning',
-            title: `Deactivate Plan?`,
-            message: `Are you sure you want to deactivate the plan for "${tenantName}"? Cafe ordering and active POS operations will be paused until reactivated.`,
-            confirmText: 'Yes, Deactivate',
+            title: `Deactivate Plan & Compute Refund`,
+            message: '',
+            customBody: (
+                <div style={{ textAlign: 'left', marginBottom: '1.25rem' }}>
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
+                        Are you sure you want to deactivate the active subscription for <strong>{tenant.name}</strong>?
+                    </p>
+
+                    {/* Pro-Rata Refund Breakdown Box */}
+                    <div style={{
+                        background: '#fffbeb',
+                        border: '1.5px solid #fde68a',
+                        borderRadius: '12px',
+                        padding: '12px 14px',
+                        marginBottom: '10px'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                Pro-Rata Refund Calculation
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>
+                                Auto-Computed
+                            </span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', marginBottom: '10px' }}>
+                            <div style={{ color: '#475569' }}>
+                                Active Plan: <strong style={{ color: '#0f172a' }}>{planDisplayName}</strong>
+                            </div>
+                            <div style={{ color: '#475569' }}>
+                                Plan Price: <strong style={{ color: '#0f172a' }}>₹{Number(sub.price || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                            <div style={{ color: '#475569' }}>
+                                Days Used: <strong style={{ color: '#0f172a' }}>{refundInfo.usedDays} days</strong>
+                            </div>
+                            <div style={{ color: '#475569' }}>
+                                Days Pending: <strong style={{ color: '#d97706' }}>{refundInfo.remainingDays} days</strong>
+                            </div>
+                        </div>
+
+                        <div style={{
+                            borderTop: '1px dashed #fde68a',
+                            paddingTop: '9px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400e' }}>
+                                    Refund to give back to Cafe Owner:
+                                </div>
+                                <div style={{ fontSize: '10px', color: '#b45309' }}>
+                                    (₹{refundInfo.dailyRate}/day × {refundInfo.remainingDays} pending days)
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '18px', fontWeight: 900, color: '#b45309' }}>
+                                ₹{refundInfo.refundAmount.toLocaleString('en-IN')}
+                            </span>
+                        </div>
+                    </div>
+
+                    <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8' }}>
+                        * Cafe ordering and active POS operations will be paused until a new plan is activated.
+                    </p>
+                </div>
+            ),
+            confirmText: `Yes, Deactivate & Refund ₹${refundInfo.refundAmount.toLocaleString('en-IN')}`,
             cancelText: 'Cancel',
-            onConfirm: () => executeDeactivatePlan(tenantId)
+            onConfirm: () => executeDeactivatePlan(tenant._id, refundInfo.refundAmount, refundInfo.remainingDays)
         });
     };
 
-    const executeDeactivatePlan = async (tenantId) => {
+    const executeDeactivatePlan = async (tenantId, refundAmount = 0, remainingDays = 0) => {
         try {
             setConfirmModal(prev => ({ ...prev, loading: true }));
             const token = localStorage.getItem('token');
-            await axios.put(`${API}/tenants/${tenantId}/deactivate-subscription`, {}, {
+            const res = await axios.put(`${API}/tenants/${tenantId}/deactivate-subscription`, {}, {
                 headers: { 'x-auth-token': token }
             });
 
-            toast.success("Plan deactivated successfully");
+            const refund = res.data?.refundCalculation?.refundAmount !== undefined
+                ? res.data.refundCalculation.refundAmount
+                : refundAmount;
+            const days = res.data?.refundCalculation?.remainingDays !== undefined
+                ? res.data.refundCalculation.remainingDays
+                : remainingDays;
+
+            toast.success(`Plan deactivated! ${days} days pending — Refund Due: ₹${refund.toLocaleString('en-IN')}`);
             setConfirmModal(prev => ({ ...prev, isOpen: false, loading: false }));
             if (showPlanModal) setShowPlanModal(false);
             fetchTenantsAndLeads();
@@ -1056,7 +1170,7 @@ const SuperAdminDashboard = () => {
                                                                         <button
                                                                             type="button"
                                                                             className={styles.deactivateIconBtn}
-                                                                            onClick={() => handleDeactivatePlan(tenant._id)}
+                                                                            onClick={() => handleDeactivatePlan(tenant)}
                                                                             title="Deactivate Plan"
                                                                         >
                                                                             <PowerOff size={13} />
@@ -1659,7 +1773,7 @@ const SuperAdminDashboard = () => {
                                         <tbody>
                                             {loading ? (
                                                 <tr>
-                                                    <td colSpan={5} style={{ textAlign: 'center', padding: '0' }}>
+                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '0' }}>
                                                         <div className={styles.tableLoaderContainer}>
                                                             <div className={styles.tableSpinnerRing}></div>
                                                             <span className={styles.tableLoaderText}>Loading demo inquiries...</span>
@@ -1668,7 +1782,7 @@ const SuperAdminDashboard = () => {
                                                 </tr>
                                             ) : paginatedLeads.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                                         No demo inquiries logged yet.
                                                     </td>
                                                 </tr>
@@ -3149,7 +3263,7 @@ const SuperAdminDashboard = () => {
             {/* MODAL 3: SUBSCRIPTION HISTORY VIEW */}
             {showHistoryModal && historyTenant && (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent} style={{ maxWidth: 640 }}>
+                    <div className={styles.modalContent} style={{ maxWidth: 740 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600 }}>Subscription History</h2>
                             <button type="button" onClick={() => setShowHistoryModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
@@ -3174,7 +3288,7 @@ const SuperAdminDashboard = () => {
                                 <tbody>
                                     {loadingHistory ? (
                                         <tr>
-                                            <td colSpan={5} style={{ textAlign: 'center', padding: '0' }}>
+                                            <td colSpan={6} style={{ textAlign: 'center', padding: '0' }}>
                                                 <div className={styles.tableLoaderContainer}>
                                                     <div className={styles.tableSpinnerRing}></div>
                                                     <span className={styles.tableLoaderText}>Loading subscription history...</span>
@@ -3183,7 +3297,7 @@ const SuperAdminDashboard = () => {
                                         </tr>
                                     ) : (!tenantHistoryLogs || tenantHistoryLogs.length === 0) ? (
                                         <tr>
-                                            <td colSpan={5} style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b' }}>
+                                            <td colSpan={6} style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b' }}>
                                                 No subscription history logged yet.
                                             </td>
                                         </tr>

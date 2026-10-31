@@ -48,7 +48,21 @@ const TenantRegister = ({ embedded = false }) => {
     const [verifyingOtp, setVerifyingOtp] = useState(false);
     const [otpCountdown, setOtpCountdown] = useState(0);
     const [isEmailOtpVerified, setIsEmailOtpVerified] = useState(false);
-    
+    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+    const otpInputsRef = React.useRef([]);
+
+    // Keep otpDigits synchronized if formData.otp changes externally
+    useEffect(() => {
+        if (formData.otp) {
+            const digits = formData.otp.slice(0, 6).split('');
+            setOtpDigits(prev => {
+                const next = ['', '', '', '', '', ''];
+                digits.forEach((d, i) => { next[i] = d; });
+                return next;
+            });
+        }
+    }, [formData.otp]);
+
     // Terms checkbox
     const [agreedTerms, setAgreedTerms] = useState(true);
 
@@ -114,7 +128,7 @@ const TenantRegister = ({ embedded = false }) => {
 
     // Send OTP to email
     const handleSendOtp = async () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^s@]+@[^s@]+.[^s@]+$/;
         if (!formData.email.trim() || !emailRegex.test(formData.email.trim())) {
             setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address first.' }));
             return;
@@ -131,7 +145,12 @@ const TenantRegister = ({ embedded = false }) => {
             if (res.data && res.data.success) {
                 setOtpSent(true);
                 setOtpCountdown(60);
-                                toast.success(res.data.message || 'Verification code sent! Please check your Inbox and Spam/Junk folder.');
+                setOtpDigits(['', '', '', '', '', '']);
+                setFormData(prev => ({ ...prev, otp: '' }));
+                toast.success(res.data.message || 'Verification code sent! Please check your Inbox and Spam/Junk folder.');
+                setTimeout(() => {
+                    otpInputsRef.current[0]?.focus();
+                }, 100);
             }
         } catch (err) {
             const msg = err.response?.data?.error || 'Failed to send verification code. Please check your email.';
@@ -144,7 +163,7 @@ const TenantRegister = ({ embedded = false }) => {
 
     // Verify 6-digit OTP
     const handleVerifyOtp = async (codeToVerify) => {
-        const otpCode = (typeof codeToVerify === 'string' ? codeToVerify : formData.otp || '').trim();
+        const otpCode = (typeof codeToVerify === 'string' ? codeToVerify : formData.otp || otpDigits.join('')).trim();
         if (!otpCode || otpCode.length !== 6) {
             setFieldErrors(prev => ({ ...prev, otp: 'Please enter the complete 6-digit verification code.' }));
             return;
@@ -168,6 +187,85 @@ const TenantRegister = ({ embedded = false }) => {
             toast.error(msg);
         } finally {
             setVerifyingOtp(false);
+        }
+    };
+
+    // Handle individual OTP digit box changes
+    const handleOtpDigitChange = (index, value) => {
+        if (fieldErrors.otp) {
+            setFieldErrors(prev => ({ ...prev, otp: '' }));
+        }
+
+        const cleanVal = value.replace(/[^0-9]/g, '');
+        const newDigits = [...otpDigits];
+
+        if (cleanVal.length > 1) {
+            // User pasted multi-digit string into one box
+            const pasted = cleanVal.slice(0, 6).split('');
+            for (let i = 0; i < 6; i++) {
+                newDigits[i] = pasted[i] || '';
+            }
+            setOtpDigits(newDigits);
+            const fullCode = newDigits.join('');
+            setFormData(prev => ({ ...prev, otp: fullCode }));
+            const nextIdx = Math.min(pasted.length, 5);
+            otpInputsRef.current[nextIdx]?.focus();
+
+            if (fullCode.length === 6) {
+                handleVerifyOtp(fullCode);
+            }
+            return;
+        }
+
+        newDigits[index] = cleanVal;
+        setOtpDigits(newDigits);
+        const fullCode = newDigits.join('');
+        setFormData(prev => ({ ...prev, otp: fullCode }));
+
+        // Auto-advance to next box
+        if (cleanVal && index < 5) {
+            otpInputsRef.current[index + 1]?.focus();
+        }
+
+        // Auto-verify when 6th digit entered
+        if (cleanVal && index === 5 && fullCode.length === 6) {
+            handleVerifyOtp(fullCode);
+        }
+    };
+
+    // Handle backspace / navigation between OTP boxes
+    const handleOtpKeyDown = (index, e) => {
+        if (e.key === 'Backspace') {
+            if (!otpDigits[index] && index > 0) {
+                otpInputsRef.current[index - 1]?.focus();
+            }
+        } else if (e.key === 'ArrowLeft' && index > 0) {
+            otpInputsRef.current[index - 1]?.focus();
+        } else if (e.key === 'ArrowRight' && index < 5) {
+            otpInputsRef.current[index + 1]?.focus();
+        }
+    };
+
+    // Handle clipboard paste across all 6 boxes
+    const handleOtpPaste = (e) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+        if (!pastedData) return;
+
+        const newDigits = ['', '', '', '', '', ''];
+        const chars = pastedData.split('');
+        for (let i = 0; i < 6; i++) {
+            newDigits[i] = chars[i] || '';
+        }
+        setOtpDigits(newDigits);
+        const fullCode = newDigits.join('');
+        setFormData(prev => ({ ...prev, otp: fullCode }));
+
+        const nextFocus = Math.min(chars.length, 5);
+        otpInputsRef.current[nextFocus]?.focus();
+
+        if (fullCode.length === 6) {
+            handleVerifyOtp(fullCode);
         }
     };
 
@@ -555,33 +653,39 @@ const TenantRegister = ({ embedded = false }) => {
                             {(!isEmailOtpVerified && (otpSent || formData.otp)) && (
                                 <div className={styles.otpCard}>
                                     <div className={styles.otpHeader}>
-                                        <KeyRound size={15} color="#059669" />
+                                        <KeyRound size={16} color="#059669" />
                                         <span>Enter Verification Code</span>
                                     </div>
                                     <p className={styles.otpSubtext}>
                                         We sent a 6-digit code to <strong>{formData.email}</strong>. Please check your <strong>Inbox</strong> and <strong>Spam/Junk folder</strong>.
                                     </p>
 
-                                    <div className={styles.otpInputRow}>
-                                        <div className={`${styles.inputGroup} ${fieldErrors.otp ? styles.inputError : ''}`} style={{ flex: 1 }}>
-                                            <KeyRound className={styles.icon} size={16} />
+                                    {/* 6 Individual Box Inputs for OTP */}
+                                    <div className={styles.otpBoxesRow} onPaste={handleOtpPaste}>
+                                        {otpDigits.map((digit, idx) => (
                                             <input
-                                                name="otp"
-                                                type="text"
+                                                key={idx}
+                                                ref={(el) => (otpInputsRef.current[idx] = el)}
+                                                type="tel"
                                                 inputMode="numeric"
-                                                placeholder="Enter 6-digit OTP"
-                                                value={formData.otp}
-                                                onChange={handleChange}
-                                                maxLength={6}
+                                                pattern="[0-9]*"
+                                                maxLength={1}
+                                                value={digit}
+                                                className={`${styles.otpBox} ${fieldErrors.otp ? styles.otpBoxError : ''} ${digit ? styles.otpBoxFilled : ''}`}
+                                                onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                                                onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                                                 disabled={verifyingOtp || loading}
-                                                autoComplete="one-time-code"
+                                                autoComplete={idx === 0 ? "one-time-code" : "off"}
                                             />
-                                        </div>
+                                        ))}
+                                    </div>
+
+                                    <div className={styles.otpActionsRow}>
                                         <button
                                             type="button"
                                             className={styles.verifyOtpBtn}
-                                            onClick={handleVerifyOtp}
-                                            disabled={verifyingOtp || !formData.otp || formData.otp.trim().length !== 6}
+                                            onClick={() => handleVerifyOtp()}
+                                            disabled={verifyingOtp || otpDigits.join('').length !== 6}
                                         >
                                             {verifyingOtp ? 'Verifying...' : 'Confirm OTP'}
                                         </button>

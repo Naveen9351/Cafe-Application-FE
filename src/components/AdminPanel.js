@@ -169,6 +169,7 @@ export default function AdminPanel() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
@@ -2372,7 +2373,7 @@ export default function AdminPanel() {
             <button
               type="button"
               className={styles.logoutBtn}
-              onClick={() => logout()}
+              onClick={() => setShowLogoutModal(true)}
               title="Sign Out"
             >
               <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
@@ -2640,7 +2641,7 @@ export default function AdminPanel() {
               <button
                 type="button"
                 className={styles.staffSignOutBtn}
-                onClick={() => logout()}
+                onClick={() => setShowLogoutModal(true)}
                 title="Sign Out"
               >
                 <LogOut size={15} />
@@ -2746,8 +2747,8 @@ export default function AdminPanel() {
                   type="button"
                   className={styles.mobileNavTabBtn}
                   onClick={() => {
-                    logout();
                     setMobileMenuOpen(false);
+                    setShowLogoutModal(true);
                   }}
                   style={{ color: '#ef4444', borderColor: '#fee2e2', background: '#fef2f2' }}
                 >
@@ -5560,6 +5561,135 @@ export default function AdminPanel() {
         onClose={() => setShowSupportModal(false)}
         tenantInfo={tenantInfo}
       />
+
+      {/* SIGN OUT CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '1rem'
+            }}
+            onClick={() => setShowLogoutModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 10 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '2rem 1.75rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.3)',
+                textAlign: 'center',
+                position: 'relative'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.25rem auto'
+                }}
+              >
+                <LogOut size={26} strokeWidth={2.2} />
+              </div>
+
+              <h2 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: 700, color: '#0f172a' }}>
+                Confirm Sign Out
+              </h2>
+
+              <p style={{ margin: '0 0 1.75rem 0', fontSize: '14px', color: '#64748b', lineHeight: 1.5 }}>
+                Are you sure you really want to sign out? You will need to log in again to access the dashboard.
+              </p>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '11px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLogoutModal(false);
+                    logout();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '11px 16px',
+                    borderRadius: '11px',
+                    border: 'none',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(220, 38, 38, 0.3)',
+                    transition: 'opacity 0.15s'
+                  }}
+                >
+                  Yes, Sign Out
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 7-DAY NOTIFICATION HISTORY SLIDE-OVER DRAWER */}
       <AnimatePresence>

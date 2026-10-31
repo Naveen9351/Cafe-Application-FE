@@ -316,7 +316,7 @@ export default function KhataLedger() {
                 <th>Customer Name</th>
                 <th>Phone Number</th>
                 <th>Total Bill</th>
-                <th>Initial Paid</th>
+                <th>Paid Amount</th>
                 <th>Remaining Due</th>
                 <th>Status</th>
                 <th>Date</th>
@@ -379,7 +379,7 @@ export default function KhataLedger() {
                         ₹{bill.toLocaleString()}
                       </td>
                       <td style={{ color: '#16a34a', fontWeight: 600 }}>
-                        ₹{Number(rec.paidAmount || 0).toLocaleString()}
+                        ₹{Math.min(bill, Number(rec.paidAmount || 0)).toLocaleString()}
                       </td>
                       <td style={{ color: remainingDue > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>
                         ₹{remainingDue.toLocaleString()}
