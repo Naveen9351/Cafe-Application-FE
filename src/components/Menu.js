@@ -218,7 +218,7 @@ export default function Menu() {
   // Live Active Order on Customer Dashboard
   const [activeRunningOrder, setActiveRunningOrder] = useState(null);
 
-  const { addItem, updateItemQuantity, removeItem, items: cartItems, getCartTotal } = useCartContext();
+  const { addItem, updateItemQuantity, removeItem, items: cartItems, getCartTotal, setItems: setCartItems } = useCartContext();
   const [searchParams] = useSearchParams();
 
   const [categories, setCategories] = useState([]);
@@ -526,6 +526,12 @@ export default function Menu() {
     }
 
     if (urlTenant) {
+      const prevTenant = localStorage.getItem("tenantId");
+      if (prevTenant && prevTenant !== urlTenant) {
+        // Cafe/tenant changed: reset cart so items from old cafe or demo don't leak into new cafe
+        if (setCartItems) setCartItems([]);
+        localStorage.removeItem("cartItems");
+      }
       setTenantId(urlTenant);
       localStorage.setItem("tenantId", urlTenant);
       fetchTenantInfo(urlTenant);
@@ -570,7 +576,7 @@ export default function Menu() {
     axios
       .get(`${API}/menu`, { params: currentTenantId ? { tenantId: currentTenantId } : {} })
       .then((res) => {
-        if (res.data && res.data.length > 0) {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
           // Deduplicate items so identical dishes never repeat multiple times
           const seen = new Set();
           const uniqueItems = [];
@@ -583,14 +589,39 @@ export default function Menu() {
             if (nameCatKey) seen.add(nameCatKey);
             uniqueItems.push(item);
           }
-          setItems(uniqueItems.length > 0 ? uniqueItems : res.data);
+          const finalItems = uniqueItems.length > 0 ? uniqueItems : res.data;
+          setItems(finalItems);
+
+          // Clean up any stale cart items not matching this tenant's menu
+          if (currentTenantId !== 'demo-tenant') {
+            const validIds = new Set(finalItems.map(it => String(it._id || it.id)));
+            const sanitized = (cartItems || []).filter(ci => {
+              const baseId = String(ci.itemId || ci.id || '').split('_')[0];
+              return validIds.has(String(ci.itemId || ci.id)) || validIds.has(baseId);
+            });
+            if (sanitized.length !== (cartItems || []).length) {
+              if (setCartItems) setCartItems(sanitized);
+            }
+          }
         } else {
-          setItems(defaultGourmetItemsFallback);
+          // Real onboarded tenant with 0 menu items: accurately reflect empty menu, NEVER show fake demo dishes!
+          if (currentTenantId === 'demo-tenant') {
+            setItems(defaultGourmetItemsFallback);
+          } else {
+            setItems([]);
+            // Clear any stale cart items since tenant has no items
+            if (setCartItems) setCartItems([]);
+            localStorage.removeItem("cartItems");
+          }
         }
       })
       .catch((err) => {
-        console.log("Using dynamic gourmet catalog fallback:", err);
-        setItems(defaultGourmetItemsFallback);
+        console.log("Menu fetch error:", err);
+        if (currentTenantId === 'demo-tenant') {
+          setItems(defaultGourmetItemsFallback);
+        } else {
+          setItems([]);
+        }
       })
       .finally(() => {
         setIsFetchingMenu(false);
@@ -1550,7 +1581,7 @@ export default function Menu() {
                         <p style={{ fontSize: '0.74rem', color: theme.textMuted, margin: '0 0 1.1rem 0', maxWidth: '270px', lineHeight: 1.45 }}>
                           {searchQuery
                             ? "We couldn't find any dishes matching your search. Try checking your spelling or explore other items."
-                            : "No dishes found in this section right now. Explore other categories!"}
+                            : (items.length === 0 ? "This restaurant's menu catalog is currently empty. Please check back shortly or ask the staff!" : "No dishes found in this section right now. Explore other categories!")}
                         </p>
 
                         {/* Quick Action Button */}
