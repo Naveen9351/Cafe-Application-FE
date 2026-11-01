@@ -209,7 +209,7 @@ export default function POSTerminal({
     return allTablesList.filter(t => {
       const tableOrders = getOrdersForTableObj(t);
       const isOccupied = tableOrders.length > 0;
-      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
 
       // Zone filter
       if (selectedZone !== 'all' && (t.zone || 'Main Floor') !== selectedZone) {
@@ -1053,7 +1053,7 @@ export default function POSTerminal({
               {filteredFloorTables.map(tbl => {
                 const tableOrders = getOrdersForTableObj(tbl);
                 const isOccupied = tableOrders.length > 0;
-                const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+                const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
                 const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
 
                 // Calculate running elapsed minutes

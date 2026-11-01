@@ -23,7 +23,8 @@ const STAGE_LABELS = {
   pending: 'New Orders',
   preparing: 'In Kitchen',
   ready: 'Ready for Pass',
-  completed: 'Served (Completed)'
+  served: 'Served',
+  completed: 'Completed'
 };
 
 export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder, enableEstimatedPrepTime = false }) {
@@ -564,7 +565,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           <button
                             type="button"
                             className={styles.completeOrderBtn}
-                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'completed'); }}
+                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'served'); }}
                           >
                             Served to Guest ✓
                           </button>
@@ -582,10 +583,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
 
               {/* COLUMN 4: SERVED */}
               <div
-                className={`${styles.kanbanCol} ${dragOverCol === 'completed' ? styles.kanbanColDragOver : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'completed')}
-                onDragLeave={(e) => handleDragLeave(e, 'completed')}
-                onDrop={(e) => handleDrop(e, 'completed')}
+                className={`${styles.kanbanCol} ${(dragOverCol === 'served' || dragOverCol === 'completed') ? styles.kanbanColDragOver : ''}`}
+                onDragOver={(e) => handleDragOver(e, 'served')}
+                onDragLeave={(e) => handleDragLeave(e, 'served')}
+                onDrop={(e) => handleDrop(e, 'served')}
               >
                 <div className={`${styles.colHeader} ${styles.colGray}`}>
                   <div className={styles.colTitleWrap}>
@@ -930,7 +931,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                   <button
                                     type="button"
                                     className={styles.tblBtnServed}
-                                    onClick={() => handleUpdateStage(order._id, 'completed')}
+                                    onClick={() => handleUpdateStage(order._id, 'served')}
                                   >
                                     <CheckCircle size={12} /> Mark Served
                                   </button>
