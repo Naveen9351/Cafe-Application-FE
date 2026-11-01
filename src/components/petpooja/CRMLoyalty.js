@@ -1001,8 +1001,13 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                     </tr>
                   ) : (
                     paginatedCustomers.map(cust => {
-                      const spend = Number(cust.lifetimeSpend) || 0;
-                      const visits = Number(cust.totalVisits) || (cust.orders?.length || 1);
+                      const validOrders = (cust.orders || []).filter(o => o.status !== 'cancelled');
+                      const spend = (cust.orders && cust.orders.length > 0)
+                        ? validOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
+                        : (Number(cust.lifetimeSpend) || 0);
+                      const visits = (cust.orders && cust.orders.length > 0)
+                        ? validOrders.length
+                        : (Number(cust.totalVisits) || 1);
                       const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
                       const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
 
@@ -1616,31 +1621,40 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
                   {/* Drawer Body */}
                   <div className={styles.drawerBody}>
-                    {/* Metrics Summary Strip */}
-                    <div className={styles.drawerMetricsGrid}>
-                      <div>
-                        <div className={styles.drawerMetricLabel}>Total Visits</div>
-                        <div className={styles.drawerMetricVal}>
-                          {selectedCustomer.totalVisits || selectedCustomer.orders?.length || 1}
+                    {/* Metrics Summary Strip (Excluding Cancelled Orders) */}
+                    {(() => {
+                      const validDrawerOrders = (selectedCustomer.orders || []).filter(o => o.status !== 'cancelled');
+                      const activeVisits = (selectedCustomer.orders && selectedCustomer.orders.length > 0)
+                        ? validDrawerOrders.length
+                        : (Number(selectedCustomer.totalVisits) || 1);
+                      const activeSpend = (selectedCustomer.orders && selectedCustomer.orders.length > 0)
+                        ? validDrawerOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
+                        : (Number(selectedCustomer.lifetimeSpend) || 0);
+                      const activeAov = activeVisits > 0 ? Math.round(activeSpend / activeVisits) : 0;
+
+                      return (
+                        <div className={styles.drawerMetricsGrid}>
+                          <div>
+                            <div className={styles.drawerMetricLabel}>Total Visits</div>
+                            <div className={styles.drawerMetricVal}>
+                              {activeVisits}
+                            </div>
+                          </div>
+                          <div>
+                            <div className={styles.drawerMetricLabel}>Lifetime Spend</div>
+                            <div className={styles.drawerMetricVal} style={{ color: '#059669' }}>
+                              {formatCurrency(activeSpend)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className={styles.drawerMetricLabel}>Avg Bill Value (AOV)</div>
+                            <div className={styles.drawerMetricVal}>
+                              {formatCurrency(activeAov)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <div className={styles.drawerMetricLabel}>Lifetime Spend</div>
-                        <div className={styles.drawerMetricVal} style={{ color: '#059669' }}>
-                          {formatCurrency(selectedCustomer.lifetimeSpend || 0)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className={styles.drawerMetricLabel}>Avg Bill Value (AOV)</div>
-                        <div className={styles.drawerMetricVal}>
-                          {formatCurrency(
-                            selectedCustomer.averageOrderValue ||
-                            selectedCustomer.aov ||
-                            Math.round((Number(selectedCustomer.lifetimeSpend) || 0) / Math.max(1, Number(selectedCustomer.totalVisits) || 1))
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
 
                     {/* 📅 Date-Grouped Order History Timeline */}
                     <div className={styles.timelineSection}>
@@ -1672,38 +1686,63 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
                             {/* Orders under this date */}
                             <div className={styles.dateGroupOrders}>
-                              {dateOrders.map((ord, idx) => (
-                                <div
-                                  key={ord._id || idx}
-                                  className={styles.orderCardDrawer}
-                                >
-                                  <div className={styles.orderCardHeader}>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                      <span className={styles.orderNumber}>
-                                        Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
-                                      </span>
-                                      <span className={styles.tableTag}>
-                                        {ord.tableNumber ? `Table ${ord.tableNumber}` : (ord.orderType || 'Dine-In')}
+                              {dateOrders.map((ord, idx) => {
+                                const isCancelled = (ord.status || '').toLowerCase() === 'cancelled';
+                                const isCompleted = ['completed', 'served'].includes((ord.status || '').toLowerCase());
+                                const amountColor = isCancelled ? '#dc2626' : (isCompleted ? '#059669' : '#0f172a');
+
+                                return (
+                                  <div
+                                    key={ord._id || idx}
+                                    className={styles.orderCardDrawer}
+                                    style={isCancelled ? { borderColor: '#fca5a5', background: '#fffafa' } : {}}
+                                  >
+                                    <div className={styles.orderCardHeader}>
+                                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <span className={styles.orderNumber}>
+                                          Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
+                                        </span>
+                                        <span className={styles.tableTag}>
+                                          {ord.tableNumber ? `Table ${ord.tableNumber}` : (ord.orderType || 'Dine-In')}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={styles.orderAmount}
+                                        style={{
+                                          color: amountColor,
+                                          textDecoration: isCancelled ? 'line-through' : 'none'
+                                        }}
+                                      >
+                                        {formatCurrency(ord.settledAmount || ord.finalAmount || ord.totalAmount || ord.total || 0)}
                                       </span>
                                     </div>
-                                    <span className={styles.orderAmount}>
-                                      {formatCurrency(ord.settledAmount || ord.finalAmount || ord.totalAmount || ord.total || 0)}
-                                    </span>
-                                  </div>
 
-                                  <div className={styles.orderMetaRow}>
-                                    <span>{new Date(ord.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    <span>•</span>
-                                    <span>Status: <strong style={{ textTransform: 'capitalize', color: '#0f172a' }}>{ord.status || 'completed'}</strong></span>
-                                    {ord.paymentMethod && (
-                                      <>
-                                        <span>•</span>
-                                        <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '500' }}>
-                                          {ord.paymentMethod}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
+                                    <div className={styles.orderMetaRow}>
+                                      <span>{new Date(ord.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      <span>•</span>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        Status:{' '}
+                                        <strong style={{
+                                          textTransform: 'capitalize',
+                                          color: isCancelled ? '#dc2626' : (isCompleted ? '#059669' : '#0f172a'),
+                                          background: isCancelled ? '#fef2f2' : (isCompleted ? '#f0fdf4' : '#f1f5f9'),
+                                          border: `1px solid ${isCancelled ? '#fecaca' : (isCompleted ? '#bbf7d0' : '#e2e8f0')}`,
+                                          padding: '1px 6px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.74rem'
+                                        }}>
+                                          {ord.status || 'completed'}
+                                        </strong>
+                                      </span>
+                                      {ord.paymentMethod && (
+                                        <>
+                                          <span>•</span>
+                                          <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '500' }}>
+                                            {ord.paymentMethod}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
 
                                   {/* Items list */}
                                   {ord.items && ord.items.length > 0 && (
@@ -1717,7 +1756,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                                     </div>
                                   )}
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ))

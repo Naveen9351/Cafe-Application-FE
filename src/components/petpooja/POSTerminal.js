@@ -39,7 +39,8 @@ export default function POSTerminal({
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSettling, setIsSettling] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingKitchen, setIsSendingKitchen] = useState(false);
+  const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
   const [dbTables, setDbTables] = useState([]);
   const [isLoadingTables, setIsLoadingTables] = useState(true);
 
@@ -244,7 +245,7 @@ export default function POSTerminal({
       const ords = getOrdersForTableObj(t);
       if (ords.length === 0) {
         freeCount++;
-      } else if (ords.every(o => o.paymentStatus === 'paid' || o.status === 'served')) {
+      } else if (ords.every(o => o.paymentStatus === 'paid')) {
         paidCount++;
       } else {
         occupiedCount++;
@@ -549,7 +550,7 @@ export default function POSTerminal({
       return;
     }
 
-    setIsSubmitting(true);
+    setIsSendingKitchen(true);
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
@@ -593,7 +594,7 @@ export default function POSTerminal({
       console.error('Send order error:', err);
       toast.error('Failed to submit order: ' + (err.response?.data?.error || err.message));
     } finally {
-      setIsSubmitting(false);
+      setIsSendingKitchen(false);
     }
   };
 
@@ -604,7 +605,7 @@ export default function POSTerminal({
       return;
     }
 
-    setIsSubmitting(true);
+    setIsSubmittingDirect(true);
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
@@ -650,7 +651,7 @@ export default function POSTerminal({
       console.error('Direct order error:', err);
       toast.error('Failed to submit direct order: ' + (err.response?.data?.error || err.message));
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingDirect(false);
     }
   };
 
@@ -766,9 +767,9 @@ export default function POSTerminal({
       if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { 
-            paymentMethod: settleMethod, 
-            paymentStatus: 'paid', 
+          {
+            paymentMethod: settleMethod,
+            paymentStatus: 'paid',
             tenantId: effectiveTenantId,
             mergedTables: allSettleTables,
             settledAmount: finalSettledAmount,
@@ -876,9 +877,9 @@ export default function POSTerminal({
       if (tableNumber !== 'Walk-in') {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { 
-            paymentMethod: 'Khata / Borrow', 
-            paymentStatus: borrowNum === 0 ? 'paid' : 'partial', 
+          {
+            paymentMethod: 'Khata / Borrow',
+            paymentStatus: borrowNum === 0 ? 'paid' : 'partial',
             tenantId: effectiveTenantId,
             mergedTables: allSettleTables,
             actualAmount: paidNum,
@@ -970,13 +971,13 @@ export default function POSTerminal({
 
   return (
     <div className={styles.terminalWrapper}>
-      
+
       {/* ========================================================= */}
       {/* 1. FLOOR & TABLES MATRIX VIEW (Petpooja Reference Style)  */}
       {/* ========================================================= */}
       {viewMode === 'tables' && (
         <div className={styles.floorContainer}>
-          
+
           {/* Streamlined Top Control Toolbar */}
           <div className={styles.floorTopBarClean}>
             {/* Quick Status Filter Tabs (Segmented Control) */}
@@ -1056,12 +1057,16 @@ export default function POSTerminal({
                 const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
                 const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
 
-                // Calculate running elapsed minutes
+                // Calculate running elapsed duration across minutes, hours, and days
                 let elapsedMin = null;
                 if (isOccupied && tableOrders[0]?.createdAt) {
-                  const start = new Date(tableOrders[0].createdAt);
-                  const diffMs = Date.now() - start.getTime();
-                  elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+                  const diffSec = Math.max(1, Math.floor((Date.now() - new Date(tableOrders[0].createdAt).getTime()) / 1000));
+                  const d = Math.floor(diffSec / 86400);
+                  const h = Math.floor((diffSec % 86400) / 3600);
+                  const m = Math.floor((diffSec % 3600) / 60);
+                  if (d > 0) elapsedMin = h > 0 ? `${d}d ${h}h` : `${d}d`;
+                  else if (h > 0) elapsedMin = m > 0 ? `${h}h ${m}m` : `${h}h`;
+                  else elapsedMin = `${Math.max(1, m)} Min`;
                 }
 
                 // 1. FREE / EMPTY CARD
@@ -1168,8 +1173,8 @@ export default function POSTerminal({
                 {tableSearch
                   ? `No tables match "${tableSearch}"`
                   : tableStatusFilter !== 'all'
-                  ? `There are currently no tables with status "${tableStatusFilter}". Switch filter to see other tables.`
-                  : 'No tables available on this floor.'}
+                    ? `There are currently no tables with status "${tableStatusFilter}". Switch filter to see other tables.`
+                    : 'No tables available on this floor.'}
               </p>
               {tableStatusFilter !== 'all' && (
                 <button
@@ -1201,10 +1206,10 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {viewMode === 'terminal' && (
         <div className={styles.terminalContainerWrap}>
-          
+
           {/* POS Two-Column Grid */}
           <div className={styles.posGrid}>
-            
+
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
               <div className={styles.menuFilterBar}>
@@ -1320,7 +1325,7 @@ export default function POSTerminal({
 
             {/* Right: Order Slip & Settlement Drawer */}
             <div className={styles.orderDrawer}>
-              
+
               {/* Top Block: Title & Inputs (Pinned Top) */}
               <div className={styles.drawerTopBlock}>
                 <div className={styles.drawerHeader}>
@@ -1448,7 +1453,7 @@ export default function POSTerminal({
                     {/* Quick selection bar for partial/paid order */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 2px 8px', fontSize: '11px', fontWeight: 700, color: '#64748b' }}>
                       <span>
-                        {selectedItemsSummary.count > 0 
+                        {selectedItemsSummary.count > 0
                           ? `Selected: ${selectedItemsSummary.count} item(s) (₹${formatAmount(selectedItemsSummary.total)})`
                           : 'Select items below to mark as Paid:'}
                       </span>
@@ -1539,14 +1544,14 @@ export default function POSTerminal({
 
                               return (
                                 <div key={itemIdx} className={styles.cartItem} style={{
-                                    padding: '6px 8px',
-                                    borderRadius: '8px',
-                                    marginBottom: '4px',
-                                    border: isSelected ? '1.5px solid #c4b5fd' : (itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : '1px solid transparent'),
-                                    background: isSelected ? '#f5f3ff' : 'transparent',
-                                    transition: 'all 0.15s ease',
-                                    opacity: isPaid ? 0.78 : 1
-                                  }}>
+                                  padding: '6px 8px',
+                                  borderRadius: '8px',
+                                  marginBottom: '4px',
+                                  border: isSelected ? '1.5px solid #c4b5fd' : (itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : '1px solid transparent'),
+                                  background: isSelected ? '#f5f3ff' : 'transparent',
+                                  transition: 'all 0.15s ease',
+                                  opacity: isPaid ? 0.78 : 1
+                                }}>
                                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                     {!isPaid ? (
                                       <button
@@ -1719,11 +1724,11 @@ export default function POSTerminal({
                     type="button"
                     className={styles.sendKotBtn}
                     onClick={handleSendKOT}
-                    disabled={isSubmitting || cart.length === 0}
+                    disabled={isSendingKitchen || cart.length === 0}
                     title="Send draft items to Kitchen KDS (Status: In Kitchen)"
                   >
                     <ChefHat size={14} />
-                    <span>{isSubmitting ? 'Sending...' : 'Send to Kitchen'}</span>
+                    <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
                   </button>
 
                   {/* Button 2: Direct (Counter Handover) */}
@@ -1731,11 +1736,11 @@ export default function POSTerminal({
                     type="button"
                     className={styles.directBtn}
                     onClick={handleDirectOrder}
-                    disabled={isSubmitting || cart.length === 0}
+                    disabled={isSubmittingDirect || cart.length === 0}
                     title="Direct counter items (Water/Cold Drinks) - bypasses kitchen, status: Served"
                   >
                     <Zap size={14} />
-                    <span>{isSubmitting ? 'Processing...' : 'Direct (Counter)'}</span>
+                    <span>{isSubmittingDirect ? 'Processing...' : 'Direct (Counter)'}</span>
                   </button>
 
                   {/* Button 3: Pay Order */}
@@ -1756,9 +1761,9 @@ export default function POSTerminal({
                   >
                     <CreditCard size={14} />
                     <span>
-                      {selectedItemsSummary.count > 0 
-                        ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})` 
-                        : (balanceDue > 0 ? `Pay Unpaid (₹${formatAmount(balanceDue)})` : 'Paid Order')}
+                      {selectedItemsSummary.count > 0
+                        ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
+                        : (balanceDue > 0 ? `Pay (₹${formatAmount(balanceDue)})` : 'Paid Order')}
                     </span>
                   </button>
 
@@ -1780,8 +1785,8 @@ export default function POSTerminal({
                   >
                     <CheckCircle2 size={14} />
                     <span>
-                      {isSettling 
-                        ? 'Clearing...' 
+                      {isSettling
+                        ? 'Clearing...'
                         : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
                     </span>
                   </button>
@@ -1844,9 +1849,9 @@ export default function POSTerminal({
               if (tableNumber !== 'Walk-in') {
                 await axios.put(
                   `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-                  { 
-                    paymentMethod: 'Khata / Borrow', 
-                    paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'), 
+                  {
+                    paymentMethod: 'Khata / Borrow',
+                    paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'),
                     tenantId: effectiveTenantId,
                     mergedTables: allSettleTables,
                     actualAmount: paidNowNum,
@@ -2011,14 +2016,14 @@ export default function POSTerminal({
                         style={{
                           padding: '9px 4px',
                           borderRadius: '10px',
-                          border: isSelected 
-                            ? (isKhata ? '2px solid #d97706' : '2px solid #7c3aed') 
+                          border: isSelected
+                            ? (isKhata ? '2px solid #d97706' : '2px solid #7c3aed')
                             : '1.5px solid #e2e8f0',
-                          background: isSelected 
-                            ? (isKhata ? '#fffbeb' : '#f5f3ff') 
+                          background: isSelected
+                            ? (isKhata ? '#fffbeb' : '#f5f3ff')
                             : '#ffffff',
-                          color: isSelected 
-                            ? (isKhata ? '#92400e' : '#7c3aed') 
+                          color: isSelected
+                            ? (isKhata ? '#92400e' : '#7c3aed')
                             : '#475569',
                           fontWeight: isSelected ? 800 : 600,
                           fontSize: '0.74rem',
@@ -2293,8 +2298,8 @@ export default function POSTerminal({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    boxShadow: payItemsMethod === 'Khata / Borrow' 
-                      ? '0 4px 12px rgba(217, 119, 6, 0.3)' 
+                    boxShadow: payItemsMethod === 'Khata / Borrow'
+                      ? '0 4px 12px rgba(217, 119, 6, 0.3)'
                       : '0 4px 12px rgba(124, 58, 237, 0.3)',
                     transition: 'all 0.15s ease'
                   }}
@@ -2302,10 +2307,12 @@ export default function POSTerminal({
                   {payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <CheckCircle2 size={16} />}
                   <span>
                     {isSubmittingItemPay || isSubmittingKhata
-                      ? 'Processing...' 
-                      : (payItemsMethod === 'Khata / Borrow' 
-                          ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`) 
-                          : `Confirm & Pay ₹${formatAmount(tenderAmount)}`)}
+                      ? 'Processing...'
+                      : (payItemsMethod === 'Khata / Borrow'
+                        ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
+                        : (actualAmountReceived !== '' && Number(actualAmountReceived) < tenderAmount
+                            ? `Confirm & Pay ₹${formatAmount(Number(actualAmountReceived))} (₹${formatAmount(tenderAmount - Number(actualAmountReceived))} Due)`
+                            : `Confirm & Pay ₹${formatAmount(tenderAmount)}`))}
                   </span>
                 </button>
               </div>
@@ -2591,7 +2598,7 @@ export default function POSTerminal({
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             style={{ accentColor: '#2563eb', width: 15, height: 15 }}
                           />
                           <span>{addon.name}</span>
@@ -2746,7 +2753,7 @@ export default function POSTerminal({
                         <input
                           type="checkbox"
                           checked={isMerged}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           style={{ accentColor: '#4f46e5', width: 16, height: 16 }}
                         />
                         <div>
@@ -2798,12 +2805,12 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {showKhataModal && (
         <div className={styles.splitModalOverlay} onClick={() => setShowKhataModal(false)}>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={styles.khataModal} 
+            className={styles.khataModal}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -2842,13 +2849,13 @@ export default function POSTerminal({
               {/* Live Visual Split Bar */}
               <div className={styles.khataSplitVisualizer}>
                 <div className={styles.khataSplitTrack}>
-                  <div 
-                    className={styles.khataPaidFill} 
-                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, ((Number(khataPaidAmount) || 0) / grandTotal) * 100)) : 0}%` }} 
+                  <div
+                    className={styles.khataPaidFill}
+                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, ((Number(khataPaidAmount) || 0) / grandTotal) * 100)) : 0}%` }}
                   />
-                  <div 
-                    className={styles.khataBorrowFill} 
-                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, (Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)) / grandTotal) * 100)) : 100}%` }} 
+                  <div
+                    className={styles.khataBorrowFill}
+                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, (Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)) / grandTotal) * 100)) : 100}%` }}
                   />
                 </div>
 
@@ -3069,8 +3076,8 @@ export default function POSTerminal({
               >
                 <CheckCircle2 size={16} />
                 <span>
-                  {isSubmittingKhata || isSettling 
-                    ? 'Recording...' 
+                  {isSubmittingKhata || isSettling
+                    ? 'Recording...'
                     : `Record Khata & Settle (₹${formatAmount(Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)))} Due)`}
                 </span>
               </button>

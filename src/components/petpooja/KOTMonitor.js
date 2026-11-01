@@ -60,7 +60,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
     if (orders && Array.isArray(orders)) {
       const formatted = orders.map((o, idx) => ({
         _id: o._id || `ord_${idx}`,
-        orderNumber: o.orderNumber || String(o._id).slice(-4),
+        orderNumber: o.orderNumber || String(o._id).slice(-5),
         tableNumber: o.tableNumber || '1',
         customerName: o.customerDetails?.name || o.customerName || `Guest ${idx + 1}`,
         orderType: o.orderType || 'dine-in',
@@ -83,13 +83,35 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
     }
   }, [orders]);
 
-  // Format Elapsed Time as mm:ss
+  // Format Elapsed Time dynamically across seconds, minutes, hours, and days
   const formatElapsedTime = (createdAtStr) => {
-    if (!createdAtStr) return '00:00';
+    if (!createdAtStr) return '0s';
     const elapsedSeconds = Math.max(0, Math.floor((now - new Date(createdAtStr).getTime()) / 1000));
-    const mins = Math.floor(elapsedSeconds / 60);
+    const days = Math.floor(elapsedSeconds / 86400);
+    const hours = Math.floor((elapsedSeconds % 86400) / 3600);
+    const mins = Math.floor((elapsedSeconds % 3600) / 60);
     const secs = elapsedSeconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (days > 0) {
+      return hours > 0 ? `${days}d ${hours}h` : `${days}d ${mins}m`;
+    }
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+    if (mins > 0) {
+      return `${mins}m ${String(secs).padStart(2, '0')}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const formatOrderTimestamp = (createdAtStr) => {
+    if (!createdAtStr) return '';
+    try {
+      const d = new Date(createdAtStr);
+      return `Placed: ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}, ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    } catch (e) {
+      return '';
+    }
   };
 
   const getElapsedMinutes = (createdAtStr) => {
@@ -209,7 +231,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const newOrders = filteredOrders.filter(o => o.status === 'pending' || o.status === 'confirmed');
   const inKitchenOrders = filteredOrders.filter(o => o.status === 'preparing');
   const readyOrders = filteredOrders.filter(o => o.status === 'ready');
-  const servedOrders = filteredOrders.filter(o => o.status === 'completed' || o.status === 'served');
+  const servedOrders = filteredOrders.filter(o => o.status === 'served');
 
   // Filtered orders for Table View based on secondary status toggle + channel + search
   const displayedTableOrders = localOrders.filter(ord => {
@@ -314,7 +336,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <div className={styles.stationTag}>{order.channel} • Table QR</div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
+                            <span
+                              className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}
+                              title={formatOrderTimestamp(order.createdAt)}
+                            >
                               <Clock size={12} /> {formatElapsedTime(order.createdAt)}
                             </span>
                             <button
@@ -372,7 +397,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                 }
                               }}
                             >
-                              Accept & Prep →
+                              Accept
                             </button>
                           </div>
                         </div>
@@ -426,7 +451,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             {enableEstimatedPrepTime ? (
                               <span
                                 className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`}
-                                title="Click to edit cooking target time"
+                                title={formatOrderTimestamp(order.createdAt) ? `${formatOrderTimestamp(order.createdAt)} • Click to edit cooking target time` : 'Click to edit cooking target time'}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOrderToEdit(order);
@@ -436,7 +461,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                 <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
                               </span>
                             ) : (
-                              <span className={styles.timerBadge}>
+                              <span
+                                className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}
+                                title={formatOrderTimestamp(order.createdAt)}
+                              >
                                 <Clock size={12} /> {formatElapsedTime(order.createdAt)}
                               </span>
                             )}
@@ -898,7 +926,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                         }
                                       }}
                                     >
-                                      <Flame size={12} /> Start Prep
+                                      <Flame size={12} /> Accept
                                     </button>
                                     <button
                                       type="button"

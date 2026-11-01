@@ -7,7 +7,8 @@ import {
   Phone, ChefHat, Sparkles, Check, AlertCircle, Edit2, Flame, MapPin, ShoppingBag, Wallet
 } from 'lucide-react';
 import axios from 'axios';
-import { API_URL as API } from '../config/api';
+import { API_URL as API, SOCKET_URL } from '../config/api';
+import { io } from 'socket.io-client';
 import { decodeTableToken, encodeTableToken } from '../utils/tableToken';
 import TableBadge from './common/TableBadge';
 import CustomerBottomNav from './common/CustomerBottomNav';
@@ -74,8 +75,8 @@ export default function OrderHistoryPage() {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
-  const fetchHistory = async () => {
-    setLoading(true);
+  const fetchHistory = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       // 1. Session IDs
       let sessionIds = [];
@@ -184,12 +185,37 @@ export default function OrderHistoryPage() {
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(false);
+
+    // Auto-refresh interval (polling every 3.5s for real-time kitchen tracking)
+    const interval = setInterval(() => {
+      fetchHistory(true);
+    }, 3500);
+
+    // Socket.io real-time live sync
+    let socket;
+    try {
+      socket = io(SOCKET_URL, { transports: ['websocket', 'polling'], timeout: 6000 });
+      if (tenantId) {
+        socket.emit('joinTenant', String(tenantId));
+      }
+      socket.on('newOrder', () => fetchHistory(true));
+      socket.on('orderUpdate', () => fetchHistory(true));
+      socket.on('orderStatusUpdate', () => fetchHistory(true));
+      socket.on('tablesUpdated', () => fetchHistory(true));
+    } catch (e) {
+      console.warn('Socket connection note in OrderHistoryPage:', e);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (socket) socket.disconnect();
+    };
   }, [phone, tableNumber, tenantId]);
 
   const isOrderActive = (ord) => {
     const s = String(ord?.status || 'pending').toLowerCase();
-    return ['pending', 'confirmed', 'preparing', 'ready'].includes(s);
+    return ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(s);
   };
 
   const activeCount = useMemo(() => {
@@ -253,7 +279,7 @@ export default function OrderHistoryPage() {
         icon: AlertCircle
       };
     }
-    if (s === 'completed') {
+    if (s === 'completed' || s === 'served') {
       return {
         step: 3,
         total: 3,
@@ -831,7 +857,12 @@ export default function OrderHistoryPage() {
                             <span style={{ fontSize: '0.66rem', color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                               Total
                             </span>
-                            <span style={{ fontSize: '1.08rem', fontWeight: 900, color: theme.textMain }}>
+                            <span style={{
+                              fontSize: '1.08rem',
+                              fontWeight: 900,
+                              color: ord.status === 'cancelled' ? '#dc2626' : ((ord.status === 'completed' || ord.status === 'served') ? '#059669' : theme.textMain),
+                              textDecoration: ord.status === 'cancelled' ? 'line-through' : 'none'
+                            }}>
                               ₹{Math.round(ord.settledAmount || ord.total || 0)}
                             </span>
                           </div>

@@ -434,7 +434,7 @@ export default function Menu() {
       for (const ordId of candidateIds) {
         try {
           const res = await axios.get(`${API}/orders/status/${ordId}`);
-          if (res.data && ['pending', 'confirmed', 'preparing', 'ready'].includes(res.data.status)) {
+          if (res.data && ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(res.data.status)) {
             setActiveRunningOrder(res.data);
             return;
           }
@@ -458,7 +458,7 @@ export default function Menu() {
               phone: phone
             }
           });
-          if (res.data && ['pending', 'confirmed', 'preparing', 'ready'].includes(res.data.status)) {
+          if (res.data && ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(res.data.status)) {
             setActiveRunningOrder(res.data);
             if (res.data._id) {
               localStorage.setItem('serviq_last_order_id', res.data._id);

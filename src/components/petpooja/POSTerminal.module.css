@@ -511,10 +511,10 @@
   outline: none;
 }
 
-/* POS Two-Column Grid (Single Screen Fit) */
+/* POS Two-Column Grid (Single Screen Fit & Responsive Tablet) */
 .posGrid {
   display: grid;
-  grid-template-columns: 1fr 385px;
+  grid-template-columns: minmax(0, 1fr) 385px;
   gap: 0.75rem;
   align-items: stretch;
   height: 100%;
@@ -525,7 +525,29 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 1080px) {
+/* Tablet & Landscape/Portrait Responsive (700px - 1180px): Keep items on Left/Center & Ordered items on Right! */
+@media (max-width: 1180px) and (min-width: 700px) {
+  .posGrid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 0.55rem;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .menuSection {
+    padding: 0.6rem;
+  }
+  .orderDrawer {
+    padding: 0.6rem;
+  }
+  .dishesGrid {
+    grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+    gap: 0.5rem;
+  }
+}
+
+/* Mobile Screens only (< 700px) */
+@media (max-width: 699px) {
   .posGrid {
     grid-template-columns: 1fr;
     height: auto;

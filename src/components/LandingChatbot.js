@@ -81,7 +81,7 @@ export default function LandingChatbot({ onOpenDemo }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: `Hello! 👋 I'm **Khushi**, your AI Restaurant Specialist at **DINEVIQ**.\n\nAsk me anything about our **Zero-Latency QR Table Menus**, **Kitchen KDS Displays**, **Cloud POS Billing**, or **Pricing Plans (₹)**!`
+      text: `Hello! 👋 I'm **DineviQ AI**, your AI Restaurant Specialist at **DINEVIQ**.\n\nAsk me anything about our **Zero-Latency QR Table Menus**, **Kitchen KDS Displays**, **Cloud POS Billing**, or **Pricing Plans (₹)**!`
     }
   ]);
 
@@ -166,22 +166,22 @@ export default function LandingChatbot({ onOpenDemo }) {
           type="button"
           onClick={() => setIsOpen(true)}
           className={styles.roundLauncherBtn}
-          title="Chat with Khushi AI (DineviQ Assistant)"
-          aria-label="Open Khushi AI Copilot"
+          title="Chat with DineviQ AI Bot (DineviQ Assistant)"
+          aria-label="Open DineviQ AI Bot Copilot"
         >
           <div className={styles.pulseRingCircle} />
           <div className={styles.circleBaseBackdrop} />
           <img
             src={KHUSHI_AVATAR_URL}
-            alt="Khushi AI"
+            alt="DineviQ AI Bot"
             className={styles.launcherAvatarImg}
           />
           <span className={styles.onlineDot} />
-          <span className={styles.floatingLabelPill}>Khushi AI</span>
+          <span className={styles.floatingLabelPill}>DineviQ AI Bot</span>
         </button>
       )}
 
-      {/* Interactive Khushi Chat Window Drawer */}
+      {/* Interactive DineviQ AI Chat Window Drawer */}
       <AnimatePresence>
         {isOpen && (
           <div className={styles.chatWindow}>
@@ -191,14 +191,14 @@ export default function LandingChatbot({ onOpenDemo }) {
                 <div className={styles.khushiAvatarWrapper} style={{ width: 30, height: 30 }}>
                   <img
                     src={KHUSHI_AVATAR_URL}
-                    alt="Khushi AI"
+                    alt="DineviQ AI Bot"
                     className={styles.khushiAvatarImg}
                   />
                   <span className={styles.khushiOnlineDot} />
                 </div>
                 <div>
                   <div style={{ fontWeight: 900, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span>Khushi AI</span>
+                    <span>DineviQ AI Bot</span>
                     <span style={{ fontSize: 8.5, fontWeight: 900, background: 'var(--color-emerald)', color: '#ffffff', padding: '1px 4px', borderRadius: 3 }}>ONLINE</span>
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)' }}>
@@ -270,7 +270,7 @@ export default function LandingChatbot({ onOpenDemo }) {
               {loading && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-subtle)', padding: 8 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-primary)' }} />
-                  <span>Khushi AI is typing...</span>
+                  <span>DineviQ AI Bot is typing...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -300,7 +300,7 @@ export default function LandingChatbot({ onOpenDemo }) {
             >
               <input
                 type="text"
-                placeholder="Ask Khushi about pricing, QR menus, KDS, billing..."
+                placeholder="Ask DineviQ AI about pricing, QR menus, KDS, billing..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className={styles.inputField}

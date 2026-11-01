@@ -812,7 +812,7 @@ export default function AdminPanel() {
       socket.on('newOrder', (newOrder) => {
         setOrders((prev) => [newOrder, ...prev]);
         setDashboardOrders((prev) => [newOrder, ...prev]);
-        toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-4)}`);
+        toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-5)}`);
         playOrderChime();
         fetchTables();
         fetchNotifications();
@@ -2350,12 +2350,12 @@ export default function AdminPanel() {
               type="button"
               className={`${styles.sidebarKhushiBtn} ${isKhushiOpen ? styles.sidebarKhushiBtnActive : ''} ${sidebarCollapsed ? styles.sidebarKhushiBtnCollapsed : ''}`}
               onClick={() => setIsKhushiOpen(prev => !prev)}
-              title="Khushi AI (Store Assistant & Copilot)"
+              title="DineviQ AI Bot (Store Assistant & Copilot)"
             >
               <div className={styles.khushiAvatarWrap}>
                 <img
                   src={KHUSHI_AVATAR_URL}
-                  alt="Khushi AI"
+                  alt="DineviQ AI Bot"
                   className={styles.khushiSidebarImg}
                 />
                 <span className={styles.khushiOnlineDot} />
@@ -2363,7 +2363,7 @@ export default function AdminPanel() {
               {!sidebarCollapsed && (
                 <div className={styles.khushiTextWrap}>
                   <div className={styles.khushiTitleRow}>
-                    <span className={styles.khushiName}>Khushi AI</span>
+                    <span className={styles.khushiName}>DineviQ AI Bot</span>
                     <span className={styles.khushiBadge}>Copilot</span>
                   </div>
                   <span className={styles.khushiSubtext}>Store Assistant</span>
@@ -2745,6 +2745,19 @@ export default function AdminPanel() {
                     </button>
                   );
                 })}
+
+                <button
+                  type="button"
+                  className={styles.mobileNavTabBtn}
+                  onClick={() => {
+                    setIsKhushiOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', borderColor: '#c4b5fd', color: '#6d28d9', fontWeight: 700 }}
+                >
+                  <Sparkles size={18} color="#7c3aed" />
+                  <span>DineviQ AI Bot</span>
+                </button>
 
                 <div style={{ height: '1px', background: '#f1f5f9', margin: '8px 0' }} />
 
@@ -3916,9 +3929,17 @@ export default function AdminPanel() {
                               const isOccupied = tableOrders.length > 0;
                               const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
                               const firstOrder = tableOrders[0];
-                              const elapsedMins = firstOrder?.createdAt
-                                ? Math.max(1, Math.round((new Date() - new Date(firstOrder.createdAt)) / 60000))
-                                : 5;
+                              const formatTableElapsed = (createdAt) => {
+                                if (!createdAt) return '5 Min';
+                                const diffSec = Math.max(1, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
+                                const d = Math.floor(diffSec / 86400);
+                                const h = Math.floor((diffSec % 86400) / 3600);
+                                const m = Math.floor((diffSec % 3600) / 60);
+                                if (d > 0) return h > 0 ? `${d}d ${h}h` : `${d}d`;
+                                if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+                                return `${Math.max(1, m)} Min`;
+                              };
+                              const elapsedMins = formatTableElapsed(firstOrder?.createdAt);
 
                               const totalSum = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
                               const orderTotal = Math.round(totalSum * 100) / 100;
@@ -3985,7 +4006,7 @@ export default function AdminPanel() {
                                     title={`Table ${tbl.tableNumber} - All Orders Served/Paid. Click to open POS.`}
                                   >
                                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
-                                      ✓ {elapsedMins} Min
+                                      ✓ {elapsedMins}
                                     </div>
                                     <span style={{ fontSize: '1rem', fontWeight: 600, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
@@ -4026,7 +4047,7 @@ export default function AdminPanel() {
                                   title={`Table ${tbl.tableNumber} - Running Order ₹${orderTotal}. Click to open POS.`}
                                 >
                                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
-                                    ⏱️ {elapsedMins} Min
+                                    ⏱️ {elapsedMins}
                                   </div>
                                   <span style={{ fontSize: '1rem', fontWeight: 600, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}

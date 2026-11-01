@@ -156,10 +156,42 @@
 /* ── Streamlined Mini KPI Ribbon ── */
 .compactKpiRibbon {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.65rem;
   margin-bottom: 0.55rem;
   flex-shrink: 0;
+}
+
+.miniKpiCardActiveFilter {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+  background: #fffafa !important;
+}
+
+.paymentCancelled {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.paymentServed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .miniKpiCard {
