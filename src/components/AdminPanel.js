@@ -44,7 +44,9 @@ const standardCategories = [
   { id: "beverages", name: "Beverages", aliases: ['beverage', 'beverages', 'drink', 'drinks', 'mocktail', 'cocktail', 'cold drink', 'shake', 'beverage/drinks'], icon: "GlassWater", Component: GlassWater },
   { id: "burger", name: "Burgers & Sandwiches", aliases: ['burger', 'burgers', 'sandwich', 'sandwiches', 'wrap', 'wraps'], icon: "Sandwich", Component: Sandwich },
   { id: "pizza", name: "Artisan Pizza", aliases: ['pizza', 'pizzas'], icon: "Pizza", Component: Pizza },
-  { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino', 'tea'], icon: "Coffee", Component: Coffee },
+  { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino'], icon: "Coffee", Component: Coffee },
+  { id: "tea", name: "Tea & Chai", aliases: ['tea', 'chai', 'hot tea', 'green tea', 'masala chai'], icon: "Coffee", Component: Coffee },
+  { id: "ice-tea", name: "Iced Tea", aliases: ['ice-tea', 'iced-tea', 'ice tea', 'iced tea', 'lemon ice tea', 'peach ice tea'], icon: "GlassWater", Component: GlassWater },
 ];
 
 export const AVAILABLE_CATEGORY_ICONS = [
@@ -95,18 +97,31 @@ export const getCategoryIconComponent = (cat) => {
 };
 
 const itemMatchesCategory = (item, catId, customCats = []) => {
-  if (catId === 'all') return true;
-  const itemCat = (item.category || '').toLowerCase().trim();
+  if (!catId || catId === 'all') return true;
+  const targetId = String(catId).toLowerCase().trim();
+  const itemCatId = String(item.categoryId || item.category || '').toLowerCase().trim().replace(/\s+/g, '-');
+  const itemCatName = String(item.category || '').toLowerCase().trim();
+
+  // 1. Direct match by category ID or normalized slug
+  if (itemCatId === targetId || itemCatName === targetId) return true;
+
+  // 2. Match against category object by ID, exact name, or exact alias
   const allCats = customCats && customCats.length > 0 ? customCats : standardCategories;
-  const catObj = allCats.find(c => c.id === catId || (c.name && c.name.toLowerCase() === catId.toLowerCase()));
+  const catObj = allCats.find(c => c.id === catId || (c.name && c.name.toLowerCase() === targetId));
   if (catObj) {
-    if (catObj.aliases && Array.isArray(catObj.aliases) && catObj.aliases.some(a => itemCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itemCat))) {
-      return true;
+    const cId = String(catObj.id || '').toLowerCase().trim();
+    const cName = String(catObj.name || '').toLowerCase().trim();
+    if (itemCatId === cId || itemCatName === cName || itemCatName === cId) return true;
+
+    // Strict exact alias equality ONLY - never loose substring .includes()
+    if (catObj.aliases && Array.isArray(catObj.aliases)) {
+      return catObj.aliases.some(a => {
+        const cleanA = String(a).toLowerCase().trim();
+        return cleanA === itemCatId || cleanA === itemCatName;
+      });
     }
-    if (catObj.name && catObj.name.toLowerCase() === itemCat) return true;
-    if (catObj.id && catObj.id.toLowerCase() === itemCat) return true;
   }
-  return itemCat === String(catId).toLowerCase();
+  return false;
 };
 
 export const getCustomerFirstName = (customerNameOrObj, fallback = '') => {
@@ -1442,6 +1457,7 @@ export default function AdminPanel() {
       formData.append('description', drawerForm.description.trim());
       formData.append('price', numPrice);
       formData.append('category', drawerForm.category);
+      formData.append('categoryId', drawerForm.category);
       formData.append('isVeg', drawerForm.isVeg);
       formData.append('isAvailable', drawerForm.available);
       formData.append('discount', JSON.stringify(discountPayload));
@@ -1484,6 +1500,7 @@ export default function AdminPanel() {
         description: drawerForm.description.trim(),
         price: numPrice,
         category: drawerForm.category,
+        categoryId: drawerForm.category,
         isVeg: drawerForm.isVeg,
         available: drawerForm.available,
         discount: discountPayload,

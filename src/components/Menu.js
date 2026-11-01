@@ -777,12 +777,15 @@ export default function Menu() {
 
     const list = Array.from(map.values()).map(cat => {
       const count = displayItems.filter(it => {
+        const itCatId = String(it.categoryId || it.category || '').toLowerCase().trim().replace(/\s+/g, '-');
         const itCat = String(it.category || '').toLowerCase().trim();
-        const itCatNorm = itCat.replace(/\s+/g, '-');
-        const targetId = cat.id.toLowerCase();
-        const targetName = cat.name.toLowerCase();
-        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
-        return itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        const targetId = String(cat.id || '').toLowerCase().trim();
+        const targetName = String(cat.name || '').toLowerCase().trim();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => {
+          const cleanA = String(a).toLowerCase().trim();
+          return cleanA === itCatId || cleanA === itCat;
+        });
+        return itCatId === targetId || itCat === targetName || itCat === targetId || itCatId === targetName.replace(/\s+/g, '-') || matchesAlias;
       }).length;
       return { ...cat, count };
     });
@@ -797,12 +800,15 @@ export default function Menu() {
     if (cat.imageUrl) return cat.imageUrl;
     if (cat.id !== 'all') {
       const itWithImg = items.find(it => {
+        const itCatId = String(it.categoryId || it.category || '').toLowerCase().trim().replace(/\s+/g, '-');
         const itCat = String(it.category || '').toLowerCase().trim();
-        const itCatNorm = itCat.replace(/\s+/g, '-');
-        const targetId = cat.id.toLowerCase();
-        const targetName = cat.name.toLowerCase();
-        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
-        const belongs = itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        const targetId = String(cat.id || '').toLowerCase().trim();
+        const targetName = String(cat.name || '').toLowerCase().trim();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => {
+          const cleanA = String(a).toLowerCase().trim();
+          return cleanA === itCatId || cleanA === itCat;
+        });
+        const belongs = itCatId === targetId || itCat === targetName || itCat === targetId || itCatId === targetName.replace(/\s+/g, '-') || matchesAlias;
         return belongs && it.image;
       });
       if (itWithImg && itWithImg.image) return itWithImg.image;
@@ -832,12 +838,15 @@ export default function Menu() {
 
     allCategories.forEach(cat => {
       const catItems = displayItems.filter(it => {
+        const itCatId = String(it.categoryId || it.category || '').toLowerCase().trim().replace(/\s+/g, '-');
         const itCat = String(it.category || '').toLowerCase().trim();
-        const itCatNorm = itCat.replace(/\s+/g, '-');
-        const targetId = cat.id.toLowerCase();
-        const targetName = cat.name.toLowerCase();
-        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
-        const belongsToCat = itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        const targetId = String(cat.id || '').toLowerCase().trim();
+        const targetName = String(cat.name || '').toLowerCase().trim();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => {
+          const cleanA = String(a).toLowerCase().trim();
+          return cleanA === itCatId || cleanA === itCat;
+        });
+        const belongsToCat = itCatId === targetId || itCat === targetName || itCat === targetId || itCatId === targetName.replace(/\s+/g, '-') || matchesAlias;
 
         if (!belongsToCat) return false;
 
