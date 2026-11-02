@@ -18,17 +18,35 @@ export function TableMatrixSkeleton({ count = 8 }) {
   );
 }
 
-export function DishGridSkeleton({ count = 10 }) {
+export function DishGridSkeleton({ count = 10, gridClassName }) {
   return (
-    <div className={styles.dishGridSkeleton}>
+    <div className={gridClassName || styles.dishGridSkeleton}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className={styles.dishCardSkeleton}>
-          <div className={`${styles.shimmer} ${styles.dishImgSkeleton}`} />
-          <div className={styles.shimmer} style={{ width: '85%', height: '14px' }} />
-          <div className={styles.shimmer} style={{ width: '60%', height: '12px' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '4px' }}>
-            <div className={styles.shimmer} style={{ width: '45px', height: '16px' }} />
-            <div className={styles.shimmer} style={{ width: '26px', height: '26px', borderRadius: '6px' }} />
+          <div className={styles.dishImgWrapSkeleton}>
+            <div className={`${styles.shimmer} ${styles.dishImgSkeleton}`} />
+            <div className={styles.dishImageOverlaySkeleton}>
+              <div className={`${styles.shimmer} ${styles.dishCheckboxSkeleton}`} />
+              <div className={`${styles.shimmer} ${styles.dishBadgeSkeleton}`} />
+            </div>
+          </div>
+          <div className={styles.dishBodySkeleton}>
+            <div className={styles.dishTitleRowSkeleton}>
+              <div className={`${styles.shimmer} ${styles.dishNameSkeleton}`} />
+              <div className={`${styles.shimmer} ${styles.dishPriceSkeleton}`} />
+            </div>
+            <div className={`${styles.shimmer} ${styles.dishVariantSkeleton}`} />
+            <div className={styles.dishDescWrapSkeleton}>
+              <div className={`${styles.shimmer} ${styles.dishDescLine1}`} />
+              <div className={`${styles.shimmer} ${styles.dishDescLine2}`} />
+            </div>
+            <div className={styles.dishBottomRowSkeleton}>
+              <div className={`${styles.shimmer} ${styles.dishToggleSkeleton}`} />
+              <div className={styles.dishActionsSkeleton}>
+                <div className={`${styles.shimmer} ${styles.dishBtnSkeleton}`} />
+                <div className={`${styles.shimmer} ${styles.dishBtnSkeleton}`} />
+              </div>
+            </div>
           </div>
         </div>
       ))}

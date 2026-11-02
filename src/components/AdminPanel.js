@@ -26,6 +26,7 @@ import KhataLedger from './KhataLedger';
 import SupportModal from './SupportModal';
 import CafeAICopilotChatbot, { KHUSHI_AVATAR_URL } from './CafeAICopilotChatbot';
 import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton } from './common/SkeletonLoader';
+import skeletonStyles from './common/SkeletonLoader.module.css';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
 import { resolveFoodImage, getSafeDishImage } from '../utils/foodImageResolver';
@@ -186,6 +187,7 @@ export default function AdminPanel() {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [items, setItems] = useState([]);
+  const [isMenuLoading, setIsMenuLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [tenantInfo, setTenantInfo] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -512,7 +514,10 @@ export default function AdminPanel() {
   const fileInputRef = useRef(null);
 
   // Fetch Menu Items from API
-  const fetchMenu = async () => {
+  const fetchMenu = async (showLoading = true) => {
+    if (showLoading || items.length === 0) {
+      setIsMenuLoading(true);
+    }
     try {
       const res = await axios.get(`${API}/menu${tenantId ? `?tenantId=${tenantId}&includeUnavailable=true` : '?includeUnavailable=true'}`);
       if (res.data && Array.isArray(res.data)) {
@@ -531,6 +536,8 @@ export default function AdminPanel() {
       }
     } catch (err) {
       console.log('Fetch menu error:', err.message);
+    } finally {
+      setIsMenuLoading(false);
     }
   };
 
@@ -4653,7 +4660,16 @@ export default function AdminPanel() {
                           <div className={styles.categoryPillMain}>
                             <IconComp size={15} />
                             <span>{cat.name}</span>
-                            <span className={styles.catCountBadge}>{count}</span>
+                            {isMenuLoading && items.length === 0 ? (
+                              <span
+                                className={`${styles.catCountBadge} ${skeletonStyles.shimmer}`}
+                                style={{ minWidth: 16, height: 14, color: 'transparent', display: 'inline-block' }}
+                              >
+                                &nbsp;
+                              </span>
+                            ) : (
+                              <span className={styles.catCountBadge}>{count}</span>
+                            )}
                           </div>
                           {cat.id !== 'all' && (
                             <div className={styles.catActionGroup}>
@@ -4707,9 +4723,12 @@ export default function AdminPanel() {
                     </button>
                   </div>
 
-                  {/* Items Grid */}
-                  <div className={styles.menuItemsGrid}>
-                    {filteredMenuItems.map((item) => {
+                  {/* Items Grid or Skeleton Loader */}
+                  {isMenuLoading ? (
+                    <DishGridSkeleton count={10} gridClassName={styles.menuItemsGrid} />
+                  ) : filteredMenuItems.length > 0 ? (
+                    <div className={styles.menuItemsGrid}>
+                      {filteredMenuItems.map((item) => {
                       const isSelected = selectedItemIds.includes(item._id);
                       const discount = item.discount || {};
                       const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -4872,11 +4891,8 @@ export default function AdminPanel() {
                         </motion.div>
                       );
                     })}
-                  </div>
-
-
-
-                  {filteredMenuItems.length === 0 && (
+                    </div>
+                  ) : (
                     <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", gap: '1rem' }}>
                       <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
                         <UtensilsCrossed size={28} color="#94a3b8" />
@@ -4990,7 +5006,7 @@ export default function AdminPanel() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <QRCodeComponent orders={orders} initialTables={tables} />
+                  <QRCodeComponent orders={orders} initialTables={tables} tenantInfo={tenantInfo} />
                 </motion.div>
               )}
 
