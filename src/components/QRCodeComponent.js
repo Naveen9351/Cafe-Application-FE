@@ -44,9 +44,60 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const [isEditingHost, setIsEditingHost] = useState(false);
   const [tempHost, setTempHost] = useState(qrBaseUrl);
   
+  // Table Categories / Sections State (e.g. Main Hall, Rooftop, Garden, Outdoor)
+  const [tableSections, setTableSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`serivq_table_sections_${effectiveTenantId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return ['Main Hall', 'Rooftop', 'Garden', 'Outdoor'];
+  });
+  const [selectedSection, setSelectedSection] = useState('all');
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+
+  const saveSections = (newSecs) => {
+    setTableSections(newSecs);
+    try {
+      localStorage.setItem(`serivq_table_sections_${effectiveTenantId}`, JSON.stringify(newSecs));
+    } catch (e) {}
+  };
+
+  const handleAddSection = (e) => {
+    if (e) e.preventDefault();
+    const clean = newSectionName.trim();
+    if (!clean) return;
+    if (tableSections.some(s => s.toLowerCase() === clean.toLowerCase())) {
+      toast.error(`Section "${clean}" already exists`);
+      return;
+    }
+    const updated = [...tableSections, clean];
+    saveSections(updated);
+    setSelectedSection(clean);
+    setNewSectionName('');
+    setShowAddSectionModal(false);
+    toast.success(`Added "${clean}" category`);
+  };
+
+  const handleDeleteSection = (secName, e) => {
+    if (e) e.stopPropagation();
+    if (tableSections.length <= 1) {
+      toast.error('At least one section must exist');
+      return;
+    }
+    const updated = tableSections.filter(s => s !== secName);
+    saveSections(updated);
+    if (selectedSection.toLowerCase() === secName.toLowerCase()) setSelectedSection('all');
+    toast.success(`Removed "${secName}"`);
+  };
+
   // Modal / Form state
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTableNumber, setNewTableNumber] = useState('');
+  const [newTableSection, setNewTableSection] = useState('Main Hall');
   const [newCapacity, setNewCapacity] = useState('4');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -54,12 +105,14 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchCount, setBatchCount] = useState(3);
   const [batchDefaultCap, setBatchDefaultCap] = useState('4');
+  const [batchSection, setBatchSection] = useState('Main Hall');
   const [batchItems, setBatchItems] = useState([]);
 
   // Edit Table & Seating Capacity Modal State
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
   const [editTableNumber, setEditTableNumber] = useState('');
+  const [editSection, setEditSection] = useState('Main Hall');
   const [editCapacity, setEditCapacity] = useState('4');
 
   // Custom Delete Confirmation Modal State
@@ -203,6 +256,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       try {
         const res = await axios.post(`${API}/tables`, {
           tableNumber: cleanNum,
+          section: newTableSection || 'Main Hall',
           seatingCapacity: Number(newCapacity) || 4
         }, {
           headers: { 'x-auth-token': token }
@@ -212,6 +266,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         createdTable = {
           _id: `tbl_${Date.now()}`,
           tableNumber: cleanNum,
+          section: newTableSection || 'Main Hall',
           seatingCapacity: Number(newCapacity) || 4,
           status: 'available'
         };
@@ -307,8 +362,12 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     const addedList = [];
 
     for (const item of batchItems) {
+      const payload = {
+        ...item,
+        section: batchSection || 'Main Hall'
+      };
       try {
-        const res = await axios.post(`${API}/tables`, item, {
+        const res = await axios.post(`${API}/tables`, payload, {
           headers: { 'x-auth-token': token }
         });
         addedList.push(res.data);
@@ -316,6 +375,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         addedList.push({
           _id: `tbl_${Date.now()}_${item.tableNumber}`,
           tableNumber: item.tableNumber,
+          section: batchSection || 'Main Hall',
           seatingCapacity: item.seatingCapacity,
           status: 'available'
         });
@@ -331,6 +391,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const handleOpenEditModal = (table) => {
     setEditingTable(table);
     setEditTableNumber(table.tableNumber);
+    setEditSection(table.section || 'Main Hall');
     setEditCapacity(String(table.seatingCapacity || 4));
     setShowEditModal(true);
   };
@@ -362,6 +423,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       if (editingTable._id && !editingTable._id.startsWith('tbl_')) {
         await axios.put(`${API}/tables/${editingTable._id}`, {
           tableNumber: cleanNum,
+          section: editSection || 'Main Hall',
           seatingCapacity: capNum
         }, {
           headers: { 'x-auth-token': token }
@@ -371,6 +433,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       setTables(prev => prev.map(t => (t._id === editingTable._id) ? {
         ...t,
         tableNumber: cleanNum,
+        section: editSection || 'Main Hall',
         seatingCapacity: capNum
       } : t));
 
@@ -1082,10 +1145,12 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
   const filteredTables = useMemo(() => {
     return tables.filter(t => {
+      const sec = (t.section || 'Main Hall').trim().toLowerCase();
+      const matchesSection = selectedSection === 'all' || sec === selectedSection.trim().toLowerCase();
       const matchesSearch = !searchQuery || String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase().trim());
-      return matchesSearch;
+      return matchesSection && matchesSearch;
     });
-  }, [tables, searchQuery]);
+  }, [tables, selectedSection, searchQuery]);
 
   return (
     <div style={{ width: '100%' }}>
@@ -1282,24 +1347,159 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         </div>
       </div>
 
+      {/* Table Categories / Zones Pills Row */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        overflowX: 'auto',
+        padding: '2px 2px 10px 2px',
+        scrollbarWidth: 'none',
+        marginBottom: '6px'
+      }}>
+        {/* "All" Pill */}
+        <button
+          type="button"
+          onClick={() => setSelectedSection('all')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '5px 12px',
+            borderRadius: '100px',
+            border: selectedSection === 'all' ? '1.5px solid #0f172a' : '1px solid #e2e8f0',
+            background: selectedSection === 'all' ? '#0f172a' : '#ffffff',
+            color: selectedSection === 'all' ? '#ffffff' : '#334155',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          <Layers size={13} />
+          <span>All Tables</span>
+          <span style={{
+            fontSize: '10px',
+            fontWeight: 800,
+            padding: '1px 6px',
+            borderRadius: '100px',
+            background: selectedSection === 'all' ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+            color: selectedSection === 'all' ? '#ffffff' : '#475569'
+          }}>
+            {tables.length}
+          </span>
+        </button>
+
+        {/* Custom Section Pills */}
+        {tableSections.map(sec => {
+          const isActive = selectedSection.toLowerCase() === sec.toLowerCase();
+          const count = tables.filter(t => (t.section || 'Main Hall').toLowerCase() === sec.toLowerCase()).length;
+          return (
+            <div
+              key={sec}
+              onClick={() => setSelectedSection(sec)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 12px',
+                borderRadius: '100px',
+                border: isActive ? '1.5px solid #4f46e5' : '1px solid #e2e8f0',
+                background: isActive ? '#eef2ff' : '#ffffff',
+                color: isActive ? '#4338ca' : '#334155',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+              }}
+            >
+              <span>{sec}</span>
+              <span style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: '100px',
+                background: isActive ? '#4338ca' : '#f1f5f9',
+                color: isActive ? '#ffffff' : '#475569'
+              }}>
+                {count}
+              </span>
+              {sec !== 'Main Hall' && (
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSection(sec, e)}
+                  title={`Delete "${sec}" category`}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: 0,
+                    marginLeft: 2
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* + Add Section Button */}
+        <button
+          type="button"
+          onClick={() => setShowAddSectionModal(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '5px 12px',
+            borderRadius: '100px',
+            border: '1px dashed #4f46e5',
+            background: '#f8fafc',
+            color: '#4f46e5',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Plus size={13} /> Add Category
+        </button>
+      </div>
+
       <style>{`
-        .table-qr-grid-4 {
+        .table-qr-grid-5 {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 1rem;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+        @media (max-width: 1350px) {
+          .table-qr-grid-5 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
         }
         @media (max-width: 1024px) {
-          .table-qr-grid-4 {
+          .table-qr-grid-5 {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
-        @media (max-width: 768px) {
-          .table-qr-grid-4 {
+        @media (max-width: 700px) {
+          .table-qr-grid-5 {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
         @media (max-width: 480px) {
-          .table-qr-grid-4 {
+          .table-qr-grid-5 {
             grid-template-columns: 1fr;
           }
         }
@@ -1307,7 +1507,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
       {/* Grid of Dynamic Table Cards / Skeleton Loader */}
       {loading && tables.length === 0 ? (
-        <div className="table-qr-grid-4">
+        <div className="table-qr-grid-5">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((sk) => (
             <div
               key={sk}
@@ -1334,7 +1534,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           ))}
         </div>
       ) : (
-        <div className="table-qr-grid-4">
+        <div className="table-qr-grid-5">
           {filteredTables.map((table) => {
             const qrUrl = getTableQRUrl(table.tableNumber);
             const isOccupied = isTableOccupied(table);
@@ -1360,22 +1560,37 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   position: 'relative'
                 }}
               >
-                {/* 1. Header with Table Badge, Edit & Delete Buttons */}
-                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{
-                    background: '#f8fafc',
-                    color: '#0f172a',
-                    border: '1px solid #e2e8f0',
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontWeight: 800,
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                  }}>
-                    Table {table.tableNumber}
+                {/* 1. Header with Table Badge, Section Tag, Edit & Delete Buttons */}
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{
+                      background: '#f8fafc',
+                      color: '#0f172a',
+                      border: '1px solid #e2e8f0',
+                      padding: '3px 8px',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                    }}>
+                      Table {table.tableNumber}
+                    </div>
+                    {table.section && table.section !== 'Main Hall' && (
+                      <span style={{
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        color: '#4f46e5',
+                        background: '#eef2ff',
+                        padding: '2px 6px',
+                        borderRadius: '100px',
+                        border: '1px solid #c7d2fe'
+                      }}>
+                        {table.section}
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1430,10 +1645,10 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   style={{
                     width: '100%',
                     background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
-                    padding: '10px 8px 8px',
-                    borderRadius: '14px',
+                    padding: '8px 6px 8px',
+                    borderRadius: '12px',
                     border: '1px solid #f1f5f9',
-                    marginBottom: '12px',
+                    marginBottom: '8px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -1470,17 +1685,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                     />
                   </div>
                   
-                  <span style={{
-                    marginTop: '6px',
-                    fontSize: '10.5px',
-                    fontWeight: 600,
-                    color: '#64748b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}>
-                    <Coffee size={11} color="#64748b" /> Dine-in Menu & Order
-                  </span>
+
                 </div>
 
                 {/* 3. Seating Capacity Stepper Row */}
@@ -1546,8 +1751,8 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   </div>
                 </div>
 
-                {/* 4. Actions Footer */}
-                <div style={{ width: '100%', display: 'flex', gap: 8, marginTop: 'auto' }}>
+                {/* 4. Actions Footer (Clean 2 buttons: View & Download QR) */}
+                <div style={{ width: '100%', display: 'flex', gap: 6, marginTop: 'auto' }}>
                   <a
                     href={qrUrl}
                     target="_blank"
@@ -1557,62 +1762,38 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 5,
-                      padding: '7px 12px',
+                      gap: 4,
+                      padding: '6px 8px',
                       borderRadius: '8px',
                       border: '1px solid #e2e8f0',
                       background: '#ffffff',
                       color: '#1e293b',
-                      fontSize: '12px',
-                      fontWeight: 600,
+                      fontSize: '11px',
+                      fontWeight: 700,
                       textDecoration: 'none',
                       cursor: 'pointer',
                       boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                       transition: 'all 0.15s ease'
                     }}
                   >
-                    <Eye size={13} color="#475569" /> View
+                    <Eye size={12} color="#475569" /> View
                   </a>
 
                   <button
                     type="button"
-                    onClick={() => downloadTableStandee(table)}
-                    title="Download Table Standee Card (1200x1600 Print-Ready HD PNG)"
-                    style={{
-                      flex: 1.2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 4,
-                      padding: '7px 7px',
-                      borderRadius: '8px',
-                      border: '1px solid #c7d2fe',
-                      background: '#eef2ff',
-                      color: '#4338ca',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Printer size={12} color="#4338ca" /> Standee
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={() => downloadTableQROnly(table.tableNumber)}
-                    title="Download Pure High-Res QR Code (Solid White 1000x1000 PNG)"
+                    title="Download Table QR Code (Solid White 1000x1000 HD PNG)"
                     style={{
+                      flex: 1,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 4,
-                      padding: '7px 8px',
+                      padding: '6px 8px',
                       borderRadius: '8px',
                       border: '1px solid #e2e8f0',
-                      background: '#ffffff',
-                      color: '#334155',
+                      background: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '11px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -1620,7 +1801,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       transition: 'all 0.15s ease'
                     }}
                   >
-                    <Download size={12} color="#475569" /> QR
+                    <Download size={12} color="#0f172a" /> Download
                   </button>
                 </div>
               </motion.div>
