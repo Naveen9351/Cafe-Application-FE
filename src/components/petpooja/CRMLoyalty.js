@@ -785,7 +785,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
             <Users size={20} />
           </div>
           <div>
-            <h2 className={styles.title}>Customer Directorys</h2>
+            <h2 className={styles.title}>Customer Directory</h2>
           </div>
         </div>
 
@@ -1052,11 +1052,6 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                                 <span>Unverified</span>
                               </button>
                             )}
-                          </td>
-
-                          {/* First Visit */}
-                          <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '400' }}>
-                            {formatDate(cust.firstVisit)}
                           </td>
 
                           {/* Last Visit */}
