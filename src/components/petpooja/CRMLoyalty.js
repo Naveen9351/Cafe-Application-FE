@@ -163,19 +163,21 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       const custMap = new Map();
       orders.forEach((o) => {
         const phone = o.customerPhone || o.customerDetails?.phone;
-        const name = o.customerName || o.customerDetails?.name || 'Guest Diner';
-        if (phone || (name && name !== 'Walk-in Guest')) {
+        const cleanPhone = phone ? String(phone).replace(/\D/g, '') : '';
+        const name = o.customerName || o.customerDetails?.name || '';
+        // Only include customers with a valid phone number (CRM directory is for contactable patrons)
+        if (cleanPhone && cleanPhone.length >= 5) {
           if (o.status === 'cancelled') return;
-          const key = phone || name;
+          const key = cleanPhone;
           const isCompleted = o.status === 'completed';
           const orderTotal = isCompleted ? Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0) : 0;
           const orderDate = new Date(o.createdAt || Date.now());
 
           if (!custMap.has(key)) {
             custMap.set(key, {
-              _id: `cust_${String(key).replace(/\D/g, '') || Date.now()}`,
-              name: name,
-              phone: phone || 'Not Provided',
+              _id: `cust_${cleanPhone}`,
+              name: name || 'Dine-in Customer',
+              phone: phone,
               email: o.customerDetails?.email || '',
               isPhoneVerified: Boolean(o.isPhoneVerified || o.customerDetails?.isPhoneVerified),
               firstVisit: orderDate,
