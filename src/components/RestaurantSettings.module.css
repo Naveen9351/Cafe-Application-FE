@@ -819,3 +819,31 @@
 .footerLinks a:hover {
   text-decoration: underline;
 }
+
+
+/* ── Tablet & Surface Device Responsive Styles (768px - 1024px) ── */
+@media (max-width: 1024px) {
+  .topHeader {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .layoutBody {
+    grid-template-columns: 180px 1fr;
+    gap: 0.85rem;
+  }
+
+  .discardBtn, .saveBtn {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .layoutBody {
+    grid-template-columns: 1fr;
+  }
+  .subSidebar {
+    position: static;
+  }
+}
+

@@ -280,3 +280,37 @@
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
 }
+
+
+/* ── Tablet & Surface Device Responsive Styles (768px - 1024px) ── */
+@media (max-width: 1024px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .controlsGroup {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .dateFilterBtn, .printBtn {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+
+  .kpiGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .recentOrdersCard,
+  .chartCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .recentOrdersTable {
+    min-width: 600px;
+  }
+}
+

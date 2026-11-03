@@ -1593,3 +1593,32 @@
 .khataSubmitBtn:active {
   transform: translateY(0);
 }
+
+
+/* ── Tablet Touch Target Enhancements (700px - 1180px, including 960x1440) ── */
+@media (max-width: 1180px) {
+  .qtyBtn {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+  }
+  .qtyVal {
+    font-size: 0.82rem !important;
+    min-width: 16px !important;
+  }
+  .dishAddBtn {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 8px !important;
+  }
+  .dishQtyStepper button {
+    min-width: 24px !important;
+    min-height: 24px !important;
+  }
+  .catPill {
+    padding: 7px 14px !important;
+    font-size: 0.78rem !important;
+  }
+}
+

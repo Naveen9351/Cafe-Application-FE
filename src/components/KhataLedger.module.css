@@ -221,3 +221,37 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+
+/* ── Tablet & Surface Device Responsive Styles (768px - 1024px) ── */
+@media (max-width: 1024px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .searchBar {
+    max-width: none;
+    flex: 1 1 200px;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .khataTable {
+    min-width: 700px;
+  }
+
+  .settleBtn,
+  .addRecordBtn {
+    min-height: 36px;
+  }
+}
+
