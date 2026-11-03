@@ -2,7 +2,39 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCircle, Sparkles, Search, Layers, Wifi, Smartphone, Globe, Copy, ExternalLink, Coffee, Eye, Printer, X } from 'lucide-react';
+import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCircle, Sparkles, Search, Layers, Wifi, Smartphone, Globe, Copy, ExternalLink, Coffee, Eye, Printer, X, Palette, Image as ImageIcon, Sliders, RotateCcw, Upload, CheckCircle2, FileText } from 'lucide-react';
+
+const THEME_PRESETS = [
+  { id: 'slate', name: 'Classic Slate', primary: '#0f172a', accent: '#4f46e5' },
+  { id: 'indigo', name: 'Royal Indigo', primary: '#1e1b4b', accent: '#6366f1' },
+  { id: 'emerald', name: 'Fresh Emerald', primary: '#064e3b', accent: '#059669' },
+  { id: 'amber', name: 'Cafe Amber', primary: '#451a03', accent: '#d97706' },
+  { id: 'crimson', name: 'Ruby Crimson', primary: '#881337', accent: '#e11d48' },
+  { id: 'ocean', name: 'Deep Ocean', primary: '#0c2340', accent: '#0284c7' }
+];
+
+const getDefaultStandeeConfig = (resName, resLogo) => ({
+  restaurantName: resName || 'The Landmark',
+  tagline: 'SMART CONTACTLESS DINING',
+  logoUrl: resLogo || '',
+  showLogo: !!resLogo,
+  tablePrefix: 'TABLE',
+  showCapacity: true,
+  primaryColor: '#0f172a',
+  accentColor: '#4f46e5',
+  ctaTitle: 'SCAN TO BROWSE MENU & ORDER',
+  showInstructions: true,
+  step1Title: 'Scan QR',
+  step1Desc: 'with phone camera',
+  step2Title: 'Browse Menu',
+  step2Desc: 'choose & customize',
+  step3Title: 'Food Served',
+  step3Desc: 'hot to your table',
+  footerNote: '⚡ Fast & Contactless Dining • No App Required',
+  poweredBy: 'Powered by DineviQ Smart Dining',
+  showWatermark: true
+});
+
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_URL as API } from '../config/api';
@@ -118,6 +150,35 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   // Custom Delete Confirmation Modal State
   const [tableToDelete, setTableToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Standee Customizer Configuration State (Persisted per tenant)
+  const [standeeConfig, setStandeeConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`serivq_standee_config_${effectiveTenantId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return { ...getDefaultStandeeConfig(restaurantName, restaurantLogo), ...parsed };
+      }
+    } catch (e) {}
+    return getDefaultStandeeConfig(restaurantName, restaurantLogo);
+  });
+
+  const saveStandeeConfig = (newCfg) => {
+    setStandeeConfig(newCfg);
+    try {
+      localStorage.setItem(`serivq_standee_config_${effectiveTenantId}`, JSON.stringify(newCfg));
+      toast.success('Standee design saved as default!');
+    } catch (e) {
+      toast.error('Failed to save design');
+    }
+  };
+
+  // Modals for Download Choice, Print Choice & Customizer Studio
+  const [downloadChoiceTable, setDownloadChoiceTable] = useState(null);
+  const [showPrintChoiceModal, setShowPrintChoiceModal] = useState(false);
+  const [showStandeeEditorModal, setShowStandeeEditorModal] = useState(false);
+  const [editorPreviewTable, setEditorPreviewTable] = useState(null);
+  const [editorActiveTab, setEditorActiveTab] = useState('branding'); // 'branding' | 'theme' | 'instructions' | 'footer'
 
   // Click-to-Enlarge Full Screen QR Modal State
   const [previewTable, setPreviewTable] = useState(null);
@@ -471,8 +532,64 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     }
   };
 
+  // Seamless hidden in-page iframe printing engine (Zero blank tabs, pure print execution)
+  const executeIframePrint = (fullHtml) => {
+    const existingFrame = document.getElementById('serivq-standee-print-frame');
+    if (existingFrame) existingFrame.remove();
+
+    const printFrame = document.createElement('iframe');
+    printFrame.id = 'serivq-standee-print-frame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    printFrame.style.visibility = 'hidden';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(fullHtml);
+    frameDoc.close();
+
+    const triggerPrint = () => {
+      try {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.onafterprint = () => {
+          setTimeout(() => {
+            if (document.body.contains(printFrame)) {
+              printFrame.remove();
+            }
+          }, 100);
+        };
+        printFrame.contentWindow.print();
+      } catch (err) {
+        console.error('Iframe print failed, falling back to popup with auto-close:', err);
+        const fallbackWin = window.open('', '_blank');
+        if (fallbackWin) {
+          fallbackWin.document.write(fullHtml + `
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.focus();
+                  window.print();
+                  window.onafterprint = function() { window.close(); };
+                  setTimeout(function() { window.close(); }, 6000);
+                }, 250);
+              };
+            </script>
+          `);
+          fallbackWin.document.close();
+        }
+      }
+    };
+
+    setTimeout(triggerPrint, 250);
+  };
+
   // High-Resolution Standee Card Canvas Generator (1200 x 1600 px - 300 DPI Print Quality)
-  const generateStandeeCardDataUrl = (table, name, logo, qrCanvas) => {
+  const generateStandeeCardDataUrl = (table, config = standeeConfig, qrCanvas) => {
     const canvas = document.createElement('canvas');
     canvas.width = 1200;
     canvas.height = 1600;
@@ -492,13 +609,19 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       ctx.closePath();
     };
 
+    const primary = config?.primaryColor || '#0f172a';
+    const accent = config?.accentColor || '#4f46e5';
+    const brandName = config?.restaurantName || restaurantName || 'The Landmark';
+    const brandTagline = config?.tagline || 'SMART CONTACTLESS DINING';
+    const prefix = config?.tablePrefix || 'TABLE';
+
     // 1. Pure Crisp White Background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 1200, 1600);
 
     // 2. Elegant Outer Border
     ctx.lineWidth = 6;
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = primary;
     drawRoundedRect(50, 50, 1100, 1500, 36);
     ctx.stroke();
 
@@ -526,20 +649,20 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
     // 5. Header: Restaurant Brand Name & Subtitle
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = primary;
     ctx.font = '900 46px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText((name || 'THE LANDMARK').toUpperCase(), 600, 160);
+    ctx.fillText(brandName.toUpperCase(), 600, 160);
 
     ctx.fillStyle = '#64748b';
     ctx.font = '700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('SMART CONTACTLESS DINING', 600, 205);
+    ctx.fillText(brandTagline, 600, 205);
 
     // Header subtle accent line
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(440, 230);
-    ctx.lineTo(760, 230);
+    ctx.moveTo(460, 230);
+    ctx.lineTo(740, 230);
     ctx.stroke();
 
     // 6. Table Identifier Capsule Badge
@@ -547,18 +670,20 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     const pillH = 80;
     const pillX = 600 - pillW / 2;
     const pillY = 265;
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = primary;
     drawRoundedRect(pillX, pillY, pillW, pillH, 40);
     ctx.fill();
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 42px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`TABLE ${table.tableNumber}`, 600, pillY + 54);
+    ctx.fillText(`${prefix} ${table.tableNumber}`, 600, pillY + 54);
 
     // Capacity Indicator
-    ctx.fillStyle = '#64748b';
-    ctx.font = '700 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`👥 ${table.seatingCapacity || 4} GUESTS CAPACITY`, 600, 390);
+    if (config?.showCapacity !== false) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '700 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText(`👥 ${table.seatingCapacity || 4} GUESTS CAPACITY`, 600, 390);
+    }
 
     // 7. QR Code Frame Card (with soft shadow feel & border)
     const qrBoxSize = 620;
@@ -580,7 +705,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
     // Modern Scan Target Corner Brackets on QR Box
     ctx.lineWidth = 5;
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = primary;
     const brLen = 28;
     // Top-Left Bracket
     ctx.beginPath();
@@ -608,60 +733,62 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     ctx.stroke();
 
     // 8. Call to Action Heading
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = primary;
     ctx.font = '900 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('SCAN TO BROWSE MENU & ORDER', 600, 1100);
+    ctx.fillText(config?.ctaTitle || 'SCAN TO BROWSE MENU & ORDER', 600, 1100);
 
     // 9. 3-Step Guide Chips
-    const stepsY = 1140;
-    const stepW = 280;
-    const stepH = 150;
-    const stepGap = 45;
-    const startX = 600 - (stepW * 3 + stepGap * 2) / 2;
+    if (config?.showInstructions !== false) {
+      const stepsY = 1140;
+      const stepW = 280;
+      const stepH = 150;
+      const stepGap = 45;
+      const startX = 600 - (stepW * 3 + stepGap * 2) / 2;
 
-    const steps = [
-      { num: '1', title: 'Scan QR', desc: 'with phone camera' },
-      { num: '2', title: 'Browse Menu', desc: '& customize dishes' },
-      { num: '3', title: 'Hot Food', desc: 'served to table' }
-    ];
+      const steps = [
+        { num: '1', title: config?.step1Title || 'Scan QR', desc: config?.step1Desc || 'with phone camera' },
+        { num: '2', title: config?.step2Title || 'Browse Menu', desc: config?.step2Desc || '& customize dishes' },
+        { num: '3', title: config?.step3Title || 'Hot Food', desc: config?.step3Desc || 'served to table' }
+      ];
 
-    steps.forEach((st, idx) => {
-      const sx = startX + idx * (stepW + stepGap);
+      steps.forEach((st, idx) => {
+        const sx = startX + idx * (stepW + stepGap);
 
-      // Card Background
-      ctx.fillStyle = '#f8fafc';
-      drawRoundedRect(sx, stepsY, stepW, stepH, 18);
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.stroke();
+        // Card Background
+        ctx.fillStyle = '#f8fafc';
+        drawRoundedRect(sx, stepsY, stepW, stepH, 18);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.stroke();
 
-      // Number badge
-      ctx.fillStyle = '#4f46e5';
-      ctx.beginPath();
-      ctx.arc(sx + stepW / 2, stepsY + 34, 18, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 18px sans-serif';
-      ctx.fillText(st.num, sx + stepW / 2, stepsY + 41);
+        // Number badge
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(sx + stepW / 2, stepsY + 34, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 18px sans-serif';
+        ctx.fillText(st.num, sx + stepW / 2, stepsY + 41);
 
-      // Title
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText(st.title, sx + stepW / 2, stepsY + 90);
+        // Title
+        ctx.fillStyle = primary;
+        ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(st.title, sx + stepW / 2, stepsY + 90);
 
-      // Desc
-      ctx.fillStyle = '#64748b';
-      ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText(st.desc, sx + stepW / 2, stepsY + 120);
+        // Desc
+        ctx.fillStyle = '#64748b';
+        ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(st.desc, sx + stepW / 2, stepsY + 120);
 
-      // Arrow separator
-      if (idx < 2) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = 'bold 28px sans-serif';
-        ctx.fillText('›', sx + stepW + stepGap / 2, stepsY + 80);
-      }
-    });
+        // Arrow separator
+        if (idx < 2) {
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = 'bold 28px sans-serif';
+          ctx.fillText('➔', sx + stepW + stepGap / 2, stepsY + 80);
+        }
+      });
+    }
 
     // 10. Card Footer
     ctx.strokeStyle = '#f1f5f9';
@@ -673,17 +800,19 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
     ctx.fillStyle = '#64748b';
     ctx.font = '700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('⚡ Fast & Contactless Dining Experience • No App Required', 600, 1435);
+    ctx.fillText(config?.footerNote || '⚡ Fast & Contactless Dining Experience • No App Required', 600, 1435);
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('Powered by DineviQ Smart Dining', 600, 1475);
+    if (config?.showWatermark !== false) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText(config?.poweredBy || 'Powered by DineviQ Smart Dining', 600, 1475);
+    }
 
     return canvas.toDataURL('image/png');
   };
 
   // Download High-Resolution 1200x1600 Standee Card PNG
-  const downloadTableStandee = (table) => {
+  const downloadTableStandee = (table, config = standeeConfig) => {
     const qrCanvas = document.getElementById(`qr-canvas-${table.tableNumber}`) || document.getElementById(`preview-qr-canvas-${table.tableNumber}`);
     if (!qrCanvas) {
       toast.error('Unable to capture QR code');
@@ -691,7 +820,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     }
 
     try {
-      const standeeUrl = generateStandeeCardDataUrl(table, restaurantName, restaurantLogo, qrCanvas);
+      const standeeUrl = generateStandeeCardDataUrl(table, config, qrCanvas);
       const downloadLink = document.createElement('a');
       downloadLink.href = standeeUrl.replace('image/png', 'image/octet-stream');
       downloadLink.download = `table - ${table.tableNumber} - Standee.png`;
@@ -752,19 +881,16 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     toast.success(`Exporting ${tables.length} table QR codes...`);
   };
 
-  // Print Standees PDF with 2x2 A4 Grid, Razor-Sharp High DPI QR & Luxury Design (Seamless in-page printing, NO leftover tabs!)
-  const printTableStands = (targetTables = tables) => {
+  // 1. Direct QRs Print (Minimalist, Ink-Saving, High Scanning Speed Sheet)
+  const printDirectQRs = (targetTables = tables) => {
     if (!targetTables || targetTables.length === 0) {
       toast.error('No tables found to print');
       return;
     }
 
-    // Chunk tables into groups of 4 for perfect 2x2 A4 page layout
     const chunkArray = (arr, size) => {
       const res = [];
-      for (let i = 0; i < arr.length; i += size) {
-        res.push(arr.slice(i, i + size));
-      }
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
       return res;
     };
 
@@ -775,57 +901,214 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         const canvas = document.getElementById(`qr-canvas-${t.tableNumber}`) || document.getElementById(`preview-qr-canvas-${t.tableNumber}`);
         const qrDataUrl = canvas ? canvas.toDataURL('image/png') : '';
         return `
+          <div class="direct-card">
+            <div class="cut-guide">
+              <span>✂ Cut along line</span>
+              <span>TABLE ${t.tableNumber}</span>
+            </div>
+            <div class="direct-inner">
+              <div class="direct-badge">TABLE ${t.tableNumber}</div>
+              <div class="direct-cap">👥 ${t.seatingCapacity || 4} GUESTS CAPACITY</div>
+              <div class="direct-qr-wrap">
+                ${qrDataUrl ? `<img src="${qrDataUrl}" class="direct-qr-img" alt="Table ${t.tableNumber} QR" />` : ''}
+              </div>
+              <div class="direct-cta">SCAN TO DINE-IN & ORDER</div>
+              <div class="direct-sub">${(restaurantName || 'THE LANDMARK').toUpperCase()} • CONTACTLESS MENU</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="print-page ${pageIndex === pages.length - 1 ? 'last-page' : ''}">
+          ${cardsHtml}
+        </div>
+      `;
+    }).join('');
+
+    const fullHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${restaurantName} - Direct Table QRs</title>
+    <style>
+      @page { size: A4 portrait; margin: 10mm 8mm; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: #0f172a;
+        background: #ffffff;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .print-page {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 7mm;
+        height: 275mm;
+        max-height: 275mm;
+        page-break-after: always;
+        break-after: page;
+        box-sizing: border-box;
+      }
+      .print-page.last-page { page-break-after: auto; break-after: auto; }
+      .direct-card {
+        border: 1px dashed #94a3b8;
+        border-radius: 12px;
+        padding: 8px;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        height: 133mm;
+        box-sizing: border-box;
+      }
+      .cut-guide {
+        display: flex;
+        justify-content: space-between;
+        font-size: 8px;
+        font-weight: 700;
+        color: #94a3b8;
+        padding-bottom: 4px;
+      }
+      .direct-inner {
+        flex: 1;
+        border: 2px solid #0f172a;
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        text-align: center;
+      }
+      .direct-badge {
+        font-size: 24px;
+        font-weight: 900;
+        color: #ffffff;
+        background: #0f172a;
+        padding: 6px 28px;
+        border-radius: 100px;
+        letter-spacing: 1px;
+      }
+      .direct-cap {
+        font-size: 10px;
+        font-weight: 700;
+        color: #475569;
+        margin-top: 2px;
+      }
+      .direct-qr-wrap {
+        padding: 6px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        display: inline-flex;
+      }
+      .direct-qr-img {
+        width: 145px;
+        height: 145px;
+        display: block;
+      }
+      .direct-cta {
+        font-size: 11px;
+        font-weight: 900;
+        color: #0f172a;
+        letter-spacing: 0.5px;
+      }
+      .direct-sub {
+        font-size: 8px;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.5px;
+      }
+    </style>
+  </head>
+  <body>
+    ${pagesHtml}
+  </body>
+</html>`;
+
+    executeIframePrint(fullHtml);
+  };
+
+  // 2. Customized Standees Print (Full Branded Luxury 2x2 A4 Layout)
+  const printCustomizedStands = (targetTables = tables, config = standeeConfig) => {
+    if (!targetTables || targetTables.length === 0) {
+      toast.error('No tables found to print');
+      return;
+    }
+
+    const chunkArray = (arr, size) => {
+      const res = [];
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+      return res;
+    };
+
+    const pages = chunkArray(targetTables, 4);
+    const primary = config?.primaryColor || '#0f172a';
+    const accent = config?.accentColor || '#4f46e5';
+    const brandName = config?.restaurantName || restaurantName || 'THE LANDMARK';
+    const brandTagline = config?.tagline || 'SMART CONTACTLESS DINING';
+    const logoToUse = config?.showLogo && config?.logoUrl ? config.logoUrl : null;
+    const prefix = config?.tablePrefix || 'TABLE';
+
+    const pagesHtml = pages.map((chunk, pageIndex) => {
+      const cardsHtml = chunk.map(t => {
+        const canvas = document.getElementById(`qr-canvas-${t.tableNumber}`) || document.getElementById(`preview-qr-canvas-${t.tableNumber}`);
+        const qrDataUrl = canvas ? canvas.toDataURL('image/png') : '';
+        return `
           <div class="stand-card">
             <div class="cut-guide">
               <span>✂ Cut along border</span>
-              <span>TABLE ${t.tableNumber}</span>
+              <span>${prefix} ${t.tableNumber}</span>
             </div>
-            <div class="card-inner">
+            <div class="card-inner" style="border-color: ${primary};">
               <div class="brand-header">
-                ${restaurantLogo ? `<img src="${restaurantLogo}" class="brand-logo" alt="${restaurantName}" />` : ''}
-                <div class="brand-title">${(restaurantName || 'THE LANDMARK').toUpperCase()}</div>
-                <div class="brand-subtitle">SMART CONTACTLESS DINING</div>
+                ${logoToUse ? `<img src="${logoToUse}" class="brand-logo" alt="${brandName}" />` : ''}
+                <div class="brand-title" style="color: ${primary};">${brandName.toUpperCase()}</div>
+                <div class="brand-subtitle">${brandTagline}</div>
               </div>
 
               <div class="table-badge-wrap">
-                <div class="table-badge">
-                  <span class="badge-prefix">TABLE</span>
+                <div class="table-badge" style="background: ${primary};">
+                  <span class="badge-prefix">${prefix}</span>
                   <span class="badge-num">${t.tableNumber}</span>
                 </div>
-                <div class="capacity-tag">👥 ${t.seatingCapacity || 4} GUESTS CAPACITY</div>
+                ${config?.showCapacity !== false ? `<div class="capacity-tag">👥 ${t.seatingCapacity || 4} GUESTS CAPACITY</div>` : ''}
               </div>
 
               <div class="qr-container">
-                <div class="bracket top-left"></div>
-                <div class="bracket top-right"></div>
-                <div class="bracket bottom-left"></div>
-                <div class="bracket bottom-right"></div>
+                <div class="bracket top-left" style="border-color: ${primary};"></div>
+                <div class="bracket top-right" style="border-color: ${primary};"></div>
+                <div class="bracket bottom-left" style="border-color: ${primary};"></div>
+                <div class="bracket bottom-right" style="border-color: ${primary};"></div>
                 ${qrDataUrl ? `<img src="${qrDataUrl}" class="qr-code-img" alt="Table ${t.tableNumber} QR" />` : ''}
               </div>
 
-              <div class="instructions-section">
-                <div class="cta-title">SCAN TO BROWSE MENU & ORDER</div>
-                <div class="steps-row">
-                  <div class="step-card">
-                    <span class="step-num">1</span>
-                    <span class="step-txt"><strong>Scan QR</strong><br/>with camera</span>
-                  </div>
-                  <div class="step-arrow">›</div>
-                  <div class="step-card">
-                    <span class="step-num">2</span>
-                    <span class="step-txt"><strong>Browse Menu</strong><br/>& customize</span>
-                  </div>
-                  <div class="step-arrow">›</div>
-                  <div class="step-card">
-                    <span class="step-num">3</span>
-                    <span class="step-txt"><strong>Food Served</strong><br/>hot to table</span>
+              ${config?.showInstructions !== false ? `
+                <div class="instructions-section">
+                  <div class="cta-title" style="color: ${primary};">${config?.ctaTitle || 'SCAN TO BROWSE MENU & ORDER'}</div>
+                  <div class="steps-row">
+                    <div class="step-card">
+                      <span class="step-num" style="background: ${accent};">1</span>
+                      <span class="step-txt"><strong>${config?.step1Title || 'Scan QR'}</strong><br/>${config?.step1Desc || 'with camera'}</span>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-card">
+                      <span class="step-num" style="background: ${accent};">2</span>
+                      <span class="step-txt"><strong>${config?.step2Title || 'Browse Menu'}</strong><br/>${config?.step2Desc || '& customize'}</span>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-card">
+                      <span class="step-num" style="background: ${accent};">3</span>
+                      <span class="step-txt"><strong>${config?.step3Title || 'Food Served'}</strong><br/>${config?.step3Desc || 'hot to table'}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ` : ''}
 
               <div class="card-footer">
-                <span>⚡ Fast & Contactless Dining • No App Required</span>
-                <span class="powered-tag">Powered by DineviQ</span>
+                <span>${config?.footerNote || '⚡ Fast & Contactless Dining • No App Required'}</span>
+                ${config?.showWatermark !== false ? `<span class="powered-tag">${config?.poweredBy || 'Powered by DineviQ'}</span>` : ''}
               </div>
             </div>
           </div>
@@ -843,7 +1126,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>${restaurantName} - Table QR Standees</title>
+    <title>${brandName} - Table QR Standees</title>
     <style>
       @page {
         size: A4 portrait;
@@ -921,7 +1204,6 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         font-size: 13px;
         font-weight: 900;
         letter-spacing: 1.5px;
-        color: #0f172a;
         line-height: 1.1;
       }
       .brand-subtitle {
@@ -939,7 +1221,6 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         margin: 3px 0;
       }
       .table-badge {
-        background: #0f172a;
         color: #ffffff;
         padding: 4px 18px;
         border-radius: 100px;
@@ -951,7 +1232,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 1px;
-        color: #94a3b8;
+        color: #cbd5e1;
       }
       .badge-num {
         font-size: 19px;
@@ -985,30 +1266,29 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         position: absolute;
         width: 10px;
         height: 10px;
-        border-color: #0f172a;
       }
       .bracket.top-left {
         top: -1px; left: -1px;
-        border-top: 2.5px solid #0f172a;
-        border-left: 2.5px solid #0f172a;
+        border-top: 2.5px solid;
+        border-left: 2.5px solid;
         border-top-left-radius: 4px;
       }
       .bracket.top-right {
         top: -1px; right: -1px;
-        border-top: 2.5px solid #0f172a;
-        border-right: 2.5px solid #0f172a;
+        border-top: 2.5px solid;
+        border-right: 2.5px solid;
         border-top-right-radius: 4px;
       }
       .bracket.bottom-left {
         bottom: -1px; left: -1px;
-        border-bottom: 2.5px solid #0f172a;
-        border-left: 2.5px solid #0f172a;
+        border-bottom: 2.5px solid;
+        border-left: 2.5px solid;
         border-bottom-left-radius: 4px;
       }
       .bracket.bottom-right {
         bottom: -1px; right: -1px;
-        border-bottom: 2.5px solid #0f172a;
-        border-right: 2.5px solid #0f172a;
+        border-bottom: 2.5px solid;
+        border-right: 2.5px solid;
         border-bottom-right-radius: 4px;
       }
       .instructions-section {
@@ -1018,7 +1298,6 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       .cta-title {
         font-size: 9px;
         font-weight: 900;
-        color: #0f172a;
         letter-spacing: 0.4px;
         margin-bottom: 4px;
       }
@@ -1044,7 +1323,6 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         width: 13px;
         height: 13px;
         border-radius: 50%;
-        background: #4f46e5;
         color: #ffffff;
         font-size: 8px;
         font-weight: 800;
@@ -1088,59 +1366,12 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   </body>
 </html>`;
 
-    // Seamless in-page printing via hidden iframe: NO new tabs, NO leftover blank pages!
-    const existingFrame = document.getElementById('serivq-standee-print-frame');
-    if (existingFrame) existingFrame.remove();
+    executeIframePrint(fullHtml);
+  };
 
-    const printFrame = document.createElement('iframe');
-    printFrame.id = 'serivq-standee-print-frame';
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    printFrame.style.visibility = 'hidden';
-    document.body.appendChild(printFrame);
-
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(fullHtml);
-    frameDoc.close();
-
-    const triggerPrint = () => {
-      try {
-        printFrame.contentWindow.focus();
-        printFrame.contentWindow.onafterprint = () => {
-          setTimeout(() => {
-            if (document.body.contains(printFrame)) {
-              printFrame.remove();
-            }
-          }, 100);
-        };
-        printFrame.contentWindow.print();
-      } catch (err) {
-        console.error('Iframe print failed, falling back to popup with auto-close:', err);
-        const fallbackWin = window.open('', '_blank');
-        if (fallbackWin) {
-          fallbackWin.document.write(fullHtml + `
-            <script>
-              window.onload = function() {
-                setTimeout(function() {
-                  window.focus();
-                  window.print();
-                  window.onafterprint = function() { window.close(); };
-                  setTimeout(function() { window.close(); }, 6000);
-                }, 250);
-              };
-            </script>
-          `);
-          fallbackWin.document.close();
-        }
-      }
-    };
-
-    setTimeout(triggerPrint, 250);
+  // Backwards compatible alias
+  const printTableStands = (targetTables = tables) => {
+    printCustomizedStands(targetTables, standeeConfig);
   };
 
   const filteredTables = useMemo(() => {
@@ -1241,7 +1472,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           {/* Action Buttons */}
           <button
             type="button"
-            onClick={() => printTableStands(filteredTables)}
+            onClick={() => setShowPrintChoiceModal(true)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1256,9 +1487,33 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               cursor: 'pointer',
               transition: 'all 0.15s ease'
             }}
-            title="Print Table QR Standees PDF (2x2 A4 Grid)"
+            title="Print Table QR Codes (Direct QR Sheet or Customized Standees)"
           >
             <Printer size={13} /> Print Stands (PDF)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditorPreviewTable(filteredTables[0] || tables[0] || null);
+              setShowStandeeEditorModal(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 11px',
+              borderRadius: '8px',
+              border: '1px solid #fed7aa',
+              background: '#fff7ed',
+              color: '#c2410c',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Open Standee Customizer Studio to customize Company Logo, Colors, Instructions & Layout"
+          >
+            <Palette size={13} /> Customize Standee
           </button>
           <button
             type="button"
@@ -1638,22 +1893,24 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   </div>
                 </div>
 
-                {/* 2. QR Code Canvas Frame (Compact, Clickable for Preview) */}
+                {/* 2. QR Code Canvas Frame (Full-Sized in Section, Clickable for Preview) */}
                 <div
                   onClick={() => setPreviewTable(table)}
                   title="Click to preview full-screen QR & print options"
                   style={{
                     width: '100%',
                     background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
-                    padding: '8px 6px 8px',
+                    padding: '8px',
                     borderRadius: '12px',
                     border: '1px solid #f1f5f9',
                     marginBottom: '8px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxSizing: 'border-box'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = '#cbd5e1';
@@ -1667,25 +1924,28 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   <div style={{
                     background: '#ffffff',
                     padding: '8px',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                    display: 'inline-flex',
-                    border: '1px solid #e2e8f0'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #e2e8f0',
+                    width: '100%',
+                    maxWidth: '165px',
+                    aspectRatio: '1 / 1',
+                    boxSizing: 'border-box'
                   }}>
                     <QRCodeCanvas
                       id={`qr-canvas-${table.tableNumber}`}
                       value={qrUrl}
                       size={800}
-                      style={{ width: '105px', height: '105px', display: 'block' }}
+                      style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
                       fgColor="#0f172a"
                       bgColor="#ffffff"
                       level="H"
-                      includeMargin={true}
-                      marginSize={2}
+                      includeMargin={false}
                     />
                   </div>
-                  
-
                 </div>
 
                 {/* 3. Seating Capacity Stepper Row */}
@@ -1781,8 +2041,8 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
                   <button
                     type="button"
-                    onClick={() => downloadTableQROnly(table.tableNumber)}
-                    title="Download Table QR Code (Solid White 1000x1000 HD PNG)"
+                    onClick={() => setDownloadChoiceTable(table)}
+                    title="Download Options (Direct QR Code or Customized Standee)"
                     style={{
                       flex: 1,
                       display: 'flex',
@@ -2570,6 +2830,1397 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                 >
                   <Eye size={13} /> Open View
                 </a>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* 1. DOWNLOAD CHOICE MODAL (Direct QR vs Customized Standee)     */}
+        {/* ============================================================== */}
+        {downloadChoiceTable && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '1rem'
+            }}
+            onClick={() => setDownloadChoiceTable(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.93, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.93, opacity: 0, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                width: '100%',
+                maxWidth: '520px',
+                padding: '24px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                border: '1px solid #e2e8f0',
+                position: 'relative'
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: '#eef2ff',
+                    color: '#4f46e5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Download size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                      Download Table {downloadChoiceTable.tableNumber} QR
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                      Select the format you want to export
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDownloadChoiceTable(null)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '8px',
+                    width: '30px',
+                    height: '30px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: '#64748b'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* 2 Options Cards */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: '18px' }}>
+                {/* Option 1: Direct Pure QR */}
+                <div
+                  onClick={() => {
+                    downloadTableQROnly(downloadChoiceTable.tableNumber);
+                    setDownloadChoiceTable(null);
+                  }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '14px',
+                    border: '2px solid #e2e8f0',
+                    background: '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 14,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#0284c7';
+                    e.currentTarget.style.background = '#f0f9ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = '#ffffff';
+                  }}
+                >
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: '#e0f2fe',
+                    color: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <QrCode size={24} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#0f172a' }}>
+                        1. Direct Pure QR Code
+                      </span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '100px' }}>
+                        1000 x 1000 HD
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                      Crisp, high-resolution QR with solid white background & quiet margins. Ideal for custom stickers, menu cards, or acrylic stands.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option 2: Customized Standee */}
+                <div
+                  onClick={() => {
+                    downloadTableStandee(downloadChoiceTable, standeeConfig);
+                    setDownloadChoiceTable(null);
+                  }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '14px',
+                    border: '2px solid #c7d2fe',
+                    background: '#f5f3ff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 14,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#6366f1';
+                    e.currentTarget.style.background = '#eef2ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#c7d2fe';
+                    e.currentTarget.style.background = '#f5f3ff';
+                  }}
+                >
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: '#e0e7ff',
+                    color: '#4f46e5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Sparkles size={24} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#0f172a' }}>
+                        2. Customized Standee Card
+                      </span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '2px 8px', borderRadius: '100px' }}>
+                        Print-Ready 300 DPI
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                      Complete table standee card featuring <strong>{standeeConfig.restaurantName}</strong> logo, table number, 3-step instructions, and brand colors.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Shortcut to Editor */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '12px',
+                borderTop: '1px solid #f1f5f9'
+              }}>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Want to change logo, colors, or instructions?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditorPreviewTable(downloadChoiceTable);
+                    setShowStandeeEditorModal(true);
+                    setDownloadChoiceTable(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #fed7aa',
+                    background: '#fff7ed',
+                    color: '#c2410c',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Palette size={13} /> Edit Design
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* 2. PRINT CHOICE MODAL (Direct QRs Sheet vs Customized Standees) */}
+        {/* ============================================================== */}
+        {showPrintChoiceModal && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '1rem'
+            }}
+            onClick={() => setShowPrintChoiceModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.93, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.93, opacity: 0, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '20px',
+                width: '100%',
+                maxWidth: '560px',
+                padding: '24px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                border: '1px solid #e2e8f0',
+                position: 'relative'
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: '#eef2ff',
+                    color: '#4338ca',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Printer size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                      Print Table QR Codes
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                      Choose how you want to print {filteredTables.length} tables on A4 sheets
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPrintChoiceModal(false)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '8px',
+                    width: '30px',
+                    height: '30px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: '#64748b'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* 2 Print Choice Cards */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: '20px' }}>
+                {/* Print Option 1: Direct QR Sheet */}
+                <div
+                  onClick={() => {
+                    printDirectQRs(filteredTables);
+                    setShowPrintChoiceModal(false);
+                  }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '14px',
+                    border: '2px solid #e2e8f0',
+                    background: '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 14,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#0284c7';
+                    e.currentTarget.style.background = '#f0f9ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = '#ffffff';
+                  }}
+                >
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    background: '#e0f2fe',
+                    color: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <QrCode size={24} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>
+                        1. Direct QR Codes (Clean Grid)
+                      </span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '100px' }}>
+                        Minimalist • Ink-Saving
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                      Prints high-contrast table badges and giant QR codes on clean A4 grids with cut guidelines. Best for acrylic table stands or quick printing.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Print Option 2: Customized Standees */}
+                <div
+                  onClick={() => {
+                    printCustomizedStands(filteredTables, standeeConfig);
+                    setShowPrintChoiceModal(false);
+                  }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '14px',
+                    border: '2px solid #c7d2fe',
+                    background: '#f8faff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 14,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#4f46e5';
+                    e.currentTarget.style.background = '#eef2ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#c7d2fe';
+                    e.currentTarget.style.background = '#f8faff';
+                  }}
+                >
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    background: '#e0e7ff',
+                    color: '#4338ca',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Printer size={24} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>
+                        2. Customized Branded Standees
+                      </span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#eef2ff', color: '#4338ca', padding: '2px 8px', borderRadius: '100px' }}>
+                        Full Restaurant Branding
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                      Prints luxury 2x2 A4 table standees with company logo, brand color theme, table badges, ordering instructions, and guest capacity.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '12px',
+                borderTop: '1px solid #f1f5f9'
+              }}>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Want to customize before printing?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditorPreviewTable(filteredTables[0] || tables[0] || null);
+                    setShowStandeeEditorModal(true);
+                    setShowPrintChoiceModal(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #fed7aa',
+                    background: '#fff7ed',
+                    color: '#c2410c',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Palette size={14} /> Open Standee Studio Editor
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* 3. STANDEE CUSTOMIZER STUDIO MODAL                             */}
+        {/* ============================================================== */}
+        {showStandeeEditorModal && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '1.25rem'
+            }}
+            onClick={() => setShowStandeeEditorModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '24px',
+                width: '100%',
+                maxWidth: '1020px',
+                height: '92vh',
+                maxHeight: '850px',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.3)',
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{
+                padding: '16px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
+                  }}>
+                    <Sliders size={20} />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                      Table Standee Customizer Studio
+                    </h2>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                      Edit company logo, brand color theme, step instructions, and print-ready standee screen
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowStandeeEditorModal(false)}
+                    style={{
+                      background: '#f1f5f9',
+                      border: 'none',
+                      borderRadius: '8px',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: '#64748b'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body: Left Controls (Tabs) & Right Live Preview */}
+              <div style={{
+                flex: 1,
+                display: 'grid',
+                gridTemplateColumns: 'minmax(360px, 1.25fr) minmax(320px, 1fr)',
+                overflow: 'hidden'
+              }}>
+                {/* LEFT: Controls & Form */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderRight: '1px solid #f1f5f9',
+                  background: '#f8fafc',
+                  overflow: 'hidden'
+                }}>
+                  {/* Tabs bar */}
+                  <div style={{
+                    display: 'flex',
+                    background: '#ffffff',
+                    borderBottom: '1px solid #e2e8f0',
+                    padding: '6px 12px',
+                    gap: 6
+                  }}>
+                    {[
+                      { id: 'branding', label: 'Company & Logo', icon: ImageIcon },
+                      { id: 'theme', label: 'Colors & Theme', icon: Palette },
+                      { id: 'instructions', label: 'Instructions & Steps', icon: FileText },
+                      { id: 'footer', label: 'Footer & Notes', icon: CheckCircle2 }
+                    ].map(tab => {
+                      const Icon = tab.icon;
+                      const isActive = editorActiveTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setEditorActiveTab(tab.id)}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                            padding: '8px 6px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: isActive ? '#eef2ff' : 'transparent',
+                            color: isActive ? '#4338ca' : '#64748b',
+                            fontSize: '11.5px',
+                            fontWeight: isActive ? 700 : 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Icon size={13} />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Scrollable Form Content */}
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '18px' }}>
+                    {/* TAB 1: BRANDING & LOGO */}
+                    {editorActiveTab === 'branding' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                            Restaurant / Company Brand Name
+                          </label>
+                          <input
+                            type="text"
+                            value={standeeConfig.restaurantName}
+                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, restaurantName: e.target.value }))}
+                            placeholder="e.g. The Landmark"
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: '9px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              background: '#ffffff',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                            Tagline / Subtitle
+                          </label>
+                          <input
+                            type="text"
+                            value={standeeConfig.tagline}
+                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, tagline: e.target.value }))}
+                            placeholder="e.g. SMART CONTACTLESS DINING"
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: '9px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              background: '#ffffff',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        {/* Logo Control Section */}
+                        <div style={{
+                          background: '#ffffff',
+                          borderRadius: '12px',
+                          padding: '14px',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <ImageIcon size={16} color="#4f46e5" />
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Company Logo</span>
+                            </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={standeeConfig.showLogo}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, showLogo: e.target.checked }))}
+                              />
+                              Show Logo
+                            </label>
+                          </div>
+
+                          {standeeConfig.showLogo && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              {/* Current Logo Preview */}
+                              {standeeConfig.logoUrl ? (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 12,
+                                  padding: '8px 12px',
+                                  background: '#f8fafc',
+                                  borderRadius: '8px',
+                                  border: '1px solid #e2e8f0'
+                                }}>
+                                  <img
+                                    src={standeeConfig.logoUrl}
+                                    alt="Logo preview"
+                                    style={{ height: '36px', maxWidth: '120px', objectFit: 'contain' }}
+                                  />
+                                  <div style={{ flex: 1, fontSize: '11.5px', color: '#64748b' }}>
+                                    Active Logo
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setStandeeConfig(prev => ({ ...prev, logoUrl: '' }))}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #fecdd3',
+                                      background: '#fff1f2',
+                                      color: '#e11d48',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '11.5px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                  No logo currently set
+                                </div>
+                              )}
+
+                              {/* Preset store logo button if available */}
+                              {restaurantLogo && restaurantLogo !== standeeConfig.logoUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => setStandeeConfig(prev => ({ ...prev, logoUrl: restaurantLogo }))}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 6,
+                                    padding: '7px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #c7d2fe',
+                                    background: '#eef2ff',
+                                    color: '#4338ca',
+                                    fontSize: '11.5px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Check size={13} /> Use Preset Store Logo
+                                </button>
+                              )}
+
+                              {/* Upload Custom Logo File */}
+                              <div>
+                                <label style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 6,
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  border: '1px dashed #cbd5e1',
+                                  background: '#ffffff',
+                                  color: '#334155',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  textAlign: 'center'
+                                }}>
+                                  <Upload size={13} /> Upload New Logo Image
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (uploadEvt) => {
+                                          setStandeeConfig(prev => ({ ...prev, logoUrl: uploadEvt.target.result }));
+                                          toast.success('Custom logo loaded!');
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+
+                              {/* Direct Logo URL */}
+                              <div>
+                                <input
+                                  type="text"
+                                  value={standeeConfig.logoUrl}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, logoUrl: e.target.value }))}
+                                  placeholder="Or paste Logo Image URL..."
+                                  style={{
+                                    width: '100%',
+                                    padding: '7px 10px',
+                                    borderRadius: '7px',
+                                    border: '1px solid #cbd5e1',
+                                    fontSize: '11.5px',
+                                    background: '#ffffff',
+                                    boxSizing: 'border-box'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 2: COLORS & THEME */}
+                    {editorActiveTab === 'theme' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* Theme Presets */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 8 }}>
+                            Instant Theme Presets
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                            {THEME_PRESETS.map(preset => {
+                              const isSelected = standeeConfig.primaryColor === preset.primary && standeeConfig.accentColor === preset.accent;
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => setStandeeConfig(prev => ({
+                                    ...prev,
+                                    primaryColor: preset.primary,
+                                    accentColor: preset.accent
+                                  }))}
+                                  style={{
+                                    padding: '8px',
+                                    borderRadius: '9px',
+                                    border: isSelected ? '2px solid #4f46e5' : '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 6
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', gap: 3 }}>
+                                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: preset.primary }} />
+                                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: preset.accent }} />
+                                  </div>
+                                  <span style={{ fontSize: '11px', fontWeight: isSelected ? 800 : 600, color: '#0f172a' }}>
+                                    {preset.name}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Custom Color Pickers */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                              Primary Brand Color
+                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input
+                                type="color"
+                                value={standeeConfig.primaryColor}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, primaryColor: e.target.value }))}
+                                style={{ width: '36px', height: '36px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: 0 }}
+                              />
+                              <input
+                                type="text"
+                                value={standeeConfig.primaryColor}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, primaryColor: e.target.value }))}
+                                style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontFamily: 'monospace' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                              Accent Highlight Color
+                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input
+                                type="color"
+                                value={standeeConfig.accentColor}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, accentColor: e.target.value }))}
+                                style={{ width: '36px', height: '36px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: 0 }}
+                              />
+                              <input
+                                type="text"
+                                value={standeeConfig.accentColor}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, accentColor: e.target.value }))}
+                                style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontFamily: 'monospace' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Table Badge Styling */}
+                        <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                            Table Prefix Label
+                          </label>
+                          <input
+                            type="text"
+                            value={standeeConfig.tablePrefix}
+                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, tablePrefix: e.target.value }))}
+                            placeholder="e.g. TABLE, DESK, SEAT"
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              borderRadius: '7px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '12.5px',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+
+                          <div style={{ marginTop: 10 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={standeeConfig.showCapacity !== false}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, showCapacity: e.target.checked }))}
+                              />
+                              Show Guest Capacity (e.g. 👥 4 Guests Capacity)
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 3: INSTRUCTIONS & STEPS */}
+                    {editorActiveTab === 'instructions' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <label style={{ fontSize: '12.5px', fontWeight: 700, color: '#0f172a' }}>
+                            Step-by-Step Scan Instructions
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={standeeConfig.showInstructions !== false}
+                              onChange={(e) => setStandeeConfig(prev => ({ ...prev, showInstructions: e.target.checked }))}
+                            />
+                            Show Instructions
+                          </label>
+                        </div>
+
+                        {standeeConfig.showInstructions !== false && (
+                          <>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: 4 }}>
+                                Call to Action Headline
+                              </label>
+                              <input
+                                type="text"
+                                value={standeeConfig.ctaTitle}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, ctaTitle: e.target.value }))}
+                                placeholder="e.g. SCAN TO BROWSE MENU & ORDER"
+                                style={{
+                                  width: '100%',
+                                  padding: '8px 10px',
+                                  borderRadius: '7px',
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '12px',
+                                  boxSizing: 'border-box'
+                                }}
+                              />
+                            </div>
+
+                            {/* Step 1 */}
+                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '9px', border: '1px solid #e2e8f0' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: standeeConfig.accentColor }}>STEP 1</span>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                                <input
+                                  type="text"
+                                  value={standeeConfig.step1Title}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step1Title: e.target.value }))}
+                                  placeholder="Title (e.g. Scan QR)"
+                                  style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={standeeConfig.step1Desc}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step1Desc: e.target.value }))}
+                                  placeholder="Description (e.g. with camera)"
+                                  style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px' }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Step 2 */}
+                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '9px', border: '1px solid #e2e8f0' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: standeeConfig.accentColor }}>STEP 2</span>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                                <input
+                                  type="text"
+                                  value={standeeConfig.step2Title}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step2Title: e.target.value }))}
+                                  placeholder="Title (e.g. Browse Menu)"
+                                  style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={standeeConfig.step2Desc}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step2Desc: e.target.value }))}
+                                  placeholder="Description (e.g. choose & customize)"
+                                  style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px' }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Step 3 */}
+                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '9px', border: '1px solid #e2e8f0' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: standeeConfig.accentColor }}>STEP 3</span>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                                <input
+                                  type="text"
+                                  value={standeeConfig.step3Title}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step3Title: e.target.value }))}
+                                  placeholder="Title (e.g. Food Served)"
+                                  style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px' }}
+                                />
+                                <input
+                                  type="text"
+                                  value={standeeConfig.step3Desc}
+                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step3Desc: e.target.value }))}
+                                  placeholder="Description (e.g. hot to table)"
+                                  style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px' }}
+                                />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 4: FOOTER & NOTES */}
+                    {editorActiveTab === 'footer' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                            Standee Footer Note
+                          </label>
+                          <input
+                            type="text"
+                            value={standeeConfig.footerNote}
+                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, footerNote: e.target.value }))}
+                            placeholder="e.g. ⚡ Fast & Contactless Dining • No App Required"
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              borderRadius: '7px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '12px',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>Powered By Watermark</span>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={standeeConfig.showWatermark !== false}
+                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, showWatermark: e.target.checked }))}
+                              />
+                              Show Watermark
+                            </label>
+                          </div>
+                          {standeeConfig.showWatermark !== false && (
+                            <input
+                              type="text"
+                              value={standeeConfig.poweredBy}
+                              onChange={(e) => setStandeeConfig(prev => ({ ...prev, poweredBy: e.target.value }))}
+                              placeholder="e.g. Powered by DineviQ Smart Dining"
+                              style={{
+                                width: '100%',
+                                padding: '7px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '11.5px',
+                                boxSizing: 'border-box'
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT: Interactive Sticky Real-Time Live Preview */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  background: '#f1f5f9',
+                  overflow: 'hidden'
+                }}>
+                  {/* Preview Selector Top Bar */}
+                  <div style={{
+                    padding: '8px 16px',
+                    background: '#ffffff',
+                    borderBottom: '1px solid #e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+                      <Eye size={13} />
+                      <span>Live Preview</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>Table:</span>
+                      <select
+                        value={editorPreviewTable?.tableNumber || filteredTables[0]?.tableNumber || tables[0]?.tableNumber || '1'}
+                        onChange={(e) => {
+                          const chosen = tables.find(t => String(t.tableNumber) === String(e.target.value));
+                          if (chosen) setEditorPreviewTable(chosen);
+                        }}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          background: '#ffffff'
+                        }}
+                      >
+                        {(filteredTables.length > 0 ? filteredTables : tables).map(t => (
+                          <option key={t.tableNumber} value={t.tableNumber}>
+                            Table {t.tableNumber}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Scaled Standee Card Preview Container */}
+                  <div style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                    overflowY: 'auto'
+                  }}>
+                    {(() => {
+                      const prevT = editorPreviewTable || filteredTables[0] || tables[0] || { tableNumber: 1, seatingCapacity: 4 };
+                      const primary = standeeConfig.primaryColor || '#0f172a';
+                      const accent = standeeConfig.accentColor || '#4f46e5';
+
+                      return (
+                        <div style={{
+                          width: '270px',
+                          background: '#ffffff',
+                          borderRadius: '16px',
+                          border: `2.5px solid ${primary}`,
+                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                          padding: '14px 12px 10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          textAlign: 'center',
+                          boxSizing: 'border-box'
+                        }}>
+                          {/* Logo & Header */}
+                          <div style={{ marginBottom: 6 }}>
+                            {standeeConfig.showLogo && standeeConfig.logoUrl && (
+                              <img
+                                src={standeeConfig.logoUrl}
+                                alt="Brand Logo"
+                                style={{ maxHeight: '22px', maxWidth: '110px', objectFit: 'contain', marginBottom: 2 }}
+                              />
+                            )}
+                            <div style={{ fontSize: '11.5px', fontWeight: 900, color: primary, letterSpacing: '0.8px', lineHeight: 1.1 }}>
+                              {(standeeConfig.restaurantName || 'THE LANDMARK').toUpperCase()}
+                            </div>
+                            <div style={{ fontSize: '6.5px', fontWeight: 700, color: '#64748b', letterSpacing: '0.8px', marginTop: 1 }}>
+                              {standeeConfig.tagline}
+                            </div>
+                          </div>
+
+                          {/* Table Capsule Badge */}
+                          <div style={{
+                            background: primary,
+                            color: '#ffffff',
+                            padding: '3px 14px',
+                            borderRadius: '100px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            marginBottom: 4
+                          }}>
+                            <span style={{ fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.5px', color: '#cbd5e1' }}>
+                              {standeeConfig.tablePrefix || 'TABLE'}
+                            </span>
+                            <span style={{ fontSize: '15px', fontWeight: 900, color: '#ffffff' }}>
+                              {prevT.tableNumber}
+                            </span>
+                          </div>
+
+                          {standeeConfig.showCapacity !== false && (
+                            <div style={{ fontSize: '7.5px', fontWeight: 700, color: '#64748b', marginBottom: 8 }}>
+                              👥 {prevT.seatingCapacity || 4} GUESTS CAPACITY
+                            </div>
+                          )}
+
+                          {/* QR Code Container with Corner Brackets */}
+                          <div style={{
+                            position: 'relative',
+                            padding: '5px',
+                            background: '#ffffff',
+                            borderRadius: '8px',
+                            border: '1px solid #e2e8f0',
+                            display: 'inline-flex',
+                            marginBottom: 8
+                          }}>
+                            {/* Brackets */}
+                            <div style={{ position: 'absolute', top: -1, left: -1, width: 7, height: 7, borderTop: `2px solid ${primary}`, borderLeft: `2px solid ${primary}`, borderTopLeftRadius: 3 }} />
+                            <div style={{ position: 'absolute', top: -1, right: -1, width: 7, height: 7, borderTop: `2px solid ${primary}`, borderRight: `2px solid ${primary}`, borderTopRightRadius: 3 }} />
+                            <div style={{ position: 'absolute', bottom: -1, left: -1, width: 7, height: 7, borderBottom: `2px solid ${primary}`, borderLeft: `2px solid ${primary}`, borderBottomLeftRadius: 3 }} />
+                            <div style={{ position: 'absolute', bottom: -1, right: -1, width: 7, height: 7, borderBottom: `2px solid ${primary}`, borderRight: `2px solid ${primary}`, borderBottomRightRadius: 3 }} />
+
+                            <QRCodeCanvas
+                              value={getTableQRUrl(prevT.tableNumber)}
+                              size={280}
+                              style={{ width: '105px', height: '105px', display: 'block' }}
+                              fgColor="#0f172a"
+                              bgColor="#ffffff"
+                              level="H"
+                              includeMargin={false}
+                            />
+                          </div>
+
+                          {/* Instructions */}
+                          {standeeConfig.showInstructions !== false && (
+                            <div style={{ width: '100%', marginBottom: 6 }}>
+                              <div style={{ fontSize: '7.5px', fontWeight: 900, color: primary, letterSpacing: '0.4px', marginBottom: 4 }}>
+                                {standeeConfig.ctaTitle}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '3px 2px', flex: 1 }}>
+                                  <div style={{ width: 11, height: 11, borderRadius: '50%', background: accent, color: '#fff', fontSize: '6.5px', fontWeight: 800, margin: '0 auto 1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</div>
+                                  <div style={{ fontSize: '6px', color: '#1e293b', fontWeight: 700 }}>{standeeConfig.step1Title}</div>
+                                </div>
+                                <span style={{ fontSize: '7px', color: '#94a3b8' }}>➔</span>
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '3px 2px', flex: 1 }}>
+                                  <div style={{ width: 11, height: 11, borderRadius: '50%', background: accent, color: '#fff', fontSize: '6.5px', fontWeight: 800, margin: '0 auto 1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</div>
+                                  <div style={{ fontSize: '6px', color: '#1e293b', fontWeight: 700 }}>{standeeConfig.step2Title}</div>
+                                </div>
+                                <span style={{ fontSize: '7px', color: '#94a3b8' }}>➔</span>
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '3px 2px', flex: 1 }}>
+                                  <div style={{ width: 11, height: 11, borderRadius: '50%', background: accent, color: '#fff', fontSize: '6.5px', fontWeight: 800, margin: '0 auto 1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</div>
+                                  <div style={{ fontSize: '6px', color: '#1e293b', fontWeight: 700 }}>{standeeConfig.step3Title}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Footer */}
+                          <div style={{ width: '100%', borderTop: '1px solid #f1f5f9', paddingTop: 4, marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '5.5px', color: '#94a3b8' }}>
+                            <span>{standeeConfig.footerNote}</span>
+                            {standeeConfig.showWatermark !== false && (
+                              <span style={{ fontWeight: 800, color: '#64748b' }}>{standeeConfig.poweredBy}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div style={{
+                padding: '12px 24px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const def = getDefaultStandeeConfig(restaurantName, restaurantLogo);
+                    setStandeeConfig(def);
+                    toast.success('Reset to default design');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RotateCcw size={13} /> Reset
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => saveStandeeConfig(standeeConfig)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <CheckCircle2 size={14} color="#059669" /> Save Design
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prevT = editorPreviewTable || filteredTables[0] || tables[0];
+                      if (prevT) downloadTableStandee(prevT, standeeConfig);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #c7d2fe',
+                      background: '#eef2ff',
+                      color: '#4338ca',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Download size={14} /> Download Standee (PNG)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      printCustomizedStands(filteredTables, standeeConfig);
+                      setShowStandeeEditorModal(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
+                    }}
+                  >
+                    <Printer size={14} /> Print Stands (PDF)
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
