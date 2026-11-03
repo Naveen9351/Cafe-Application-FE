@@ -550,6 +550,16 @@ export default function POSTerminal({
       return;
     }
 
+    const cleanPh = (customerPhone || '').replace(/\D/g, '');
+    if (!customerName.trim()) {
+      toast.error('Please enter Guest Name to place order');
+      return;
+    }
+    if (cleanPh.length < 10) {
+      toast.error('Please enter a valid 10-digit Phone Number');
+      return;
+    }
+
     setIsSendingKitchen(true);
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
@@ -602,6 +612,16 @@ export default function POSTerminal({
   const handleDirectOrder = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty. Add counter dishes first!');
+      return;
+    }
+
+    const cleanPh = (customerPhone || '').replace(/\D/g, '');
+    if (!customerName.trim()) {
+      toast.error('Please enter Guest Name to place order');
+      return;
+    }
+    if (cleanPh.length < 10) {
+      toast.error('Please enter a valid 10-digit Phone Number');
       return;
     }
 
@@ -1467,7 +1487,7 @@ export default function POSTerminal({
                 <div className={styles.customerInputs}>
                   <input
                     type="text"
-                    placeholder="Guest Name (Optional)"
+                    placeholder="Guest Name (Required)"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className={styles.inputField}
@@ -1476,7 +1496,7 @@ export default function POSTerminal({
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    placeholder="10-digit Phone No"
+                    placeholder="10-digit Phone No (Required)"
                     value={customerPhone}
                     onKeyDown={(e) => {
                       if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
@@ -1766,72 +1786,116 @@ export default function POSTerminal({
                   </div>
                 </div>
 
-                {/* 4-Button Unified Terminal Action System */}
-                <div className={styles.terminalActionBtns}>
-                  {/* Button 1: Send to Kitchen */}
-                  <button
-                    type="button"
-                    className={styles.sendKotBtn}
-                    onClick={handleSendKOT}
-                    disabled={isSendingKitchen || cart.length === 0}
-                    title="Send draft items to Kitchen KDS (Status: In Kitchen)"
-                  >
-                    <ChefHat size={14} />
-                    <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
-                  </button>
+                {/* Progressive Terminal Action System */}
+                {(() => {
+                  const cleanPh = (customerPhone || '').replace(/\D/g, '');
+                  const hasCustomerDetails = Boolean(customerName.trim().length > 0 && cleanPh.length === 10);
+                  const hasActiveOrders = currentTableOrders.length > 0;
+                  const hasDraftItems = cart.length > 0;
 
-                  {/* Button 2: Direct (Counter Handover) */}
-                  <button
-                    type="button"
-                    className={styles.directBtn}
-                    onClick={handleDirectOrder}
-                    disabled={isSubmittingDirect || cart.length === 0}
-                    title="Direct counter items (Water/Cold Drinks) - bypasses kitchen, status: Served"
-                  >
-                    <Zap size={14} />
-                    <span>{isSubmittingDirect ? 'Processing...' : 'Direct (Counter)'}</span>
-                  </button>
+                  return (
+                    <>
+                      {/* Step A: If draft items exist but name/phone not entered yet -> Show guidance banner, hide 4 buttons */}
+                      {hasDraftItems && !hasCustomerDetails && !hasActiveOrders && (
+                        <div style={{
+                          padding: '10px 12px',
+                          background: '#fff7ed',
+                          border: '1.5px dashed #fed7aa',
+                          borderRadius: '10px',
+                          textAlign: 'center',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          <span style={{ color: '#c2410c', fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <User size={13} color="#ea580c" /> Enter Guest Name & 10-digit Phone No
+                          </span>
+                          <span style={{ fontSize: '10.5px', color: '#9a3412', fontWeight: 500 }}>
+                            Fill both fields above to unlock "Send to Kitchen" & "Direct (Counter)"
+                          </span>
+                        </div>
+                      )}
 
-                  {/* Button 3: Pay Order */}
-                  <button
-                    type="button"
-                    className={styles.paidOrderBtn}
-                    onClick={() => {
-                      if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
-                        toast.error('All active items on this table are already paid!');
-                        return;
-                      }
-                      setKhataPaidAmount('0');
-                      setKhataBorrowAmount(0);
-                      setShowPayItemsModal(true);
-                    }}
-                    disabled={isSubmittingItemPay || (currentTableOrders.length === 0 && cart.length === 0) || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
-                    title="Mark selected items (or all unpaid items) as Paid"
-                  >
-                    <CreditCard size={14} />
-                    <span>
-                      {selectedItemsSummary.count > 0
-                        ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
-                        : (balanceDue > 0 ? `Pay (₹${formatAmount(balanceDue)})` : 'Paid Order')}
-                    </span>
-                  </button>
+                      {/* Step B: Dynamic Action Buttons */}
+                      {((hasDraftItems && hasCustomerDetails) || hasActiveOrders) && (
+                        <div className={styles.terminalActionBtns}>
+                          {/* 1. Send to Kitchen: Shown when draft items exist and customer details are provided */}
+                          {hasDraftItems && hasCustomerDetails && (
+                            <button
+                              type="button"
+                              className={styles.sendKotBtn}
+                              onClick={handleSendKOT}
+                              disabled={isSendingKitchen}
+                              title="Send draft items to Kitchen KDS (Status: In Kitchen)"
+                            >
+                              <ChefHat size={14} />
+                              <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
+                            </button>
+                          )}
 
-                  {/* Button 4: Clear Table */}
-                  <button
-                    type="button"
-                    className={styles.clearTableBtn}
-                    onClick={handleClearTableClick}
-                    disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
-                    title="Clear and reset table once customer finishes"
-                  >
-                    <CheckCircle2 size={14} />
-                    <span>
-                      {isSettling
-                        ? 'Clearing...'
-                        : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
-                    </span>
-                  </button>
-                </div>
+                          {/* 2. Direct (Counter): Shown when draft items exist and customer details are provided */}
+                          {hasDraftItems && hasCustomerDetails && (
+                            <button
+                              type="button"
+                              className={styles.directBtn}
+                              onClick={handleDirectOrder}
+                              disabled={isSubmittingDirect}
+                              title="Direct counter items - bypasses kitchen, status: Served"
+                            >
+                              <Zap size={14} />
+                              <span>{isSubmittingDirect ? 'Processing...' : 'Direct (Counter)'}</span>
+                            </button>
+                          )}
+
+                          {/* 3. Pay Order: Shown ONLY AFTER order is sent to kitchen or served from counter */}
+                          {hasActiveOrders && (
+                            <button
+                              type="button"
+                              className={styles.paidOrderBtn}
+                              onClick={() => {
+                                if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
+                                  toast.error('All active items on this table are already paid!');
+                                  return;
+                                }
+                                setKhataPaidAmount('0');
+                                setKhataBorrowAmount(0);
+                                setShowPayItemsModal(true);
+                              }}
+                              disabled={isSubmittingItemPay || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
+                              title="Mark selected items (or all unpaid items) as Paid"
+                            >
+                              <CreditCard size={14} />
+                              <span>
+                                {selectedItemsSummary.count > 0
+                                  ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
+                                  : (balanceDue > 0 ? `Pay (₹${formatAmount(balanceDue)})` : 'Paid Order')}
+                              </span>
+                            </button>
+                          )}
+
+                          {/* 4. Clear Table: Shown ONLY AFTER order is active on the table */}
+                          {hasActiveOrders && (
+                            <button
+                              type="button"
+                              className={styles.clearTableBtn}
+                              onClick={handleClearTableClick}
+                              disabled={isSettling}
+                              title="Clear and reset table once customer finishes"
+                            >
+                              <CheckCircle2 size={14} />
+                              <span>
+                                {isSettling
+                                  ? 'Clearing...'
+                                  : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
             </div>
