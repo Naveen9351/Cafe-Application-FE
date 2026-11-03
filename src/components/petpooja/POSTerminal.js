@@ -714,6 +714,30 @@ export default function POSTerminal({
     }
   };
 
+  // Quick Settle & Clear Table directly from floor view
+  const handleQuickSettleTable = async (tNum) => {
+    const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+    try {
+      await axios.put(
+        `${API}/orders/table/${encodeURIComponent(String(tNum).trim())}/settle`,
+        {
+          paymentMethod: 'Cash',
+          paymentStatus: 'paid',
+          tenantId: effectiveTenantId
+        },
+        { headers: token ? { 'x-auth-token': token } : {} }
+      );
+      toast.success(`Table ${tNum} cleared and is now free!`);
+      if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+      if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+    } catch (err) {
+      console.error('Quick settle error:', err);
+      toast.error('Failed to clear table: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   // Settle Bill & Free Table
   const handleSettleBill = async (overrideMethod = null) => {
     if (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0) {
@@ -1109,6 +1133,31 @@ export default function POSTerminal({
                         </span>
                       )}
                       <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickSettleTable(tbl.tableNumber);
+                        }}
+                        style={{
+                          marginTop: '6px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: '#059669',
+                          color: '#ffffff',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                        title={`Click to clear and free Table ${tbl.tableNumber}`}
+                      >
+                        <CheckCircle2 size={12} /> Clear Table
+                      </button>
                     </div>
                   );
                 }
@@ -1771,15 +1820,7 @@ export default function POSTerminal({
                   <button
                     type="button"
                     className={styles.clearTableBtn}
-                    onClick={() => {
-                      if (balanceDue > 0) {
-                        setKhataPaidAmount('0');
-                        setKhataBorrowAmount(0);
-                        setShowPayItemsModal(true);
-                      } else {
-                        handleClearTableClick();
-                      }
-                    }}
+                    onClick={handleClearTableClick}
                     disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
                     title="Clear and reset table once customer finishes"
                   >
@@ -2412,7 +2453,10 @@ export default function POSTerminal({
               </button>
               <button
                 type="button"
-                onClick={() => handleSettleBill(clearTablePaymentMethod)}
+                onClick={() => {
+                  setShowClearConfirmModal(false);
+                  handleSettleBill(clearTablePaymentMethod);
+                }}
                 disabled={isSettling}
                 style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#ffffff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
