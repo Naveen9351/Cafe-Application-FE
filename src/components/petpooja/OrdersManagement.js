@@ -18,6 +18,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const [localOrders, setLocalOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [serverSummary, setServerSummary] = useState(null);
 
   // Applied Filter States
   const [search, setSearch] = useState('');
@@ -69,6 +70,9 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         });
 
         if (res.data) {
+          if (res.data.summary) {
+            setServerSummary(res.data.summary);
+          }
           if (res.data.orders && Array.isArray(res.data.orders)) {
             setLocalOrders(res.data.orders);
             setTotalServerOrders(res.data.total || 0);
@@ -243,8 +247,12 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
-  // Computed Metrics (Harmonized with Dashboard & Reports Suite)
+  // Computed Metrics (Harmonized with DB across all pagination pages)
   const metrics = useMemo(() => {
+    if (serverSummary) {
+      return serverSummary;
+    }
+
     const totalOrders = totalServerOrders || localOrders.length;
     const completedOrders = localOrders.filter(o => o.status === 'completed');
     const completedRate = totalOrders > 0 ? Math.round((completedOrders.length / totalOrders) * 100) : 0;
@@ -271,7 +279,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       cancelledCount,
       cancelledRate
     };
-  }, [localOrders, totalServerOrders]);
+  }, [serverSummary, localOrders, totalServerOrders]);
 
   // Filtered & Sorted Orders
   const filteredOrders = useMemo(() => {
@@ -728,8 +736,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                 <motion.tr
                                   key={ord._id}
                                   className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
-                                  style={status === 'cancelled' ? { backgroundColor: 'rgba(254, 242, 242, 0.45)' } : {}}
-                                  onClick={() => setSelectedOrder(ord)}
+                                  style={status === 'cancelled' ? { backgroundColor: 'rgba(254, 242, 242, 0.45)', cursor: 'default' } : {}}
+                                  onClick={() => {
+                                    if (status === 'cancelled') return;
+                                    setSelectedOrder(ord);
+                                  }}
                                 >
                                   {/* Order # & Token in SINGLE LINE */}
                                   <td className={styles.td}>
