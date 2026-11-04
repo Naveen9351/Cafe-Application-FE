@@ -87,6 +87,14 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     } catch (e) {}
     return ['Main Hall', 'Rooftop', 'Garden', 'Outdoor'];
   });
+
+  const allAvailableSections = useMemo(() => {
+    const set = new Set(tableSections);
+    tables.forEach(t => {
+      if (t.section) set.add(t.section.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [tableSections, tables]);
   const [selectedSection, setSelectedSection] = useState('all');
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
@@ -1376,12 +1384,47 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
   const filteredTables = useMemo(() => {
     return tables.filter(t => {
-      const sec = (t.section || 'Main Hall').trim().toLowerCase();
-      const matchesSection = selectedSection === 'all' || sec === selectedSection.trim().toLowerCase();
       const matchesSearch = !searchQuery || String(t.tableNumber).toLowerCase().includes(searchQuery.toLowerCase().trim());
-      return matchesSection && matchesSearch;
+      return matchesSearch;
     });
-  }, [tables, selectedSection, searchQuery]);
+  }, [tables, searchQuery]);
+
+  const groupedTablesBySection = useMemo(() => {
+    const sectionsOrder = [];
+    const secSet = new Set();
+    tableSections.forEach(s => {
+      const trimmed = (s || 'Main Hall').trim();
+      if (!secSet.has(trimmed.toLowerCase())) {
+        secSet.add(trimmed.toLowerCase());
+        sectionsOrder.push(trimmed);
+      }
+    });
+
+    tables.forEach(t => {
+      const s = (t.section || 'Main Hall').trim();
+      if (!secSet.has(s.toLowerCase())) {
+        secSet.add(s.toLowerCase());
+        sectionsOrder.push(s);
+      }
+    });
+
+    const groups = {};
+    sectionsOrder.forEach(s => {
+      groups[s] = [];
+    });
+
+    filteredTables.forEach(t => {
+      const s = (t.section || 'Main Hall').trim();
+      const match = sectionsOrder.find(sec => sec.toLowerCase() === s.toLowerCase()) || 'Main Hall';
+      if (!groups[match]) {
+        groups[match] = [];
+        sectionsOrder.push(match);
+      }
+      groups[match].push(t);
+    });
+
+    return { sectionsOrder, groups };
+  }, [tableSections, tables, filteredTables]);
 
   return (
     <div style={{ width: '100%' }}>
@@ -1580,6 +1623,30 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           </button>
           <button
             type="button"
+            onClick={() => {
+              setNewSectionName('');
+              setShowAddSectionModal(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 13px',
+              borderRadius: '8px',
+              border: '1.5px dashed #4f46e5',
+              background: '#eef2ff',
+              color: '#4338ca',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Create new category or section"
+          >
+            <Plus size={14} /> Add Category
+          </button>
+          <button
+            type="button"
             onClick={() => setShowAddModal(true)}
             style={{
               display: 'flex',
@@ -1602,137 +1669,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         </div>
       </div>
 
-      {/* Table Categories / Zones Pills Row */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        overflowX: 'auto',
-        padding: '2px 2px 10px 2px',
-        scrollbarWidth: 'none',
-        marginBottom: '6px'
-      }}>
-        {/* "All" Pill */}
-        <button
-          type="button"
-          onClick={() => setSelectedSection('all')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '5px 12px',
-            borderRadius: '100px',
-            border: selectedSection === 'all' ? '1.5px solid #0f172a' : '1px solid #e2e8f0',
-            background: selectedSection === 'all' ? '#0f172a' : '#ffffff',
-            color: selectedSection === 'all' ? '#ffffff' : '#334155',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-        >
-          <Layers size={13} />
-          <span>All Tables</span>
-          <span style={{
-            fontSize: '10px',
-            fontWeight: 800,
-            padding: '1px 6px',
-            borderRadius: '100px',
-            background: selectedSection === 'all' ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
-            color: selectedSection === 'all' ? '#ffffff' : '#475569'
-          }}>
-            {tables.length}
-          </span>
-        </button>
-
-        {/* Custom Section Pills */}
-        {tableSections.map(sec => {
-          const isActive = selectedSection.toLowerCase() === sec.toLowerCase();
-          const count = tables.filter(t => (t.section || 'Main Hall').toLowerCase() === sec.toLowerCase()).length;
-          return (
-            <div
-              key={sec}
-              onClick={() => setSelectedSection(sec)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 12px',
-                borderRadius: '100px',
-                border: isActive ? '1.5px solid #4f46e5' : '1px solid #e2e8f0',
-                background: isActive ? '#eef2ff' : '#ffffff',
-                color: isActive ? '#4338ca' : '#334155',
-                fontSize: '11.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-              }}
-            >
-              <span>{sec}</span>
-              <span style={{
-                fontSize: '10px',
-                fontWeight: 800,
-                padding: '1px 6px',
-                borderRadius: '100px',
-                background: isActive ? '#4338ca' : '#f1f5f9',
-                color: isActive ? '#ffffff' : '#475569'
-              }}>
-                {count}
-              </span>
-              {sec !== 'Main Hall' && (
-                <button
-                  type="button"
-                  onClick={(e) => handleDeleteSection(sec, e)}
-                  title={`Delete "${sec}" category`}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: 0,
-                    marginLeft: 2
-                  }}
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {/* + Add Section Button */}
-        <button
-          type="button"
-          onClick={() => setShowAddSectionModal(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '5px 12px',
-            borderRadius: '100px',
-            border: '1px dashed #4f46e5',
-            background: '#f8fafc',
-            color: '#4f46e5',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Plus size={13} /> Add Category
-        </button>
-      </div>
-
-      <style>{`
+<style>{`
         .table-qr-grid-5 {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1789,8 +1726,87 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           ))}
         </div>
       ) : (
-        <div className="table-qr-grid-5">
-          {filteredTables.map((table) => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {groupedTablesBySection.sectionsOrder.map((secName) => {
+            const secTables = groupedTablesBySection.groups[secName] || [];
+
+            if (searchQuery.trim() && secTables.length === 0) {
+              return null;
+            }
+
+            return (
+              <div key={secName} style={{ background: '#ffffff', borderRadius: '16px', padding: '1.25rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                {/* Section Header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingBottom: '0.65rem',
+                  marginBottom: '1rem',
+                  borderBottom: '1.5px solid #f1f5f9'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h3 style={{
+                      fontSize: '1.05rem',
+                      fontWeight: 800,
+                      color: '#0f172a',
+                      margin: 0,
+                      letterSpacing: '-0.01em'
+                    }}>
+                      {secName}
+                    </h3>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      padding: '2px 9px',
+                      borderRadius: '100px',
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      {secTables.length} {secTables.length === 1 ? 'Table' : 'Tables'}
+                    </span>
+                  </div>
+
+                  {secName !== 'Main Hall' && secTables.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSection(secName, e)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #fee2e2',
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                      title={`Remove empty "${secName}" category`}
+                    >
+                      <Trash2 size={12} /> Remove Category
+                    </button>
+                  )}
+                </div>
+
+                {secTables.length === 0 ? (
+                  <div style={{
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    background: '#f8fafc',
+                    borderRadius: '10px',
+                    border: '1px dashed #cbd5e1',
+                    color: '#64748b',
+                    fontSize: '13px'
+                  }}>
+                    No tables in <strong>{secName}</strong> yet. Click "+ Add Table" to add tables to this category.
+                  </div>
+                ) : (
+                  <div className="table-qr-grid-5">
+                    {secTables.map((table) => {
             const qrUrl = getTableQRUrl(table.tableNumber);
             const isOccupied = isTableOccupied(table);
             const activeOrder = getTableActiveOrder(table);
@@ -2067,6 +2083,11 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               </motion.div>
             );
           })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2077,6 +2098,107 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>Click "+ Add Table" above to create your first dine-in QR code.</p>
         </div>
       )}
+
+      {/* ADD CATEGORY / SECTION MODAL */}
+      <AnimatePresence>
+        {showAddSectionModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }} onClick={() => setShowAddSectionModal(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '18px',
+                padding: '1.75rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)'
+              }}
+            >
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
+                Add New Category / Section
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>
+                Create a dining zone or area for your tables (e.g. Rooftop, Terrace, Garden, 1st Floor, VIP Lounge).
+              </p>
+
+              <form onSubmit={handleAddSection}>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    placeholder="e.g. Rooftop, Terrace, Garden, VIP Lounge"
+                    value={newSectionName}
+                    onChange={(e) => setNewSectionName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddSectionModal(false);
+                      setNewSectionName('');
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: '#4f46e5',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Add Category
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ADD SINGLE TABLE MODAL */}
       <AnimatePresence>
@@ -2127,6 +2249,28 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       outline: 'none'
                     }}
                   />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Category / Section</label>
+                  <select
+                    value={newTableSection}
+                    onChange={(e) => setNewTableSection(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      outline: 'none',
+                      background: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {allAvailableSections.map(sec => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
@@ -2243,6 +2387,30 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       outline: 'none'
                     }}
                   />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Category / Section *
+                  </label>
+                  <select
+                    value={editSection}
+                    onChange={(e) => setEditSection(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      outline: 'none',
+                      background: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {allAvailableSections.map(sec => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
@@ -2382,6 +2550,28 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                     outline: 'none'
                   }}
                 />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Category / Section for Batch</label>
+                <select
+                  value={batchSection}
+                  onChange={(e) => setBatchSection(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14px',
+                    outline: 'none',
+                    background: '#ffffff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {allAvailableSections.map(sec => (
+                    <option key={sec} value={sec}>{sec}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Quick Bulk Setting */}

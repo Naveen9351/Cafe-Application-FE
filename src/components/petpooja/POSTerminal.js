@@ -213,7 +213,7 @@ export default function POSTerminal({
       const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
 
       // Zone filter
-      if (selectedZone !== 'all' && (t.zone || 'Main Floor') !== selectedZone) {
+      if (selectedZone !== 'all' && (t.zone || t.section || 'Main Floor') !== selectedZone) {
         return false;
       }
 
@@ -234,6 +234,17 @@ export default function POSTerminal({
       return true;
     });
   }, [allTablesList, getOrdersForTableObj, selectedZone, tableStatusFilter, tableSearch]);
+
+  // Grouped tables by category / section
+  const groupedFloorTables = useMemo(() => {
+    const map = {};
+    filteredFloorTables.forEach(t => {
+      const sec = (t.section || t.zone || 'Main Hall').trim();
+      if (!map[sec]) map[sec] = [];
+      map[sec].push(t);
+    });
+    return map;
+  }, [filteredFloorTables]);
 
   // Active table stats
   const tableStats = useMemo(() => {
@@ -1094,117 +1105,145 @@ export default function POSTerminal({
               ))}
             </div>
           ) : (
-            <div className={styles.tablesGrid}>
-              {filteredFloorTables.map(tbl => {
-                const tableOrders = getOrdersForTableObj(tbl);
-                const isOccupied = tableOrders.length > 0;
-                const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
-                const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
-
-                // Calculate running elapsed duration across minutes, hours, and days
-                let elapsedMin = null;
-                if (isOccupied && tableOrders[0]?.createdAt) {
-                  const diffSec = Math.max(1, Math.floor((Date.now() - new Date(tableOrders[0].createdAt).getTime()) / 1000));
-                  const d = Math.floor(diffSec / 86400);
-                  const h = Math.floor((diffSec % 86400) / 3600);
-                  const m = Math.floor((diffSec % 3600) / 60);
-                  if (d > 0) elapsedMin = h > 0 ? `${d}d ${h}h` : `${d}d`;
-                  else if (h > 0) elapsedMin = m > 0 ? `${h}h ${m}m` : `${h}h`;
-                  else elapsedMin = `${Math.max(1, m)} Min`;
-                }
-
-                // 1. FREE / EMPTY CARD
-                if (!isOccupied) {
-                  return (
-                    <div
-                      key={tbl._id || tbl.tableNumber}
-                      className={`${styles.tableTile} ${styles.tileFree}`}
-                      onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                      title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
-                    >
-                      <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                      <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                      <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                    </div>
-                  );
-                }
-
-                const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
-                const custName = getCustomerFirstName(rawCustName);
-
-                // 2. PAID / BILLED / SERVED CARD (Soft Green)
-                if (isAllPaid) {
-                  return (
-                    <div
-                      key={tbl._id || tbl.tableNumber}
-                      className={`${styles.tableTile} ${styles.tilePaid}`}
-                      onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                      title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
-                    >
-                      <div className={styles.tileTopMeta}>
-                        <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
-                      </div>
-                      <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                        {custName || `Table ${tbl.tableNumber}`}
-                      </span>
-                      {custName && (
-                        <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
-                          Table {tbl.tableNumber}
-                        </span>
-                      )}
-                      <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleQuickSettleTable(tbl.tableNumber);
-                        }}
-                        style={{
-                          marginTop: '6px',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: '#059669',
-                          color: '#ffffff',
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                        }}
-                        title={`Click to clear and free Table ${tbl.tableNumber}`}
-                      >
-                        <CheckCircle2 size={12} /> Clear Table
-                      </button>
-                    </div>
-                  );
-                }
-
-                // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
-                return (
-                  <div
-                    key={tbl._id || tbl.tableNumber}
-                    className={`${styles.tableTile} ${styles.tileOccupied}`}
-                    onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                    title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
-                  >
-                    <div className={styles.tileTopMeta}>
-                      <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
-                    </div>
-                    <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                      {custName || `Table ${tbl.tableNumber}`}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {Object.entries(groupedFloorTables).map(([secName, secTables]) => (
+                <div key={secName} style={{ background: '#ffffff', borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '0.75rem',
+                    paddingBottom: '6px',
+                    borderBottom: '1.5px solid #f1f5f9'
+                  }}>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                      {secName}
+                    </h3>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '100px',
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      {secTables.length} {secTables.length === 1 ? 'Table' : 'Tables'}
                     </span>
-                    {custName && (
-                      <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
-                        Table {tbl.tableNumber}
-                      </span>
-                    )}
-                    <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                   </div>
-                );
-              })}
+                  <div className={styles.tablesGrid}>
+                    {secTables.map(tbl => {
+                      const tableOrders = getOrdersForTableObj(tbl);
+                      const isOccupied = tableOrders.length > 0;
+                      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
+                      const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+
+                      let elapsedMin = null;
+                      if (isOccupied && tableOrders[0]?.createdAt) {
+                        const diffSec = Math.max(1, Math.floor((Date.now() - new Date(tableOrders[0].createdAt).getTime()) / 1000));
+                        const d = Math.floor(diffSec / 86400);
+                        const h = Math.floor((diffSec % 86400) / 3600);
+                        const m = Math.floor((diffSec % 3600) / 60);
+                        if (d > 0) elapsedMin = h > 0 ? `${d}d ${h}h` : `${d}d`;
+                        else if (h > 0) elapsedMin = m > 0 ? `${h}h ${m}m` : `${h}h`;
+                        else elapsedMin = `${Math.max(1, m)} Min`;
+                      }
+
+                      // 1. FREE / EMPTY CARD
+                      if (!isOccupied) {
+                        return (
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={`${styles.tableTile} ${styles.tileFree}`}
+                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                          >
+                            <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                            <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                          </div>
+                        );
+                      }
+
+                      const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
+                      const custName = getCustomerFirstName(rawCustName);
+
+                      // 2. PAID / BILLED / SERVED CARD (Soft Green)
+                      if (isAllPaid) {
+                        return (
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={`${styles.tableTile} ${styles.tilePaid}`}
+                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
+                          >
+                            <div className={styles.tileTopMeta}>
+                              <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
+                            </div>
+                            <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                              {custName || `Table ${tbl.tableNumber}`}
+                            </span>
+                            {custName && (
+                              <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
+                                Table {tbl.tableNumber}
+                              </span>
+                            )}
+                            <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickSettleTable(tbl.tableNumber);
+                              }}
+                              style={{
+                                marginTop: '6px',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: '#059669',
+                                color: '#ffffff',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                              }}
+                              title={`Click to clear and free Table ${tbl.tableNumber}`}
+                            >
+                              <CheckCircle2 size={12} /> Clear Table
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
+                      return (
+                        <div
+                          key={tbl._id || tbl.tableNumber}
+                          className={`${styles.tableTile} ${styles.tileOccupied}`}
+                          onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                          title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
+                        >
+                          <div className={styles.tileTopMeta}>
+                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
+                          </div>
+                          <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                            {custName || `Table ${tbl.tableNumber}`}
+                          </span>
+                          {custName && (
+                            <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
+                              Table {tbl.tableNumber}
+                            </span>
+                          )}
+                          <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -1282,32 +1321,18 @@ export default function POSTerminal({
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
               <div className={styles.menuFilterBar}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {/* Inline Back Arrow Button */}
-                  <button
-                    type="button"
-                    className={styles.backIconBtn}
-                    onClick={() => setViewMode('tables')}
-                    title="Back to Floor Tables"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
+                {/* Inline Back Arrow Button */}
+                <button
+                  type="button"
+                  className={styles.backIconBtn}
+                  onClick={() => setViewMode('tables')}
+                  title="Back to Floor Tables"
+                >
+                  <ArrowLeft size={16} />
+                </button>
 
-                  <div className={styles.categoryPillsWrap}>
-                    {categories.map(cat => (
-                      <button
-                        key={cat}
-                        type="button"
-                        className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
-                        onClick={() => setSelectedCategory(cat)}
-                      >
-                        {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.searchBox} style={{ width: 180 }}>
+                {/* Dish Search input right after back button */}
+                <div className={styles.searchBox} style={{ width: 170, flexShrink: 0 }}>
                   <Search size={13} color="#94a3b8" />
                   <input
                     type="text"
@@ -1316,6 +1341,36 @@ export default function POSTerminal({
                     onChange={(e) => setDishSearch(e.target.value)}
                     className={styles.searchInput}
                   />
+                  {dishSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDishSearch('')}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Horizontally scrollable Category Pills */}
+                <div
+                  className={styles.categoryPillsWrap}
+                  onWheel={(e) => {
+                    if (e.deltaY !== 0) {
+                      e.currentTarget.scrollLeft += e.deltaY;
+                    }
+                  }}
+                >
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                    </button>
+                  ))}
                 </div>
               </div>
 
