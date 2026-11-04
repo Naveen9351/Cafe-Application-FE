@@ -6,64 +6,69 @@ import { Plus, Download, Trash2, Edit3, QrCode, RefreshCw, Users, Check, AlertCi
 
 const STAND_TEMPLATES = [
   {
-    id: 'acrylic',
-    name: 'Classic Acrylic Standee',
+    id: 'food-acrylic',
+    name: '1. Fresh Food Acrylic Stand',
     tag: 'POPULAR',
-    desc: 'Capsule table badge, branded bold header, 3-step ordering timeline & corner crop brackets',
-    badgeStyle: 'capsule',
+    desc: 'Appetizing top food banner, crisp central QR, and vibrant curved banner with phone scan arrows',
+    previewImg: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
+    primaryColor: '#15803d',
+    accentColor: '#22c55e',
     bgStyle: 'white',
-    cardBorder: 'double',
-    cornerRadius: 'rounded',
-    primaryColor: '#0f172a',
-    accentColor: '#4f46e5'
-  },
-  {
-    id: 'minimalist',
-    name: 'Modern Minimalist',
-    tag: 'CLEAN',
-    desc: 'Airy spacing, sleek typography, minimal pill table badge, clean high-contrast scan area',
-    badgeStyle: 'minimal',
-    bgStyle: 'white',
-    cardBorder: 'thin',
-    cornerRadius: 'pill',
-    primaryColor: '#1e293b',
-    accentColor: '#0284c7'
-  },
-  {
-    id: 'dark',
-    name: 'Luxury Dark Lounge',
-    tag: 'PREMIUM',
-    desc: 'Midnight dark background with metallic gold & bronze accents for high-end dining',
-    badgeStyle: 'ribbon',
-    bgStyle: 'dark',
-    cardBorder: 'gold',
-    cornerRadius: 'rounded',
-    primaryColor: '#f59e0b',
-    accentColor: '#fbbf24'
-  },
-  {
-    id: 'warm',
-    name: 'Artisan Cafe & Bakery',
-    tag: 'COZY',
-    desc: 'Warm cream & kraft paper background with rich espresso brown & honey amber tones',
-    badgeStyle: 'capsule',
-    bgStyle: 'cream',
     cardBorder: 'solid',
     cornerRadius: 'rounded',
-    primaryColor: '#451a03',
-    accentColor: '#d97706'
+    ctaTitle: 'VIEW OUR MENU ON YOUR PHONE!'
   },
   {
-    id: 'compact',
-    name: 'Sleek Compact Stand',
-    tag: 'EXPRESS',
-    desc: 'Extra-large bold table number, high-density QR placement and dedicated Wi-Fi callout',
-    badgeStyle: 'large',
-    bgStyle: 'white',
-    cardBorder: 'thin',
+    id: 'luxury-gold',
+    name: '2. Royal Gold & Dark Dining',
+    tag: 'FINE DINE',
+    desc: 'Moody candlelight ambience with double gold hairline borders, cursive script Menu and gold logo frame',
+    previewImg: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80',
+    primaryColor: '#d4af37',
+    accentColor: '#f59e0b',
+    bgStyle: 'dark',
+    cardBorder: 'gold',
     cornerRadius: 'sharp',
-    primaryColor: '#0f172a',
-    accentColor: '#10b981'
+    ctaTitle: 'FOR A CONTACTLESS MENU, SCAN QR CODE'
+  },
+  {
+    id: 'green-tent',
+    name: '3. Artisan Green Table Tent',
+    tag: 'CAFE TENT',
+    desc: 'Forest olive green tent heading with star accents ✦ VIEW OUR MENU ✦ and fresh brunch food base',
+    previewImg: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=600&q=80',
+    primaryColor: '#1b4332',
+    accentColor: '#40916c',
+    bgStyle: 'cream',
+    cardBorder: 'thin',
+    cornerRadius: 'rounded',
+    ctaTitle: '✦ VIEW OUR MENU ✦'
+  },
+  {
+    id: 'gourmet-arch',
+    name: '4. Gourmet Arched Stand',
+    tag: 'GOURMET',
+    desc: 'Arched navy blue card with warm amber trim, circular dish badge, bold MENU header and Scan Me base',
+    previewImg: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+    primaryColor: '#17203d',
+    accentColor: '#f59e0b',
+    bgStyle: 'white',
+    cardBorder: 'double',
+    cornerRadius: 'pill',
+    ctaTitle: 'SCAN ME'
+  },
+  {
+    id: 'craft-splatter',
+    name: '5. Modern Barista Splatter',
+    tag: 'ARTISAN',
+    desc: 'Artisanal warm kraft background with organic modern coffee blobs, paint strokes, and clean QR frame',
+    previewImg: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80',
+    primaryColor: '#451a03',
+    accentColor: '#d97706',
+    bgStyle: 'cream',
+    cardBorder: 'none',
+    cornerRadius: 'rounded',
+    ctaTitle: 'SCAN TO ORDER & PAY'
   }
 ];
 
@@ -79,7 +84,7 @@ const THEME_PRESETS = [
 ];
 
 const getDefaultStandeeConfig = (resName, resLogo) => ({
-  templateId: 'acrylic',
+  templateId: 'food-acrylic',
   restaurantName: resName || 'The Landmark',
   tagline: 'SMART CONTACTLESS DINING',
   logoUrl: resLogo || '',
@@ -702,249 +707,400 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       ctx.closePath();
     };
 
-    const isDark = config?.bgStyle === 'dark' || config?.templateId === 'dark';
-    const isCream = config?.bgStyle === 'cream' || config?.templateId === 'warm';
-
-    const bgColor = isDark ? '#0f172a' : (isCream ? '#fffdf5' : '#ffffff');
-    const primary = config?.primaryColor || (isDark ? '#f59e0b' : '#0f172a');
-    const accent = config?.accentColor || (isDark ? '#fbbf24' : '#4f46e5');
-    const titleColor = isDark ? '#ffffff' : (isCream ? '#451a03' : primary);
-    const subColor = isDark ? '#94a3b8' : (isCream ? '#78350f' : '#64748b');
-
+    const currentTplId = config?.templateId || 'food-acrylic';
+    const primary = config?.primaryColor || '#15803d';
+    const accent = config?.accentColor || '#22c55e';
     const brandName = config?.restaurantName || restaurantName || 'The Landmark';
-    const brandTagline = config?.tagline || 'SMART CONTACTLESS DINING';
     const prefix = config?.tablePrefix || 'TABLE';
-    const badgeStyle = config?.badgeStyle || 'capsule';
+    const tableText = `${prefix} ${table.tableNumber}`;
 
-    // 1. Background
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, 1200, 1600);
+    // ----------------------------------------------------
+    // TEMPLATE 1: FRESH FOOD ACRYLIC STAND
+    // ----------------------------------------------------
+    if (currentTplId === 'food-acrylic' || currentTplId === 'acrylic') {
+      // 1. Base card
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1200, 1600);
 
-    // 2. Outer Border
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = isDark ? (config?.cardBorder === 'gold' ? '#f59e0b' : '#334155') : (isCream ? '#d97706' : primary);
-    drawRoundedRect(50, 50, 1100, 1500, config?.cornerRadius === 'sharp' ? 16 : (config?.cornerRadius === 'pill' ? 50 : 36));
-    ctx.stroke();
+      // Acrylic border
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = '#e2e8f0';
+      drawRoundedRect(40, 40, 1120, 1520, 36);
+      ctx.stroke();
 
-    // 3. Precision Cut/Crop Corner Markers
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = isDark ? '#475569' : '#94a3b8';
-    ctx.beginPath(); ctx.moveTo(25, 50); ctx.lineTo(45, 50); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(50, 25); ctx.lineTo(50, 45); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(1155, 50); ctx.lineTo(1175, 50); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(1150, 25); ctx.lineTo(1150, 45); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(25, 1550); ctx.lineTo(45, 1550); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(50, 1555); ctx.lineTo(50, 1575); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(1155, 1550); ctx.lineTo(1175, 1550); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(1150, 1555); ctx.lineTo(1150, 1575); ctx.stroke();
+      // Top Food Graphic Header (Vibrant culinary gradient + pattern)
+      const grad = ctx.createLinearGradient(0, 40, 0, 480);
+      grad.addColorStop(0, '#ea580c');
+      grad.addColorStop(0.5, '#f97316');
+      grad.addColorStop(1, '#fb923c');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(76, 40);
+      ctx.lineTo(1124, 40);
+      ctx.quadraticCurveTo(1160, 40, 1160, 76);
+      ctx.lineTo(1160, 460);
+      ctx.lineTo(40, 460);
+      ctx.lineTo(40, 76);
+      ctx.quadraticCurveTo(40, 40, 76, 40);
+      ctx.closePath();
+      ctx.fill();
 
-    // 4. Inner Hairline Accent Frame
-    if (config?.cardBorder !== 'none' && config?.cardBorder !== 'thin') {
+      // Top Header Overlay Brand
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.fillRect(40, 40, 1120, 420);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 54px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(brandName.toUpperCase(), 600, 220);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.font = '600 28px system-ui, sans-serif';
+      ctx.letterSpacing = '4px';
+      ctx.fillText('FRESH FOOD & CRAFT DRINKS', 600, 280);
+
+      // Table Badge floating over boundary
+      ctx.fillStyle = primary;
+      drawRoundedRect(450, 410, 300, 80, 40);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px system-ui, sans-serif';
+      ctx.fillText(tableText, 600, 464);
+
+      // Central QR Code Container
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(250, 530, 700, 700, 32);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.stroke();
+
+      if (qrCanvas) {
+        ctx.drawImage(qrCanvas, 290, 570, 620, 620);
+      }
+
+      // Bottom Curved Banner (Arc / Arch)
+      ctx.fillStyle = primary;
+      ctx.beginPath();
+      ctx.moveTo(40, 1340);
+      ctx.quadraticCurveTo(600, 1260, 1160, 1340);
+      ctx.lineTo(1160, 1524);
+      ctx.quadraticCurveTo(1160, 1560, 1124, 1560);
+      ctx.lineTo(76, 1560);
+      ctx.quadraticCurveTo(40, 1560, 40, 1524);
+      ctx.closePath();
+      ctx.fill();
+
+      // Bottom curved text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 42px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      const cta = config?.ctaTitle || 'VIEW OUR MENU ON YOUR PHONE!';
+      ctx.fillText(`↶  ${cta}  ↷`, 600, 1450);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.font = '500 24px system-ui, sans-serif';
+      ctx.fillText('Point your phone camera to scan and order instantly', 600, 1500);
+
+      return canvas.toDataURL('image/png');
+    }
+
+    // ----------------------------------------------------
+    // TEMPLATE 2: ROYAL GOLD & DARK DINING
+    // ----------------------------------------------------
+    if (currentTplId === 'luxury-gold' || currentTplId === 'dark') {
+      // 1. Dark Luxury Gradient BG
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, 1600);
+      bgGrad.addColorStop(0, '#18181b');
+      bgGrad.addColorStop(0.5, '#0f0f13');
+      bgGrad.addColorStop(1, '#09090b');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 1200, 1600);
+
+      // Outer Double Gold Borders
+      const gold = primary || '#d4af37';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = gold;
+      drawRoundedRect(50, 50, 1100, 1500, 12);
+      ctx.stroke();
+
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = isDark ? '#1e293b' : (isCream ? '#fef3c7' : '#e2e8f0');
-      drawRoundedRect(66, 66, 1068, 1468, 26);
+      ctx.strokeStyle = gold;
+      drawRoundedRect(68, 68, 1064, 1464, 8);
       ctx.stroke();
-    }
 
-    // 5. Header: Restaurant Brand Name & Subtitle
-    ctx.textAlign = 'center';
-    ctx.fillStyle = titleColor;
-    ctx.font = '900 46px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(brandName.toUpperCase(), 600, 160);
+      // Cursive Script "Menu"
+      ctx.fillStyle = gold;
+      ctx.font = 'italic 110px "Playfair Display", Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Menu', 600, 240);
 
-    ctx.fillStyle = subColor;
-    ctx.font = '700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(brandTagline, 600, 205);
+      // Subtitle
+      ctx.font = '600 24px system-ui, sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      const luxuryCta = config?.ctaTitle || 'FOR A CONTACTLESS MENU, SCAN QR CODE';
+      ctx.fillText(luxuryCta, 600, 310);
 
-    // Header subtle accent line
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(460, 230);
-    ctx.lineTo(740, 230);
-    ctx.stroke();
-
-    // 6. Table Identifier Badge
-    if (badgeStyle === 'ribbon') {
-      ctx.fillStyle = primary;
-      ctx.fillRect(200, 260, 800, 75);
-      ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
-      ctx.font = '900 42px sans-serif';
-      ctx.fillText(`${prefix} ${table.tableNumber}`.trim(), 600, 312);
-    } else if (badgeStyle === 'large') {
-      ctx.fillStyle = accent;
-      ctx.font = '800 24px sans-serif';
-      ctx.fillText(prefix, 600, 275);
-      ctx.fillStyle = titleColor;
-      ctx.font = '900 68px sans-serif';
-      ctx.fillText(String(table.tableNumber), 600, 335);
-    } else if (badgeStyle === 'minimal') {
-      const pillW = 380;
-      const pillH = 70;
-      const pillX = 600 - pillW / 2;
-      const pillY = 265;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = accent;
-      drawRoundedRect(pillX, pillY, pillW, pillH, 35);
+      // Subtle gold divider
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(400, 345);
+      ctx.lineTo(800, 345);
       ctx.stroke();
-      ctx.fillStyle = titleColor;
-      ctx.font = '900 36px sans-serif';
-      ctx.fillText(`${prefix} ${table.tableNumber}`.trim(), 600, pillY + 48);
-    } else {
-      const pillW = 420;
-      const pillH = 80;
-      const pillX = 600 - pillW / 2;
-      const pillY = 265;
-      ctx.fillStyle = primary;
-      drawRoundedRect(pillX, pillY, pillW, pillH, 40);
+
+      // QR Code Container with gold border
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(270, 420, 660, 660, 16);
       ctx.fill();
-      ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
-      ctx.font = '900 42px sans-serif';
-      ctx.fillText(`${prefix} ${table.tableNumber}`.trim(), 600, pillY + 54);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = gold;
+      ctx.stroke();
+
+      if (qrCanvas) {
+        ctx.drawImage(qrCanvas, 310, 460, 580, 580);
+      }
+
+      // Bottom dashed box (YOUR LOGO / Table)
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([12, 8]);
+      ctx.strokeStyle = gold;
+      drawRoundedRect(350, 1220, 500, 120, 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = gold;
+      ctx.font = 'bold 36px system-ui, sans-serif';
+      ctx.fillText((config?.restaurantName || 'YOUR LOGO').toUpperCase(), 600, 1276);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 32px system-ui, sans-serif';
+      ctx.fillText(tableText, 600, 1420);
+
+      return canvas.toDataURL('image/png');
     }
 
-    // Capacity Indicator
-    if (config?.showCapacity !== false) {
-      ctx.fillStyle = subColor;
-      ctx.font = '700 22px sans-serif';
-      ctx.fillText(`👥 ${table.seatingCapacity || 4} GUESTS CAPACITY`, 600, 390);
-    }
+    // ----------------------------------------------------
+    // TEMPLATE 3: ARTISAN GREEN TABLE TENT
+    // ----------------------------------------------------
+    if (currentTplId === 'green-tent') {
+      const green = primary || '#1b4332';
+      // Top Green Tent Portion
+      ctx.fillStyle = green;
+      ctx.fillRect(0, 0, 1200, 960);
 
-    // 7. QR Code Frame Box
-    const qrBoxSize = 620;
-    const qrBoxX = 600 - qrBoxSize / 2;
-    const qrBoxY = 425;
-    ctx.fillStyle = '#ffffff';
-    drawRoundedRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28);
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = isDark ? '#334155' : '#e2e8f0';
-    ctx.stroke();
+      // Stars headline
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 50px "Playfair Display", Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('✦ VIEW OUR MENU ✦', 600, 170);
 
-    if (qrCanvas) {
-      const qrDrawSize = 540;
-      const qrOffset = (qrBoxSize - qrDrawSize) / 2;
-      ctx.drawImage(qrCanvas, qrBoxX + qrOffset, qrBoxY + qrOffset, qrDrawSize, qrDrawSize);
-    }
+      // Restaurant & Table
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.font = '600 28px system-ui, sans-serif';
+      ctx.fillText(`${brandName}  •  ${tableText}`, 600, 230);
 
-    // Corner Brackets
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = isDark ? accent : primary;
-    const brLen = 28;
-    ctx.beginPath();
-    ctx.moveTo(qrBoxX + 16, qrBoxY + 16 + brLen);
-    ctx.lineTo(qrBoxX + 16, qrBoxY + 16);
-    ctx.lineTo(qrBoxX + 16 + brLen, qrBoxY + 16);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(qrBoxX + qrBoxSize - 16 - brLen, qrBoxY + 16);
-    ctx.lineTo(qrBoxX + qrBoxSize - 16, qrBoxY + 16);
-    ctx.lineTo(qrBoxX + qrBoxSize - 16, qrBoxY + 16 + brLen);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(qrBoxX + 16, qrBoxY + qrBoxSize - 16 - brLen);
-    ctx.lineTo(qrBoxX + 16, qrBoxY + qrBoxSize - 16);
-    ctx.lineTo(qrBoxX + 16 + brLen, qrBoxY + qrBoxSize - 16);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(qrBoxX + qrBoxSize - 16 - brLen, qrBoxY + qrBoxSize - 16);
-    ctx.lineTo(qrBoxX + qrBoxSize - 16, qrBoxY + qrBoxSize - 16);
-    ctx.lineTo(qrBoxX + qrBoxSize - 16, qrBoxY + qrBoxSize - 16 - brLen);
-    ctx.stroke();
-
-    // Wi-Fi Banner if enabled
-    if (config?.showWifi && (config?.wifiSsid || config?.wifiPass)) {
-      const wifiBoxW = 560;
-      const wifiBoxH = 50;
-      const wifiBoxX = 600 - wifiBoxW / 2;
-      const wifiBoxY = 1060;
-      ctx.fillStyle = isDark ? '#1e293b' : '#f1f5f9';
-      drawRoundedRect(wifiBoxX, wifiBoxY, wifiBoxW, wifiBoxH, 12);
+      // QR Card inside Green Tent
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(280, 290, 640, 640, 28);
       ctx.fill();
-      ctx.fillStyle = titleColor;
-      ctx.font = '700 20px sans-serif';
-      const wifiText = `📶 Free Wi-Fi: ${config.wifiSsid || 'Guest'} ${config.wifiPass ? `• Pass: ${config.wifiPass}` : ''}`;
-      ctx.fillText(wifiText, 600, wifiBoxY + 32);
+
+      if (qrCanvas) {
+        ctx.drawImage(qrCanvas, 320, 330, 560, 560);
+      }
+
+      // Bottom Brunch Food Graphic section (Warm golden toast gradient)
+      const bGrad = ctx.createLinearGradient(0, 960, 0, 1600);
+      bGrad.addColorStop(0, '#fef3c7');
+      bGrad.addColorStop(0.5, '#fed7aa');
+      bGrad.addColorStop(1, '#fde68a');
+      ctx.fillStyle = bGrad;
+      ctx.fillRect(0, 960, 1200, 640);
+
+      ctx.fillStyle = '#78350f';
+      ctx.font = 'bold 38px system-ui, sans-serif';
+      ctx.fillText('SAVOR ARTISANAL BRUNCH & FRESH BITES', 600, 1240);
+
+      ctx.fillStyle = '#92400e';
+      ctx.font = '500 26px system-ui, sans-serif';
+      ctx.fillText('No waiting for paper menus — browse & reorder right here', 600, 1310);
+
+      // Minimal outer border
+      ctx.lineWidth = 12;
+      ctx.strokeStyle = green;
+      drawRoundedRect(30, 30, 1140, 1540, 36);
+      ctx.stroke();
+
+      return canvas.toDataURL('image/png');
     }
 
-    // 8. Call to Action Heading
-    ctx.fillStyle = titleColor;
-    ctx.font = '900 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(config?.ctaTitle || 'SCAN TO BROWSE MENU & ORDER', 600, config?.showWifi ? 1145 : 1100);
+    // ----------------------------------------------------
+    // TEMPLATE 4: GOURMET ARCHED STAND
+    // ----------------------------------------------------
+    if (currentTplId === 'gourmet-arch') {
+      const archColor = primary || '#17203d';
+      const trimColor = accent || '#f59e0b';
 
-    // 9. 3-Step Guide Chips
-    if (config?.showInstructions !== false) {
-      const stepsY = config?.showWifi ? 1180 : 1140;
-      const stepW = 280;
-      const stepH = 140;
-      const stepGap = 45;
-      const startX = 600 - (stepW * 3 + stepGap * 2) / 2;
+      // Base White Card
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1200, 1600);
 
-      const steps = [
-        { num: '1', title: config?.step1Title || 'Scan QR', desc: config?.step1Desc || 'with phone camera' },
-        { num: '2', title: config?.step2Title || 'Browse Menu', desc: config?.step2Desc || '& customize dishes' },
-        { num: '3', title: config?.step3Title || 'Hot Food', desc: config?.step3Desc || 'served to table' }
-      ];
+      // Top Ribbon
+      ctx.fillStyle = archColor;
+      drawRoundedRect(380, 80, 440, 70, 8);
+      ctx.fill();
+      ctx.fillStyle = trimColor;
+      ctx.font = 'bold 28px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`★ ${brandName} ★`, 600, 126);
 
-      steps.forEach((st, idx) => {
-        const sx = startX + idx * (stepW + stepGap);
+      // Bold MENU Title
+      ctx.fillStyle = archColor;
+      ctx.font = '900 90px system-ui, sans-serif';
+      ctx.fillText('MENU', 600, 260);
 
-        ctx.fillStyle = isDark ? '#1e293b' : (isCream ? '#fefae0' : '#f8fafc');
-        drawRoundedRect(sx, stepsY, stepW, stepH, 18);
+      // Arched Body
+      ctx.fillStyle = archColor;
+      ctx.beginPath();
+      ctx.arc(600, 580, 480, Math.PI, 0, false);
+      ctx.lineTo(1080, 1460);
+      ctx.quadraticCurveTo(1080, 1500, 1040, 1500);
+      ctx.lineTo(160, 1500);
+      ctx.quadraticCurveTo(120, 1500, 120, 1460);
+      ctx.closePath();
+      ctx.fill();
+
+      // Amber Trim
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = trimColor;
+      ctx.stroke();
+
+      // Circular Dish Cutout Badge at top of arch
+      ctx.fillStyle = trimColor;
+      ctx.beginPath();
+      ctx.arc(600, 340, 100, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(600, 340, 92, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = archColor;
+      ctx.font = 'bold 26px system-ui, sans-serif';
+      ctx.fillText(tableText, 600, 348);
+
+      // QR Code inside Arch
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(280, 540, 640, 640, 24);
+      ctx.fill();
+
+      if (qrCanvas) {
+        ctx.drawImage(qrCanvas, 320, 580, 560, 560);
+      }
+
+      // Bottom "Scan Me"
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 56px system-ui, sans-serif';
+      const archCta = config?.ctaTitle || 'SCAN ME';
+      ctx.fillText(archCta, 600, 1310);
+
+      ctx.fillStyle = trimColor;
+      ctx.font = '600 28px system-ui, sans-serif';
+      ctx.fillText('FAST & CONTACTLESS ORDERING', 600, 1370);
+
+      return canvas.toDataURL('image/png');
+    }
+
+    // ----------------------------------------------------
+    // TEMPLATE 5: MODERN BARISTA SPLATTER / CRAFT
+    // ----------------------------------------------------
+    {
+      const craftPrimary = primary || '#451a03';
+      const craftAccent = accent || '#d97706';
+
+      // Warm Craft Background
+      ctx.fillStyle = '#fef7ee';
+      ctx.fillRect(0, 0, 1200, 1600);
+
+      // Organic Splatters / Blobs in corners
+      ctx.fillStyle = craftAccent + '22';
+      ctx.beginPath();
+      ctx.arc(100, 120, 220, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(1100, 1480, 260, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = craftPrimary + '15';
+      ctx.beginPath();
+      ctx.arc(1120, 200, 180, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Top Cafe Branding
+      ctx.fillStyle = craftPrimary;
+      ctx.font = '900 54px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(brandName.toUpperCase(), 600, 210);
+
+      // Capsule Table Badge
+      ctx.fillStyle = craftPrimary;
+      drawRoundedRect(450, 260, 300, 70, 35);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px system-ui, sans-serif';
+      ctx.fillText(tableText, 600, 308);
+
+      // QR Code with artistic brackets
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(270, 420, 660, 660, 24);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = craftPrimary + '44';
+      ctx.stroke();
+
+      if (qrCanvas) {
+        ctx.drawImage(qrCanvas, 310, 460, 580, 580);
+      }
+
+      // Corner Brackets
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = craftPrimary;
+      // Top-Left
+      ctx.beginPath(); ctx.moveTo(240, 480); ctx.lineTo(240, 400); ctx.lineTo(320, 400); ctx.stroke();
+      // Top-Right
+      ctx.beginPath(); ctx.moveTo(880, 400); ctx.lineTo(960, 400); ctx.lineTo(960, 480); ctx.stroke();
+      // Bottom-Left
+      ctx.beginPath(); ctx.moveTo(240, 1020); ctx.lineTo(240, 1100); ctx.lineTo(320, 1100); ctx.stroke();
+      // Bottom-Right
+      ctx.beginPath(); ctx.moveTo(880, 1100); ctx.lineTo(960, 1100); ctx.lineTo(960, 1020); ctx.stroke();
+
+      // Bottom CTA Headline
+      ctx.fillStyle = craftPrimary;
+      ctx.font = '900 48px system-ui, sans-serif';
+      const craftCta = config?.ctaTitle || 'SCAN TO ORDER & PAY';
+      ctx.fillText(craftCta, 600, 1240);
+
+      ctx.fillStyle = '#78350f';
+      ctx.font = '500 28px system-ui, sans-serif';
+      ctx.fillText('Point your phone camera to view full menu & order', 600, 1310);
+
+      // Wi-Fi / Footer
+      if (config?.showWifi) {
+        ctx.fillStyle = craftAccent + '25';
+        drawRoundedRect(300, 1380, 600, 90, 45);
         ctx.fill();
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = isDark ? '#334155' : '#e2e8f0';
-        ctx.stroke();
+        ctx.fillStyle = craftPrimary;
+        ctx.font = 'bold 24px system-ui, sans-serif';
+        ctx.fillText(`Wi-Fi: ${config.wifiSsid || 'Cafe_Guest'}  •  Pass: ${config.wifiPassword || 'eatgood'}`, 600, 1435);
+      }
 
-        ctx.fillStyle = accent;
-        ctx.beginPath();
-        ctx.arc(sx + stepW / 2, stepsY + 30, 16, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
-        ctx.font = '900 16px sans-serif';
-        ctx.fillText(st.num, sx + stepW / 2, stepsY + 36);
-
-        ctx.fillStyle = titleColor;
-        ctx.font = 'bold 20px sans-serif';
-        ctx.fillText(st.title, sx + stepW / 2, stepsY + 80);
-
-        ctx.fillStyle = subColor;
-        ctx.font = '600 16px sans-serif';
-        ctx.fillText(st.desc, sx + stepW / 2, stepsY + 110);
-
-        if (idx < 2) {
-          ctx.fillStyle = isDark ? '#475569' : '#94a3b8';
-          ctx.font = 'bold 26px sans-serif';
-          ctx.fillText('➔', sx + stepW + stepGap / 2, stepsY + 75);
-        }
-      });
+      return canvas.toDataURL('image/png');
     }
-
-    // 10. Card Footer
-    ctx.strokeStyle = isDark ? '#1e293b' : '#f1f5f9';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(120, 1400);
-    ctx.lineTo(1080, 1400);
-    ctx.stroke();
-
-    ctx.fillStyle = subColor;
-    ctx.font = '700 20px sans-serif';
-    ctx.fillText(config?.footerNote || '⚡ Fast & Contactless Dining Experience • No App Required', 600, 1445);
-
-    if (config?.showWatermark !== false) {
-      ctx.fillStyle = isDark ? '#64748b' : '#94a3b8';
-      ctx.font = '700 16px sans-serif';
-      ctx.fillText(config?.poweredBy || 'Powered by DineviQ Smart Dining', 600, 1485);
-    }
-
-    return canvas.toDataURL('image/png');
   };
 
-  // Download High-Resolution 1200x1600 Standee Card PNG
+    // Download High-Resolution 1200x1600 Standee Card PNG
   const downloadTableStandee = (table, config = standeeConfig) => {
     const qrCanvas = document.getElementById(`qr-canvas-${table.tableNumber}`) || document.getElementById(`preview-qr-canvas-${table.tableNumber}`);
     if (!qrCanvas) {
@@ -3754,16 +3910,17 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       <div>
                         <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
-                          Choose Complete Template Layout
+                          Select Standee Template (5 Curated Designs)
                         </h4>
                         <p style={{ margin: 0, fontSize: '11.5px', color: '#64748b' }}>
-                          Select a professionally curated standee design. Colors and branding adapt automatically.
+                          Choose from real-world restaurant & cafe standee formats. Colors and texts adapt instantly.
                         </p>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {STAND_TEMPLATES.map(tpl => {
-                          const isSelected = (standeeConfig.templateId || 'acrylic') === tpl.id;
+                          const currentTplId = standeeConfig.templateId || 'food-acrylic';
+                          const isSelected = currentTplId === tpl.id || (currentTplId === 'acrylic' && tpl.id === 'food-acrylic');
                           return (
                             <div
                               key={tpl.id}
@@ -3771,44 +3928,45 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                                 setStandeeConfig(prev => ({
                                   ...prev,
                                   templateId: tpl.id,
-                                  badgeStyle: tpl.badgeStyle,
                                   bgStyle: tpl.bgStyle,
                                   cardBorder: tpl.cardBorder,
                                   cornerRadius: tpl.cornerRadius,
                                   primaryColor: tpl.primaryColor,
-                                  accentColor: tpl.accentColor
+                                  accentColor: tpl.accentColor,
+                                  ctaTitle: tpl.ctaTitle
                                 }));
-                                toast.success(`Applied "${tpl.name}" Template`);
+                                toast.success(`Switched to "${tpl.name}"`);
                               }}
                               style={{
-                                padding: '14px',
+                                padding: '12px',
                                 borderRadius: '12px',
                                 border: isSelected ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
                                 background: isSelected ? '#eff6ff' : '#ffffff',
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
                                 display: 'flex',
-                                alignItems: 'flex-start',
+                                alignItems: 'center',
                                 gap: 12
                               }}
                             >
                               <div style={{
-                                width: '36px',
-                                height: '36px',
+                                width: '48px',
+                                height: '48px',
                                 borderRadius: '8px',
-                                background: tpl.bgStyle === 'dark' ? '#0f172a' : (tpl.bgStyle === 'cream' ? '#fef3c7' : '#f1f5f9'),
+                                overflow: 'hidden',
                                 border: `2px solid ${tpl.primaryColor}`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
                                 flexShrink: 0
                               }}>
-                                <QrCode size={18} color={tpl.primaryColor} />
+                                <img
+                                  src={tpl.previewImg}
+                                  alt={tpl.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
                               </div>
 
-                              <div style={{ flex: 1 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                                  <span style={{ fontSize: '13px', fontWeight: 800, color: isSelected ? '#1d4ed8' : '#0f172a' }}>
+                                  <span style={{ fontSize: '12.5px', fontWeight: 800, color: isSelected ? '#1d4ed8' : '#0f172a' }}>
                                     {tpl.name}
                                   </span>
                                   <span style={{
@@ -3822,7 +3980,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                                     {tpl.tag}
                                   </span>
                                 </div>
-                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {tpl.desc}
                                 </p>
                               </div>
@@ -3833,9 +3991,6 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                     </div>
                   )}
 
-                  {/* ============================================================== */}
-                  {/* TAB 1: BRANDING & LOGO                                        */}
-                  {/* ============================================================== */}
                   {editorActiveTab === 'branding' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                       <div>
@@ -4415,17 +4570,12 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                 {/* Scaled Preview Standee Card */}
                 {(() => {
                   const prevT = editorPreviewTable || filteredTables[0] || tables[0] || { tableNumber: 1, seatingCapacity: 4 };
-                  const isDark = standeeConfig.bgStyle === 'dark' || standeeConfig.templateId === 'dark';
-                  const isCream = standeeConfig.bgStyle === 'cream' || standeeConfig.templateId === 'warm';
-
-                  const cardBg = isDark ? '#0f172a' : (isCream ? '#fffdf5' : '#ffffff');
-                  const primary = standeeConfig.primaryColor || (isDark ? '#f59e0b' : '#0f172a');
-                  const accent = standeeConfig.accentColor || (isDark ? '#fbbf24' : '#4f46e5');
-                  const titleColor = isDark ? '#ffffff' : (isCream ? '#451a03' : primary);
-                  const subColor = isDark ? '#94a3b8' : (isCream ? '#78350f' : '#64748b');
-                  const borderCol = isDark ? (standeeConfig.cardBorder === 'gold' ? '#f59e0b' : '#334155') : (isCream ? '#d97706' : primary);
-
-                  const radiusVal = standeeConfig.cornerRadius === 'sharp' ? '8px' : (standeeConfig.cornerRadius === 'pill' ? '28px' : '18px');
+                  const currentTplId = standeeConfig.templateId || 'food-acrylic';
+                  const primary = standeeConfig.primaryColor || '#15803d';
+                  const accent = standeeConfig.accentColor || '#22c55e';
+                  const brandName = standeeConfig.restaurantName || restaurantName || 'The Landmark';
+                  const prefix = standeeConfig.tablePrefix || 'TABLE';
+                  const tableText = `${prefix} ${prevT.tableNumber}`;
 
                   return (
                     <div
@@ -4434,172 +4584,480 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                         transformOrigin: 'center center',
                         transition: 'transform 0.15s ease',
                         width: '320px',
-                        background: cardBg,
-                        borderRadius: radiusVal,
-                        border: `3px solid ${borderCol}`,
-                        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-                        padding: '18px 16px 14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        boxSizing: 'border-box',
-                        flexShrink: 0
-                      }}
-                    >
-                      {/* Logo & Header */}
-                      <div style={{ marginBottom: 8, width: '100%' }}>
-                        {standeeConfig.showLogo && standeeConfig.logoUrl && (
-                          <img
-                            src={standeeConfig.logoUrl}
-                            alt="Logo"
-                            style={{ maxHeight: '26px', maxWidth: '120px', objectFit: 'contain', marginBottom: 4 }}
-                          />
-                        )}
-                        <div style={{ fontSize: '13px', fontWeight: 900, color: titleColor, letterSpacing: '0.8px', lineHeight: 1.15 }}>
-                          {(standeeConfig.restaurantName || 'THE LANDMARK').toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: '7.5px', fontWeight: 700, color: subColor, letterSpacing: '0.8px', marginTop: 2 }}>
-                          {standeeConfig.tagline}
-                        </div>
-                        <div style={{ width: '45px', height: '2px', background: accent, margin: '6px auto 0' }} />
-                      </div>
-
-                      {/* Table Identifier Badge */}
-                      {standeeConfig.badgeStyle === 'ribbon' ? (
-                        <div style={{
-                          width: '100%',
-                          background: primary,
-                          color: isDark ? '#0f172a' : '#ffffff',
-                          padding: '4px 0',
-                          fontSize: '13px',
-                          fontWeight: 900,
-                          letterSpacing: '0.5px',
-                          marginBottom: 6
-                        }}>
-                          {standeeConfig.tablePrefix || 'TABLE'} {prevT.tableNumber}
-                        </div>
-                      ) : standeeConfig.badgeStyle === 'large' ? (
-                        <div style={{ marginBottom: 6 }}>
-                          <div style={{ fontSize: '9px', fontWeight: 800, color: accent }}>{standeeConfig.tablePrefix || 'TABLE'}</div>
-                          <div style={{ fontSize: '24px', fontWeight: 900, color: titleColor, lineHeight: 1 }}>{prevT.tableNumber}</div>
-                        </div>
-                      ) : standeeConfig.badgeStyle === 'minimal' ? (
-                        <div style={{
-                          border: `1.5px solid ${accent}`,
-                          padding: '2px 14px',
-                          borderRadius: '100px',
-                          marginBottom: 6,
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          color: titleColor
-                        }}>
-                          {standeeConfig.tablePrefix || 'TABLE'} {prevT.tableNumber}
-                        </div>
-                      ) : (
-                        <div style={{
-                          background: primary,
-                          color: isDark ? '#0f172a' : '#ffffff',
-                          padding: '3px 16px',
-                          borderRadius: '100px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 5,
-                          marginBottom: 6
-                        }}>
-                          <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.5px', opacity: 0.85 }}>
-                            {standeeConfig.tablePrefix || 'TABLE'}
-                          </span>
-                          <span style={{ fontSize: '15px', fontWeight: 900 }}>
-                            {prevT.tableNumber}
-                          </span>
-                        </div>
-                      )}
-
-                      {standeeConfig.showCapacity !== false && (
-                        <div style={{ fontSize: '7.5px', fontWeight: 700, color: subColor, marginBottom: 8 }}>
-                          👥 {prevT.seatingCapacity || 4} GUESTS CAPACITY
-                        </div>
-                      )}
-
-                      {/* High-Res QR Box */}
-                      <div style={{
-                        width: '170px',
-                        height: '170px',
-                        background: '#ffffff',
-                        borderRadius: '14px',
-                        padding: '10px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.06)',
-                        border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                        minHeight: '460px',
+                        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+                        borderRadius: currentTplId === 'luxury-gold' ? '6px' : (currentTplId === 'gourmet-arch' ? '24px 24px 16px 16px' : '18px'),
+                        overflow: 'hidden',
                         position: 'relative',
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: 10
-                      }}>
-                        {/* Brackets */}
-                        <div style={{ position: 'absolute', top: 6, left: 6, width: 8, height: 8, borderTop: `2.5px solid ${isDark ? accent : primary}`, borderLeft: `2.5px solid ${isDark ? accent : primary}` }} />
-                        <div style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderTop: `2.5px solid ${isDark ? accent : primary}`, borderRight: `2.5px solid ${isDark ? accent : primary}` }} />
-                        <div style={{ position: 'absolute', bottom: 6, left: 6, width: 8, height: 8, borderBottom: `2.5px solid ${isDark ? accent : primary}`, borderLeft: `2.5px solid ${isDark ? accent : primary}` }} />
-                        <div style={{ position: 'absolute', bottom: 6, right: 6, width: 8, height: 8, borderBottom: `2.5px solid ${isDark ? accent : primary}`, borderRight: `2.5px solid ${isDark ? accent : primary}` }} />
+                        flexDirection: 'column',
+                        background: currentTplId === 'luxury-gold' ? '#0d0d11' : (currentTplId === 'craft-splatter' ? '#fef7ee' : '#ffffff')
+                      }}
+                    >
+                      {/* ---------------------------------------------------- */}
+                      {/* TEMPLATE 1: FRESH FOOD ACRYLIC STAND                 */}
+                      {/* ---------------------------------------------------- */}
+                      {(currentTplId === 'food-acrylic' || currentTplId === 'acrylic') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: '#ffffff' }}>
+                          {/* Top Appetizing Food Image */}
+                          <div style={{ position: 'relative', height: '150px', overflow: 'hidden' }}>
+                            <img
+                              src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80"
+                              alt="Fresh Food"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <div style={{
+                              position: 'absolute',
+                              inset: 0,
+                              background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.6) 100%)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '10px'
+                            }}>
+                              <span style={{ color: '#ffffff', fontSize: '15px', fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>
+                                {brandName}
+                              </span>
+                              <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                                FRESH CONTACTLESS DINING
+                              </span>
+                            </div>
 
-                        <QRCodeCanvas
-                          id={`preview-qr-canvas-${prevT.tableNumber}`}
-                          value={getTableQRUrl(prevT.tableNumber)}
-                          size={150}
-                          level="H"
-                          includeMargin={false}
-                        />
-                      </div>
+                            {/* Floating Capsule Table Badge */}
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '-12px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: primary,
+                              color: '#ffffff',
+                              padding: '4px 16px',
+                              borderRadius: '100px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              letterSpacing: '1px',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                              zIndex: 2,
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {tableText}
+                            </div>
+                          </div>
 
-                      {/* Wi-Fi callout if enabled */}
-                      {standeeConfig.showWifi && (standeeConfig.wifiSsid || standeeConfig.wifiPass) && (
+                          {/* Center QR Code */}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px 14px' }}>
+                            <div style={{
+                              padding: '12px',
+                              background: '#ffffff',
+                              borderRadius: '16px',
+                              boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                              border: '1.5px solid #f1f5f9'
+                            }}>
+                              <QRCodeCanvas
+                                id={`preview-qr-canvas-${prevT.tableNumber}`}
+                                value={getTableQRUrl(prevT.tableNumber)}
+                                size={140}
+                                level="H"
+                                includeMargin={false}
+                                fgColor="#0f172a"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Bottom Curved Banner with Arrows */}
+                          <div style={{
+                            background: primary,
+                            color: '#ffffff',
+                            padding: '16px 14px 18px',
+                            borderTopLeftRadius: '24px',
+                            borderTopRightRadius: '24px',
+                            textAlign: 'center',
+                            boxShadow: '0 -4px 16px rgba(0,0,0,0.1)'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 6,
+                              fontSize: '12px',
+                              fontWeight: 900,
+                              letterSpacing: '0.5px'
+                            }}>
+                              <span style={{ fontSize: '15px', transform: 'scaleX(-1)' }}>↷</span>
+                              <span>{standeeConfig.ctaTitle || 'VIEW OUR MENU ON YOUR PHONE!'}</span>
+                              <span style={{ fontSize: '15px' }}>↷</span>
+                            </div>
+                            <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>
+                              Open camera & scan QR code to order
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ---------------------------------------------------- */}
+                      {/* TEMPLATE 2: ROYAL GOLD & DARK DINING                 */}
+                      {/* ---------------------------------------------------- */}
+                      {(currentTplId === 'luxury-gold' || currentTplId === 'dark') && (
                         <div style={{
-                          width: '100%',
-                          background: isDark ? '#1e293b' : '#f1f5f9',
-                          borderRadius: '6px',
-                          padding: '4px 6px',
-                          marginBottom: 8,
-                          fontSize: '8px',
-                          fontWeight: 700,
-                          color: titleColor
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%',
+                          flex: 1,
+                          position: 'relative',
+                          background: 'linear-gradient(180deg, #18181b 0%, #0d0d11 100%)',
+                          padding: '16px',
+                          boxSizing: 'border-box'
                         }}>
-                          📶 Wi-Fi: <strong>{standeeConfig.wifiSsid || 'Guest'}</strong> {standeeConfig.wifiPass ? `• Pass: ${standeeConfig.wifiPass}` : ''}
+                          {/* Double Gold Borders */}
+                          <div style={{
+                            position: 'absolute',
+                            inset: '10px',
+                            border: `1.5px solid ${primary}`,
+                            borderRadius: '4px',
+                            pointerEvents: 'none'
+                          }} />
+                          <div style={{
+                            position: 'absolute',
+                            inset: '14px',
+                            border: `1px solid ${primary}66`,
+                            borderRadius: '2px',
+                            pointerEvents: 'none'
+                          }} />
+
+                          {/* Cursive Menu Script */}
+                          <div style={{ textAlign: 'center', marginTop: 12, marginBottom: 4 }}>
+                            <div style={{
+                              fontFamily: 'Playfair Display, Georgia, serif',
+                              fontStyle: 'italic',
+                              fontSize: '36px',
+                              color: primary,
+                              letterSpacing: '2px',
+                              lineHeight: 1
+                            }}>
+                              Menu
+                            </div>
+                            <div style={{
+                              fontSize: '8px',
+                              fontWeight: 700,
+                              letterSpacing: '2px',
+                              color: '#cbd5e1',
+                              marginTop: 6,
+                              textTransform: 'uppercase'
+                            }}>
+                              {standeeConfig.ctaTitle || 'FOR A CONTACTLESS MENU, SCAN QR CODE'}
+                            </div>
+                            <div style={{
+                              width: '60px',
+                              height: '1px',
+                              background: primary,
+                              margin: '8px auto 0',
+                              opacity: 0.7
+                            }} />
+                          </div>
+
+                          {/* Center QR Code in Gold Frame */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: '10px 0' }}>
+                            <div style={{
+                              padding: '10px',
+                              background: '#ffffff',
+                              borderRadius: '8px',
+                              border: `2px solid ${primary}`,
+                              boxShadow: `0 0 20px ${primary}33`
+                            }}>
+                              <QRCodeCanvas
+                                id={`preview-qr-canvas-${prevT.tableNumber}`}
+                                value={getTableQRUrl(prevT.tableNumber)}
+                                size={135}
+                                level="H"
+                                includeMargin={false}
+                                fgColor="#000000"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Bottom Dashed Box (YOUR LOGO / Table) */}
+                          <div style={{ textAlign: 'center', zIndex: 1, marginBottom: 8 }}>
+                            <div style={{
+                              display: 'inline-block',
+                              border: `1.5px dashed ${primary}`,
+                              padding: '4px 14px',
+                              borderRadius: '4px',
+                              fontSize: '9.5px',
+                              fontWeight: 700,
+                              letterSpacing: '1.5px',
+                              color: primary,
+                              textTransform: 'uppercase'
+                            }}>
+                              {brandName || 'YOUR LOGO'}
+                            </div>
+                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#f8fafc', marginTop: 6, letterSpacing: '1px' }}>
+                              {tableText}
+                            </div>
+                          </div>
                         </div>
                       )}
 
-                      {/* Instructions */}
-                      {standeeConfig.showInstructions !== false && (
-                        <div style={{ width: '100%', marginBottom: 10 }}>
-                          <div style={{ fontSize: '8.5px', fontWeight: 800, color: titleColor, letterSpacing: '0.4px', marginBottom: 6 }}>
-                            {standeeConfig.ctaTitle || 'SCAN TO BROWSE MENU & ORDER'}
+                      {/* ---------------------------------------------------- */}
+                      {/* TEMPLATE 3: ARTISAN GREEN TABLE TENT                 */}
+                      {/* ---------------------------------------------------- */}
+                      {currentTplId === 'green-tent' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: primary }}>
+                          {/* Top Forest Green Tent Header */}
+                          <div style={{ padding: '16px 14px 10px', textAlign: 'center', color: '#ffffff' }}>
+                            <div style={{
+                              fontSize: '13px',
+                              fontWeight: 800,
+                              letterSpacing: '2.5px',
+                              fontFamily: 'Playfair Display, Georgia, serif'
+                            }}>
+                              ✦ VIEW OUR MENU ✦
+                            </div>
+                            <div style={{
+                              display: 'inline-block',
+                              marginTop: 6,
+                              background: 'rgba(255, 255, 255, 0.18)',
+                              padding: '2px 10px',
+                              borderRadius: '100px',
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              letterSpacing: '1px'
+                            }}>
+                              {tableText}
+                            </div>
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-                            {[
-                              { num: '1', t: standeeConfig.step1Title, d: standeeConfig.step1Desc },
-                              { num: '2', t: standeeConfig.step2Title, d: standeeConfig.step2Desc },
-                              { num: '3', t: standeeConfig.step3Title, d: standeeConfig.step3Desc }
-                            ].map(s => (
-                              <div key={s.num} style={{ background: isDark ? '#1e293b' : (isCream ? '#fefae0' : '#f8fafc'), padding: '5px 2px', borderRadius: '6px', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0' }}>
-                                <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: accent, color: isDark ? '#0f172a' : '#ffffff', fontSize: '7.5px', fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                                  {s.num}
-                                </span>
-                                <div style={{ fontSize: '7px', color: titleColor, fontWeight: 700 }}>{s.t}</div>
-                                <div style={{ fontSize: '5.5px', color: subColor }}>{s.d}</div>
+                          {/* Center QR Code in White Card */}
+                          <div style={{ display: 'flex', justifyContent: 'center', padding: '0 16px 14px', zIndex: 2 }}>
+                            <div style={{
+                              padding: '10px',
+                              background: '#ffffff',
+                              borderRadius: '14px',
+                              boxShadow: '0 10px 25px rgba(0,0,0,0.25)'
+                            }}>
+                              <QRCodeCanvas
+                                id={`preview-qr-canvas-${prevT.tableNumber}`}
+                                value={getTableQRUrl(prevT.tableNumber)}
+                                size={135}
+                                level="H"
+                                includeMargin={false}
+                                fgColor="#0f172a"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Bottom Brunch Food Banner */}
+                          <div style={{ flex: 1, position: 'relative', minHeight: '140px', overflow: 'hidden' }}>
+                            <img
+                              src="https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80"
+                              alt="Artisan Brunch"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <div style={{
+                              position: 'absolute',
+                              inset: 0,
+                              background: 'linear-gradient(180deg, rgba(27,67,50,0.3) 0%, rgba(0,0,0,0.4) 100%)',
+                              display: 'flex',
+                              alignItems: 'flex-end',
+                              justifyContent: 'center',
+                              padding: '10px'
+                            }}>
+                              <span style={{ color: '#ffffff', fontSize: '9.5px', fontWeight: 700, letterSpacing: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                                {brandName} • Fresh Daily
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ---------------------------------------------------- */}
+                      {/* TEMPLATE 4: GOURMET ARCHED STAND                     */}
+                      {/* ---------------------------------------------------- */}
+                      {currentTplId === 'gourmet-arch' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: '#ffffff', padding: '14px 12px 10px' }}>
+                          {/* Top Ribbon Logo */}
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{
+                              display: 'inline-block',
+                              background: primary,
+                              color: accent,
+                              padding: '2px 12px',
+                              borderRadius: '4px',
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              letterSpacing: '1px'
+                            }}>
+                              ★ {brandName || 'Add Logo'} ★
+                            </div>
+                            <div style={{
+                              fontSize: '26px',
+                              fontWeight: 900,
+                              color: primary,
+                              letterSpacing: '3px',
+                              marginTop: 4,
+                              lineHeight: 1
+                            }}>
+                              MENU
+                            </div>
+                          </div>
+
+                          {/* Arched Section */}
+                          <div style={{
+                            flex: 1,
+                            marginTop: 18,
+                            background: primary,
+                            borderRadius: '100px 100px 14px 14px',
+                            border: `3px solid ${accent}`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            position: 'relative',
+                            padding: '30px 12px 14px'
+                          }}>
+                            {/* Circular Dish Cutout Badge */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '-26px',
+                              width: '52px',
+                              height: '52px',
+                              borderRadius: '50%',
+                              border: `2.5px solid ${accent}`,
+                              overflow: 'hidden',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                              background: '#ffffff'
+                            }}>
+                              <img
+                                src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80"
+                                alt="Dish"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            </div>
+
+                            {/* QR Code inside Arch */}
+                            <div style={{
+                              padding: '8px',
+                              background: '#ffffff',
+                              borderRadius: '12px',
+                              boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                              marginTop: 8
+                            }}>
+                              <QRCodeCanvas
+                                id={`preview-qr-canvas-${prevT.tableNumber}`}
+                                value={getTableQRUrl(prevT.tableNumber)}
+                                size={125}
+                                level="H"
+                                includeMargin={false}
+                                fgColor="#0f172a"
+                              />
+                            </div>
+
+                            {/* "Scan Me" & Table info */}
+                            <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: 8 }}>
+                              <div style={{ color: '#ffffff', fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px' }}>
+                                {standeeConfig.ctaTitle || 'Scan Me'}
                               </div>
-                            ))}
+                              <div style={{ color: accent, fontSize: '10px', fontWeight: 800, letterSpacing: '1px', marginTop: 2 }}>
+                                {tableText}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Footer Note & Watermark */}
-                      <div style={{ width: '100%', borderTop: `1px solid ${isDark ? '#1e293b' : '#f1f5f9'}`, paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '6.5px', color: subColor }}>
-                        <span>{standeeConfig.footerNote}</span>
-                        {standeeConfig.showWatermark !== false && (
-                          <span style={{ fontWeight: 800, opacity: 0.8 }}>{standeeConfig.poweredBy}</span>
-                        )}
-                      </div>
+                      {/* ---------------------------------------------------- */}
+                      {/* TEMPLATE 5: MODERN BARISTA SPLATTER                  */}
+                      {/* ---------------------------------------------------- */}
+                      {currentTplId === 'craft-splatter' && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%',
+                          flex: 1,
+                          position: 'relative',
+                          background: '#fef7ee',
+                          padding: '16px',
+                          overflow: 'hidden'
+                        }}>
+                          {/* Organic Coffee Blobs */}
+                          <div style={{
+                            position: 'absolute',
+                            top: '-30px',
+                            right: '-30px',
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '60% 40% 70% 30% / 50% 60% 40% 50%',
+                            background: `${accent}22`,
+                            pointerEvents: 'none'
+                          }} />
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '-40px',
+                            left: '-30px',
+                            width: '140px',
+                            height: '140px',
+                            borderRadius: '40% 60% 30% 70% / 60% 40% 60% 40%',
+                            background: `${primary}18`,
+                            pointerEvents: 'none'
+                          }} />
+
+                          {/* Top Header */}
+                          <div style={{ textAlign: 'center', zIndex: 1, marginTop: 4 }}>
+                            <div style={{ fontSize: '14px', fontWeight: 900, color: primary, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                              {brandName}
+                            </div>
+                            <div style={{
+                              display: 'inline-block',
+                              background: primary,
+                              color: '#ffffff',
+                              padding: '2px 12px',
+                              borderRadius: '100px',
+                              fontSize: '9.5px',
+                              fontWeight: 800,
+                              letterSpacing: '1px',
+                              marginTop: 6
+                            }}>
+                              {tableText}
+                            </div>
+                          </div>
+
+                          {/* Center QR Code with Crop Brackets */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: '8px 0' }}>
+                            <div style={{ position: 'relative', padding: '10px' }}>
+                              {/* Corner Brackets */}
+                              <div style={{ position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderTop: `3px solid ${primary}`, borderLeft: `3px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', top: 0, right: 0, width: 14, height: 14, borderTop: `3px solid ${primary}`, borderRight: `3px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 14, height: 14, borderBottom: `3px solid ${primary}`, borderLeft: `3px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderBottom: `3px solid ${primary}`, borderRight: `3px solid ${primary}` }} />
+
+                              <div style={{
+                                padding: '8px',
+                                background: '#ffffff',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+                              }}>
+                                <QRCodeCanvas
+                                  id={`preview-qr-canvas-${prevT.tableNumber}`}
+                                  value={getTableQRUrl(prevT.tableNumber)}
+                                  size={135}
+                                  level="H"
+                                  includeMargin={false}
+                                  fgColor={primary}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom Headline */}
+                          <div style={{ textAlign: 'center', zIndex: 1, marginBottom: 4 }}>
+                            <div style={{ fontSize: '12px', fontWeight: 900, color: primary, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                              {standeeConfig.ctaTitle || 'SCAN TO ORDER & PAY'}
+                            </div>
+                            <div style={{ fontSize: '9px', color: '#78350f', fontWeight: 600, marginTop: 3 }}>
+                              Point camera to view menu & place order
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
