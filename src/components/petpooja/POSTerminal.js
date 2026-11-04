@@ -14,6 +14,19 @@ import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
 import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioChime';
 
+// Smart table name formatter:
+// 1. Pure numbers ("1", "12") -> "Table 1", "Table 12"
+// 2. Already starts with "Table" -> keeps as is
+// 3. Custom names/identifiers ("abc", "M1", "Ground", "Patio 2") -> shows exact name without prepending "Table"!
+export const formatTableName = (num) => {
+  if (num === null || num === undefined || num === '') return 'Table';
+  const str = String(num).trim();
+  if (str.toLowerCase() === 'walk-in') return 'Walk-in';
+  if (/^\d+$/.test(str)) return `Table ${str}`;
+  if (/^table[\s-_]*/i.test(str)) return str;
+  return str;
+};
+
 export default function POSTerminal({
   tenantId,
   tenantInfo,
@@ -1156,10 +1169,10 @@ export default function POSTerminal({
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tileFree}`}
                             onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                            title={`${formatTableName(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
                           >
                             <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                            <span className={styles.tileName}>Table {tbl.tableNumber}</span>
+                            <span className={styles.tileName}>{formatTableName(tbl.tableNumber)}</span>
                             <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
                           </div>
                         );
@@ -1175,13 +1188,13 @@ export default function POSTerminal({
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tilePaid}`}
                             onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
+                            title={`${formatTableName(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
                           >
                             <div className={styles.tileTopMeta}>
                               <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
                             </div>
                             <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                              {custName || `Table ${tbl.tableNumber}`}
+                              {custName || formatTableName(tbl.tableNumber)}
                             </span>
                             {custName && (
                               <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
@@ -1224,7 +1237,7 @@ export default function POSTerminal({
                           key={tbl._id || tbl.tableNumber}
                           className={`${styles.tableTile} ${styles.tileOccupied}`}
                           onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                          title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
+                          title={`${formatTableName(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
                         >
                           <div className={styles.tileTopMeta}>
                             <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
@@ -1456,7 +1469,7 @@ export default function POSTerminal({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <h4 className={styles.drawerTitle} style={{ margin: 0 }}>
-                        {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber}`}
+                        {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `${formatTableName(tableNumber)} Order Slip`}
                       </h4>
                       {mergedTables.map(mTable => (
                         <span

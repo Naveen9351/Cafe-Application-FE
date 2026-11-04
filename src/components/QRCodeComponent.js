@@ -118,6 +118,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { API_URL as API } from '../config/api';
 import { buildTableMenuUrl } from '../utils/tableToken';
 
+// Smart table name formatter
+const formatTableName = (num) => {
+  if (num === null || num === undefined || num === '') return 'Table';
+  const str = String(num).trim();
+  if (/^\d+$/.test(str)) return `Table ${str}`;
+  if (/^table[\s-_]*/i.test(str)) return str;
+  return str;
+};
+
 const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null }) => {
   const { user, tenantId } = useAuth();
   const effectiveTenantId = tenantId || user?.tenantId || '6a762ef86c9d5c8be315f10a';
@@ -2215,7 +2224,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       gap: 4,
                       boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
                     }}>
-                      Table {table.tableNumber}
+                      {formatTableName(table.tableNumber)}
                     </div>
                     {table.section && table.section !== 'Main Hall' && (
                       <span style={{
