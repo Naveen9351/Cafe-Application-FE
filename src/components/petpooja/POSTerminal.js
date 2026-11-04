@@ -1332,7 +1332,7 @@ export default function POSTerminal({
                 </button>
 
                 {/* Dish Search input right after back button */}
-                <div className={styles.searchBox} style={{ width: 170, flexShrink: 0 }}>
+                <div className={styles.searchBox}>
                   <Search size={13} color="#94a3b8" />
                   <input
                     type="text"
