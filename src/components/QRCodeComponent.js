@@ -176,6 +176,68 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const [selectedSection, setSelectedSection] = useState('all');
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
+  const [showEditSectionModal, setShowEditSectionModal] = useState(false);
+  const [editingSectionOldName, setEditingSectionOldName] = useState('');
+  const [editingSectionNewName, setEditingSectionNewName] = useState('');
+
+  const handleSaveEditSection = async (e) => {
+    if (e) e.preventDefault();
+    const clean = editingSectionNewName.trim();
+    if (!clean) {
+      toast.error('Category name cannot be empty');
+      return;
+    }
+    if (clean.toLowerCase() === editingSectionOldName.toLowerCase()) {
+      setShowEditSectionModal(false);
+      return;
+    }
+    if (tableSections.some(s => s.toLowerCase() === clean.toLowerCase() && s.toLowerCase() !== editingSectionOldName.toLowerCase())) {
+      toast.error(`Category "${clean}" already exists`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 1. Update tableSections in localStorage and state
+      const updatedSections = tableSections.map(s => s.toLowerCase() === editingSectionOldName.toLowerCase() ? clean : s);
+      if (!updatedSections.some(s => s.toLowerCase() === clean.toLowerCase())) {
+        updatedSections.push(clean);
+      }
+      saveSections(updatedSections);
+
+      // 2. Update affected tables on backend
+      const affectedTables = tables.filter(t => (t.section || 'Main Hall').toLowerCase() === editingSectionOldName.toLowerCase());
+      const token = localStorage.getItem('token');
+
+      await Promise.all(affectedTables.map(t => {
+        if (t._id && !t._id.startsWith('tbl_')) {
+          return axios.put(`${API}/tables/${t._id}`, {
+            tableNumber: t.tableNumber,
+            section: clean,
+            seatingCapacity: t.seatingCapacity || 4
+          }, {
+            headers: { 'x-auth-token': token }
+          }).catch(err => console.error('Error updating table section:', t.tableNumber, err));
+        }
+        return Promise.resolve();
+      }));
+
+      // 3. Update frontend state
+      setTables(prev => prev.map(t => (t.section || 'Main Hall').toLowerCase() === editingSectionOldName.toLowerCase() ? { ...t, section: clean } : t));
+
+      if (selectedSection.toLowerCase() === editingSectionOldName.toLowerCase()) {
+        setSelectedSection(clean);
+      }
+
+      toast.success(`Category renamed to "${clean}"`);
+      setShowEditSectionModal(false);
+    } catch (err) {
+      console.error('Error renaming category:', err);
+      toast.error('Failed to rename category');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const saveSections = (newSecs) => {
     setTableSections(newSecs);
@@ -2028,7 +2090,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <h3 style={{
-                      fontSize: '1.05rem',
+                      fontSize: '1.15rem',
                       fontWeight: 800,
                       color: '#0f172a',
                       margin: 0,
@@ -2047,6 +2109,31 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                     }}>
                       {secTables.length} {secTables.length === 1 ? 'Table' : 'Tables'}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSectionOldName(secName);
+                        setEditingSectionNewName(secName);
+                        setShowEditSectionModal(true);
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        padding: '4px 9px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        color: '#2563eb',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={`Edit "${secName}" Category Name`}
+                    >
+                      <Edit3 size={12} /> Edit Category
+                    </button>
                   </div>
 
                   {secName !== 'Main Hall' && secTables.length === 0 && (
@@ -2444,6 +2531,106 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>Click "+ Add Table" above to create your first dine-in QR code.</p>
         </div>
       )}
+
+      {/* EDIT CATEGORY / SECTION MODAL */}
+      <AnimatePresence>
+        {showEditSectionModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }} onClick={() => setShowEditSectionModal(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#ffffff',
+                borderRadius: '18px',
+                padding: '1.75rem',
+                width: '100%',
+                maxWidth: '420px',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)'
+              }}
+            >
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
+                Edit Category Name
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>
+                Rename "<strong>{editingSectionOldName}</strong>". All tables in this category will be updated automatically.
+              </p>
+
+              <form onSubmit={handleSaveEditSection}>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    Category / Section Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={editingSectionNewName}
+                    onChange={(e) => setEditingSectionNewName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1.5px solid #2563eb',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditSectionModal(false)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      opacity: isSubmitting ? 0.7 : 1
+                    }}
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ADD CATEGORY / SECTION MODAL */}
       <AnimatePresence>
