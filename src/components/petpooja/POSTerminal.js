@@ -59,6 +59,9 @@ export default function POSTerminal({
 
   // Khata / Borrow Modal states
   const [showKhataModal, setShowKhataModal] = useState(false);
+  const [khataCustomerList, setKhataCustomerList] = useState([]);
+  const [selectedKhataCustomerChoice, setSelectedKhataCustomerChoice] = useState('NEW');
+
   const [khataPaidAmount, setKhataPaidAmount] = useState('');
   const [khataBorrowAmount, setKhataBorrowAmount] = useState(0);
   const [khataNotes, setKhataNotes] = useState('');
@@ -94,6 +97,18 @@ export default function POSTerminal({
   const [isSubmittingItemPay, setIsSubmittingItemPay] = useState(false);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [clearTablePaymentMethod, setClearTablePaymentMethod] = useState('Cash');
+
+  // Load existing khata customers
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    axios.get(`${API}/khata/customers`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    }).then(res => {
+      if (res.data?.success && Array.isArray(res.data.customers)) {
+        setKhataCustomerList(res.data.customers);
+      }
+    }).catch(() => {});
+  }, [showPayItemsModal]);
 
   const prevOrdersCountRef = useRef(orders ? orders.length : 0);
   useEffect(() => {
@@ -424,14 +439,70 @@ export default function POSTerminal({
     setSelectedItemKeys(next);
   };
 
-  // Categories list for POS Menu
+  // Night Menu Active Check
+  const isNightActiveNow = useMemo(() => {
+    if (!tenantInfo?.settings?.enableNightMenu) return false;
+    const start = tenantInfo?.settings?.nightMenuStart || '22:00';
+    const end = tenantInfo?.settings?.nightMenuEnd || '05:00';
+    try {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+      const [sh, sm] = (start || '22:00').split(':').map(Number);
+      const [eh, em] = (end || '05:00').split(':').map(Number);
+      const startMins = (sh || 0) * 60 + (sm || 0);
+      const endMins = (eh || 0) * 60 + (em || 0);
+      if (startMins <= endMins) {
+        return currentMins >= startMins && currentMins <= endMins;
+      } else {
+        return currentMins >= startMins || currentMins <= endMins;
+      }
+    } catch {
+      return false;
+    }
+  }, [tenantInfo?.settings?.enableNightMenu, tenantInfo?.settings?.nightMenuStart, tenantInfo?.settings?.nightMenuEnd]);
+
+  // Helper to determine effective item price (considering active night pricing)
+  const getItemEffectivePrice = (item) => {
+    if (!item) return 0;
+    if (isNightActiveNow && (item.isNightMenu || item.nightPrice)) {
+      const np = Number(item.nightPrice);
+      if (np > 0) return np;
+    }
+    return Number(item.salePrice || item.price) || 0;
+  };
+
+  // Categories list for POS Menu (separating Open Menu and Night Menu)
   const categories = useMemo(() => {
-    return ['all', ...new Set(menuItems.map(item => item.category || 'main-courses'))];
-  }, [menuItems]);
+    const cats = ['all'];
+
+    // 1. Open Menu pill (Cigarettes, off-menu counter items - Owner/POS only)
+    const hasOpenMenu = menuItems.some(i => i.isOpenMenu || i.isPosOnly);
+    if (hasOpenMenu) {
+      cats.push('⚡ Open Menu');
+    }
+
+    // 2. Night Menu pill (Night shift dishes & dishes with night pricing)
+    const hasNight = Boolean(tenantInfo?.settings?.enableNightMenu || menuItems.some(i => i.isNightMenu || i.shiftAvailability === 'night_only' || (i.nightPrice && Number(i.nightPrice) > 0)));
+    if (hasNight) {
+      cats.push('🌙 Night Menu');
+    }
+
+    const regularCats = [...new Set(menuItems.filter(i => !i.isOpenMenu && !i.isPosOnly).map(item => item.category || 'main-courses'))];
+    return [...cats, ...regularCats];
+  }, [menuItems, tenantInfo?.settings?.enableNightMenu]);
 
   const filteredMenuItems = useMemo(() => {
     return menuItems.filter(item => {
-      const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
+      let matchesCat = false;
+      if (selectedCategory === 'all') {
+        matchesCat = true;
+      } else if (selectedCategory === '⚡ Open Menu') {
+        matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
+      } else if (selectedCategory === '🌙 Night Menu') {
+        matchesCat = Boolean(item.shiftAvailability === 'night_only' || item.isNightMenu || (item.nightPrice && Number(item.nightPrice) > 0));
+      } else {
+        matchesCat = item.category === selectedCategory;
+      }
       const matchesSearch = !dishSearch || item.name.toLowerCase().includes(dishSearch.toLowerCase());
       return matchesCat && matchesSearch;
     });
@@ -453,7 +524,7 @@ export default function POSTerminal({
         setCart([...cart, {
           id: item._id,
           name: item.name,
-          price: Number(item.salePrice || item.price) || 0,
+          price: getItemEffectivePrice(item),
           quantity: 1,
           variant: null,
           addons: []
@@ -478,7 +549,7 @@ export default function POSTerminal({
 
   const handleAddCustomized = () => {
     if (!customizingItem) return;
-    let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
+    let finalPrice = getItemEffectivePrice(customizingItem);
     let variantName = '';
     if (selectedVariant) {
       finalPrice = Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : finalPrice;
@@ -574,15 +645,8 @@ export default function POSTerminal({
       return;
     }
 
+    const effName = customerName.trim() || (tableNumber === 'Walk-in' ? 'Walk-in Guest' : `Table ${tableNumber} Guest`);
     const cleanPh = (customerPhone || '').replace(/\D/g, '');
-    if (!customerName.trim()) {
-      toast.error('Please enter Guest Name to place order');
-      return;
-    }
-    if (cleanPh.length < 10) {
-      toast.error('Please enter a valid 10-digit Phone Number');
-      return;
-    }
 
     setIsSendingKitchen(true);
     const token = localStorage.getItem('token');
@@ -639,15 +703,8 @@ export default function POSTerminal({
       return;
     }
 
+    const effName = customerName.trim() || (tableNumber === 'Walk-in' ? 'Walk-in Guest' : `Table ${tableNumber} Guest`);
     const cleanPh = (customerPhone || '').replace(/\D/g, '');
-    if (!customerName.trim()) {
-      toast.error('Please enter Guest Name to place order');
-      return;
-    }
-    if (cleanPh.length < 10) {
-      toast.error('Please enter a valid 10-digit Phone Number');
-      return;
-    }
 
     setIsSubmittingDirect(true);
     const token = localStorage.getItem('token');
@@ -878,14 +935,8 @@ export default function POSTerminal({
   const handleConfirmKhataSettlement = async (e) => {
     if (e) e.preventDefault();
     const cleanPhone = (customerPhone || '').replace(/\D/g, '');
-    if (!customerName.trim()) {
-      toast.error('Customer Name is required to record Khata / Borrow');
-      return;
-    }
-    if (!cleanPhone || cleanPhone.length < 5) {
-      toast.error('Customer phone number must be at least 5 digits');
-      return;
-    }
+    const effLegacyName = customerName.trim() || (tableNumber !== 'Walk-in' ? `Table ${tableNumber} Guest` : 'Walk-in Guest');
+    const effLegacyPhone = cleanPhone || customerPhone.trim() || 'N/A';
 
     const curDue = balanceDue > 0 ? balanceDue : grandTotal;
     const paidNum = Number(khataPaidAmount) || 0;
@@ -1365,33 +1416,53 @@ export default function POSTerminal({
                   )}
                 </div>
 
-                {/* Horizontally scrollable Category Pills */}
-                <div
-                  className={styles.categoryPillsWrap}
-                  onWheel={(e) => {
-                    if (e.deltaY !== 0) {
-                      e.currentTarget.scrollLeft += e.deltaY;
-                    }
-                  }}
-                >
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
-                      onClick={() => setSelectedCategory(cat)}
-                    >
-                      {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                    </button>
-                  ))}
-                </div>
+                {isNightActiveNow && (
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: 'linear-gradient(135deg, #4c1d95, #6d28d9)',
+                    color: '#ffffff',
+                    padding: '5px 11px',
+                    borderRadius: '20px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(109, 40, 217, 0.35)',
+                    flexShrink: 0
+                  }}>
+                    <span>🌙</span>
+                    <span>Night Pricing Active ({tenantInfo?.settings?.nightMenuStart || '22:00'} - {tenantInfo?.settings?.nightMenuEnd || '05:00'})</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Horizontally scrollable Category Pills row below search */}
+              <div
+                className={styles.categoryPillsWrap}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+              >
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                  </button>
+                ))}
               </div>
 
               {/* Dish Cards Grid */}
               <div className={styles.dishesGrid}>
                 {filteredMenuItems.map(item => {
                   const imgUrl = getValidFoodImage(item);
-                  const price = Number(item.salePrice || item.price) || 0;
+                  const price = getItemEffectivePrice(item);
                   const cartQty = cart
                     .filter(c => c.id === item._id || c._id === item._id || c.name === item.name)
                     .reduce((sum, c) => sum + (c.quantity || 1), 0);
@@ -1415,6 +1486,42 @@ export default function POSTerminal({
                         <div className={styles.vegBadge}>
                           <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
                         </div>
+                        {(item.isOpenMenu || item.isPosOnly) && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: 6,
+                            background: 'rgba(192, 38, 211, 0.92)',
+                            color: '#ffffff',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2
+                          }}>
+                            ⚡ Open Menu
+                          </div>
+                        )}
+                        {!(item.isOpenMenu || item.isPosOnly) && (item.shiftAvailability === 'night_only' || item.isNightMenu) && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: 6,
+                            background: 'rgba(76, 29, 149, 0.92)',
+                            color: '#ffffff',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2
+                          }}>
+                            🌙 Night Menu
+                          </div>
+                        )}
                       </div>
 
                       <div className={styles.dishInfo}>
@@ -1527,18 +1634,6 @@ export default function POSTerminal({
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !isMuted;
-                        setIsMuted(next);
-                        setAudioMuted(next);
-                      }}
-                      title={isMuted ? "Unmute Order Chimes" : "Mute Order Chimes"}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#94a3b8' : '#e05c5c', padding: 2 }}
-                    >
-                      {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                    </button>
                     {cart.length > 0 && (
                       <button
                         type="button"
@@ -1555,7 +1650,7 @@ export default function POSTerminal({
                 <div className={styles.customerInputs}>
                   <input
                     type="text"
-                    placeholder="Guest Name (Required)"
+                    placeholder="Guest Name (Optional)"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className={styles.inputField}
@@ -1564,7 +1659,7 @@ export default function POSTerminal({
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    placeholder="10-digit Phone No (Required)"
+                    placeholder="Phone Number (Optional)"
                     value={customerPhone}
                     onKeyDown={(e) => {
                       if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
@@ -1856,40 +1951,16 @@ export default function POSTerminal({
 
                 {/* Progressive Terminal Action System */}
                 {(() => {
-                  const cleanPh = (customerPhone || '').replace(/\D/g, '');
-                  const hasCustomerDetails = Boolean(customerName.trim().length > 0 && cleanPh.length === 10);
                   const hasActiveOrders = currentTableOrders.length > 0;
                   const hasDraftItems = cart.length > 0;
 
                   return (
                     <>
-                      {/* Step A: If draft items exist but name/phone not entered yet -> Show guidance banner, hide 4 buttons */}
-                      {hasDraftItems && !hasCustomerDetails && !hasActiveOrders && (
-                        <div style={{
-                          padding: '10px 12px',
-                          background: '#fff7ed',
-                          border: '1.5px dashed #fed7aa',
-                          borderRadius: '10px',
-                          textAlign: 'center',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '3px'
-                        }}>
-                          <span style={{ color: '#c2410c', fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <User size={13} color="#ea580c" /> Enter Guest Name & 10-digit Phone No
-                          </span>
-                          <span style={{ fontSize: '10.5px', color: '#9a3412', fontWeight: 500 }}>
-                            Fill both fields above to unlock "Send to Kitchen" & "Direct (Counter)"
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Step B: Dynamic Action Buttons */}
-                      {((hasDraftItems && hasCustomerDetails) || hasActiveOrders) && (
+                      {/* Dynamic Action Buttons */}
+                      {(hasDraftItems || hasActiveOrders) && (
                         <div className={styles.terminalActionBtns}>
-                          {/* 1. Send to Kitchen: Shown when draft items exist and customer details are provided */}
-                          {hasDraftItems && hasCustomerDetails && (
+                          {/* 1. Send to Kitchen: Shown whenever draft items exist */}
+                          {hasDraftItems && (
                             <button
                               type="button"
                               className={styles.sendKotBtn}
@@ -1902,8 +1973,8 @@ export default function POSTerminal({
                             </button>
                           )}
 
-                          {/* 2. Direct (Counter): Shown when draft items exist and customer details are provided */}
-                          {hasDraftItems && hasCustomerDetails && (
+                          {/* 2. Direct (Counter): Shown whenever draft items exist */}
+                          {hasDraftItems && (
                             <button
                               type="button"
                               className={styles.directBtn}
@@ -1989,30 +2060,31 @@ export default function POSTerminal({
 
         const handleModalConfirm = async () => {
           if (payItemsMethod === 'Khata / Borrow') {
-            const cleanPhone = (customerPhone || '').replace(/\D/g, '');
-            if (!customerName.trim()) {
-              toast.error('Customer Name is required to record Khata / Borrow');
-              return;
-            }
-            if (!cleanPhone || cleanPhone.length < 5) {
-              toast.error('Please enter a valid phone number (at least 5 digits)');
-              return;
-            }
+            const effName = customerName.trim() || (tableNumber !== 'Walk-in' ? `Table ${tableNumber} Guest` : 'Walk-in Guest');
+            const effPhone = customerPhone.trim() || 'N/A';
 
             setIsSubmittingKhata(true);
             const token = localStorage.getItem('token');
             const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
             try {
+              // Extract items from table orders to record in Khata
+              const khataItems = currentTableOrders.flatMap(o => (o.items || []).map(it => ({
+                name: it.name || it.item?.name || 'Dish',
+                quantity: it.quantity || 1,
+                price: Number(it.price || it.item?.price) || 0
+              })));
+
               // 1. Record directly in Khata / Customer Credit Ledger
               await axios.post(`${API}/khata`, {
                 tenantId: effectiveTenantId,
-                customerName: customerName.trim(),
-                customerPhone: customerPhone.trim(),
+                customerName: effName,
+                customerPhone: effPhone,
                 totalBill: tenderAmount,
                 paidAmount: paidNowNum,
                 borrowAmount: borrowDueNum,
-                notes: khataNotes || `Table ${tableNumber} order`
+                notes: khataNotes || `Table ${tableNumber} order`,
+                items: khataItems
               }, {
                 headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
               });
@@ -2076,12 +2148,14 @@ export default function POSTerminal({
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className={styles.splitModalContent}
               style={{
-                maxWidth: '470px',
+                maxWidth: '460px',
                 width: '94%',
-                padding: '24px',
-                borderRadius: '16px',
+                padding: '16px 20px',
+                borderRadius: '14px',
                 background: '#ffffff',
-                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)'
+                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+                maxHeight: '90vh',
+                overflowY: 'auto'
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -2221,157 +2295,174 @@ export default function POSTerminal({
               {/* INLINE KHATA / BORROW MODERN SUITE */}
               {payItemsMethod === 'Khata / Borrow' && (
                 <div style={{
-                  background: '#fafaf9',
-                  border: '1.5px solid #fde68a',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  marginBottom: '1.1rem',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)'
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '11px 13px',
+                  marginBottom: '0.85rem'
                 }}>
                   {/* Subtle Accent Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <BookOpen size={14} color="#d97706" />
-                      <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                        Customer Udhar Ledger
+                      <BookOpen size={13} color="#2563eb" />
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        Customer Udhar Account
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>
-                      Live Balance Sync
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                      Khata Ledger
                     </span>
                   </div>
 
-                  {/* Customer Info Inputs */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '10px' }}>
+                  {/* Customer Dropdown (Select Existing or Create New) */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#475569', marginBottom: '3px' }}>
+                      Select Customer Account
+                    </label>
+                    <select
+                      value={selectedKhataCustomerChoice}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedKhataCustomerChoice(val);
+                        if (val === 'NEW') {
+                          setCustomerName('');
+                          setCustomerPhone('');
+                        } else {
+                          const found = khataCustomerList.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
+                          if (found) {
+                            setCustomerName(found.customerName);
+                            setCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <option value="NEW">➕ Create New Customer</option>
+                      {khataCustomerList.map((c, i) => (
+                        <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                          {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹${c.outstandingBalance}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Customer Info Inputs (Both Optional) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#475569', marginBottom: '4px' }}>
-                        Customer Name <span style={{ color: '#ef4444' }}>*</span>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 600, color: '#64748b', marginBottom: '3px' }}>
+                        Customer Name (Optional)
                       </label>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <User size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
-                        <input
-                          type="text"
-                          placeholder="e.g. Rahul Sharma"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '7px 8px 7px 27px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #e2e8f0',
-                            background: '#ffffff',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            color: '#0f172a',
-                            boxSizing: 'border-box',
-                            outline: 'none',
-                            transition: 'border-color 0.15s ease'
-                          }}
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. Rahul"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '0.76rem',
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#475569', marginBottom: '4px' }}>
-                        Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 600, color: '#64748b', marginBottom: '3px' }}>
+                        Mobile Number (Optional)
                       </label>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          placeholder="10-digit Phone"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          style={{
-                            width: '100%',
-                            padding: '7px 8px 7px 27px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #e2e8f0',
-                            background: '#ffffff',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            color: '#0f172a',
-                            boxSizing: 'border-box',
-                            outline: 'none',
-                            transition: 'border-color 0.15s ease'
-                          }}
-                        />
-                      </div>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="e.g. 9876543210"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '0.76rem',
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
                   </div>
 
                   {/* Amounts: Amount Paid Now & Read-Only Borrow Due */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '9px', marginBottom: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
                     {/* Amount Paid Now (Editable) */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#15803d' }}>
-                          Amount Paid Now
-                        </label>
-                        <span style={{ fontSize: '0.64rem', color: '#16a34a', fontWeight: 700 }}>
-                          (Cash/UPI)
-                        </span>
-                      </div>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <span style={{ position: 'absolute', left: '10px', fontSize: '0.82rem', fontWeight: 900, color: '#15803d' }}>₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max={tenderAmount}
-                          placeholder="0"
-                          value={khataPaidAmount}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            if (raw === '') {
-                              setKhataPaidAmount('');
-                            } else {
-                              const num = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
-                              setKhataPaidAmount(String(num));
-                            }
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '7px 8px 7px 24px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #86efac',
-                            background: '#ffffff',
-                            fontSize: '0.9rem',
-                            fontWeight: 800,
-                            color: '#15803d',
-                            boxSizing: 'border-box',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#16a34a', marginBottom: '3px' }}>
+                        Paid Now (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={tenderAmount}
+                        placeholder="0"
+                        value={khataPaidAmount}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setKhataPaidAmount('');
+                          } else {
+                            const num = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
+                            setKhataPaidAmount(String(num));
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #bbf7d0',
+                          background: '#ffffff',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          color: '#16a34a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
 
-                    {/* Borrow / Udhar Due (Calculated & READ-ONLY / Locked) */}
+                    {/* Borrow / Udhar Due (Calculated) */}
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#b45309' }}>
-                          Udhar Due (Locked)
-                        </label>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#78350f', background: '#fef3c7', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                          <Lock size={9} /> Auto
-                        </span>
-                      </div>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#dc2626', marginBottom: '3px' }}>
+                        Udhar Due (₹)
+                      </label>
                       <div style={{
                         width: '100%',
-                        padding: '7px 10px',
-                        borderRadius: '8px',
-                        border: '1.5px solid #fde68a',
-                        background: '#fef3c7',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #fecaca',
+                        background: '#fef2f2',
                         boxSizing: 'border-box',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'not-allowed',
-                        userSelect: 'none'
-                      }} title="Automatically calculated: Total Bill minus Amount Paid Now (Non-editable)">
-                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#b45309' }}>
+                        justifyContent: 'space-between'
+                      }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#dc2626' }}>
                           ₹{formatAmount(borrowDueNum)}
                         </span>
-                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e', background: '#fde68a', padding: '2px 5px', borderRadius: '4px' }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#991b1b', background: '#fee2e2', padding: '1px 4px', borderRadius: '3px' }}>
                           DUE
                         </span>
                       </div>
@@ -2380,53 +2471,23 @@ export default function POSTerminal({
 
                   {/* Notes / Ledger Memo (Optional) */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#64748b', marginBottom: '4px' }}>
-                      Notes / Ledger Memo (Optional)
-                    </label>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <StickyNote size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
-                      <input
-                        type="text"
-                        placeholder="e.g. Regular customer, will settle Friday"
-                        value={khataNotes}
-                        onChange={(e) => setKhataNotes(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '7px 8px 7px 27px',
-                          borderRadius: '8px',
-                          border: '1.5px solid #e2e8f0',
-                          background: '#ffffff',
-                          fontSize: '0.78rem',
-                          color: '#334155',
-                          boxSizing: 'border-box',
-                          outline: 'none',
-                          marginBottom: '6px'
-                        }}
-                      />
-                    </div>
-                    {/* Quick preset chips */}
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                      {['Regular Customer', 'Will Pay Tomorrow', 'Office Tab'].map(tag => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => setKhataNotes(prev => prev ? `${prev} • ${tag}` : tag)}
-                          style={{
-                            background: '#ffffff',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '5px',
-                            padding: '2px 7px',
-                            fontSize: '0.66rem',
-                            color: '#64748b',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            transition: 'all 0.12s ease'
-                          }}
-                        >
-                          + {tag}
-                        </button>
-                      ))}
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="Note / remark (optional)"
+                      value={khataNotes}
+                      onChange={(e) => setKhataNotes(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '5px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0',
+                        background: '#ffffff',
+                        fontSize: '0.74rem',
+                        color: '#334155',
+                        boxSizing: 'border-box',
+                        outline: 'none'
+                      }}
+                    />
                   </div>
                 </div>
               )}

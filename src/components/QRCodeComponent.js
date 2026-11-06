@@ -33,7 +33,7 @@ const STAND_TEMPLATES = [
   },
   {
     id: 'green-tent',
-    name: '3. Artisan Green Table Tent',
+    name: '3. Artisan Green',
     tag: 'CAFE TENT',
     desc: 'Forest olive green tent heading with star accents ✦ VIEW OUR MENU ✦ and fresh brunch food base',
     previewImg: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=600&q=80',
@@ -89,7 +89,7 @@ const getDefaultStandeeConfig = (resName, resLogo) => ({
   tagline: 'SMART CONTACTLESS DINING',
   logoUrl: resLogo || '',
   showLogo: !!resLogo,
-  tablePrefix: 'TABLE',
+  tablePrefix: 'T',
   badgeStyle: 'capsule', // 'capsule' | 'minimal' | 'ribbon' | 'large'
   showCapacity: true,
   primaryColor: '#0f172a',
@@ -119,12 +119,16 @@ import { API_URL as API } from '../config/api';
 import { buildTableMenuUrl } from '../utils/tableToken';
 
 // Smart table name formatter
+// Clean table number into "T X" (e.g. "T 1", "T 01", "T M1")
+const formatTableBadge = (tableNum) => {
+  if (tableNum === null || tableNum === undefined || tableNum === '') return 'T 1';
+  let str = String(tableNum).trim();
+  str = str.replace(/^table[\s-_]*/i, '').trim();
+  return `T ${str}`;
+};
+
 const formatTableName = (num) => {
-  if (num === null || num === undefined || num === '') return 'Table';
-  const str = String(num).trim();
-  if (/^\d+$/.test(str)) return `Table ${str}`;
-  if (/^table[\s-_]*/i.test(str)) return str;
-  return str;
+  return formatTableBadge(num);
 };
 
 const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null }) => {
@@ -143,14 +147,14 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch (e) {}
+    } catch (e) { }
     return [];
   });
   const [loading, setLoading] = useState(() => tables.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'available' | 'occupied'
-  
+
   // Target Host Configuration for QR Codes (Defaults to current local origin or saved host)
   const defaultHost = (typeof window !== 'undefined' && window.location.origin)
     ? window.location.origin
@@ -162,7 +166,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   });
   const [isEditingHost, setIsEditingHost] = useState(false);
   const [tempHost, setTempHost] = useState(qrBaseUrl);
-  
+
   // Table Categories / Sections State (e.g. Main Hall, Rooftop, Garden, Outdoor)
   const [tableSections, setTableSections] = useState(() => {
     try {
@@ -171,7 +175,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch (e) {}
+    } catch (e) { }
     return ['Main Hall', 'Rooftop', 'Garden', 'Outdoor'];
   });
 
@@ -252,7 +256,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     setTableSections(newSecs);
     try {
       localStorage.setItem(`serivq_table_sections_${effectiveTenantId}`, JSON.stringify(newSecs));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleAddSection = (e) => {
@@ -289,7 +293,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const [newTableSection, setNewTableSection] = useState('Main Hall');
   const [newCapacity, setNewCapacity] = useState('4');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Quick batch generator state
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchCount, setBatchCount] = useState(3);
@@ -316,7 +320,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') return { ...getDefaultStandeeConfig(restaurantName, restaurantLogo), ...parsed };
       }
-    } catch (e) {}
+    } catch (e) { }
     return getDefaultStandeeConfig(restaurantName, restaurantLogo);
   });
 
@@ -334,6 +338,8 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const [openDownloadDropdownId, setOpenDownloadDropdownId] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [showPrintChoiceModal, setShowPrintChoiceModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showStandeeEditorModal, setShowStandeeEditorModal] = useState(false);
   const [editorPreviewTable, setEditorPreviewTable] = useState(null);
   const [editorActiveTab, setEditorActiveTab] = useState('templates'); // 'templates' | 'branding' | 'theme' | 'layout' | 'instructions' | 'footer'
@@ -383,7 +389,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         const numOnly = raw.replace(/[^0-9]/g, '') || raw;
         const total = Number(o.total || o.totalAmount || o.finalTotal || o.billAmount) || (o.items || []).reduce((acc, it) => acc + ((Number(it.price) || 0) * (it.quantity || 1)), 0);
         const itemsCount = (o.items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
-        
+
         const applyToKey = (key) => {
           if (!key) return;
           if (!lookup[key]) {
@@ -435,7 +441,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         setTables(res.data);
         try {
           sessionStorage.setItem(`serivq_tables_${effectiveTenantId}`, JSON.stringify(res.data));
-        } catch (e) {}
+        } catch (e) { }
       } else if (tables.length === 0) {
         const initialDefaults = [
           { _id: 'tbl_1', tableNumber: '1', status: 'available' },
@@ -761,7 +767,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
   const generateStandeeCardDataUrl = (table, config = standeeConfig, qrCanvas) => {
     const canvas = document.createElement('canvas');
     canvas.width = 1200;
-    canvas.height = 1600;
+    canvas.height = 1800;
     const ctx = canvas.getContext('2d');
 
     const drawRoundedRect = (x, y, w, h, r) => {
@@ -782,231 +788,252 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     const primary = config?.primaryColor || '#15803d';
     const accent = config?.accentColor || '#22c55e';
     const brandName = config?.restaurantName || restaurantName || 'The Landmark';
-    const prefix = config?.tablePrefix || 'TABLE';
-    const tableText = `${prefix} ${table.tableNumber}`;
+    const tableText = formatTableBadge(table.tableNumber);
 
     // ----------------------------------------------------
-    // TEMPLATE 1: FRESH FOOD ACRYLIC STAND
+    // TEMPLATE 1: FRESH FOOD ACRYLIC STAND (80% QR / 20% REST)
     // ----------------------------------------------------
     if (currentTplId === 'food-acrylic' || currentTplId === 'acrylic') {
       // 1. Base card
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 1200, 1600);
+      ctx.fillRect(0, 0, 1200, 1800);
 
       // Acrylic border
       ctx.lineWidth = 14;
       ctx.strokeStyle = '#e2e8f0';
-      drawRoundedRect(40, 40, 1120, 1520, 36);
+      drawRoundedRect(35, 35, 1130, 1730, 48);
       ctx.stroke();
 
-      // Top Food Graphic Header (Vibrant culinary gradient + pattern)
-      const grad = ctx.createLinearGradient(0, 40, 0, 480);
-      grad.addColorStop(0, '#ea580c');
-      grad.addColorStop(0.5, '#f97316');
-      grad.addColorStop(1, '#fb923c');
+      // Top Food Graphic Header (y = 35 to 220)
+      const grad = ctx.createLinearGradient(0, 35, 0, 220);
+      grad.addColorStop(0, '#1c1917');
+      grad.addColorStop(0.5, '#292524');
+      grad.addColorStop(1, '#0c0a09');
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(76, 40);
-      ctx.lineTo(1124, 40);
-      ctx.quadraticCurveTo(1160, 40, 1160, 76);
-      ctx.lineTo(1160, 460);
-      ctx.lineTo(40, 460);
-      ctx.lineTo(40, 76);
-      ctx.quadraticCurveTo(40, 40, 76, 40);
+      ctx.moveTo(83, 35);
+      ctx.lineTo(1117, 35);
+      ctx.quadraticCurveTo(1165, 35, 1165, 83);
+      ctx.lineTo(1165, 220);
+      ctx.lineTo(35, 220);
+      ctx.lineTo(35, 83);
+      ctx.quadraticCurveTo(35, 35, 83, 35);
       ctx.closePath();
       ctx.fill();
 
-      // Top Header Overlay Brand
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      ctx.fillRect(40, 40, 1120, 420);
-
+      // Top Header Brand & Table Badge
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 54px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(brandName.toUpperCase(), 600, 220);
+      ctx.font = 'bold 44px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      const dispBrand = brandName.length > 20 ? brandName.slice(0, 18) + '...' : brandName;
+      ctx.fillText(dispBrand.toUpperCase(), 75, 120);
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.font = '600 28px system-ui, sans-serif';
-      ctx.letterSpacing = '4px';
-      ctx.fillText('FRESH FOOD & CRAFT DRINKS', 600, 280);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.font = '700 24px system-ui, sans-serif';
+      ctx.letterSpacing = '2px';
+      ctx.fillText('CONTACTLESS DINING', 75, 170);
 
-      // Table Badge floating over boundary
+      // Table Badge on right
       ctx.fillStyle = primary;
-      drawRoundedRect(450, 410, 300, 80, 40);
+      drawRoundedRect(840, 80, 280, 80, 40);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 36px system-ui, sans-serif';
-      ctx.fillText(tableText, 600, 464);
+      ctx.textAlign = 'center';
+      ctx.fillText(tableText, 980, 134);
 
-      // Central QR Code Container
+      // Central Square QR Container (Perfect Square: NO GAP)
       ctx.fillStyle = '#ffffff';
-      drawRoundedRect(250, 530, 700, 700, 32);
+      drawRoundedRect(110, 395, 980, 980, 36);
       ctx.fill();
       ctx.lineWidth = 4;
-      ctx.strokeStyle = '#e2e8f0';
+      ctx.strokeStyle = '#f1f5f9';
       ctx.stroke();
 
       if (qrCanvas) {
-        ctx.drawImage(qrCanvas, 290, 570, 620, 620);
+        ctx.drawImage(qrCanvas, 140, 425, 920, 920);
       }
 
-      // Bottom Curved Banner (Arc / Arch)
+      // Bottom Curved Banner (~10% height)
       ctx.fillStyle = primary;
       ctx.beginPath();
-      ctx.moveTo(40, 1340);
-      ctx.quadraticCurveTo(600, 1260, 1160, 1340);
-      ctx.lineTo(1160, 1524);
-      ctx.quadraticCurveTo(1160, 1560, 1124, 1560);
-      ctx.lineTo(76, 1560);
-      ctx.quadraticCurveTo(40, 1560, 40, 1524);
+      ctx.moveTo(35, 1610);
+      ctx.quadraticCurveTo(600, 1565, 1165, 1610);
+      ctx.lineTo(1165, 1717);
+      ctx.quadraticCurveTo(1165, 1765, 1117, 1765);
+      ctx.lineTo(83, 1765);
+      ctx.quadraticCurveTo(35, 1765, 35, 1717);
       ctx.closePath();
       ctx.fill();
 
       // Bottom curved text
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 42px system-ui, sans-serif';
+      ctx.font = 'bold 40px system-ui, sans-serif';
       ctx.textAlign = 'center';
       const cta = config?.ctaTitle || 'VIEW OUR MENU ON YOUR PHONE!';
-      ctx.fillText(`↶  ${cta}  ↷`, 600, 1450);
+      ctx.fillText(`↶  ${cta}  ↷`, 600, 1665);
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-      ctx.font = '500 24px system-ui, sans-serif';
-      ctx.fillText('Point your phone camera to scan and order instantly', 600, 1500);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+      ctx.font = '600 24px system-ui, sans-serif';
+      ctx.fillText('Open camera & scan QR code to order', 600, 1710);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '800 20px system-ui, sans-serif';
+      ctx.letterSpacing = '3px';
+      ctx.fillText('• DINVIQ •', 600, 1745);
 
       return canvas.toDataURL('image/png');
     }
 
     // ----------------------------------------------------
-    // TEMPLATE 2: ROYAL GOLD & DARK DINING
+    // TEMPLATE 2: ROYAL GOLD & DARK DINING (80% QR / 20% REST)
     // ----------------------------------------------------
     if (currentTplId === 'luxury-gold' || currentTplId === 'dark') {
+      const gold = primary || '#d4af37';
+
       // 1. Dark Luxury Gradient BG
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, 1600);
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, 1800);
       bgGrad.addColorStop(0, '#18181b');
-      bgGrad.addColorStop(0.5, '#0f0f13');
-      bgGrad.addColorStop(1, '#09090b');
+      bgGrad.addColorStop(0.5, '#0d0d11');
+      bgGrad.addColorStop(1, '#08080a');
       ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, 1200, 1600);
+      ctx.fillRect(0, 0, 1200, 1800);
 
       // Outer Double Gold Borders
-      const gold = primary || '#d4af37';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 5;
       ctx.strokeStyle = gold;
-      drawRoundedRect(50, 50, 1100, 1500, 12);
+      drawRoundedRect(35, 35, 1130, 1730, 18);
       ctx.stroke();
 
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = gold;
-      drawRoundedRect(68, 68, 1064, 1464, 8);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = gold + '66';
+      drawRoundedRect(50, 50, 1100, 1700, 12);
       ctx.stroke();
 
-      // Cursive Script "Menu"
+      // Cursive Script "Menu" + Table Capsule (~10% height)
       ctx.fillStyle = gold;
-      ctx.font = 'italic 110px "Playfair Display", Georgia, serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Menu', 600, 240);
+      ctx.font = 'italic 86px "Playfair Display", Georgia, serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('Menu', 90, 145);
 
-      // Subtitle
-      ctx.font = '600 24px system-ui, sans-serif';
-      ctx.fillStyle = '#e2e8f0';
-      const luxuryCta = config?.ctaTitle || 'FOR A CONTACTLESS MENU, SCAN QR CODE';
-      ctx.fillText(luxuryCta, 600, 310);
+      // Table capsule
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 3;
+      drawRoundedRect(840, 85, 280, 72, 36);
+      ctx.stroke();
+      ctx.fillStyle = gold;
+      ctx.font = 'bold 34px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(tableText, 980, 134);
 
       // Subtle gold divider
-      ctx.strokeStyle = gold;
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = gold + '44';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(400, 345);
-      ctx.lineTo(800, 345);
+      ctx.moveTo(70, 190);
+      ctx.lineTo(1130, 190);
       ctx.stroke();
 
-      // QR Code Container with gold border
+      // Dominant Central QR Code Container with gold border (Perfect Square: NO GAP)
       ctx.fillStyle = '#ffffff';
-      drawRoundedRect(270, 420, 660, 660, 16);
+      drawRoundedRect(110, 365, 980, 980, 32);
       ctx.fill();
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 8;
       ctx.strokeStyle = gold;
       ctx.stroke();
 
       if (qrCanvas) {
-        ctx.drawImage(qrCanvas, 310, 460, 580, 580);
+        ctx.drawImage(qrCanvas, 140, 395, 920, 920);
       }
 
-      // Bottom dashed box (YOUR LOGO / Table)
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([12, 8]);
+      // Bottom dashed box (~10% height)
+      ctx.lineWidth = 3;
+      ctx.setLineDash([16, 10]);
       ctx.strokeStyle = gold;
-      drawRoundedRect(350, 1220, 500, 120, 8);
+      drawRoundedRect(220, 1510, 760, 72, 14);
       ctx.stroke();
       ctx.setLineDash([]);
 
       ctx.fillStyle = gold;
-      ctx.font = 'bold 36px system-ui, sans-serif';
-      ctx.fillText((config?.restaurantName || 'YOUR LOGO').toUpperCase(), 600, 1276);
+      ctx.font = 'bold 30px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      const dispBrand = brandName.length > 20 ? brandName.slice(0, 18) + '...' : brandName;
+      ctx.fillText(`${dispBrand.toUpperCase()} • SCAN QR`, 600, 1557);
 
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 32px system-ui, sans-serif';
-      ctx.fillText(tableText, 600, 1420);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 24px system-ui, sans-serif';
+      ctx.letterSpacing = '1px';
+      ctx.fillText('FAST & CONTACTLESS LUXURY DINING', 600, 1630);
+
+      ctx.fillStyle = gold;
+      ctx.font = '800 20px system-ui, sans-serif';
+      ctx.letterSpacing = '4px';
+      ctx.fillText('• DINVIQ •', 600, 1695);
 
       return canvas.toDataURL('image/png');
     }
 
     // ----------------------------------------------------
-    // TEMPLATE 3: ARTISAN GREEN TABLE TENT
+    // TEMPLATE 3: ARTISAN GREEN TABLE TENT (80% QR / 20% REST)
     // ----------------------------------------------------
     if (currentTplId === 'green-tent') {
       const green = primary || '#1b4332';
-      // Top Green Tent Portion
+
+      // 1. Full Forest Green Background
       ctx.fillStyle = green;
-      ctx.fillRect(0, 0, 1200, 960);
+      ctx.fillRect(0, 0, 1200, 1800);
 
-      // Stars headline
+      // Top Green Tent Portion (~10% height)
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 50px "Playfair Display", Georgia, serif';
+      ctx.font = 'bold 46px "Playfair Display", Georgia, serif';
+      ctx.textAlign = 'left';
+      ctx.letterSpacing = '3px';
+      ctx.fillText('✦ VIEW MENU ✦', 80, 140);
+
+      // Table Pill on Right (Translucent white)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      drawRoundedRect(860, 85, 260, 70, 35);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 34px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('✦ VIEW OUR MENU ✦', 600, 170);
+      ctx.fillText(tableText, 990, 133);
 
-      // Restaurant & Table
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-      ctx.font = '600 28px system-ui, sans-serif';
-      ctx.fillText(`${brandName}  •  ${tableText}`, 600, 230);
-
-      // QR Card inside Green Tent
+      // Dominant QR Card inside Green Tent (Perfect Square: NO GAP)
       ctx.fillStyle = '#ffffff';
-      drawRoundedRect(280, 290, 640, 640, 28);
+      drawRoundedRect(110, 400, 980, 980, 42);
       ctx.fill();
 
       if (qrCanvas) {
-        ctx.drawImage(qrCanvas, 320, 330, 560, 560);
+        ctx.drawImage(qrCanvas, 140, 430, 920, 920);
       }
 
-      // Bottom Brunch Food Graphic section (Warm golden toast gradient)
-      const bGrad = ctx.createLinearGradient(0, 960, 0, 1600);
-      bGrad.addColorStop(0, '#fef3c7');
-      bGrad.addColorStop(0.5, '#fed7aa');
-      bGrad.addColorStop(1, '#fde68a');
+      // Bottom Brunch Food Graphic section (Rich dark organic photo bar)
+      const bGrad = ctx.createLinearGradient(0, 1590, 0, 1800);
+      bGrad.addColorStop(0, 'rgba(20, 50, 38, 0.9)');
+      bGrad.addColorStop(1, 'rgba(10, 25, 18, 0.98)');
       ctx.fillStyle = bGrad;
-      ctx.fillRect(0, 960, 1200, 640);
+      ctx.fillRect(0, 1590, 1200, 210);
 
-      ctx.fillStyle = '#78350f';
-      ctx.font = 'bold 38px system-ui, sans-serif';
-      ctx.fillText('SAVOR ARTISANAL BRUNCH & FRESH BITES', 600, 1240);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.fillRect(0, 1590, 1200, 2);
 
-      ctx.fillStyle = '#92400e';
-      ctx.font = '500 26px system-ui, sans-serif';
-      ctx.fillText('No waiting for paper menus — browse & reorder right here', 600, 1310);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '1px';
+      ctx.fillText('Fresh Daily • Scan with Camera to Order', 600, 1680);
 
-      // Minimal outer border
-      ctx.lineWidth = 12;
-      ctx.strokeStyle = green;
-      drawRoundedRect(30, 30, 1140, 1540, 36);
-      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.font = '800 22px system-ui, sans-serif';
+      ctx.letterSpacing = '4px';
+      ctx.fillText('• DINVIQ •', 600, 1735);
 
       return canvas.toDataURL('image/png');
     }
 
     // ----------------------------------------------------
-    // TEMPLATE 4: GOURMET ARCHED STAND
+    // TEMPLATE 4: GOURMET ARCHED STAND (80% QR / 20% REST)
     // ----------------------------------------------------
     if (currentTplId === 'gourmet-arch') {
       const archColor = primary || '#17203d';
@@ -1014,77 +1041,81 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
       // Base White Card
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 1200, 1600);
+      ctx.fillRect(0, 0, 1200, 1800);
 
-      // Top Ribbon
+      // Outer Rounded Border
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#e2e8f0';
+      drawRoundedRect(35, 25, 1130, 1750, 52);
+      ctx.stroke();
+
+      // Top Ribbon & MENU Title (~10% height)
       ctx.fillStyle = archColor;
-      drawRoundedRect(380, 80, 440, 70, 8);
+      drawRoundedRect(60, 45, 420, 68, 10);
       ctx.fill();
       ctx.fillStyle = trimColor;
-      ctx.font = 'bold 28px system-ui, sans-serif';
+      ctx.font = 'bold 26px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`★ ${brandName} ★`, 600, 126);
+      const displayBrand = brandName.length > 20 ? brandName.slice(0, 18) + '...' : brandName;
+      ctx.fillText(`★ ${displayBrand} ★`, 270, 88);
 
       // Bold MENU Title
       ctx.fillStyle = archColor;
-      ctx.font = '900 90px system-ui, sans-serif';
-      ctx.fillText('MENU', 600, 260);
+      ctx.font = '900 68px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('MENU', 520, 102);
 
-      // Arched Body
+      // Table Capsule
+      ctx.fillStyle = trimColor;
+      drawRoundedRect(860, 45, 280, 68, 34);
+      ctx.fill();
       ctx.fillStyle = archColor;
-      ctx.beginPath();
-      ctx.arc(600, 580, 480, Math.PI, 0, false);
-      ctx.lineTo(1080, 1460);
-      ctx.quadraticCurveTo(1080, 1500, 1040, 1500);
-      ctx.lineTo(160, 1500);
-      ctx.quadraticCurveTo(120, 1500, 120, 1460);
-      ctx.closePath();
+      ctx.font = 'bold 30px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(tableText, 1000, 91);
+
+      // Arched Body Framing QR Code
+      ctx.fillStyle = archColor;
+      drawRoundedRect(60, 145, 1080, 1600, 80);
       ctx.fill();
 
       // Amber Trim
-      ctx.lineWidth = 14;
+      ctx.lineWidth = 10;
       ctx.strokeStyle = trimColor;
+      drawRoundedRect(60, 145, 1080, 1600, 80);
       ctx.stroke();
 
-      // Circular Dish Cutout Badge at top of arch
-      ctx.fillStyle = trimColor;
-      ctx.beginPath();
-      ctx.arc(600, 340, 100, 0, Math.PI * 2);
-      ctx.fill();
-
+      // Dominant QR Code inside Arch (PERFECT SQUARE: TIGHT 30px PADDING, ZERO GAP)
       ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(600, 340, 92, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = archColor;
-      ctx.font = 'bold 26px system-ui, sans-serif';
-      ctx.fillText(tableText, 600, 348);
-
-      // QR Code inside Arch
-      ctx.fillStyle = '#ffffff';
-      drawRoundedRect(280, 540, 640, 640, 24);
+      drawRoundedRect(110, 220, 980, 980, 36);
       ctx.fill();
 
       if (qrCanvas) {
-        ctx.drawImage(qrCanvas, 320, 580, 560, 560);
+        ctx.drawImage(qrCanvas, 140, 250, 920, 920);
       }
 
-      // Bottom "Scan Me"
+      // Bottom "Scan Me" on rich navy background (~10% height)
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 56px system-ui, sans-serif';
+      ctx.font = 'bold 50px system-ui, sans-serif';
+      ctx.textAlign = 'center';
       const archCta = config?.ctaTitle || 'SCAN ME';
-      ctx.fillText(archCta, 600, 1310);
+      ctx.fillText(`${archCta}  •  ${tableText}`, 600, 1380);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+      ctx.font = '600 28px system-ui, sans-serif';
+      ctx.letterSpacing = '1px';
+      ctx.fillText('FAST & CONTACTLESS ORDERING', 600, 1460);
 
       ctx.fillStyle = trimColor;
-      ctx.font = '600 28px system-ui, sans-serif';
-      ctx.fillText('FAST & CONTACTLESS ORDERING', 600, 1370);
+      ctx.font = '800 24px system-ui, sans-serif';
+      ctx.letterSpacing = '4px';
+      ctx.fillText('• DINVIQ •', 600, 1540);
 
       return canvas.toDataURL('image/png');
     }
 
     // ----------------------------------------------------
-    // TEMPLATE 5: MODERN BARISTA SPLATTER / CRAFT
+    // TEMPLATE 5: MODERN BARISTA SPLATTER / CRAFT (80% QR / 20% REST)
     // ----------------------------------------------------
     {
       const craftPrimary = primary || '#451a03';
@@ -1092,86 +1123,75 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
       // Warm Craft Background
       ctx.fillStyle = '#fef7ee';
-      ctx.fillRect(0, 0, 1200, 1600);
+      ctx.fillRect(0, 0, 1200, 1800);
 
       // Organic Splatters / Blobs in corners
-      ctx.fillStyle = craftAccent + '22';
+      ctx.fillStyle = craftAccent + '25';
       ctx.beginPath();
-      ctx.arc(100, 120, 220, 0, Math.PI * 2);
+      ctx.arc(1140, 60, 260, 0, Math.PI * 2);
       ctx.fill();
 
+      ctx.fillStyle = craftPrimary + '18';
       ctx.beginPath();
-      ctx.arc(1100, 1480, 260, 0, Math.PI * 2);
+      ctx.arc(50, 1740, 280, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = craftPrimary + '15';
-      ctx.beginPath();
-      ctx.arc(1120, 200, 180, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Top Cafe Branding
+      // Top Header Brand & Table Capsule (~10% height)
       ctx.fillStyle = craftPrimary;
-      ctx.font = '900 54px system-ui, sans-serif';
+      ctx.font = 'bold 44px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      const dispBrand = brandName.length > 20 ? brandName.slice(0, 18) + '...' : brandName;
+      ctx.fillText(dispBrand.toUpperCase(), 75, 130);
+
+      ctx.fillStyle = craftPrimary;
+      drawRoundedRect(840, 75, 280, 74, 37);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 34px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(brandName.toUpperCase(), 600, 210);
+      ctx.fillText(tableText, 980, 125);
 
-      // Capsule Table Badge
-      ctx.fillStyle = craftPrimary;
-      drawRoundedRect(450, 260, 300, 70, 35);
-      ctx.fill();
+      // Dominant QR Code Container with artistic brackets (Perfect Square: NO GAP)
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 32px system-ui, sans-serif';
-      ctx.fillText(tableText, 600, 308);
-
-      // QR Code with artistic brackets
-      ctx.fillStyle = '#ffffff';
-      drawRoundedRect(270, 420, 660, 660, 24);
+      drawRoundedRect(110, 360, 980, 980, 32);
       ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = craftPrimary + '44';
-      ctx.stroke();
 
       if (qrCanvas) {
-        ctx.drawImage(qrCanvas, 310, 460, 580, 580);
+        ctx.drawImage(qrCanvas, 140, 390, 920, 920);
       }
 
-      // Corner Brackets
-      ctx.lineWidth = 10;
+      // Corner Brackets framing the square QR code tightly
+      ctx.lineWidth = 12;
       ctx.strokeStyle = craftPrimary;
       // Top-Left
-      ctx.beginPath(); ctx.moveTo(240, 480); ctx.lineTo(240, 400); ctx.lineTo(320, 400); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(80, 470); ctx.lineTo(80, 330); ctx.lineTo(220, 330); ctx.stroke();
       // Top-Right
-      ctx.beginPath(); ctx.moveTo(880, 400); ctx.lineTo(960, 400); ctx.lineTo(960, 480); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(980, 330); ctx.lineTo(1120, 330); ctx.lineTo(1120, 470); ctx.stroke();
       // Bottom-Left
-      ctx.beginPath(); ctx.moveTo(240, 1020); ctx.lineTo(240, 1100); ctx.lineTo(320, 1100); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(80, 1230); ctx.lineTo(80, 1370); ctx.lineTo(220, 1370); ctx.stroke();
       // Bottom-Right
-      ctx.beginPath(); ctx.moveTo(880, 1100); ctx.lineTo(960, 1100); ctx.lineTo(960, 1020); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(980, 1370); ctx.lineTo(1120, 1370); ctx.lineTo(1120, 1230); ctx.stroke();
 
-      // Bottom CTA Headline
+      // Bottom CTA Headline (~10% height)
       ctx.fillStyle = craftPrimary;
-      ctx.font = '900 48px system-ui, sans-serif';
+      ctx.font = '900 44px system-ui, sans-serif';
+      ctx.textAlign = 'center';
       const craftCta = config?.ctaTitle || 'SCAN TO ORDER & PAY';
-      ctx.fillText(craftCta, 600, 1240);
+      ctx.fillText(craftCta, 600, 1530);
 
       ctx.fillStyle = '#78350f';
-      ctx.font = '500 28px system-ui, sans-serif';
-      ctx.fillText('Point your phone camera to view full menu & order', 600, 1310);
+      ctx.font = '600 26px system-ui, sans-serif';
+      ctx.fillText('Point camera to view menu & place order', 600, 1600);
 
-      // Wi-Fi / Footer
-      if (config?.showWifi) {
-        ctx.fillStyle = craftAccent + '25';
-        drawRoundedRect(300, 1380, 600, 90, 45);
-        ctx.fill();
-        ctx.fillStyle = craftPrimary;
-        ctx.font = 'bold 24px system-ui, sans-serif';
-        ctx.fillText(`Wi-Fi: ${config.wifiSsid || 'Cafe_Guest'}  •  Pass: ${config.wifiPassword || 'eatgood'}`, 600, 1435);
-      }
+      ctx.fillStyle = '#78350f';
+      ctx.font = '800 22px system-ui, sans-serif';
+      ctx.letterSpacing = '4px';
+      ctx.fillText('• DINVIQ •', 600, 1665);
 
       return canvas.toDataURL('image/png');
     }
   };
 
-    // Download High-Resolution 1200x1600 Standee Card PNG
   const downloadTableStandee = (table, config = standeeConfig) => {
     const qrCanvas = document.getElementById(`qr-canvas-${table.tableNumber}`) || document.getElementById(`preview-qr-canvas-${table.tableNumber}`);
     if (!qrCanvas) {
@@ -1264,16 +1284,22 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
           <div class="direct-card">
             <div class="cut-guide">
               <span>✂ Cut along line</span>
-              <span>TABLE ${t.tableNumber}</span>
+              <span>${formatTableBadge(t.tableNumber)}</span>
             </div>
             <div class="direct-inner">
-              <div class="direct-badge">TABLE ${t.tableNumber}</div>
-              <div class="direct-cap">👥 ${t.seatingCapacity || 4} GUESTS CAPACITY</div>
+              <div class="direct-header">
+                <div class="direct-badge">${formatTableBadge(t.tableNumber)}</div>
+                <div class="direct-title">${(restaurantName || 'THE LANDMARK').toUpperCase()}</div>
+              </div>
+
               <div class="direct-qr-wrap">
                 ${qrDataUrl ? `<img src="${qrDataUrl}" class="direct-qr-img" alt="Table ${t.tableNumber} QR" />` : ''}
               </div>
-              <div class="direct-cta">SCAN TO DINE-IN & ORDER</div>
-              <div class="direct-sub">${(restaurantName || 'THE LANDMARK').toUpperCase()} • CONTACTLESS MENU</div>
+
+              <div class="direct-footer">
+                <div class="direct-cta">SCAN TO VIEW MENU & ORDER</div>
+                <div class="direct-sub">Point phone camera to scan • No app required</div>
+              </div>
             </div>
           </div>
         `;
@@ -1292,7 +1318,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     <meta charset="utf-8" />
     <title>${restaurantName} - Direct Table QRs</title>
     <style>
-      @page { size: A4 portrait; margin: 10mm 8mm; }
+      @page { size: A4 portrait; margin: 8mm 6mm; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -1304,7 +1330,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       .print-page {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 7mm;
+        gap: 6mm;
         height: 275mm;
         max-height: 275mm;
         page-break-after: always;
@@ -1315,7 +1341,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       .direct-card {
         border: 1px dashed #94a3b8;
         border-radius: 12px;
-        padding: 8px;
+        padding: 5px;
         background: #ffffff;
         display: flex;
         flex-direction: column;
@@ -1325,48 +1351,69 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       .cut-guide {
         display: flex;
         justify-content: space-between;
-        font-size: 8px;
+        font-size: 7.5px;
         font-weight: 700;
         color: #94a3b8;
-        padding-bottom: 4px;
+        padding-bottom: 2px;
       }
       .direct-inner {
         flex: 1;
         border: 2px solid #0f172a;
         border-radius: 10px;
-        padding: 12px;
+        padding: 8px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
         text-align: center;
+        box-sizing: border-box;
+      }
+      /* Header (~10% height) */
+      .direct-header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #e2e8f0;
       }
       .direct-badge {
-        font-size: 24px;
+        font-size: 15px;
         font-weight: 900;
         color: #ffffff;
         background: #0f172a;
-        padding: 6px 28px;
+        padding: 3px 14px;
         border-radius: 100px;
+        letter-spacing: 0.8px;
+      }
+      .direct-title {
+        font-size: 11px;
+        font-weight: 900;
+        color: #0f172a;
         letter-spacing: 1px;
       }
-      .direct-cap {
-        font-size: 10px;
-        font-weight: 700;
-        color: #475569;
-        margin-top: 2px;
-      }
+      /* QR Center (80% Area Focus) */
       .direct-qr-wrap {
-        padding: 6px;
-        background: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        display: inline-flex;
+        flex: 1;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2mm 0;
       }
       .direct-qr-img {
-        width: 145px;
-        height: 145px;
+        width: 78mm;
+        height: 78mm;
+        max-width: 78mm;
+        max-height: 78mm;
         display: block;
+        object-fit: contain;
+      }
+      /* Footer (~10% height) */
+      .direct-footer {
+        width: 100%;
+        padding-top: 4px;
+        border-top: 1px solid #e2e8f0;
       }
       .direct-cta {
         font-size: 11px;
@@ -1375,10 +1422,10 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         letter-spacing: 0.5px;
       }
       .direct-sub {
-        font-size: 8px;
-        font-weight: 700;
+        font-size: 7.5px;
+        font-weight: 600;
         color: #64748b;
-        letter-spacing: 0.5px;
+        margin-top: 1px;
       }
     </style>
   </head>
@@ -1404,72 +1451,31 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     };
 
     const pages = chunkArray(targetTables, 4);
-    const primary = config?.primaryColor || '#0f172a';
-    const accent = config?.accentColor || '#4f46e5';
-    const brandName = config?.restaurantName || restaurantName || 'THE LANDMARK';
-    const brandTagline = config?.tagline || 'SMART CONTACTLESS DINING';
-    const logoToUse = config?.showLogo && config?.logoUrl ? config.logoUrl : null;
-    const prefix = config?.tablePrefix || 'TABLE';
+    const brandName = config?.restaurantName || restaurantName || 'The Landmark';
 
     const pagesHtml = pages.map((chunk, pageIndex) => {
       const cardsHtml = chunk.map(t => {
-        const canvas = document.getElementById(`qr-canvas-${t.tableNumber}`) || document.getElementById(`preview-qr-canvas-${t.tableNumber}`);
-        const qrDataUrl = canvas ? canvas.toDataURL('image/png') : '';
+        const canvas = document.getElementById(`qr-canvas-${t.tableNumber}`) ||
+          document.getElementById(`preview-qr-canvas-${t.tableNumber}`) ||
+          document.querySelector('canvas[id^="qr-canvas-"]');
+
+        let cardDataUrl = '';
+        if (canvas) {
+          try {
+            cardDataUrl = generateStandeeCardDataUrl(t, config, canvas);
+          } catch (err) {
+            console.error('Error generating standee print image for table', t.tableNumber, err);
+          }
+        }
+
         return `
           <div class="stand-card">
             <div class="cut-guide">
-              <span>✂ Cut along border</span>
-              <span>${prefix} ${t.tableNumber}</span>
+              <span>✂ Cut along line</span>
+              <span>${formatTableBadge(t.tableNumber)}</span>
             </div>
-            <div class="card-inner" style="border-color: ${primary};">
-              <div class="brand-header">
-                ${logoToUse ? `<img src="${logoToUse}" class="brand-logo" alt="${brandName}" />` : ''}
-                <div class="brand-title" style="color: ${primary};">${brandName.toUpperCase()}</div>
-                <div class="brand-subtitle">${brandTagline}</div>
-              </div>
-
-              <div class="table-badge-wrap">
-                <div class="table-badge" style="background: ${primary};">
-                  <span class="badge-prefix">${prefix}</span>
-                  <span class="badge-num">${t.tableNumber}</span>
-                </div>
-                ${config?.showCapacity !== false ? `<div class="capacity-tag">👥 ${t.seatingCapacity || 4} GUESTS CAPACITY</div>` : ''}
-              </div>
-
-              <div class="qr-container">
-                <div class="bracket top-left" style="border-color: ${primary};"></div>
-                <div class="bracket top-right" style="border-color: ${primary};"></div>
-                <div class="bracket bottom-left" style="border-color: ${primary};"></div>
-                <div class="bracket bottom-right" style="border-color: ${primary};"></div>
-                ${qrDataUrl ? `<img src="${qrDataUrl}" class="qr-code-img" alt="Table ${t.tableNumber} QR" />` : ''}
-              </div>
-
-              ${config?.showInstructions !== false ? `
-                <div class="instructions-section">
-                  <div class="cta-title" style="color: ${primary};">${config?.ctaTitle || 'SCAN TO BROWSE MENU & ORDER'}</div>
-                  <div class="steps-row">
-                    <div class="step-card">
-                      <span class="step-num" style="background: ${accent};">1</span>
-                      <span class="step-txt"><strong>${config?.step1Title || 'Scan QR'}</strong><br/>${config?.step1Desc || 'with camera'}</span>
-                    </div>
-                    <div class="step-arrow">➔</div>
-                    <div class="step-card">
-                      <span class="step-num" style="background: ${accent};">2</span>
-                      <span class="step-txt"><strong>${config?.step2Title || 'Browse Menu'}</strong><br/>${config?.step2Desc || '& customize'}</span>
-                    </div>
-                    <div class="step-arrow">➔</div>
-                    <div class="step-card">
-                      <span class="step-num" style="background: ${accent};">3</span>
-                      <span class="step-txt"><strong>${config?.step3Title || 'Food Served'}</strong><br/>${config?.step3Desc || 'hot to table'}</span>
-                    </div>
-                  </div>
-                </div>
-              ` : ''}
-
-              <div class="card-footer">
-                <span>${config?.footerNote || '⚡ Fast & Contactless Dining • No App Required'}</span>
-                ${config?.showWatermark !== false ? `<span class="powered-tag">${config?.poweredBy || 'Powered by DineviQ'}</span>` : ''}
-              </div>
+            <div class="card-media-wrap">
+              ${cardDataUrl ? `<img src="${cardDataUrl}" class="standee-img" alt="${formatTableBadge(t.tableNumber)}" />` : ''}
             </div>
           </div>
         `;
@@ -1490,7 +1496,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     <style>
       @page {
         size: A4 portrait;
-        margin: 10mm 8mm;
+        margin: 6mm 6mm;
       }
       * {
         box-sizing: border-box;
@@ -1507,9 +1513,9 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       .print-page {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 7mm;
-        height: 275mm;
-        max-height: 275mm;
+        gap: 5mm;
+        height: 282mm;
+        max-height: 282mm;
         page-break-after: always;
         break-after: page;
         box-sizing: border-box;
@@ -1520,204 +1526,46 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
       }
       .stand-card {
         border: 1px dashed #cbd5e1;
-        border-radius: 14px;
-        padding: 6px;
+        border-radius: 8px;
+        padding: 2.5mm 2.5mm 1.5mm 2.5mm;
         background: #ffffff;
         display: flex;
         flex-direction: column;
-        height: 133mm;
+        align-items: center;
+        justify-content: space-between;
+        height: 138mm;
+        max-height: 138mm;
         box-sizing: border-box;
+        overflow: hidden;
       }
       .cut-guide {
+        width: 100%;
         display: flex;
         justify-content: space-between;
         align-items: center;
         font-size: 7.5px;
         font-weight: 700;
         color: #94a3b8;
-        padding: 0 4px 4px 4px;
+        padding-bottom: 1.5mm;
         letter-spacing: 0.5px;
-      }
-      .card-inner {
-        flex: 1;
-        border: 2px solid #0f172a;
-        border-radius: 12px;
-        padding: 8px 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-between;
-        text-align: center;
-        background: #ffffff;
-        box-sizing: border-box;
-      }
-      .brand-header {
-        margin-top: 2px;
-      }
-      .brand-logo {
-        max-height: 28px;
-        max-width: 140px;
-        object-fit: contain;
-        margin-bottom: 2px;
-      }
-      .brand-title {
-        font-size: 13px;
-        font-weight: 900;
-        letter-spacing: 1.5px;
-        line-height: 1.1;
-      }
-      .brand-subtitle {
-        font-size: 7.5px;
-        font-weight: 700;
-        letter-spacing: 1.2px;
-        color: #64748b;
-        margin-top: 1px;
-      }
-      .table-badge-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-        margin: 3px 0;
-      }
-      .table-badge {
-        color: #ffffff;
-        padding: 4px 18px;
-        border-radius: 100px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .badge-prefix {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        color: #cbd5e1;
-      }
-      .badge-num {
-        font-size: 19px;
-        font-weight: 900;
-        letter-spacing: 0.5px;
-        color: #ffffff;
-      }
-      .capacity-tag {
-        font-size: 8px;
-        font-weight: 700;
-        color: #64748b;
-        letter-spacing: 0.3px;
-      }
-      .qr-container {
-        position: relative;
-        padding: 6px;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .qr-code-img {
-        width: 120px;
-        height: 120px;
-        display: block;
-        border-radius: 4px;
-      }
-      .bracket {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-      }
-      .bracket.top-left {
-        top: -1px; left: -1px;
-        border-top: 2.5px solid;
-        border-left: 2.5px solid;
-        border-top-left-radius: 4px;
-      }
-      .bracket.top-right {
-        top: -1px; right: -1px;
-        border-top: 2.5px solid;
-        border-right: 2.5px solid;
-        border-top-right-radius: 4px;
-      }
-      .bracket.bottom-left {
-        bottom: -1px; left: -1px;
-        border-bottom: 2.5px solid;
-        border-left: 2.5px solid;
-        border-bottom-left-radius: 4px;
-      }
-      .bracket.bottom-right {
-        bottom: -1px; right: -1px;
-        border-bottom: 2.5px solid;
-        border-right: 2.5px solid;
-        border-bottom-right-radius: 4px;
-      }
-      .instructions-section {
-        width: 100%;
-        margin-top: 3px;
-      }
-      .cta-title {
-        font-size: 9px;
-        font-weight: 900;
-        letter-spacing: 0.4px;
-        margin-bottom: 4px;
-      }
-      .steps-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-        gap: 2px;
-      }
-      .step-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 3px 4px;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-width: 0;
-      }
-      .step-num {
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
-        color: #ffffff;
-        font-size: 8px;
-        font-weight: 800;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 2px;
-      }
-      .step-txt {
-        font-size: 7px;
-        color: #334155;
-        line-height: 1.15;
-      }
-      .step-arrow {
-        font-size: 10px;
-        font-weight: 800;
-        color: #94a3b8;
-        padding: 0 1px;
         flex-shrink: 0;
       }
-      .card-footer {
+      .card-media-wrap {
+        flex: 1;
         width: 100%;
-        border-top: 1px solid #f1f5f9;
-        padding-top: 3px;
-        margin-top: 3px;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        font-size: 6.5px;
-        font-weight: 700;
-        color: #94a3b8;
+        justify-content: center;
+        overflow: hidden;
       }
-      .powered-tag {
-        color: #64748b;
-        font-weight: 800;
+      .standee-img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        border-radius: 6px;
       }
     </style>
   </head>
@@ -1729,7 +1577,6 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
     executeIframePrint(fullHtml);
   };
 
-  // Backwards compatible alias
   const printTableStands = (targetTables = tables) => {
     printCustomizedStands(targetTables, standeeConfig);
   };
@@ -1780,12 +1627,12 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
 
   return (
     <div style={{ width: '100%' }}>
-      {/* UNIFIED SINGLE COMPACT HEADER BAR */}
+      {/* STREAMLINED CLEAN HEADER BAR */}
       <div style={{
         background: '#ffffff',
-        borderRadius: '14px',
-        padding: '0.65rem 1rem',
-        marginBottom: '1rem',
+        borderRadius: '16px',
+        padding: '0.85rem 1.25rem',
+        marginBottom: '1.25rem',
         border: '1px solid #e2e8f0',
         boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
         display: 'flex',
@@ -1794,13 +1641,13 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
         flexWrap: 'wrap',
         gap: '0.75rem'
       }}>
-        {/* Left: Compact Title & Search Box */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Left: Title + Table Count Badge + Search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               background: '#eff6ff',
               border: '1px solid #dbeafe',
               display: 'flex',
@@ -1808,11 +1655,24 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               justifyContent: 'center',
               color: '#2563eb'
             }}>
-              <QrCode size={17} />
+              <QrCode size={19} />
             </div>
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-              Table QR Codes
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                Table QR Codes
+              </h2>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 800,
+                padding: '2px 9px',
+                borderRadius: '100px',
+                background: '#f1f5f9',
+                color: '#475569',
+                border: '1px solid #e2e8f0'
+              }}>
+                {tables.length} {tables.length === 1 ? 'Table' : 'Tables'}
+              </span>
+            </div>
           </div>
 
           {/* Search Box */}
@@ -1823,11 +1683,11 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
             background: '#f8fafc',
             border: '1px solid #e2e8f0',
             borderRadius: '8px',
-            padding: '5px 10px',
-            width: '190px'
+            padding: '6px 12px',
+            width: '210px'
           }}>
-            <Search size={13} color="#94a3b8" />
-            <input 
+            <Search size={14} color="#94a3b8" />
+            <input
               type="text"
               placeholder="Search table..."
               value={searchQuery}
@@ -1840,52 +1700,162 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               </button>
             )}
             {isRefreshing && (
-              <span style={{ fontSize: '11px', color: '#0f172a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />
-              </span>
+              <RefreshCw size={12} color="#2563eb" style={{ animation: 'spin 1s linear infinite' }} />
             )}
           </div>
         </div>
 
-        {/* Right: Table Count + Action Buttons in ONE LINE */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            background: '#f1f5f9',
-            padding: '5px 12px',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            color: '#475569'
-          }}>
-            Total Tables: <strong style={{ color: '#0f172a' }}>{tables.length}</strong>
+        {/* Right: Simplified 4 Clear Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+          {/* 1. Export / Print Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowExportMenu(prev => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#334155',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+              }}
+              title="Print & Export Options"
+            >
+              <Printer size={14} color="#475569" />
+              <span>Export</span>
+              <ChevronDown size={13} color="#94a3b8" style={{ transform: showExportMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+            </button>
+
+            {showExportMenu && (
+              <>
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 998 }}
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    width: '240px',
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 12px 30px -4px rgba(15,23,42,0.18), 0 4px 6px -2px rgba(15,23,42,0.05)',
+                    padding: '6px',
+                    zIndex: 999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      printCustomizedStands(filteredTables, standeeConfig);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Printer size={15} color="#4f46e5" />
+                    <div>
+                      <div style={{ color: '#0f172a', fontWeight: 800 }}>Print Standees (PDF)</div>
+                      <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 500 }}>Print ready • 4 per A4 page</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      downloadAllStandees();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Download size={15} color="#0284c7" />
+                    <div>
+                      <div style={{ color: '#0f172a', fontWeight: 800 }}>Download All Standees</div>
+                      <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 500 }}>High-Res PNG (1200×1800)</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      downloadAllQRs();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <QrCode size={15} color="#059669" />
+                    <div>
+                      <div style={{ color: '#0f172a', fontWeight: 800 }}>Download QRs Only</div>
+                      <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 500 }}>Clean pure QR codes (1000×1000)</div>
+                    </div>
+                  </button>
+
+                  </div>
+              </>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <button
-            type="button"
-            onClick={() => setShowPrintChoiceModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 11px',
-              borderRadius: '8px',
-              border: '1px solid #c7d2fe',
-              background: '#eef2ff',
-              color: '#4338ca',
-              fontSize: '11.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            title="Print Table QR Codes (Direct QR Sheet or Customized Standees)"
-          >
-            <Printer size={13} /> Print Stands (PDF)
-          </button>
+          {/* 2. Standee Studio Button */}
           <button
             type="button"
             onClick={() => {
@@ -1895,84 +1865,25 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '6px 11px',
+              gap: 6,
+              padding: '7px 13px',
               borderRadius: '8px',
-              border: '1px solid #fed7aa',
+              border: '1px solid #aad0feff',
               background: '#fff7ed',
-              color: '#c2410c',
-              fontSize: '11.5px',
+              color: '#0c55c2ff',
+              fontSize: '12px',
               fontWeight: 700,
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
+              transition: 'all 0.15s ease',
+              boxShadow: '0 1px 2px rgba(194, 65, 12, 0.05)'
             }}
-            title="Open Standee Customizer Studio to customize Company Logo, Colors, Instructions & Layout"
+            title="Open Standee Studio to choose templates & customize"
           >
-            <Palette size={13} /> Customize Standee
+            <Palette size={14} color="#0c5aeaff" />
+            <span>Standee Studio</span>
           </button>
-          <button
-            type="button"
-            onClick={downloadAllStandees}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 11px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            title="Download All Table Standee Cards (1200x1600 HD PNG)"
-          >
-            <Printer size={13} /> Standees (PNG)
-          </button>
-          <button
-            type="button"
-            onClick={downloadAllQRs}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 11px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            title="Download All Pure QR Codes (1000x1000 HD PNG)"
-          >
-            <Download size={13} /> QRs Only
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenBatchModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 11px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            title="Batch Add Tables"
-          >
-            <Layers size={13} /> Quick Batch
-          </button>
+
+          {/* 3. Add Category Button */}
           <button
             type="button"
             onClick={() => {
@@ -1983,45 +1894,141 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              padding: '6px 13px',
+              padding: '7px 12px',
               borderRadius: '8px',
-              border: '1.5px dashed #4f46e5',
-              background: '#eef2ff',
-              color: '#4338ca',
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              color: '#334155',
               fontSize: '12px',
               fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.15s ease'
             }}
-            title="Create new category or section"
+            title="Create new category or section (e.g. Terrace, Outdoor)"
           >
-            <Plus size={14} /> Add Category
+            <Plus size={14} />
+            <span>Category</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 13px',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#2563eb',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Plus size={14} /> Add Table
-          </button>
+
+          {/* 4. Add Table Dropdown (Add One by One, Add in Batch) */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowAddMenu(prev => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '7px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#2563eb',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
+                transition: 'all 0.15s ease'
+              }}
+              title="Add tables"
+            >
+              <Plus size={15} />
+              <span>Add Table</span>
+              <ChevronDown size={13} style={{ transform: showAddMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+            </button>
+
+            {showAddMenu && (
+              <>
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 998 }}
+                  onClick={() => setShowAddMenu(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    width: '210px',
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 12px 30px -4px rgba(15,23,42,0.18), 0 4px 6px -2px rgba(15,23,42,0.05)',
+                    padding: '6px',
+                    zIndex: 999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddMenu(false);
+                      setShowAddModal(true);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f0f9ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Plus size={15} color="#2563eb" />
+                    <div>
+                      <div style={{ color: '#0f172a', fontWeight: 800 }}>Add One by One</div>
+                      <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 500 }}>Create single table</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddMenu(false);
+                      handleOpenBatchModal();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#eef2ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Layers size={15} color="#4f46e5" />
+                    <div>
+                      <div style={{ color: '#0f172a', fontWeight: 800 }}>Add in Batch</div>
+                      <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 500 }}>Create multiple tables at once</div>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-<style>{`
+      <style>{`
         .table-qr-grid-5 {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2184,347 +2191,338 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                 ) : (
                   <div className="table-qr-grid-5">
                     {secTables.map((table) => {
-            const qrUrl = getTableQRUrl(table.tableNumber);
-            const isOccupied = isTableOccupied(table);
-            const activeOrder = getTableActiveOrder(table);
+                      const qrUrl = getTableQRUrl(table.tableNumber);
+                      const isOccupied = isTableOccupied(table);
+                      const activeOrder = getTableActiveOrder(table);
 
-            return (
-              <motion.div
-                key={table._id || table.tableNumber}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                style={{
-                  background: '#ffffff',
-                  borderRadius: '16px',
-                  border: '1px solid #e2e8f0',
-                  padding: '1rem 0.85rem',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px -2px rgba(15, 23, 42, 0.03)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  position: 'relative'
-                }}
-              >
-                {/* 1. Header with Table Badge, Section Tag, Edit & Delete Buttons */}
-                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <div style={{
-                      background: '#f8fafc',
-                      color: '#0f172a',
-                      border: '1px solid #e2e8f0',
-                      padding: '3px 8px',
-                      borderRadius: '8px',
-                      fontWeight: 800,
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                    }}>
-                      {formatTableName(table.tableNumber)}
-                    </div>
-                    {table.section && table.section !== 'Main Hall' && (
-                      <span style={{
-                        fontSize: '9.5px',
-                        fontWeight: 700,
-                        color: '#4f46e5',
-                        background: '#eef2ff',
-                        padding: '2px 6px',
-                        borderRadius: '100px',
-                        border: '1px solid #c7d2fe'
-                      }}>
-                        {table.section}
-                      </span>
-                    )}
-                  </div>
+                      return (
+                        <motion.div
+                          key={table._id || table.tableNumber}
+                          layout
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          style={{
+                            background: '#ffffff',
+                            borderRadius: '16px',
+                            border: '1px solid #e2e8f0',
+                            padding: '1rem 0.85rem',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px -2px rgba(15, 23, 42, 0.03)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            position: 'relative'
+                          }}
+                        >
+                          {/* 1. Header with Table Badge, Edit & Delete Buttons (Zero Wrap Guarantee) */}
+                          <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '30px', marginBottom: '8px' }}>
+                            <div style={{ minWidth: 0, flex: 1, marginRight: 6, display: 'flex', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  background: '#f8fafc',
+                                  color: '#0f172a',
+                                  border: '1px solid #e2e8f0',
+                                  padding: '3px 8px',
+                                  borderRadius: '8px',
+                                  fontWeight: 800,
+                                  fontSize: '12px',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  maxWidth: '100%',
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                  display: 'inline-block'
+                                }}
+                                title={formatTableName(table.tableNumber)}
+                              >
+                                {formatTableName(table.tableNumber)}
+                              </div>
+                            </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditModal(table)}
-                      title="Edit Table Name / Seating Capacity"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '7px',
-                        border: '1px solid #e2e8f0',
-                        background: '#f8fafc',
-                        color: '#475569',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <Edit3 size={13} />
-                    </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                              <button
+                                onClick={() => handleOpenEditModal(table)}
+                                title="Edit Table Name / Seating Capacity"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '7px',
+                                  border: '1px solid #e2e8f0',
+                                  background: '#f8fafc',
+                                  color: '#475569',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <Edit3 size={13} />
+                              </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setTableToDelete(table)}
-                      title="Delete Table"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '7px',
-                        border: '1px solid #fee2e2',
-                        background: '#fff1f2',
-                        color: '#e11d48',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
+                              <button
+                                type="button"
+                                onClick={() => setTableToDelete(table)}
+                                title="Delete Table"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '7px',
+                                  border: '1px solid #fee2e2',
+                                  background: '#fff1f2',
+                                  color: '#e11d48',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
 
-                {/* 2. QR Code Canvas Frame (Full-Sized in Section, Clickable for Preview) */}
-                <div
-                  onClick={() => setPreviewTable(table)}
-                  title="Click to preview full-screen QR & print options"
-                  style={{
-                    width: '100%',
-                    background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
-                    padding: '8px',
-                    borderRadius: '12px',
-                    border: '1px solid #f1f5f9',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxSizing: 'border-box'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#f1f5f9';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={{
-                    background: '#ffffff',
-                    padding: '8px',
-                    borderRadius: '10px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #e2e8f0',
-                    width: '100%',
-                    maxWidth: '165px',
-                    aspectRatio: '1 / 1',
-                    boxSizing: 'border-box'
-                  }}>
-                    <QRCodeCanvas
-                      id={`qr-canvas-${table.tableNumber}`}
-                      value={qrUrl}
-                      size={800}
-                      style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
-                      fgColor="#0f172a"
-                      bgColor="#ffffff"
-                      level="H"
-                      includeMargin={false}
-                    />
-                  </div>
-                </div>
+                          {/* 2. QR Code Canvas Frame (Full-Sized in Section, Clickable for Preview) */}
+                          <div
+                            onClick={() => setPreviewTable(table)}
+                            title="Click to preview full-screen QR & print options"
+                            style={{
+                              width: '100%',
+                              background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
+                              padding: '8px',
+                              borderRadius: '12px',
+                              border: '1px solid #f1f5f9',
+                              marginBottom: '8px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              boxSizing: 'border-box'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#cbd5e1';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = '#f1f5f9';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div style={{
+                              background: '#ffffff',
+                              padding: '8px',
+                              borderRadius: '10px',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '1px solid #e2e8f0',
+                              width: '100%',
+                              maxWidth: '165px',
+                              aspectRatio: '1 / 1',
+                              boxSizing: 'border-box'
+                            }}>
+                              <QRCodeCanvas
+                                id={`qr-canvas-${table.tableNumber}`}
+                                value={qrUrl}
+                                size={800}
+                                style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
+                                fgColor="#0f172a"
+                                bgColor="#ffffff"
+                                level="H"
+                                includeMargin={false}
+                              />
+                            </div>
+                          </div>
 
-                {/* 3. Seating Capacity Stepper Row */}
-                <div style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '6px 10px',
-                  background: '#f8fafc',
-                  borderRadius: '10px',
-                  border: '1px solid #e2e8f0',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '11.5px', fontWeight: 600, color: '#334155' }}>
-                    <Users size={13} color="#64748b" />
-                    <span>{table.seatingCapacity || 4} Guests</span>
-                  </div>
+                          {/* 3. Seating Capacity Stepper Row */}
+                          <div style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            background: '#f8fafc',
+                            borderRadius: '10px',
+                            border: '1px solid #e2e8f0',
+                            marginBottom: '12px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '11.5px', fontWeight: 600, color: '#334155' }}>
+                              <Users size={13} color="#64748b" />
+                              <span>{table.seatingCapacity || 4} Guests</span>
+                            </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateCapacity(table, Math.max(1, (table.seatingCapacity || 4) - 1))}
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        borderRadius: '5px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        color: '#475569',
-                        cursor: 'pointer'
-                      }}
-                      title="Decrease seats"
-                    >
-                      -
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) + 1)}
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        borderRadius: '5px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        color: '#475569',
-                        cursor: 'pointer'
-                      }}
-                      title="Increase seats"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCapacity(table, Math.max(1, (table.seatingCapacity || 4) - 1))}
+                                style={{
+                                  width: '22px',
+                                  height: '22px',
+                                  borderRadius: '5px',
+                                  border: '1px solid #cbd5e1',
+                                  background: '#ffffff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: '#475569',
+                                  cursor: 'pointer'
+                                }}
+                                title="Decrease seats"
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCapacity(table, (table.seatingCapacity || 4) + 1)}
+                                style={{
+                                  width: '22px',
+                                  height: '22px',
+                                  borderRadius: '5px',
+                                  border: '1px solid #cbd5e1',
+                                  background: '#ffffff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: '#475569',
+                                  cursor: 'pointer'
+                                }}
+                                title="Increase seats"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
 
-                {/* 4. Actions Footer: Download Dropdown Only (View Removed) */}
-                <div className="download-dropdown-wrap" style={{ position: 'relative', width: '100%', marginTop: 'auto' }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenDownloadDropdownId(openDownloadDropdownId === (table._id || table.tableNumber) ? null : (table._id || table.tableNumber));
-                    }}
-                    title="Download Table QR Code or Standee Card"
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      background: '#ffffff',
-                      color: '#0f172a',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Download size={13} color="#2563eb" />
-                    <span>Download</span>
-                    <ChevronDown size={12} color="#64748b" style={{ marginLeft: 2 }} />
-                  </button>
+                          {/* 4. Actions Footer: Download Dropdown Only (View Removed) */}
+                          <div className="download-dropdown-wrap" style={{ position: 'relative', width: '100%', marginTop: 'auto' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDownloadDropdownId(openDownloadDropdownId === (table._id || table.tableNumber) ? null : (table._id || table.tableNumber));
+                              }}
+                              title="Download Table QR Code or Standee Card"
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                                padding: '7px 10px',
+                                borderRadius: '8px',
+                                border: '1px solid #cbd5e1',
+                                background: '#ffffff',
+                                color: '#0f172a',
+                                fontSize: '11.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <Download size={13} color="#2563eb" />
+                              <span>Download</span>
+                              <ChevronDown size={12} color="#64748b" style={{ marginLeft: 2 }} />
+                            </button>
 
-                  {openDownloadDropdownId === (table._id || table.tableNumber) && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: 'absolute',
-                        bottom: '100%',
-                        left: 0,
-                        right: 0,
-                        marginBottom: '6px',
-                        background: '#ffffff',
-                        borderRadius: '10px',
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.2), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
-                        padding: '5px',
-                        zIndex: 90,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 3
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          downloadTableQROnly(table.tableNumber);
-                          setOpenDownloadDropdownId(null);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '7px 10px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: '#0f172a',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          width: '100%',
-                          transition: 'background 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f0f9ff'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <QrCode size={14} color="#0284c7" />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ color: '#0284c7', fontWeight: 800 }}>Pure QR Code</span>
-                          <span style={{ fontSize: '9.5px', fontWeight: 600, color: '#64748b' }}>PNG (1000×1000 HD)</span>
-                        </div>
-                      </button>
+                            {openDownloadDropdownId === (table._id || table.tableNumber) && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  position: 'absolute',
+                                  bottom: '100%',
+                                  left: 0,
+                                  right: 0,
+                                  marginBottom: '6px',
+                                  background: '#ffffff',
+                                  borderRadius: '10px',
+                                  border: '1px solid #e2e8f0',
+                                  boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.2), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
+                                  padding: '5px',
+                                  zIndex: 90,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 3
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    downloadTableQROnly(table.tableNumber);
+                                    setOpenDownloadDropdownId(null);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    padding: '7px 10px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: '#0f172a',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                    transition: 'background 0.15s ease'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f0f9ff'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <QrCode size={14} color="#0284c7" />
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: '#0284c7', fontWeight: 800 }}>Pure QR Code</span>
+                                    <span style={{ fontSize: '9.5px', fontWeight: 600, color: '#64748b' }}>PNG (1000×1000 HD)</span>
+                                  </div>
+                                </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          downloadTableStandee(table, standeeConfig);
-                          setOpenDownloadDropdownId(null);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '7px 10px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: '#0f172a',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          width: '100%',
-                          transition: 'background 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f5f3ff'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <Palette size={14} color="#6366f1" />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ color: '#4338ca', fontWeight: 800 }}>Standee Card</span>
-                          <span style={{ fontSize: '9.5px', fontWeight: 600, color: '#64748b' }}>Print-Ready 300 DPI</span>
-                        </div>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    downloadTableStandee(table, standeeConfig);
+                                    setOpenDownloadDropdownId(null);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    padding: '7px 10px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: '#0f172a',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                    transition: 'background 0.15s ease'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f5f3ff'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <Palette size={14} color="#6366f1" />
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: '#4338ca', fontWeight: 800 }}>Standee Card</span>
+                                    <span style={{ fontSize: '9.5px', fontWeight: 600, color: '#64748b' }}>Print-Ready 300 DPI</span>
+                                  </div>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -3176,7 +3174,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       }}
                     >
                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
-                        Table {item.tableNumber}
+                        {formatTableBadge(item.tableNumber)}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <input
@@ -3287,9 +3285,9 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               </div>
 
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
-                Delete Table {tableToDelete.tableNumber}?
+                Delete {formatTableBadge(tableToDelete.tableNumber)}?
               </h3>
-              
+
               <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 1.75rem 0', lineHeight: 1.5 }}>
                 Guests will no longer be able to scan this QR code or place digital dine-in orders. This action cannot be undone.
               </p>
@@ -3393,7 +3391,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               </button>
 
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '6px 14px', borderRadius: '100px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>Table {previewTable.tableNumber}</span>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>{formatTableBadge(previewTable.tableNumber)}</span>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>• {previewTable.seatingCapacity || 4} Guests</span>
               </div>
 
@@ -3784,9 +3782,9 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                     gap: 6,
                     padding: '8px 14px',
                     borderRadius: '8px',
-                    border: '1px solid #fed7aa',
-                    background: '#fff7ed',
-                    color: '#c2410c',
+                    border: '1px solid #b1c7ffff',
+                    background: '#bfe6ffff',
+                    color: '#fffbfbff',
                     fontSize: '12.5px',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -3819,52 +3817,48 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               overflow: 'hidden'
             }}
           >
-            {/* STUDIO TOP HEADER BAR */}
+            {/* STUDIO TOP HEADER BAR (Compact, Modern & Sleek) */}
             <div style={{
-              height: '60px',
-              padding: '0 20px',
+              height: '46px',
+              padding: '0 14px',
               background: '#0f172a',
               borderBottom: '1px solid #1e293b',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexShrink: 0,
-              zIndex: 10
+              zIndex: 10,
+              boxSizing: 'border-box'
             }}>
-              {/* Left Branding */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* Left Branding (Compact) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
                   background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                   color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
+                  boxShadow: '0 2px 6px rgba(79, 70, 229, 0.3)'
                 }}>
-                  <Sliders size={20} />
+                  <Sliders size={14} />
                 </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em' }}>
-                      Table Standee & Template Studio
-                    </h2>
-                    <span style={{ fontSize: '10px', fontWeight: 800, background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '2px 8px', borderRadius: '100px' }}>
-                      FULL-SCREEN DESIGNER
-                    </span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8' }}>
-                    Complete layout templates, brand colors, Wi-Fi info & print-ready standees
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+                    Standee Studio
+                  </span>
+                  <span style={{ fontSize: '8.5px', fontWeight: 800, background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '1px 5px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                    DESIGNER
+                  </span>
                 </div>
               </div>
 
               {/* Center Controls: Preview Table Selector & Zoom */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e293b', padding: '4px 10px', borderRadius: '8px', border: '1px solid #334155' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>Preview:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1e293b', padding: '2px 8px', borderRadius: '6px', border: '1px solid #334155', height: '28px', boxSizing: 'border-box' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#94a3b8' }}>Preview:</span>
                   <select
                     value={editorPreviewTable?.tableNumber || filteredTables[0]?.tableNumber || tables[0]?.tableNumber || '1'}
                     onChange={(e) => {
@@ -3875,7 +3869,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       background: 'transparent',
                       border: 'none',
                       color: '#ffffff',
-                      fontSize: '12px',
+                      fontSize: '11px',
                       fontWeight: 800,
                       outline: 'none',
                       cursor: 'pointer'
@@ -3883,38 +3877,46 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   >
                     {(filteredTables.length > 0 ? filteredTables : tables).map(t => (
                       <option key={t._id || t.tableNumber} value={t.tableNumber} style={{ background: '#0f172a', color: '#ffffff' }}>
-                        Table {t.tableNumber} ({t.seatingCapacity || 4} Guests)
+                        {formatTableBadge(t.tableNumber)} ({t.seatingCapacity || 4} Guests)
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* Zoom Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1e293b', padding: '3px 6px', borderRadius: '8px', border: '1px solid #334155' }}>
+                {/* Zoom Controls (Compact) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#1e293b', padding: '2px 4px', borderRadius: '6px', border: '1px solid #334155', height: '28px', boxSizing: 'border-box' }}>
                   <button
                     type="button"
-                    onClick={() => setPreviewZoom(z => Math.max(0.7, Number((z - 0.1).toFixed(1))))}
-                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4, display: 'flex' }}
+                    onClick={() => setPreviewZoom(z => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
+                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
                     title="Zoom Out"
                   >
-                    <ZoomOut size={14} />
+                    <ZoomOut size={12} />
                   </button>
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#f8fafc', minWidth: '36px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#f8fafc', minWidth: '32px', textAlign: 'center' }}>
                     {Math.round(previewZoom * 100)}%
                   </span>
                   <button
                     type="button"
                     onClick={() => setPreviewZoom(z => Math.min(1.4, Number((z + 0.1).toFixed(1))))}
-                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4, display: 'flex' }}
+                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
                     title="Zoom In"
                   >
-                    <ZoomIn size={14} />
+                    <ZoomIn size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoom(1)}
+                    style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px 4px', fontSize: '9px', fontWeight: 700 }}
+                    title="Reset Zoom to 100%"
+                  >
+                    1:1
                   </button>
                 </div>
               </div>
 
-              {/* Right Action Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Right Action Buttons (Compact & Sleek) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -3925,19 +3927,20 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
-                    padding: '7px 12px',
-                    borderRadius: '8px',
+                    gap: 4,
+                    padding: '0 8px',
+                    height: '28px',
+                    borderRadius: '6px',
                     border: '1px solid #334155',
                     background: '#1e293b',
                     color: '#94a3b8',
-                    fontSize: '11.5px',
+                    fontSize: '11px',
                     fontWeight: 700,
                     cursor: 'pointer'
                   }}
                   title="Reset to Factory Defaults"
                 >
-                  <RotateCcw size={12} /> Reset
+                  <RotateCcw size={11} /> Reset
                 </button>
 
                 <button
@@ -3946,19 +3949,20 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
-                    padding: '7px 14px',
-                    borderRadius: '8px',
+                    gap: 4,
+                    padding: '0 10px',
+                    height: '28px',
+                    borderRadius: '6px',
                     border: 'none',
                     background: '#059669',
                     color: '#ffffff',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 800,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
+                    boxShadow: '0 1px 4px rgba(5, 150, 105, 0.3)'
                   }}
                 >
-                  <Check size={14} /> Save Design
+                  <Check size={12} /> Save
                 </button>
 
                 <button
@@ -3970,19 +3974,20 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
-                    padding: '7px 14px',
-                    borderRadius: '8px',
+                    gap: 4,
+                    padding: '0 10px',
+                    height: '28px',
+                    borderRadius: '6px',
                     border: 'none',
                     background: '#2563eb',
                     color: '#ffffff',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 800,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+                    boxShadow: '0 1px 4px rgba(37, 99, 235, 0.3)'
                   }}
                 >
-                  <Download size={14} /> Download Standee
+                  <Download size={12} /> Download
                 </button>
 
                 <button
@@ -3991,30 +3996,31 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
-                    padding: '7px 15px',
-                    borderRadius: '8px',
+                    gap: 4,
+                    padding: '0 11px',
+                    height: '28px',
+                    borderRadius: '6px',
                     border: 'none',
                     background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                     color: '#ffffff',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 800,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
+                    boxShadow: '0 1px 4px rgba(79, 70, 229, 0.3)'
                   }}
                 >
-                  <Printer size={14} /> Print PDF
+                  <Printer size={12} /> Print PDF
                 </button>
 
-                <div style={{ width: '1px', height: '24px', background: '#334155', margin: '0 4px' }} />
+                <div style={{ width: '1px', height: '18px', background: '#334155', margin: '0 2px' }} />
 
                 <button
                   type="button"
                   onClick={() => setShowStandeeEditorModal(false)}
                   style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '8px',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '6px',
                     border: '1px solid #334155',
                     background: '#1e293b',
                     color: '#cbd5e1',
@@ -4025,7 +4031,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   }}
                   title="Close Studio (Esc)"
                 >
-                  <X size={18} />
+                  <X size={15} />
                 </button>
               </div>
             </div>
@@ -4037,11 +4043,11 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
               minHeight: 0,
               overflow: 'hidden'
             }}>
-              {/* LEFT STUDIO SIDEBAR */}
+              {/* LEFT STUDIO SIDEBAR - SIMPLE TEMPLATE SELECTOR ONLY */}
               <div style={{
-                width: '460px',
-                minWidth: '420px',
-                maxWidth: '500px',
+                width: '290px',
+                minWidth: '270px',
+                maxWidth: '310px',
                 background: '#ffffff',
                 borderRight: '1px solid #1e293b',
                 display: 'flex',
@@ -4049,703 +4055,99 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                 height: '100%',
                 overflow: 'hidden'
               }}>
-                {/* 6 Studio Navigation Tabs */}
+                {/* Clean Header */}
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(6, 1fr)',
+                  padding: '12px 14px',
                   background: '#f8fafc',
                   borderBottom: '1px solid #e2e8f0',
-                  padding: '6px',
-                  gap: 4
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexShrink: 0
                 }}>
-                  {[
-                    { id: 'templates', label: 'Templates', icon: Layers },
-                    { id: 'branding', label: 'Brand', icon: ImageIcon },
-                    { id: 'theme', label: 'Colors', icon: Palette },
-                    { id: 'layout', label: 'Badge', icon: Sliders },
-                    { id: 'instructions', label: 'Steps', icon: FileText },
-                    { id: 'footer', label: 'Footer', icon: CheckCircle2 }
-                  ].map(tab => {
-                    const Icon = tab.icon;
-                    const isActive = editorActiveTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setEditorActiveTab(tab.id)}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 3,
-                          padding: '6px 2px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: isActive ? '#0f172a' : 'transparent',
-                          color: isActive ? '#ffffff' : '#64748b',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <Icon size={14} color={isActive ? '#ffffff' : '#64748b'} />
-                        <span style={{ fontSize: '10px', fontWeight: isActive ? 800 : 700 }}>
-                          {tab.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <Layers size={14} color="#0f172a" />
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                      Select Template
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '8.5px', fontWeight: 800, color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '1.5px 6px', borderRadius: '100px' }}>
+                    5 Designs
+                  </span>
                 </div>
 
-                {/* Tab Forms Body */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
-                  {/* ============================================================== */}
-                  {/* TAB 0: TEMPLATES (Complete Ready-Made Layout Templates)       */}
-                  {/* ============================================================== */}
-                  {editorActiveTab === 'templates' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      <div>
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
-                          Select Standee Template (5 Curated Designs)
-                        </h4>
-                        <p style={{ margin: 0, fontSize: '11.5px', color: '#64748b' }}>
-                          Choose from real-world restaurant & cafe standee formats. Colors and texts adapt instantly.
-                        </p>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {STAND_TEMPLATES.map(tpl => {
-                          const currentTplId = standeeConfig.templateId || 'food-acrylic';
-                          const isSelected = currentTplId === tpl.id || (currentTplId === 'acrylic' && tpl.id === 'food-acrylic');
-                          return (
-                            <div
-                              key={tpl.id}
-                              onClick={() => {
-                                setStandeeConfig(prev => ({
-                                  ...prev,
-                                  templateId: tpl.id,
-                                  bgStyle: tpl.bgStyle,
-                                  cardBorder: tpl.cardBorder,
-                                  cornerRadius: tpl.cornerRadius,
-                                  primaryColor: tpl.primaryColor,
-                                  accentColor: tpl.accentColor,
-                                  ctaTitle: tpl.ctaTitle
-                                }));
-                                toast.success(`Switched to "${tpl.name}"`);
-                              }}
-                              style={{
-                                padding: '12px',
-                                borderRadius: '12px',
-                                border: isSelected ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
-                                background: isSelected ? '#eff6ff' : '#ffffff',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 12
-                              }}
-                            >
-                              <div style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                border: `2px solid ${tpl.primaryColor}`,
-                                flexShrink: 0
-                              }}>
-                                <img
-                                  src={tpl.previewImg}
-                                  alt={tpl.name}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                              </div>
-
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                                  <span style={{ fontSize: '12.5px', fontWeight: 800, color: isSelected ? '#1d4ed8' : '#0f172a' }}>
-                                    {tpl.name}
-                                  </span>
-                                  <span style={{
-                                    fontSize: '9px',
-                                    fontWeight: 800,
-                                    padding: '2px 6px',
-                                    borderRadius: '100px',
-                                    background: isSelected ? '#2563eb' : '#f1f5f9',
-                                    color: isSelected ? '#ffffff' : '#64748b'
-                                  }}>
-                                    {tpl.tag}
-                                  </span>
-                                </div>
-                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {tpl.desc}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {editorActiveTab === 'branding' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                          Restaurant / Brand Name *
-                        </label>
-                        <input
-                          type="text"
-                          value={standeeConfig.restaurantName}
-                          onChange={(e) => setStandeeConfig(prev => ({ ...prev, restaurantName: e.target.value }))}
-                          placeholder="e.g. The Landmark"
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                          Tagline / Subtitle
-                        </label>
-                        <input
-                          type="text"
-                          value={standeeConfig.tagline}
-                          onChange={(e) => setStandeeConfig(prev => ({ ...prev, tagline: e.target.value }))}
-                          placeholder="e.g. SMART CONTACTLESS DINING"
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '13px',
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-
-                      {/* Logo Switcher & URL */}
-                      <div style={{ padding: '14px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <label style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                            Show Brand Logo
-                          </label>
-                          <input
-                            type="checkbox"
-                            checked={standeeConfig.showLogo}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, showLogo: e.target.checked }))}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                {/* Direct 5 Templates List */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {STAND_TEMPLATES.map(tpl => {
+                    const currentTplId = standeeConfig.templateId || 'food-acrylic';
+                    const isSelected = currentTplId === tpl.id || (currentTplId === 'acrylic' && tpl.id === 'food-acrylic');
+                    return (
+                      <div
+                        key={tpl.id}
+                        onClick={() => {
+                          setStandeeConfig(prev => ({
+                            ...prev,
+                            templateId: tpl.id,
+                            bgStyle: tpl.bgStyle,
+                            cardBorder: tpl.cardBorder,
+                            cornerRadius: tpl.cornerRadius,
+                            primaryColor: tpl.primaryColor,
+                            accentColor: tpl.accentColor,
+                            ctaTitle: tpl.ctaTitle
+                          }));
+                          toast.success(`Selected "${tpl.name}"`);
+                        }}
+                        style={{
+                          padding: '9px 10px',
+                          borderRadius: '8px',
+                          border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                          background: isSelected ? '#eff6ff' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 9,
+                          boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none'
+                        }}
+                      >
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '7px',
+                          overflow: 'hidden',
+                          border: `2px solid ${tpl.primaryColor}`,
+                          flexShrink: 0
+                        }}>
+                          <img
+                            src={tpl.previewImg}
+                            alt={tpl.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                         </div>
 
-                        {standeeConfig.showLogo && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                                Logo Image URL
-                              </label>
-                              <input
-                                type="url"
-                                value={standeeConfig.logoUrl}
-                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, logoUrl: e.target.value }))}
-                                placeholder="https://..."
-                                style={{
-                                  width: '100%',
-                                  padding: '8px 10px',
-                                  borderRadius: '6px',
-                                  border: '1px solid #cbd5e1',
-                                  fontSize: '12px',
-                                  outline: 'none',
-                                  background: '#ffffff',
-                                  boxSizing: 'border-box'
-                                }}
-                              />
-                            </div>
-
-                            {restaurantLogo && restaurantLogo !== standeeConfig.logoUrl && (
-                              <button
-                                type="button"
-                                onClick={() => setStandeeConfig(prev => ({ ...prev, logoUrl: restaurantLogo }))}
-                                style={{
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  border: '1px dashed #2563eb',
-                                  background: '#eff6ff',
-                                  color: '#1d4ed8',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 4
-                                }}
-                              >
-                                <Sparkles size={12} /> Use Cafe Profile Logo
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ============================================================== */}
-                  {/* TAB 2: COLORS, THEME & BACKGROUND                             */}
-                  {/* ============================================================== */}
-                  {editorActiveTab === 'theme' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                      {/* Theme Palettes */}
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
-                          Brand Color Presets
-                        </label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                          {THEME_PRESETS.map(preset => {
-                            const isSelected = standeeConfig.primaryColor === preset.primary && standeeConfig.accentColor === preset.accent;
-                            return (
-                              <button
-                                key={preset.id}
-                                type="button"
-                                onClick={() => setStandeeConfig(prev => ({
-                                  ...prev,
-                                  primaryColor: preset.primary,
-                                  accentColor: preset.accent
-                                }))}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 8,
-                                  padding: '8px 10px',
-                                  borderRadius: '8px',
-                                  border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                                  background: isSelected ? '#eff6ff' : '#ffffff',
-                                  cursor: 'pointer',
-                                  textAlign: 'left'
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                  <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: preset.primary }} />
-                                  <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: preset.accent }} />
-                                </div>
-                                <span style={{ fontSize: '11.5px', fontWeight: isSelected ? 800 : 700, color: '#0f172a' }}>
-                                  {preset.name}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Custom Colors */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                            Primary Color
-                          </label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <input
-                              type="color"
-                              value={standeeConfig.primaryColor || '#0f172a'}
-                              onChange={(e) => setStandeeConfig(prev => ({ ...prev, primaryColor: e.target.value }))}
-                              style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid #cbd5e1', cursor: 'pointer', padding: 0 }}
-                            />
-                            <input
-                              type="text"
-                              value={standeeConfig.primaryColor}
-                              onChange={(e) => setStandeeConfig(prev => ({ ...prev, primaryColor: e.target.value }))}
-                              style={{ flex: 1, padding: '7px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700 }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                            Accent Highlight
-                          </label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <input
-                              type="color"
-                              value={standeeConfig.accentColor || '#4f46e5'}
-                              onChange={(e) => setStandeeConfig(prev => ({ ...prev, accentColor: e.target.value }))}
-                              style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid #cbd5e1', cursor: 'pointer', padding: 0 }}
-                            />
-                            <input
-                              type="text"
-                              value={standeeConfig.accentColor}
-                              onChange={(e) => setStandeeConfig(prev => ({ ...prev, accentColor: e.target.value }))}
-                              style={{ flex: 1, padding: '7px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700 }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Standee Background Style */}
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
-                          Standee Background Tone
-                        </label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                          {[
-                            { id: 'white', label: 'Pure White', bg: '#ffffff', border: '#e2e8f0' },
-                            { id: 'cream', label: 'Warm Cream', bg: '#fffdf5', border: '#fef08a' },
-                            { id: 'dark', label: 'Midnight Dark', bg: '#0f172a', border: '#334155', textLight: true }
-                          ].map(bg => {
-                            const isSel = (standeeConfig.bgStyle || 'white') === bg.id;
-                            return (
-                              <button
-                                key={bg.id}
-                                type="button"
-                                onClick={() => setStandeeConfig(prev => ({ ...prev, bgStyle: bg.id }))}
-                                style={{
-                                  padding: '10px 8px',
-                                  borderRadius: '8px',
-                                  border: isSel ? '2px solid #2563eb' : `1px solid ${bg.border}`,
-                                  background: bg.bg,
-                                  color: bg.textLight ? '#ffffff' : '#0f172a',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
-                                  cursor: 'pointer',
-                                  textAlign: 'center'
-                                }}
-                              >
-                                {bg.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Card Border & Corners */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                            Border Style
-                          </label>
-                          <select
-                            value={standeeConfig.cardBorder || 'double'}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, cardBorder: e.target.value }))}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700 }}
-                          >
-                            <option value="double">Double Framed</option>
-                            <option value="solid">Solid Bold</option>
-                            <option value="thin">Thin Minimal</option>
-                            <option value="gold">Gold Luxury</option>
-                            <option value="none">Borderless</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                            Corner Radius
-                          </label>
-                          <select
-                            value={standeeConfig.cornerRadius || 'rounded'}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, cornerRadius: e.target.value }))}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700 }}
-                          >
-                            <option value="rounded">Smooth (20px)</option>
-                            <option value="pill">Pill Shape (32px)</option>
-                            <option value="sharp">Sharp (8px)</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ============================================================== */}
-                  {/* TAB 3: TABLE BADGE & QR LAYOUT                                */}
-                  {/* ============================================================== */}
-                  {editorActiveTab === 'layout' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                          Table Prefix
-                        </label>
-                        <input
-                          type="text"
-                          value={standeeConfig.tablePrefix || 'TABLE'}
-                          onChange={(e) => setStandeeConfig(prev => ({ ...prev, tablePrefix: e.target.value }))}
-                          placeholder="e.g. TABLE, NO., TBL, ZONE"
-                          style={{
-                            width: '100%',
-                            padding: '9px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-
-                      {/* Badge Shape Style */}
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
-                          Table Badge Style
-                        </label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                          {[
-                            { id: 'capsule', label: 'Capsule Pill' },
-                            { id: 'ribbon', label: 'Ribbon Banner' },
-                            { id: 'minimal', label: 'Minimalist Outline' },
-                            { id: 'large', label: 'Giant Number' }
-                          ].map(badge => {
-                            const isSel = (standeeConfig.badgeStyle || 'capsule') === badge.id;
-                            return (
-                              <button
-                                key={badge.id}
-                                type="button"
-                                onClick={() => setStandeeConfig(prev => ({ ...prev, badgeStyle: badge.id }))}
-                                style={{
-                                  padding: '8px 10px',
-                                  borderRadius: '8px',
-                                  border: isSel ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                                  background: isSel ? '#eff6ff' : '#ffffff',
-                                  color: isSel ? '#1d4ed8' : '#0f172a',
-                                  fontSize: '11.5px',
-                                  fontWeight: 800,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                {badge.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div>
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>Show Seating Capacity</div>
-                          <div style={{ fontSize: '11px', color: '#64748b' }}>Displays "👥 4 GUESTS CAPACITY" on standee</div>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={standeeConfig.showCapacity !== false}
-                          onChange={(e) => setStandeeConfig(prev => ({ ...prev, showCapacity: e.target.checked }))}
-                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ============================================================== */}
-                  {/* TAB 4: INSTRUCTIONS & CAFE WI-FI                               */}
-                  {/* ============================================================== */}
-                  {editorActiveTab === 'instructions' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      {/* Scan Steps Toggle */}
-                      <div style={{ padding: '14px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                          <div>
-                            <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>
-                              3-Step Scan Instructions
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: isSelected ? '#1d4ed8' : '#0f172a' }}>
+                              {tpl.name}
                             </span>
-                            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
-                              Guides guests to scan, choose items & order
-                            </p>
-                          </div>
-                          <input
-                            type="checkbox"
-                            checked={standeeConfig.showInstructions !== false}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, showInstructions: e.target.checked }))}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                        </div>
-
-                        {standeeConfig.showInstructions !== false && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                                Call to Action Headline
-                              </label>
-                              <input
-                                type="text"
-                                value={standeeConfig.ctaTitle}
-                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, ctaTitle: e.target.value }))}
-                                style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700, boxSizing: 'border-box' }}
-                              />
-                            </div>
-
-                            {/* Step 1 */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#2563eb', marginBottom: 2 }}>STEP 1 TITLE</label>
-                                <input
-                                  type="text"
-                                  value={standeeConfig.step1Title}
-                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step1Title: e.target.value }))}
-                                  style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: 2 }}>STEP 1 DESC</label>
-                                <input
-                                  type="text"
-                                  value={standeeConfig.step1Desc}
-                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step1Desc: e.target.value }))}
-                                  style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Step 2 */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#2563eb', marginBottom: 2 }}>STEP 2 TITLE</label>
-                                <input
-                                  type="text"
-                                  value={standeeConfig.step2Title}
-                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step2Title: e.target.value }))}
-                                  style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: 2 }}>STEP 2 DESC</label>
-                                <input
-                                  type="text"
-                                  value={standeeConfig.step2Desc}
-                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step2Desc: e.target.value }))}
-                                  style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Step 3 */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#2563eb', marginBottom: 2 }}>STEP 3 TITLE</label>
-                                <input
-                                  type="text"
-                                  value={standeeConfig.step3Title}
-                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step3Title: e.target.value }))}
-                                  style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: 2 }}>STEP 3 DESC</label>
-                                <input
-                                  type="text"
-                                  value={standeeConfig.step3Desc}
-                                  onChange={(e) => setStandeeConfig(prev => ({ ...prev, step3Desc: e.target.value }))}
-                                  style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Optional Cafe Wi-Fi Callout */}
-                      <div style={{ padding: '14px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <div>
-                            <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>
-                              Include Free Wi-Fi Callout
+                            <span style={{
+                              fontSize: '8px',
+                              fontWeight: 800,
+                              padding: '1px 5px',
+                              borderRadius: '100px',
+                              background: isSelected ? '#2563eb' : '#f1f5f9',
+                              color: isSelected ? '#ffffff' : '#64748b'
+                            }}>
+                              {tpl.tag}
                             </span>
-                            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
-                              Prints Wi-Fi network and password right on standee
-                            </p>
                           </div>
-                          <input
-                            type="checkbox"
-                            checked={standeeConfig.showWifi === true}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, showWifi: e.target.checked }))}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
+                          <p style={{ margin: 0, fontSize: '9.5px', color: '#64748b', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {tpl.desc}
+                          </p>
                         </div>
-
-                        {standeeConfig.showWifi && (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                                Wi-Fi Name (SSID)
-                              </label>
-                              <input
-                                type="text"
-                                value={standeeConfig.wifiSsid || ''}
-                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, wifiSsid: e.target.value }))}
-                                placeholder="e.g. Landmark_Guest"
-                                style={{ width: '100%', padding: '7px 9px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                                Wi-Fi Password
-                              </label>
-                              <input
-                                type="text"
-                                value={standeeConfig.wifiPass || ''}
-                                onChange={(e) => setStandeeConfig(prev => ({ ...prev, wifiPass: e.target.value }))}
-                                placeholder="e.g. welcome@123"
-                                style={{ width: '100%', padding: '7px 9px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  )}
-
-                  {/* ============================================================== */}
-                  {/* TAB 5: FOOTER & WATERMARK                                     */}
-                  {/* ============================================================== */}
-                  {editorActiveTab === 'footer' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                          Standee Footer Note
-                        </label>
-                        <input
-                          type="text"
-                          value={standeeConfig.footerNote}
-                          onChange={(e) => setStandeeConfig(prev => ({ ...prev, footerNote: e.target.value }))}
-                          placeholder="e.g. ⚡ Fast & Contactless Dining • No App Required"
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-
-                      <div style={{ padding: '14px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
-                            Show Powered By Watermark
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={standeeConfig.showWatermark !== false}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, showWatermark: e.target.checked }))}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                        </div>
-
-                        {standeeConfig.showWatermark !== false && (
-                          <input
-                            type="text"
-                            value={standeeConfig.poweredBy}
-                            onChange={(e) => setStandeeConfig(prev => ({ ...prev, poweredBy: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -4759,9 +4161,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '2rem',
-                overflow: 'auto',
-                position: 'relative'
+                padding: '1rem', overflow: 'auto', position: 'relative'
               }}>
                 {/* Scaled Preview Standee Card */}
                 {(() => {
@@ -4770,8 +4170,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   const primary = standeeConfig.primaryColor || '#15803d';
                   const accent = standeeConfig.accentColor || '#22c55e';
                   const brandName = standeeConfig.restaurantName || restaurantName || 'The Landmark';
-                  const prefix = standeeConfig.tablePrefix || 'TABLE';
-                  const tableText = `${prefix} ${prevT.tableNumber}`;
+                  const tableText = formatTableBadge(prevT.tableNumber);
 
                   return (
                     <div
@@ -4779,8 +4178,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                         transform: `scale(${previewZoom})`,
                         transformOrigin: 'center center',
                         transition: 'transform 0.15s ease',
-                        width: '320px',
-                        minHeight: '460px',
+                        width: '280px', minHeight: '420px', height: '420px',
                         boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.08)',
                         borderRadius: currentTplId === 'luxury-gold' ? '6px' : (currentTplId === 'gourmet-arch' ? '24px 24px 16px 16px' : '18px'),
                         overflow: 'hidden',
@@ -4791,12 +4189,12 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       }}
                     >
                       {/* ---------------------------------------------------- */}
-                      {/* TEMPLATE 1: FRESH FOOD ACRYLIC STAND                 */}
+                      {/* TEMPLATE 1: FRESH FOOD ACRYLIC STAND (80% QR / 20% REST) */}
                       {/* ---------------------------------------------------- */}
                       {(currentTplId === 'food-acrylic' || currentTplId === 'acrylic') && (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: '#ffffff' }}>
-                          {/* Top Appetizing Food Image */}
-                          <div style={{ position: 'relative', height: '150px', overflow: 'hidden' }}>
+                          {/* Top Food Banner: Clean single line brand + badge */}
+                          <div style={{ position: 'relative', height: '44px', overflow: 'hidden', flexShrink: 0 }}>
                             <img
                               src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80"
                               alt="Fresh Food"
@@ -4805,55 +4203,53 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                             <div style={{
                               position: 'absolute',
                               inset: 0,
-                              background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.6) 100%)',
+                              background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.7) 100%)',
                               display: 'flex',
-                              flexDirection: 'column',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '10px'
+                              justifyContent: 'space-between',
+                              padding: '0 10px'
                             }}>
-                              <span style={{ color: '#ffffff', fontSize: '15px', fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>
-                                {brandName}
-                              </span>
-                              <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
-                                FRESH CONTACTLESS DINING
-                              </span>
-                            </div>
-
-                            {/* Floating Capsule Table Badge */}
-                            <div style={{
-                              position: 'absolute',
-                              bottom: '-12px',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              background: primary,
-                              color: '#ffffff',
-                              padding: '4px 16px',
-                              borderRadius: '100px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              letterSpacing: '1px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-                              zIndex: 2,
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {tableText}
+                              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, marginRight: 8 }}>
+                                <span style={{ color: '#ffffff', fontSize: '11px', fontWeight: 900, letterSpacing: '0.5px', textTransform: 'uppercase', textShadow: '0 2px 4px rgba(0,0,0,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.15 }}>
+                                  {brandName}
+                                </span>
+                                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '7.5px', fontWeight: 700, letterSpacing: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                                  CONTACTLESS DINING
+                                </span>
+                              </div>
+                              <div style={{
+                                background: primary,
+                                color: '#ffffff',
+                                padding: '3px 10px',
+                                borderRadius: '100px',
+                                fontSize: '10.5px',
+                                fontWeight: 900,
+                                letterSpacing: '0.5px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
+                              }}>
+                                {tableText}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Center QR Code */}
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px 14px' }}>
+                          {/* Center Dominant QR Code (80% Area Focus) */}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
                             <div style={{
-                              padding: '12px',
+                              padding: '8px',
                               background: '#ffffff',
-                              borderRadius: '16px',
-                              boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                              border: '1.5px solid #f1f5f9'
+                              borderRadius: '14px',
+                              boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
+                              border: '1.5px solid #f1f5f9',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}>
                               <QRCodeCanvas
                                 id={`preview-qr-canvas-${prevT.tableNumber}`}
                                 value={getTableQRUrl(prevT.tableNumber)}
-                                size={140}
+                                size={215}
                                 level="H"
                                 includeMargin={false}
                                 fgColor="#0f172a"
@@ -4861,38 +4257,42 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                             </div>
                           </div>
 
-                          {/* Bottom Curved Banner with Arrows */}
+                          {/* Bottom Curved Banner (~10% height) */}
                           <div style={{
                             background: primary,
                             color: '#ffffff',
-                            padding: '16px 14px 18px',
-                            borderTopLeftRadius: '24px',
-                            borderTopRightRadius: '24px',
+                            padding: '6px 10px',
+                            borderTopLeftRadius: '14px',
+                            borderTopRightRadius: '14px',
                             textAlign: 'center',
-                            boxShadow: '0 -4px 16px rgba(0,0,0,0.1)'
+                            boxShadow: '0 -4px 16px rgba(0,0,0,0.1)',
+                            flexShrink: 0
                           }}>
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: 6,
-                              fontSize: '12px',
+                              gap: 5,
+                              fontSize: '10px',
                               fontWeight: 900,
-                              letterSpacing: '0.5px'
+                              letterSpacing: '0.4px'
                             }}>
-                              <span style={{ fontSize: '15px', transform: 'scaleX(-1)' }}>↷</span>
+                              <span style={{ fontSize: '12px', transform: 'scaleX(-1)' }}>↷</span>
                               <span>{standeeConfig.ctaTitle || 'VIEW OUR MENU ON YOUR PHONE!'}</span>
-                              <span style={{ fontSize: '15px' }}>↷</span>
+                              <span style={{ fontSize: '12px' }}>↷</span>
                             </div>
-                            <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>
+                            <div style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
                               Open camera & scan QR code to order
+                            </div>
+                            <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '1.5px', color: 'rgba(255,255,255,0.65)', marginTop: 2, textTransform: 'uppercase' }}>
+                              • dinviq •
                             </div>
                           </div>
                         </div>
                       )}
 
                       {/* ---------------------------------------------------- */}
-                      {/* TEMPLATE 2: ROYAL GOLD & DARK DINING                 */}
+                      {/* TEMPLATE 2: ROYAL GOLD & DARK DINING (80% QR / 20% REST) */}
                       {/* ---------------------------------------------------- */}
                       {(currentTplId === 'luxury-gold' || currentTplId === 'dark') && (
                         <div style={{
@@ -4902,69 +4302,56 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                           flex: 1,
                           position: 'relative',
                           background: 'linear-gradient(180deg, #18181b 0%, #0d0d11 100%)',
-                          padding: '16px',
+                          padding: '10px 12px',
                           boxSizing: 'border-box'
                         }}>
                           {/* Double Gold Borders */}
-                          <div style={{
-                            position: 'absolute',
-                            inset: '10px',
-                            border: `1.5px solid ${primary}`,
-                            borderRadius: '4px',
-                            pointerEvents: 'none'
-                          }} />
-                          <div style={{
-                            position: 'absolute',
-                            inset: '14px',
-                            border: `1px solid ${primary}66`,
-                            borderRadius: '2px',
-                            pointerEvents: 'none'
-                          }} />
+                          <div style={{ position: 'absolute', inset: '6px', border: `1.5px solid ${primary}`, borderRadius: '4px', pointerEvents: 'none' }} />
+                          <div style={{ position: 'absolute', inset: '9px', border: `1px solid ${primary}55`, borderRadius: '2px', pointerEvents: 'none' }} />
 
-                          {/* Cursive Menu Script */}
-                          <div style={{ textAlign: 'center', marginTop: 12, marginBottom: 4 }}>
+                          {/* Top Header (~40px) */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 5px', zIndex: 1, borderBottom: `1px solid ${primary}33`, flexShrink: 0 }}>
                             <div style={{
                               fontFamily: 'Playfair Display, Georgia, serif',
                               fontStyle: 'italic',
-                              fontSize: '36px',
+                              fontSize: '24px',
                               color: primary,
-                              letterSpacing: '2px',
+                              letterSpacing: '1px',
                               lineHeight: 1
                             }}>
                               Menu
                             </div>
                             <div style={{
-                              fontSize: '8px',
-                              fontWeight: 700,
-                              letterSpacing: '2px',
-                              color: '#cbd5e1',
-                              marginTop: 6,
-                              textTransform: 'uppercase'
+                              border: `1.5px solid ${primary}`,
+                              padding: '2px 9px',
+                              borderRadius: '100px',
+                              fontSize: '10px',
+                              fontWeight: 900,
+                              letterSpacing: '0.8px',
+                              color: primary,
+                              background: 'rgba(0,0,0,0.4)',
+                              whiteSpace: 'nowrap'
                             }}>
-                              {standeeConfig.ctaTitle || 'FOR A CONTACTLESS MENU, SCAN QR CODE'}
+                              {tableText}
                             </div>
-                            <div style={{
-                              width: '60px',
-                              height: '1px',
-                              background: primary,
-                              margin: '8px auto 0',
-                              opacity: 0.7
-                            }} />
                           </div>
 
-                          {/* Center QR Code in Gold Frame */}
-                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: '10px 0' }}>
+                          {/* Center Dominant QR Code in Gold Frame (80% Area Focus) */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: '8px 2px' }}>
                             <div style={{
-                              padding: '10px',
+                              padding: '8px',
                               background: '#ffffff',
                               borderRadius: '8px',
-                              border: `2px solid ${primary}`,
-                              boxShadow: `0 0 20px ${primary}33`
+                              border: `2.5px solid ${primary}`,
+                              boxShadow: `0 0 24px ${primary}44`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}>
                               <QRCodeCanvas
                                 id={`preview-qr-canvas-${prevT.tableNumber}`}
                                 value={getTableQRUrl(prevT.tableNumber)}
-                                size={135}
+                                size={215}
                                 level="H"
                                 includeMargin={false}
                                 fgColor="#000000"
@@ -4972,69 +4359,78 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                             </div>
                           </div>
 
-                          {/* Bottom Dashed Box (YOUR LOGO / Table) */}
-                          <div style={{ textAlign: 'center', zIndex: 1, marginBottom: 8 }}>
+                          {/* Bottom Footer (~40px) */}
+                          <div style={{ textAlign: 'center', zIndex: 1, flexShrink: 0, paddingBottom: 1 }}>
                             <div style={{
                               display: 'inline-block',
-                              border: `1.5px dashed ${primary}`,
-                              padding: '4px 14px',
+                              border: `1px dashed ${primary}`,
+                              padding: '2px 10px',
                               borderRadius: '4px',
-                              fontSize: '9.5px',
-                              fontWeight: 700,
-                              letterSpacing: '1.5px',
+                              fontSize: '8px',
+                              fontWeight: 800,
+                              letterSpacing: '1px',
                               color: primary,
-                              textTransform: 'uppercase'
+                              textTransform: 'uppercase',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '220px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
                             }}>
-                              {brandName || 'YOUR LOGO'}
+                              {brandName} • SCAN QR
                             </div>
-                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#f8fafc', marginTop: 6, letterSpacing: '1px' }}>
-                              {tableText}
+                            <div style={{ fontSize: '7.5px', fontWeight: 600, color: '#94a3b8', marginTop: 2, letterSpacing: '0.8px' }}>
+                              FAST & CONTACTLESS LUXURY DINING
+                            </div>
+                            <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '2px', color: primary, opacity: 0.8, marginTop: 1, textTransform: 'uppercase' }}>
+                              • dinviq •
                             </div>
                           </div>
                         </div>
                       )}
 
                       {/* ---------------------------------------------------- */}
-                      {/* TEMPLATE 3: ARTISAN GREEN TABLE TENT                 */}
+                      {/* TEMPLATE 3: ARTISAN GREEN TABLE TENT (80% QR / 20% REST) */}
                       {/* ---------------------------------------------------- */}
                       {currentTplId === 'green-tent' && (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: primary }}>
-                          {/* Top Forest Green Tent Header */}
-                          <div style={{ padding: '16px 14px 10px', textAlign: 'center', color: '#ffffff' }}>
+                          {/* Top Forest Green Tent Header (~40px) */}
+                          <div style={{ padding: '6px 10px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#ffffff', flexShrink: 0 }}>
                             <div style={{
-                              fontSize: '13px',
+                              fontSize: '11px',
                               fontWeight: 800,
-                              letterSpacing: '2.5px',
+                              letterSpacing: '1.5px',
                               fontFamily: 'Playfair Display, Georgia, serif'
                             }}>
-                              ✦ VIEW OUR MENU ✦
+                              ✦ VIEW MENU ✦
                             </div>
                             <div style={{
-                              display: 'inline-block',
-                              marginTop: 6,
-                              background: 'rgba(255, 255, 255, 0.18)',
-                              padding: '2px 10px',
+                              background: 'rgba(255, 255, 255, 0.22)',
+                              padding: '2px 9px',
                               borderRadius: '100px',
-                              fontSize: '9px',
-                              fontWeight: 700,
-                              letterSpacing: '1px'
+                              fontSize: '10px',
+                              fontWeight: 900,
+                              letterSpacing: '0.8px',
+                              whiteSpace: 'nowrap'
                             }}>
                               {tableText}
                             </div>
                           </div>
 
-                          {/* Center QR Code in White Card */}
-                          <div style={{ display: 'flex', justifyContent: 'center', padding: '0 16px 14px', zIndex: 2 }}>
+                          {/* Center Dominant QR Code (80% Area Focus) */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 6px', zIndex: 2 }}>
                             <div style={{
-                              padding: '10px',
+                              padding: '8px',
                               background: '#ffffff',
                               borderRadius: '14px',
-                              boxShadow: '0 10px 25px rgba(0,0,0,0.25)'
+                              boxShadow: '0 10px 28px rgba(0,0,0,0.25)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}>
                               <QRCodeCanvas
                                 id={`preview-qr-canvas-${prevT.tableNumber}`}
                                 value={getTableQRUrl(prevT.tableNumber)}
-                                size={135}
+                                size={215}
                                 level="H"
                                 includeMargin={false}
                                 fgColor="#0f172a"
@@ -5042,8 +4438,8 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                             </div>
                           </div>
 
-                          {/* Bottom Brunch Food Banner */}
-                          <div style={{ flex: 1, position: 'relative', minHeight: '140px', overflow: 'hidden' }}>
+                          {/* Bottom Food Strip (~38px): Clean without crowded text */}
+                          <div style={{ height: '38px', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
                             <img
                               src="https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80"
                               alt="Artisan Brunch"
@@ -5052,14 +4448,18 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                             <div style={{
                               position: 'absolute',
                               inset: 0,
-                              background: 'linear-gradient(180deg, rgba(27,67,50,0.3) 0%, rgba(0,0,0,0.4) 100%)',
+                              background: 'linear-gradient(180deg, rgba(27,67,50,0.6) 0%, rgba(0,0,0,0.75) 100%)',
                               display: 'flex',
-                              alignItems: 'flex-end',
+                              flexDirection: 'column',
+                              alignItems: 'center',
                               justifyContent: 'center',
-                              padding: '10px'
+                              padding: '2px 8px'
                             }}>
-                              <span style={{ color: '#ffffff', fontSize: '9.5px', fontWeight: 700, letterSpacing: '1px', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                                {brandName} • Fresh Daily
+                              <span style={{ color: '#ffffff', fontSize: '8.5px', fontWeight: 800, letterSpacing: '0.8px', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                                Fresh Daily • Scan with Camera to Order
+                              </span>
+                              <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '7px', fontWeight: 800, letterSpacing: '2px', marginTop: 1, textTransform: 'uppercase' }}>
+                                • dinviq •
                               </span>
                             </div>
                           </div>
@@ -5067,93 +4467,94 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       )}
 
                       {/* ---------------------------------------------------- */}
-                      {/* TEMPLATE 4: GOURMET ARCHED STAND                     */}
+                      {/* TEMPLATE 4: GOURMET ARCHED STAND (80% QR / 20% REST) */}
                       {/* ---------------------------------------------------- */}
                       {currentTplId === 'gourmet-arch' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: '#ffffff', padding: '14px 12px 10px' }}>
-                          {/* Top Ribbon Logo */}
-                          <div style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1, position: 'relative', background: '#ffffff', padding: '6px 8px 6px' }}>
+                          {/* Top Header (~38px) */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 4px', flexShrink: 0 }}>
                             <div style={{
-                              display: 'inline-block',
                               background: primary,
                               color: accent,
-                              padding: '2px 12px',
+                              padding: '2px 8px',
                               borderRadius: '4px',
-                              fontSize: '9px',
+                              fontSize: '8.5px',
                               fontWeight: 800,
-                              letterSpacing: '1px'
+                              letterSpacing: '0.5px',
+                              maxWidth: '120px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
                             }}>
-                              ★ {brandName || 'Add Logo'} ★
+                              ★ {brandName} ★
                             </div>
-                            <div style={{
-                              fontSize: '26px',
-                              fontWeight: 900,
-                              color: primary,
-                              letterSpacing: '3px',
-                              marginTop: 4,
-                              lineHeight: 1
-                            }}>
-                              MENU
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{
+                                fontSize: '15px',
+                                fontWeight: 900,
+                                color: primary,
+                                letterSpacing: '2px',
+                                lineHeight: 1
+                              }}>
+                                MENU
+                              </span>
+                              <span style={{
+                                background: accent,
+                                color: primary,
+                                padding: '2px 7px',
+                                borderRadius: '100px',
+                                fontSize: '9.5px',
+                                fontWeight: 900,
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {tableText}
+                              </span>
                             </div>
                           </div>
 
-                          {/* Arched Section */}
+                          {/* Arched Section Framing Huge QR Code (80% Area Focus) */}
                           <div style={{
                             flex: 1,
-                            marginTop: 18,
                             background: primary,
-                            borderRadius: '100px 100px 14px 14px',
-                            border: `3px solid ${accent}`,
+                            borderRadius: '32px 32px 12px 12px',
+                            border: `2px solid ${accent}`,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
+                            justifyContent: 'center',
                             position: 'relative',
-                            padding: '30px 12px 14px'
+                            padding: '8px 6px 6px'
                           }}>
-                            {/* Circular Dish Cutout Badge */}
+                            {/* Dominant QR Code inside Arch */}
                             <div style={{
-                              position: 'absolute',
-                              top: '-26px',
-                              width: '52px',
-                              height: '52px',
-                              borderRadius: '50%',
-                              border: `2.5px solid ${accent}`,
-                              overflow: 'hidden',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-                              background: '#ffffff'
-                            }}>
-                              <img
-                                src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80"
-                                alt="Dish"
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
-                            </div>
-
-                            {/* QR Code inside Arch */}
-                            <div style={{
-                              padding: '8px',
+                              padding: '7px',
                               background: '#ffffff',
                               borderRadius: '12px',
-                              boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                              marginTop: 8
+                              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}>
                               <QRCodeCanvas
                                 id={`preview-qr-canvas-${prevT.tableNumber}`}
                                 value={getTableQRUrl(prevT.tableNumber)}
-                                size={125}
+                                size={215}
                                 level="H"
                                 includeMargin={false}
                                 fgColor="#0f172a"
                               />
                             </div>
 
-                            {/* "Scan Me" & Table info */}
-                            <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: 8 }}>
-                              <div style={{ color: '#ffffff', fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px' }}>
-                                {standeeConfig.ctaTitle || 'Scan Me'}
+                            {/* "Scan Me" & Table info (~34px) */}
+                            <div style={{ textAlign: 'center', marginTop: 4, flexShrink: 0 }}>
+                              <div style={{ color: '#ffffff', fontSize: '10.5px', fontWeight: 900, letterSpacing: '0.5px' }}>
+                                {standeeConfig.ctaTitle || 'SCAN ME'} • <span style={{ color: accent }}>{tableText}</span>
                               </div>
-                              <div style={{ color: accent, fontSize: '10px', fontWeight: 800, letterSpacing: '1px', marginTop: 2 }}>
-                                {tableText}
+                              <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '7.5px', fontWeight: 700, letterSpacing: '1px', marginTop: 1 }}>
+                                FAST & CONTACTLESS ORDERING
+                              </div>
+                              <div style={{ color: accent, fontSize: '7px', fontWeight: 800, letterSpacing: '2px', opacity: 0.9, marginTop: 1, textTransform: 'uppercase' }}>
+                                • dinviq •
                               </div>
                             </div>
                           </div>
@@ -5161,7 +4562,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                       )}
 
                       {/* ---------------------------------------------------- */}
-                      {/* TEMPLATE 5: MODERN BARISTA SPLATTER                  */}
+                      {/* TEMPLATE 5: MODERN BARISTA SPLATTER (80% QR / 20% REST) */}
                       {/* ---------------------------------------------------- */}
                       {currentTplId === 'craft-splatter' && (
                         <div style={{
@@ -5171,70 +4572,73 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                           flex: 1,
                           position: 'relative',
                           background: '#fef7ee',
-                          padding: '16px',
+                          padding: '8px 10px 6px',
                           overflow: 'hidden'
                         }}>
                           {/* Organic Coffee Blobs */}
                           <div style={{
                             position: 'absolute',
-                            top: '-30px',
-                            right: '-30px',
-                            width: '120px',
-                            height: '120px',
+                            top: '-20px',
+                            right: '-20px',
+                            width: '80px',
+                            height: '80px',
                             borderRadius: '60% 40% 70% 30% / 50% 60% 40% 50%',
                             background: `${accent}22`,
                             pointerEvents: 'none'
                           }} />
                           <div style={{
                             position: 'absolute',
-                            bottom: '-40px',
-                            left: '-30px',
-                            width: '140px',
-                            height: '140px',
+                            bottom: '-25px',
+                            left: '-20px',
+                            width: '90px',
+                            height: '90px',
                             borderRadius: '40% 60% 30% 70% / 60% 40% 60% 40%',
                             background: `${primary}18`,
                             pointerEvents: 'none'
                           }} />
 
-                          {/* Top Header */}
-                          <div style={{ textAlign: 'center', zIndex: 1, marginTop: 4 }}>
-                            <div style={{ fontSize: '14px', fontWeight: 900, color: primary, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                          {/* Top Header (~38px): Single line brand + badge */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1, padding: '0 2px 4px', flexShrink: 0 }}>
+                            <div style={{ fontSize: '11px', fontWeight: 900, color: primary, letterSpacing: '0.8px', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '170px' }}>
                               {brandName}
                             </div>
                             <div style={{
-                              display: 'inline-block',
                               background: primary,
                               color: '#ffffff',
-                              padding: '2px 12px',
+                              padding: '2px 9px',
                               borderRadius: '100px',
-                              fontSize: '9.5px',
-                              fontWeight: 800,
-                              letterSpacing: '1px',
-                              marginTop: 6
+                              fontSize: '10px',
+                              fontWeight: 900,
+                              letterSpacing: '0.5px',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
                             }}>
                               {tableText}
                             </div>
                           </div>
 
-                          {/* Center QR Code with Crop Brackets */}
-                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: '8px 0' }}>
-                            <div style={{ position: 'relative', padding: '10px' }}>
+                          {/* Center Dominant QR Code with Corner Brackets (80% Area Focus) */}
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: '6px 2px' }}>
+                            <div style={{ position: 'relative', padding: '6px' }}>
                               {/* Corner Brackets */}
-                              <div style={{ position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderTop: `3px solid ${primary}`, borderLeft: `3px solid ${primary}` }} />
-                              <div style={{ position: 'absolute', top: 0, right: 0, width: 14, height: 14, borderTop: `3px solid ${primary}`, borderRight: `3px solid ${primary}` }} />
-                              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 14, height: 14, borderBottom: `3px solid ${primary}`, borderLeft: `3px solid ${primary}` }} />
-                              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderBottom: `3px solid ${primary}`, borderRight: `3px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', top: 0, left: 0, width: 12, height: 12, borderTop: `2.5px solid ${primary}`, borderLeft: `2.5px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', top: 0, right: 0, width: 12, height: 12, borderTop: `2.5px solid ${primary}`, borderRight: `2.5px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 12, height: 12, borderBottom: `2.5px solid ${primary}`, borderLeft: `2.5px solid ${primary}` }} />
+                              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderBottom: `2.5px solid ${primary}`, borderRight: `2.5px solid ${primary}` }} />
 
                               <div style={{
-                                padding: '8px',
+                                padding: '7px',
                                 background: '#ffffff',
                                 borderRadius: '8px',
-                                boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                               }}>
                                 <QRCodeCanvas
                                   id={`preview-qr-canvas-${prevT.tableNumber}`}
                                   value={getTableQRUrl(prevT.tableNumber)}
-                                  size={135}
+                                  size={215}
                                   level="H"
                                   includeMargin={false}
                                   fgColor={primary}
@@ -5243,13 +4647,16 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                             </div>
                           </div>
 
-                          {/* Bottom Headline */}
-                          <div style={{ textAlign: 'center', zIndex: 1, marginBottom: 4 }}>
-                            <div style={{ fontSize: '12px', fontWeight: 900, color: primary, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                          {/* Bottom Headline (~36px) */}
+                          <div style={{ textAlign: 'center', zIndex: 1, flexShrink: 0, paddingBottom: 1 }}>
+                            <div style={{ fontSize: '10px', fontWeight: 900, color: primary, letterSpacing: '0.8px', textTransform: 'uppercase' }}>
                               {standeeConfig.ctaTitle || 'SCAN TO ORDER & PAY'}
                             </div>
-                            <div style={{ fontSize: '9px', color: '#78350f', fontWeight: 600, marginTop: 3 }}>
+                            <div style={{ fontSize: '7.5px', color: '#78350f', fontWeight: 600, marginTop: 1 }}>
                               Point camera to view menu & place order
+                            </div>
+                            <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '2px', color: '#78350f', opacity: 0.7, marginTop: 1, textTransform: 'uppercase' }}>
+                              • dinviq •
                             </div>
                           </div>
                         </div>

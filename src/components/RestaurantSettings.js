@@ -3,12 +3,14 @@ import {
   Building2, Clock, CreditCard,
   Upload, Trash2, CheckCircle, Info, X, ShieldCheck, Check, Sparkles, BookOpen,
   QrCode, Receipt, Lock, Smartphone, RefreshCw, AlertCircle, Printer, Download,
-  TrendingUp
+  TrendingUp, Volume2, Volume1, VolumeX, Play, Globe, Moon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import styles from './RestaurantSettings.module.css';
+import { useTranslation } from '../utils/translations';
+import { getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
 
 const AVAILABLE_PLANS = [
   { id: '1_month', name: '1 Month Starter', price: 999, period: 'Monthly', features: ['Full POS & Dine-in Orders', 'KDS & Live Orders', 'Dynamic QR Generator', 'Email & Ticket Support'] },
@@ -28,6 +30,86 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   const [payMethod, setPayMethod] = useState('upi_qr'); // 'upi_qr', 'upi_vpa', 'card', 'netbanking'
   const [upiVpa, setUpiVpa] = useState('');
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvv: '', name: '' });
+
+  // Audio Notification Settings State
+  const [audioSettings, setAudioSettings] = useState(() => getAudioSettings());
+  const { lang, isHindi, setLanguage: setAppLanguage } = useTranslation();
+
+  // Helper to calculate whether night menu is active right now
+  const isNightActiveNow = () => {
+    try {
+      const d = new Date();
+      const currentMins = d.getHours() * 60 + d.getMinutes();
+      const [sH, sM] = (form.nightMenuStart || '22:00').split(':').map(Number);
+      const [eH, eM] = (form.nightMenuEnd || '05:00').split(':').map(Number);
+      const startMins = sH * 60 + (sM || 0);
+      const endMins = eH * 60 + (eM || 0);
+
+      if (startMins > endMins) {
+        // Overnight span e.g. 22:00 to 05:00
+        return currentMins >= startMins || currentMins <= endMins;
+      }
+      return currentMins >= startMins && currentMins <= endMins;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setAppLanguage(newLang);
+    setForm(prev => ({ ...prev, language: newLang }));
+    onSave({ settings: { ...tenantInfo?.settings, language: newLang } });
+    toast.success(newLang === 'hi' ? 'भाषा बदलकर हिन्दी कर दी गई है' : 'Language set to English');
+  };
+
+  const handleToggleNightMenu = (checked) => {
+    setForm(prev => ({ ...prev, enableNightMenu: checked }));
+    onSave({ settings: { ...tenantInfo?.settings, enableNightMenu: checked } });
+    toast.success(checked ? 'Open / Night Menu enabled (POS Only)' : 'Open / Night Menu disabled');
+  };
+
+  const handleNightTimeChange = (field, val) => {
+    setForm(prev => ({ ...prev, [field]: val }));
+    onSave({ settings: { ...tenantInfo?.settings, [field]: val } });
+  };
+
+  useEffect(() => {
+    const handleAudioChange = (e) => {
+      if (e.detail) {
+        setAudioSettings(e.detail);
+      } else {
+        setAudioSettings(getAudioSettings());
+      }
+    };
+    window.addEventListener('serviq_audio_settings_changed', handleAudioChange);
+    return () => window.removeEventListener('serviq_audio_settings_changed', handleAudioChange);
+  }, []);
+
+  const handleAudioMuteToggle = (muted) => {
+    const nextVol = muted ? 0 : (audioSettings.volume === 0 ? 7 : audioSettings.volume);
+    saveAudioSettings({ muted, volume: nextVol });
+    setAudioSettings(prev => ({ ...prev, muted, volume: nextVol }));
+    if (!muted) {
+      previewTone(audioSettings.tone, nextVol);
+    }
+    toast.success(muted ? 'Order sound muted' : 'Order sound unmuted');
+  };
+
+  const handleAudioVolumeChange = (vol) => {
+    const v = Number(vol);
+    const isMute = v === 0;
+    saveAudioSettings({ volume: v, muted: isMute });
+    setAudioSettings(prev => ({ ...prev, volume: v, muted: isMute }));
+    if (!isMute) {
+      previewTone(audioSettings.tone, v);
+    }
+  };
+
+  const handleAudioToneChange = (toneId) => {
+    saveAudioSettings({ tone: toneId });
+    setAudioSettings(prev => ({ ...prev, tone: toneId }));
+    previewTone(toneId, audioSettings.volume === 0 ? 5 : audioSettings.volume);
+  };
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
   const [paymentReceipt, setPaymentReceipt] = useState(null);
 
@@ -40,6 +122,10 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     profitMargin: tenantInfo?.settings?.profitMargin !== undefined ? tenantInfo.settings.profitMargin : 40,
     enableEstimatedPrepTime: tenantInfo?.settings?.enableEstimatedPrepTime || false,
     enableKhata: tenantInfo?.settings?.enableKhata || false,
+    enableNightMenu: tenantInfo?.settings?.enableNightMenu || false,
+    nightMenuStart: tenantInfo?.settings?.nightMenuStart || '22:00',
+    nightMenuEnd: tenantInfo?.settings?.nightMenuEnd || '05:00',
+    language: tenantInfo?.settings?.language || 'en',
     operatingHours: tenantInfo?.settings?.operatingHours || [
       { day: 'Monday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
       { day: 'Tuesday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
@@ -289,6 +375,12 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               <Clock size={16} /> <span>Features</span>
             </button>
             <button
+              className={`${styles.navItem} ${activeSection === 'audio' ? styles.activeNav : ''}`}
+              onClick={() => { setActiveSection('audio'); document.getElementById('audio')?.scrollIntoView({ behavior: 'smooth' }); }}
+            >
+              <Volume2 size={16} /> <span>Audio & Chimes</span>
+            </button>
+            <button
               className={`${styles.navItem} ${activeSection === 'subscription' ? styles.activeNav : ''}`}
               onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}
             >
@@ -308,13 +400,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             <p className={styles.planSub}>
               Expires: {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
             </p>
-            <div className={styles.planButtons}>
-              <button className={styles.manageBtn} onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                Manage Billing
-              </button>
-              <button className={styles.upgradeBtn} onClick={() => { setPaymentStep('select'); setShowUpgradeModal(true); }}>
-                Upgrade Plan
-              </button>
+            <div style={{ marginTop: '10px', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <ShieldCheck size={13} color="#4f46e5" />
+              <span>Managed by Super Admin</span>
             </div>
           </div>
         </aside>
@@ -576,6 +664,491 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             </div>
           </section>
 
+          {/* 2.6 Interface Language (Hindi / English) Section */}
+          <section className={styles.sectionCard} id="language">
+            <div className={styles.cardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Globe size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Interface Language (भाषा)
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                    Convert entire admin panel, POS, and KDS into Hindi or English for your store and staff.
+                  </p>
+                </div>
+              </div>
+
+              <span style={{
+                padding: '3px 12px',
+                borderRadius: '100px',
+                fontSize: '11px',
+                fontWeight: 800,
+                background: isHindi ? '#fff7ed' : '#eff6ff',
+                color: isHindi ? '#c2410c' : '#1d4ed8',
+                border: isHindi ? '1px solid #fed7aa' : '1px solid #bfdbfe'
+              }}>
+                {isHindi ? '● सक्रिय: हिन्दी' : '● Active: English'}
+              </span>
+            </div>
+
+            <div style={{ padding: '1.25rem' }}>
+              <strong style={{ fontSize: '13px', color: '#0f172a', display: 'block', marginBottom: 6 }}>
+                Select Store Language (भाषा चुनें)
+              </strong>
+              <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 14px 0' }}>
+                All staff members associated with this tenant will automatically view the interface in the chosen language.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: '500px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange('en')}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: !isHindi ? '2.5px solid #2563eb' : '1.5px solid #e2e8f0',
+                    background: !isHindi ? '#eff6ff' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: 4,
+                    boxShadow: !isHindi ? '0 2px 8px rgba(37,99,235,0.12)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: !isHindi ? '#1e40af' : '#0f172a' }}>
+                      🇬🇧 English
+                    </span>
+                    {!isHindi && <Check size={16} color="#2563eb" />}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    Default international layout
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange('hi')}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: isHindi ? '2.5px solid #ea580c' : '1.5px solid #e2e8f0',
+                    background: isHindi ? '#fff7ed' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: 4,
+                    boxShadow: isHindi ? '0 2px 8px rgba(234,88,12,0.12)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: isHindi ? '#c2410c' : '#0f172a' }}>
+                      🇮🇳 हिन्दी (Hindi)
+                    </span>
+                    {isHindi && <Check size={16} color="#ea580c" />}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    पूरा डैशबोर्ड और पीओएस हिन्दी में
+                  </span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* 2.7 Open / Night Menu (POS Only) Section */}
+          <section className={styles.sectionCard} id="nightmenu">
+            <div className={styles.cardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#312e81',
+                  color: '#fbbf24',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Moon size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Open / Night Menu (POS Only)
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                    Special menu items & pricing for late-night cafe hours. Strictly hidden from standard customer QR codes.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {form.enableNightMenu && (
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: '100px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    background: isNightActiveNow() ? '#fef3c7' : '#f1f5f9',
+                    color: isNightActiveNow() ? '#b45309' : '#64748b',
+                    border: isNightActiveNow() ? '1px solid #fde68a' : '1px solid #e2e8f0'
+                  }}>
+                    {isNightActiveNow() ? '🌙 Currently Active' : '☀️ Inactive (Daytime)'}
+                  </span>
+                )}
+                <span style={{
+                  padding: '3px 10px',
+                  borderRadius: '100px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  background: form.enableNightMenu ? '#dcfce7' : '#f1f5f9',
+                  color: form.enableNightMenu ? '#15803d' : '#64748b'
+                }}>
+                  {form.enableNightMenu ? 'Feature Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ padding: '1.25rem' }}>
+              {/* Feature Toggle Switch */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: '1.25rem',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Moon size={17} color="#4f46e5" />
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                      Enable Night / Open Menu (POS Only)
+                    </strong>
+                  </div>
+                  <p style={{ fontSize: '11.5px', color: '#64748b', margin: '4px 0 0 0', maxWidth: '520px' }}>
+                    Allows adding late-night dishes or custom night pricing. Items marked as "Night Menu" appear exclusively on the POS Terminal and are completely invisible to guests scanning normal Table QR codes.
+                  </p>
+                </div>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.enableNightMenu)}
+                    onChange={(e) => handleToggleNightMenu(e.target.checked)}
+                  />
+                  <span className={styles.slider}></span>
+                </label>
+              </div>
+
+              {/* Timing Controls (Start Time & End Time) */}
+              {form.enableNightMenu && (
+                <div style={{ paddingTop: '1.25rem' }}>
+                  <strong style={{ fontSize: '13px', color: '#0f172a', display: 'block', marginBottom: 4 }}>
+                    Night Menu Operating Hours
+                  </strong>
+                  <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 12px 0' }}>
+                    Set the active window for late-night menu auto-activation on POS terminal.
+                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>
+                        Night Menu Starts At
+                      </label>
+                      <input
+                        type="time"
+                        value={form.nightMenuStart || '22:00'}
+                        onChange={(e) => handleNightTimeChange('nightMenuStart', e.target.value)}
+                        style={{
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: '#0f172a'
+                        }}
+                      />
+                    </div>
+
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#94a3b8', marginTop: 18 }}>➔</span>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>
+                        Night Menu Ends At
+                      </label>
+                      <input
+                        type="time"
+                        value={form.nightMenuEnd || '05:00'}
+                        onChange={(e) => handleNightTimeChange('nightMenuEnd', e.target.value)}
+                        style={{
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: '#0f172a'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{
+                      marginTop: 18,
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '12px',
+                      color: '#475569',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      <Clock size={14} color="#6366f1" />
+                      <span>Active from <strong>{form.nightMenuStart || '22:00'}</strong> to <strong>{form.nightMenuEnd || '05:00'}</strong></span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* 2.5 Audio & Order Chime Notification Settings */}
+          <section className={styles.sectionCard} id="audio">
+            <div className={styles.cardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#eef2ff',
+                  color: '#4f46e5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Volume2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Order Chime & Audio Alerts
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                    Customize sound alerts, tone styles, and notification loudness when new orders arrive.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  padding: '3px 10px',
+                  borderRadius: '100px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  background: audioSettings.muted ? '#fef2f2' : '#f0fdf4',
+                  color: audioSettings.muted ? '#dc2626' : '#16a34a',
+                  border: audioSettings.muted ? '1px solid #fecaca' : '1px solid #bbf7d0'
+                }}>
+                  {audioSettings.muted ? 'Muted' : `Active • Vol ${audioSettings.volume}`}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ padding: '1.25rem' }}>
+              {/* Toggle Mute / Unmute */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: '1.25rem',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {audioSettings.muted ? <VolumeX size={17} color="#ef4444" /> : <Volume2 size={17} color="#4f46e5" />}
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                      Play Audio Chime on New Orders
+                    </strong>
+                  </div>
+                  <p style={{ fontSize: '11.5px', color: '#64748b', margin: '4px 0 0 0', maxWidth: '500px' }}>
+                    When toggled on, an audible chime plays whenever a guest places a new table order or POS ticket. Toggle off to mute all order sounds.
+                  </p>
+                </div>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={!audioSettings.muted}
+                    onChange={(e) => handleAudioMuteToggle(!e.target.checked)}
+                  />
+                  <span className={styles.slider}></span>
+                </label>
+              </div>
+
+              {/* Volume Progress Bar / Slider (0 to 10) */}
+              <div style={{
+                paddingTop: '1.25rem',
+                paddingBottom: '1.25rem',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                      Notification Volume (Progress 0 – 10)
+                    </strong>
+                    <p style={{ fontSize: '11.5px', color: '#64748b', margin: '3px 0 0 0' }}>
+                      Reduce volume for quiet cafe seating or increase for noisy kitchens. Setting to 0 automatically mutes.
+                    </p>
+                  </div>
+                  <span style={{
+                    fontSize: '12.5px',
+                    fontWeight: 900,
+                    color: audioSettings.volume === 0 ? '#dc2626' : '#4f46e5',
+                    background: audioSettings.volume === 0 ? '#fef2f2' : '#eef2ff',
+                    padding: '3px 12px',
+                    borderRadius: '100px',
+                    border: audioSettings.volume === 0 ? '1px solid #fecaca' : '1px solid #c7d2fe'
+                  }}>
+                    {audioSettings.volume === 0 ? '0 • Mute' : `Level ${audioSettings.volume} / 10`}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <VolumeX size={18} color="#94a3b8" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={audioSettings.muted ? 0 : audioSettings.volume}
+                    onChange={(e) => handleAudioVolumeChange(Number(e.target.value))}
+                    style={{
+                      flex: 1,
+                      accentColor: '#4f46e5',
+                      cursor: 'pointer',
+                      height: '8px',
+                      borderRadius: '4px'
+                    }}
+                  />
+                  <Volume2 size={18} color="#4f46e5" />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginTop: 6, fontWeight: 600 }}>
+                  <span>0 (Muted)</span>
+                  <span>1 (Soft)</span>
+                  <span>5 (Balanced)</span>
+                  <span>10 (Maximum Loud)</span>
+                </div>
+              </div>
+
+              {/* Tone Variations (4 Tunes) */}
+              <div style={{ paddingTop: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                      Notification Tune Variation (4 Styles)
+                    </strong>
+                    <p style={{ fontSize: '11.5px', color: '#64748b', margin: '3px 0 0 0' }}>
+                      Select which synthesized chime to play. Click "Play" or any card to preview.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => previewTone(audioSettings.tone, audioSettings.volume)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #c7d2fe',
+                      background: '#eef2ff',
+                      color: '#4338ca',
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Volume2 size={13} /> Test Current Tone
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                  {TONE_OPTIONS.map(tone => {
+                    const isSelected = audioSettings.tone === tone.id;
+                    return (
+                      <div
+                        key={tone.id}
+                        onClick={() => handleAudioToneChange(tone.id)}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: isSelected ? '2px solid #4f46e5' : '1px solid #e2e8f0',
+                          background: isSelected ? '#f8faff' : '#ffffff',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                          boxShadow: isSelected ? '0 2px 8px rgba(79, 70, 229, 0.12)' : '0 1px 2px rgba(0,0,0,0.02)',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: '13.5px', fontWeight: 800, color: isSelected ? '#4338ca' : '#0f172a' }}>
+                              {tone.label}
+                            </span>
+                            {isSelected && <Check size={15} color="#4f46e5" />}
+                          </div>
+                          <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: 3 }}>
+                            {tone.desc}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAudioToneChange(tone.id);
+                            previewTone(tone.id, audioSettings.volume);
+                          }}
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: '50%',
+                            border: isSelected ? '1.5px solid #4f46e5' : '1px solid #cbd5e1',
+                            background: isSelected ? '#4f46e5' : '#ffffff',
+                            color: isSelected ? '#ffffff' : '#475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            flexShrink: 0
+                          }}
+                          title="Preview Tune"
+                        >
+                          <Play size={12} style={{ marginLeft: 2 }} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* 3. Subscription Plan Details & In-App Upgrade */}
           <section className={styles.sectionCard} id="subscription">
             <div className={styles.cardHeader}>
@@ -607,14 +1180,20 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => { setPaymentStep('select'); setShowUpgradeModal(true); }}
-                  style={{ padding: '10px 20px', borderRadius: '10px', background: '#2563eb', color: '#ffffff', border: 'none', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  <Sparkles size={16} /> Upgrade / Renew Plan
-                </button>
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '10px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                color: '#64748b',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 6
+              }}>
+                <ShieldCheck size={16} color="#4f46e5" />
+                <span>Subscription tiers and renewals are managed by Platform Super Admin. Contact platform support for custom tiers or renewal extensions.</span>
               </div>
 
               {/* History table */}

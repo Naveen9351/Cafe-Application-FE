@@ -254,14 +254,14 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     }
 
     const totalOrders = totalServerOrders || localOrders.length;
-    const completedOrders = localOrders.filter(o => o.status === 'completed');
+    const completedOrders = localOrders.filter(o => o.status === 'completed' || o.status === 'served');
     const completedRate = totalOrders > 0 ? Math.round((completedOrders.length / totalOrders) * 100) : 0;
 
     const cancelledOrders = localOrders.filter(o => o.status === 'cancelled');
     const cancelledCount = cancelledOrders.length;
     const cancelledRate = totalOrders > 0 ? Math.round((cancelledCount / totalOrders) * 100) : 0;
 
-    const activeOrders = localOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+    const activeOrders = localOrders.filter(o => !['completed', 'served', 'cancelled'].includes(o.status));
     const pendingCount = localOrders.filter(o => o.status === 'pending').length;
 
     const totalRevenue = completedOrders

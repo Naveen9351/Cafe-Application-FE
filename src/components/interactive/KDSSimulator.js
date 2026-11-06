@@ -156,7 +156,7 @@ export default function KDSSimulator({ incomingTicket }) {
                     className={styles.ticketBtn}
                     style={{ flex: 1 }}
                   >
-                    Mark Ready ✓
+                    Mark Ready
                   </button>
                 </div>
               </div>
