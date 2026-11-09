@@ -128,6 +128,11 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newPaidAmount, setNewPaidAmount] = useState('0');
+  const [newPaidMethod, setNewPaidMethod] = useState('Cash'); // 'Cash', 'UPI', 'Card'
+  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [entryOrderNumber, setEntryOrderNumber] = useState('');
+  const [dishSearch, setDishSearch] = useState('');
+  const [customerSearchText, setCustomerSearchText] = useState('');
   const [manualTotalBill, setManualTotalBill] = useState('');
   const [useManualTotal, setUseManualTotal] = useState(false);
 
@@ -237,6 +242,31 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       c.customerName === selectedCustomerChoice
     ) || (customerAccounts.length > 0 ? customerAccounts[0] : null);
   }, [customerMode, customerAccounts, selectedCustomerChoice, matchedExistingCustomer]);
+
+  // Filter available menu dishes by search query
+  const filteredAvailableMenu = useMemo(() => {
+    if (!dishSearch.trim()) return availableMenu;
+    const q = dishSearch.toLowerCase().trim();
+    return availableMenu.filter(m => m.name.toLowerCase().includes(q) || (m.category && m.category.toLowerCase().includes(q)));
+  }, [availableMenu, dishSearch]);
+
+  const groupedFilteredMenu = useMemo(() => {
+    const groups = {};
+    filteredAvailableMenu.forEach(item => {
+      const rawCat = item.category || 'General';
+      const cat = rawCat.replace(/-/g, ' ').toUpperCase();
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [filteredAvailableMenu]);
+
+  // Filter existing customers in modal
+  const filteredCustomerAccounts = useMemo(() => {
+    if (!customerSearchText.trim()) return customerAccounts;
+    const q = customerSearchText.toLowerCase().trim();
+    return customerAccounts.filter(c => c.customerName.toLowerCase().includes(q) || c.customerPhone.includes(q));
+  }, [customerAccounts, customerSearchText]);
 
   // Calculated items total
   const calculatedItemsTotal = useMemo(() => {
@@ -411,13 +441,16 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       const token = localStorage.getItem('token');
       const res = await axios.post(`${API_URL}/khata`, {
         tenantId,
+        orderNumber: entryOrderNumber.trim(),
         customerName: effName,
         customerPhone: finalPhone,
         totalBill: effectiveTotalBill,
         paidAmount: effectivePaid,
         borrowAmount: newUdharAmount,
         notes: newNotes.trim(),
-        items: validItems
+        items: validItems,
+        date: entryDate,
+        paidMethod: newPaidMethod
       }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
@@ -430,6 +463,11 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       setManualTotalBill('');
       setUseManualTotal(false);
       setNewPaidAmount('0');
+      setNewPaidMethod('Cash');
+      setEntryDate(new Date().toISOString().slice(0, 16));
+      setEntryOrderNumber('');
+      setDishSearch('');
+      setCustomerSearchText('');
       setNewNotes('');
 
       showFeedback(res.data?.message || `Khata entry recorded for ${effName}!`);
@@ -1180,632 +1218,788 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         </div>
       )}
 
-      {/* MODAL 1: ADD CUSTOMER KHATA / UDHAR ENTRY */}
+      {/* MODAL 1: ADD CUSTOMER KHATA / UDHAR ENTRY (WIDE 2-COLUMN ENTERPRISE SUITE) */}
       {showAddModal && (
         <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
           <div
-            className={styles.modalContent}
+            className={`${styles.modalContent} ${styles.wideModal}`}
             onClick={(e) => e.stopPropagation()}
             style={{
-              maxWidth: '520px',
+              maxWidth: '840px',
               width: '95%',
-              borderRadius: 14,
-              maxHeight: '90vh',
+              borderRadius: 18,
+              maxHeight: '92vh',
               overflowY: 'auto',
-              padding: '18px 22px'
+              padding: '22px 26px'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 10 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
-                  {isHindi ? 'ग्राहक उधार प्रविष्टि जोड़ें' : 'Add Customer Udhar / Khata Entry'}
-                </h3>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>
-                  {isHindi ? 'व्यक्तिगत खाते में खरीदारी व उधारी जोड़ें' : 'Associate credit directly with customer account'}
-                </span>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.3px' }}>
+                    {isHindi ? 'ग्राहक उधार प्रविष्टि जोड़ें' : 'Add Customer Udhar / Khata Entry'}
+                  </h3>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    {isHindi ? 'व्यक्तिगत खाते में खरीदारी व उधारी जोड़ें एवं बकाया अपडेट करें' : 'Record person-specific credit, dish purchases, and balance settlements'}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Close"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleCreateKhata}>
-              {/* Segmented Customer Mode Switch: Existing vs New */}
-              <div className={styles.segmentTabs}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerMode('existing');
-                    if (customerAccounts.length > 0 && selectedCustomerChoice === 'NEW') {
-                      const first = customerAccounts[0];
-                      setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
-                      setNewCustomerName(first.customerName);
-                      setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
-                    }
-                  }}
-                  className={`${styles.segmentTab} ${customerMode === 'existing' ? styles.segmentTabActive : ''}`}
-                >
-                  <User size={13} />
-                  <span>{isHindi ? 'मौजूदा ग्राहक' : 'Existing Customer'} ({customerAccounts.length})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerMode('new');
-                    setSelectedCustomerChoice('NEW');
-                    setNewCustomerName('');
-                    setNewCustomerPhone('');
-                  }}
-                  className={`${styles.segmentTab} ${customerMode === 'new' ? styles.segmentTabActive : ''}`}
-                >
-                  <Plus size={13} />
-                  <span>{isHindi ? 'नया ग्राहक' : 'New Customer'}</span>
-                </button>
-              </div>
-
-              {/* Customer Selection: Existing */}
-              {customerMode === 'existing' && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                    {isHindi ? 'ग्राहक खाता चुनें' : 'Select Customer Account'}
-                  </label>
-
-                  {customerAccounts.length === 0 ? (
-                    <div style={{ padding: '12px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
-                      {isHindi ? 'कोई पुराना खाता नहीं है। कृपया "नया ग्राहक" चुनें।' : 'No existing customers found. Switch to "New Customer" to create one.'}
-                    </div>
-                  ) : (
-                    <>
-                      <select
-                        value={selectedCustomerChoice}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSelectedCustomerChoice(val);
-                          const found = customerAccounts.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
-                          if (found) {
-                            setNewCustomerName(found.customerName);
-                            setNewCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
-                          }
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '9px 12px',
-                          borderRadius: 8,
-                          border: '1.5px solid #cbd5e1',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          background: '#ffffff',
-                          color: '#0f172a',
-                          boxSizing: 'border-box',
-                          outline: 'none'
-                        }}
-                      >
-                        {customerAccounts.map((c, i) => (
-                          <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
-                            {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance.toLocaleString('en-IN')}` : 'Nil Due'}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Clean Selected Customer Profile Card */}
-                      {currentSelectedCustomer && (
-                        <div className={styles.custCardSelected}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: '50%',
-                              background: getAvatarStyle(currentSelectedCustomer.customerName).bg,
-                              color: '#ffffff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 800,
-                              fontSize: '15px',
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                            }}>
-                              {currentSelectedCustomer.customerName.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <strong style={{ fontSize: '13.5px', color: '#0f172a', display: 'block' }}>
-                                {currentSelectedCustomer.customerName}
-                              </strong>
-                              <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                                📞 {currentSelectedCustomer.customerPhone} &nbsp;•&nbsp; {currentSelectedCustomer.entriesCount} visit{currentSelectedCustomer.entriesCount > 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
-                              {isHindi ? 'वर्तमान बकाया' : 'Current Due'}
-                            </span>
-                            <span style={{
-                              fontSize: '13px',
-                              fontWeight: 800,
-                              color: currentSelectedCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a',
-                              background: currentSelectedCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
-                              padding: '2px 8px',
-                              borderRadius: 6,
-                              border: currentSelectedCustomer.outstandingBalance > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0',
-                              display: 'inline-block',
-                              marginTop: 2
-                            }}>
-                              ₹{currentSelectedCustomer.outstandingBalance.toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Customer Selection: New */}
-              {customerMode === 'new' && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                        {isHindi ? 'मोबाइल नंबर (10 अंक)' : 'Customer Phone (10 digits)'}
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                        <input
-                          type="tel"
-                          placeholder="e.g. 9876543210"
-                          value={newCustomerPhone}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                            setNewCustomerPhone(val);
-                            const match = customerAccounts.find(c => c.customerPhone === val);
-                            if (match && !newCustomerName) {
-                              setNewCustomerName(match.customerName);
-                            }
-                          }}
-                          style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                        {isHindi ? 'ग्राहक का नाम' : 'Customer Name'}
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <User size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                        <input
-                          type="text"
-                          placeholder="e.g. Rahul Sharma"
-                          value={newCustomerName}
-                          onChange={(e) => setNewCustomerName(e.target.value)}
-                          style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Matching existing account notification banner */}
-                  {matchedExistingCustomer && (
+              <div className={styles.modalBodyTwoCol}>
+                {/* ── LEFT COLUMN: CUSTOMER & DISH ITEMIZATION ── */}
+                <div>
+                  {/* Segmented Customer Mode Switch: Existing vs New */}
+                  <div style={{ marginBottom: 12 }}>
                     <div style={{
-                      background: '#eff6ff',
-                      border: '1px solid #bfdbfe',
-                      borderRadius: 8,
-                      padding: '8px 12px',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '12px'
+                      background: '#f1f5f9',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 10,
+                      padding: 3,
+                      gap: 3
                     }}>
-                      <span style={{ color: '#1e40af' }}>
-                        💡 Found existing customer: <strong>{matchedExistingCustomer.customerName}</strong> (₹{matchedExistingCustomer.outstandingBalance} Due)
-                      </span>
                       <button
                         type="button"
                         onClick={() => {
                           setCustomerMode('existing');
-                          setSelectedCustomerChoice(matchedExistingCustomer.customerPhone !== 'N/A' ? matchedExistingCustomer.customerPhone : matchedExistingCustomer.customerName);
+                          if (customerAccounts.length > 0 && selectedCustomerChoice === 'NEW') {
+                            const first = customerAccounts[0];
+                            setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
+                            setNewCustomerName(first.customerName);
+                            setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
+                          }
                         }}
                         style={{
-                          background: '#2563eb',
-                          color: '#ffffff',
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 8,
                           border: 'none',
-                          borderRadius: 6,
-                          padding: '3px 9px',
-                          fontSize: '11px',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          fontSize: '12px',
                           fontWeight: 700,
-                          cursor: 'pointer'
+                          background: customerMode === 'existing' ? '#ffffff' : 'transparent',
+                          color: customerMode === 'existing' ? '#0f172a' : '#64748b',
+                          boxShadow: customerMode === 'existing' ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                          transition: 'all 0.15s ease'
                         }}
                       >
-                        Use Account
+                        <User size={13} />
+                        <span>{isHindi ? 'मौजूदा ग्राहक' : 'Existing Customer'} ({customerAccounts.length})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerMode('new');
+                          setSelectedCustomerChoice('NEW');
+                          setNewCustomerName('');
+                          setNewCustomerPhone('');
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          border: 'none',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          background: customerMode === 'new' ? '#ffffff' : 'transparent',
+                          color: customerMode === 'new' ? '#0f172a' : '#64748b',
+                          boxShadow: customerMode === 'new' ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Plus size={13} />
+                        <span>{isHindi ? 'नया ग्राहक' : 'New Customer'}</span>
                       </button>
                     </div>
+                  </div>
+
+                  {/* Customer Selection: Existing */}
+                  {customerMode === 'existing' && (
+                    <div style={{ marginBottom: 14 }}>
+                      {customerAccounts.length === 0 ? (
+                        <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+                          {isHindi ? 'कोई पुराना खाता नहीं है। कृपया "नया ग्राहक" चुनें।' : 'No existing customers found. Switch to "New Customer" to create one.'}
+                        </div>
+                      ) : (
+                        <>
+                          {/* Live search input if customer list has > 3 entries */}
+                          {customerAccounts.length > 3 && (
+                            <div style={{ position: 'relative', marginBottom: 6 }}>
+                              <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                              <input
+                                type="text"
+                                placeholder={isHindi ? "नाम या फ़ोन से ग्राहक खोजें..." : "Filter customer by name or phone..."}
+                                value={customerSearchText}
+                                onChange={(e) => setCustomerSearchText(e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  padding: '7px 10px 7px 30px',
+                                  borderRadius: 7,
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '12px',
+                                  boxSizing: 'border-box'
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          <select
+                            value={selectedCustomerChoice}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSelectedCustomerChoice(val);
+                              const found = customerAccounts.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
+                              if (found) {
+                                setNewCustomerName(found.customerName);
+                                setNewCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              border: '1.5px solid #cbd5e1',
+                              fontSize: '12.5px',
+                              fontWeight: 600,
+                              background: '#ffffff',
+                              color: '#0f172a',
+                              boxSizing: 'border-box',
+                              outline: 'none'
+                            }}
+                          >
+                            {filteredCustomerAccounts.map((c, i) => (
+                              <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                                {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance.toLocaleString('en-IN')}` : 'Nil Due'}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* Selected Customer Profile Card */}
+                          {currentSelectedCustomer && (
+                            <div className={styles.custCardSelected}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: '50%',
+                                  background: getAvatarStyle(currentSelectedCustomer.customerName).bg,
+                                  color: '#ffffff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 800,
+                                  fontSize: '16px',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                                }}>
+                                  {currentSelectedCustomer.customerName.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <strong style={{ fontSize: '13.5px', color: '#0f172a', display: 'block' }}>
+                                    {currentSelectedCustomer.customerName}
+                                  </strong>
+                                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                    📞 {currentSelectedCustomer.customerPhone} &nbsp;•&nbsp; {currentSelectedCustomer.entriesCount} visit{currentSelectedCustomer.entriesCount > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
+                                  {isHindi ? 'वर्तमान बकाया' : 'Current Due'}
+                                </span>
+                                <span style={{
+                                  fontSize: '13px',
+                                  fontWeight: 800,
+                                  color: currentSelectedCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a',
+                                  background: currentSelectedCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  border: currentSelectedCustomer.outstandingBalance > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                                  display: 'inline-block',
+                                  marginTop: 2
+                                }}>
+                                  ₹{currentSelectedCustomer.outstandingBalance.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {/* Dishes / Purchase Breakdown Section */}
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Utensils size={14} color="#2563eb" />
-                    {isHindi ? 'खरीदारी विवरण (Dishes / Bill)' : 'Purchase & Dish Breakdown'}
-                  </label>
+                  {/* Customer Selection: New */}
+                  {customerMode === 'new' && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                            {isHindi ? 'मोबाइल नंबर (10 अंक)' : 'Customer Phone (10 digits)'}
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                            <input
+                              type="tel"
+                              placeholder="e.g. 9876543210"
+                              value={newCustomerPhone}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setNewCustomerPhone(val);
+                                const match = customerAccounts.find(c => c.customerPhone === val);
+                                if (match && !newCustomerName) {
+                                  setNewCustomerName(match.customerName);
+                                }
+                              }}
+                              style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                        </div>
 
-                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '2px', borderRadius: '7px', border: '1px solid #e2e8f0' }}>
-                    <button
-                      type="button"
-                      onClick={() => setUseManualTotal(false)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: !useManualTotal ? '#ffffff' : 'transparent',
-                        color: !useManualTotal ? '#0f172a' : '#64748b',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: !useManualTotal ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
-                      }}
-                    >
-                      🍽️ {isHindi ? 'मेन्यू से' : 'From Menu'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUseManualTotal(true)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: useManualTotal ? '#ffffff' : 'transparent',
-                        color: useManualTotal ? '#0f172a' : '#64748b',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: useManualTotal ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
-                      }}
-                    >
-                      💰 {isHindi ? 'सीधा बिल' : 'Direct Total'}
-                    </button>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                            {isHindi ? 'ग्राहक का नाम' : 'Customer Name'}
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <User size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                            <input
+                              type="text"
+                              placeholder="e.g. Rahul Sharma"
+                              value={newCustomerName}
+                              onChange={(e) => setNewCustomerName(e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {matchedExistingCustomer && (
+                        <div style={{
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '12px'
+                        }}>
+                          <span style={{ color: '#1e40af' }}>
+                            💡 Found existing: <strong>{matchedExistingCustomer.customerName}</strong> (₹{matchedExistingCustomer.outstandingBalance} Due)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomerMode('existing');
+                              setSelectedCustomerChoice(matchedExistingCustomer.customerPhone !== 'N/A' ? matchedExistingCustomer.customerPhone : matchedExistingCustomer.customerName);
+                            }}
+                            style={{
+                              background: '#2563eb',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: 6,
+                              padding: '3px 9px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Use Account
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── PURCHASE DETAILS / ITEMIZATION ── */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <label style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Utensils size={14} color="#2563eb" />
+                        {isHindi ? 'खरीदारी विवरण (Dishes / Bill)' : 'Purchase & Dish Breakdown'}
+                      </label>
+
+                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '2px', borderRadius: '7px', border: '1px solid #e2e8f0' }}>
+                        <button
+                          type="button"
+                          onClick={() => setUseManualTotal(false)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '5px',
+                            border: 'none',
+                            outline: 'none',
+                            background: !useManualTotal ? '#ffffff' : 'transparent',
+                            color: !useManualTotal ? '#0f172a' : '#64748b',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            boxShadow: !useManualTotal ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+                          }}
+                        >
+                          🍽️ {isHindi ? 'मेन्यू से' : 'From Menu'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUseManualTotal(true)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '5px',
+                            border: 'none',
+                            outline: 'none',
+                            background: useManualTotal ? '#ffffff' : 'transparent',
+                            color: useManualTotal ? '#0f172a' : '#64748b',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            boxShadow: useManualTotal ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+                          }}
+                        >
+                          💰 {isHindi ? 'सीधा बिल' : 'Direct Total'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {!useManualTotal ? (
+                      <div className={styles.itemsCartBox}>
+                        {/* Live Dish Filter & Category Dropdown */}
+                        <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <div style={{ position: 'relative', flex: 1 }}>
+                              <Search size={12} color="#94a3b8" style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }} />
+                              <input
+                                type="text"
+                                placeholder={isHindi ? "व्यंजन खोजें (उदा. चाय, बर्गर)..." : "Filter dish (e.g. coffee, sandwich)..."}
+                                value={dishSearch}
+                                onChange={(e) => setDishSearch(e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px 6px 26px',
+                                  borderRadius: 6,
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '11.5px',
+                                  boxSizing: 'border-box'
+                                }}
+                              />
+                            </div>
+
+                            <select
+                              onChange={(e) => {
+                                handleQuickAddDish(e.target.value);
+                                e.target.value = "";
+                              }}
+                              style={{
+                                flex: 1.6,
+                                padding: '6px 10px',
+                                borderRadius: 6,
+                                border: '1.5px solid #cbd5e1',
+                                background: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: '#0f172a',
+                                cursor: 'pointer',
+                                boxSizing: 'border-box',
+                                outline: 'none'
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>
+                                ➕ {isHindi ? 'मेन्यू से जोड़ें...' : `+ Pick dish (${filteredAvailableMenu.length} matches)...`}
+                              </option>
+                              {Object.entries(groupedFilteredMenu).map(([categoryName, dishes]) => (
+                                <optgroup key={categoryName} label={`📂 ${categoryName}`}>
+                                  {dishes.map(d => (
+                                    <option key={d._id || d.id} value={d._id || d.id}>
+                                      {d.name} — ₹{d.price}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Cart items list */}
+                        {lineItems.length === 0 ? (
+                          <div className={styles.cartEmpty}>
+                            <Utensils size={24} color="#cbd5e1" />
+                            <span>{isHindi ? 'ऊपर मेन्यू से व्यंजन चुनें या नीचे कस्टम आइटम जोड़ें' : 'No items added yet. Pick dishes from the dropdown above'}</span>
+                          </div>
+                        ) : (
+                          <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                            {lineItems.map((item, idx) => {
+                              const qty = Number(item.quantity) || 1;
+                              const pr = Number(item.price) || 0;
+                              const lineTotal = qty * pr;
+
+                              return (
+                                <div key={idx} className={styles.cartRow}>
+                                  <input
+                                    type="text"
+                                    list="all-cafe-dishes"
+                                    placeholder="Dish name..."
+                                    value={item.name}
+                                    onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                                    style={{ flex: 2, padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 600 }}
+                                  />
+
+                                  {/* Quantity Stepper */}
+                                  <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleItemChange(idx, 'quantity', Math.max(1, qty - 1))}
+                                      style={{ width: 22, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                      <Minus size={11} />
+                                    </button>
+                                    <span style={{ minWidth: 22, textAlign: 'center', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                                      {qty}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleItemChange(idx, 'quantity', qty + 1)}
+                                      style={{ width: 22, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                      <Plus size={11} />
+                                    </button>
+                                  </div>
+
+                                  {/* Unit Price */}
+                                  <div style={{ position: 'relative', width: '65px' }}>
+                                    <span style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#64748b' }}>₹</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      placeholder="0"
+                                      value={item.price}
+                                      onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
+                                      style={{ width: '100%', padding: '5px 6px 5px 14px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', textAlign: 'right', boxSizing: 'border-box' }}
+                                    />
+                                  </div>
+
+                                  {/* Line Total */}
+                                  <div style={{ minWidth: '45px', textAlign: 'right', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                                    ₹{lineTotal}
+                                  </div>
+
+                                  {/* Delete Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveItemRow(idx)}
+                                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2 }}
+                                    title="Remove item"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Footer add custom row */}
+                        <div style={{ padding: '6px 10px', background: '#fafbfc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAddItemRow()}
+                            style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Plus size={12} />
+                            {isHindi ? 'कस्टम आइटम जोड़ें' : 'Add custom item'}
+                          </button>
+
+                          {lineItems.length > 0 && (
+                            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                              {lineItems.length} item{lineItems.length > 1 ? 's' : ''} added
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Direct Total Amount Input */
+                      <div style={{ background: '#f8fafc', padding: '14px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                          {isHindi ? 'सीधा कुल बिल राशि दर्ज करें (₹)' : 'Enter Total Bill Amount (₹)'}
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '18px', fontWeight: 800, color: '#64748b' }}>₹</span>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="0"
+                            value={manualTotalBill}
+                            onChange={(e) => setManualTotalBill(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px 10px 30px',
+                              borderRadius: 8,
+                              border: '1.5px solid #cbd5e1',
+                              fontSize: '18px',
+                              fontWeight: 800,
+                              color: '#0f172a',
+                              boxSizing: 'border-box',
+                              outline: 'none'
+                            }}
+                          />
+                        </div>
+
+                        {/* Quick Amount Chips */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                          {[50, 100, 150, 200, 300, 500, 1000].map(amt => (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => setManualTotalBill(String(amt))}
+                              className={`${styles.chipBtn} ${Number(manualTotalBill) === amt ? styles.chipBtnActive : ''}`}
+                            >
+                              ₹{amt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {!useManualTotal ? (
-                  <div className={styles.itemsCartBox}>
-                    {/* Menu Dropdown Selector */}
-                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <select
-                        onChange={(e) => {
-                          handleQuickAddDish(e.target.value);
-                          e.target.value = "";
-                        }}
+                {/* ── RIGHT COLUMN: FINANCIALS, TENDER, IMPACT & SUBMIT ── */}
+                <div className={styles.rightColumnCard}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+                    {isHindi ? 'भुगतान एवं लेजर प्रभाव' : 'Payment & Ledger Terms'}
+                  </div>
+
+                  {/* Bill & Paid Now Hero */}
+                  <div className={styles.billHeroBox}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>
+                        {isHindi ? 'कुल बिल राशि' : 'Total Purchase Bill:'}
+                      </span>
+                      <strong style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
+                        ₹{effectiveTotalBill.toLocaleString('en-IN')}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#16a34a', marginBottom: 3 }}>
+                        {isHindi ? 'अभी प्राप्त भुगतान (₹)' : 'Paid Now at Counter (₹)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={effectiveTotalBill}
+                        placeholder="0"
+                        value={newPaidAmount}
+                        onChange={(e) => setNewPaidAmount(e.target.value)}
                         style={{
                           width: '100%',
                           padding: '8px 10px',
                           borderRadius: 6,
-                          border: '1.5px solid #cbd5e1',
-                          background: '#ffffff',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          color: '#0f172a',
-                          cursor: 'pointer',
-                          boxSizing: 'border-box',
-                          outline: 'none'
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>
-                          ➕ {isHindi ? 'मेन्यू से व्यंजन चुनें...' : `+ Add dish from Cafe Menu (${availableMenu.length} dishes available)...`}
-                        </option>
-                        {Object.entries(groupedMenu).map(([categoryName, dishes]) => (
-                          <optgroup key={categoryName} label={`📂 ${categoryName}`}>
-                            {dishes.map(d => (
-                              <option key={d._id || d.id} value={d._id || d.id}>
-                                {d.name} — ₹{d.price}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Cart Items List */}
-                    {lineItems.length === 0 ? (
-                      <div className={styles.cartEmpty}>
-                        <Utensils size={22} color="#cbd5e1" />
-                        <span>{isHindi ? 'ऊपर मेन्यू से व्यंजन चुनें या नीचे कस्टम आइटम जोड़ें' : 'No items added yet. Pick dishes from the dropdown above'}</span>
-                      </div>
-                    ) : (
-                      <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                        {lineItems.map((item, idx) => {
-                          const qty = Number(item.quantity) || 1;
-                          const pr = Number(item.price) || 0;
-                          const lineTotal = qty * pr;
-
-                          return (
-                            <div key={idx} className={styles.cartRow}>
-                              <input
-                                type="text"
-                                list="all-cafe-dishes"
-                                placeholder="Dish name..."
-                                value={item.name}
-                                onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                                style={{ flex: 2, padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 600 }}
-                              />
-
-                              {/* Quantity Stepper */}
-                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleItemChange(idx, 'quantity', Math.max(1, qty - 1))}
-                                  style={{ width: 22, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                  <Minus size={11} />
-                                </button>
-                                <span style={{ minWidth: 22, textAlign: 'center', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
-                                  {qty}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleItemChange(idx, 'quantity', qty + 1)}
-                                  style={{ width: 22, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                  <Plus size={11} />
-                                </button>
-                              </div>
-
-                              {/* Unit Price */}
-                              <div style={{ position: 'relative', width: '65px' }}>
-                                <span style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#64748b' }}>₹</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  value={item.price}
-                                  onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
-                                  style={{ width: '100%', padding: '5px 6px 5px 14px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', textAlign: 'right', boxSizing: 'border-box' }}
-                                />
-                              </div>
-
-                              {/* Line Total */}
-                              <div style={{ minWidth: '45px', textAlign: 'right', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
-                                ₹{lineTotal}
-                              </div>
-
-                              {/* Delete Button */}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItemRow(idx)}
-                                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2 }}
-                                title="Remove item"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Footer add custom row */}
-                    <div style={{ padding: '6px 10px', background: '#fafbfc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleAddItemRow()}
-                        style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                      >
-                        <Plus size={12} />
-                        {isHindi ? 'कस्टम आइटम जोड़ें' : 'Add custom item'}
-                      </button>
-
-                      {lineItems.length > 0 && (
-                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                          {lineItems.length} item{lineItems.length > 1 ? 's' : ''} added
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Direct Total Amount Input */
-                  <div style={{ background: '#f8fafc', padding: '14px', borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 12 }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                      {isHindi ? 'सीधा कुल बिल राशि दर्ज करें (₹)' : 'Enter Total Bill Amount (₹)'}
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '18px', fontWeight: 800, color: '#64748b' }}>₹</span>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="0"
-                        value={manualTotalBill}
-                        onChange={(e) => setManualTotalBill(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px 10px 30px',
-                          borderRadius: 8,
-                          border: '1.5px solid #cbd5e1',
-                          fontSize: '18px',
+                          border: '1.5px solid #86efac',
+                          fontSize: '14px',
                           fontWeight: 800,
-                          color: '#0f172a',
+                          color: '#15803d',
                           boxSizing: 'border-box',
                           outline: 'none'
                         }}
                       />
-                    </div>
 
-                    {/* Quick Amount Chips */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                      {[50, 100, 150, 200, 300, 500, 1000].map(amt => (
+                      {/* Quick paid chips */}
+                      <div style={{ display: 'flex', gap: 4, marginTop: 5 }}>
                         <button
-                          key={amt}
                           type="button"
-                          onClick={() => setManualTotalBill(String(amt))}
-                          className={`${styles.chipBtn} ${Number(manualTotalBill) === amt ? styles.chipBtnActive : ''}`}
+                          onClick={() => setNewPaidAmount('0')}
+                          className={`${styles.chipBtn} ${newPaidAmount === '0' || newPaidAmount === '' ? styles.chipBtnActive : ''}`}
+                          style={{ fontSize: '10px', padding: '2px 6px' }}
                         >
-                          ₹{amt}
+                          ₹0 (Full Udhar)
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                        {effectiveTotalBill >= 100 && (
+                          <button
+                            type="button"
+                            onClick={() => setNewPaidAmount(String(Math.round(effectiveTotalBill / 2)))}
+                            className={`${styles.chipBtn} ${Number(newPaidAmount) === Math.round(effectiveTotalBill / 2) ? styles.chipBtnActive : ''}`}
+                            style={{ fontSize: '10px', padding: '2px 6px' }}
+                          >
+                            50% (₹{Math.round(effectiveTotalBill / 2)})
+                          </button>
+                        )}
+                        {effectiveTotalBill > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setNewPaidAmount(String(effectiveTotalBill))}
+                            className={`${styles.chipBtn} ${Number(newPaidAmount) === effectiveTotalBill ? styles.chipBtnActive : ''}`}
+                            style={{ fontSize: '10px', padding: '2px 6px' }}
+                          >
+                            Full Paid
+                          </button>
+                        )}
+                      </div>
 
-              {/* Bill & Paid Now Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                    {isHindi ? 'कुल खरीदारी बिल' : 'Total Purchase Bill'}
-                  </label>
-                  <div style={{
-                    padding: '9px 12px',
-                    borderRadius: 8,
-                    background: '#f1f5f9',
-                    border: '1px solid #e2e8f0',
-                    fontWeight: 900,
-                    fontSize: '15px',
-                    color: '#0f172a'
-                  }}>
-                    ₹{effectiveTotalBill.toLocaleString('en-IN')}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>
-                    {isHindi ? 'अभी भुगतान (₹)' : 'Paid Now (₹)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max={effectiveTotalBill}
-                    placeholder="0"
-                    value={newPaidAmount}
-                    onChange={(e) => setNewPaidAmount(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: 8,
-                      border: '1.5px solid #86efac',
-                      fontSize: '15px',
-                      fontWeight: 800,
-                      color: '#15803d',
-                      boxSizing: 'border-box',
-                      outline: 'none'
-                    }}
-                  />
-
-                  {/* Quick paid chips */}
-                  <div style={{ display: 'flex', gap: 4, marginTop: 5 }}>
-                    <button
-                      type="button"
-                      onClick={() => setNewPaidAmount('0')}
-                      className={`${styles.chipBtn} ${newPaidAmount === '0' || newPaidAmount === '' ? styles.chipBtnActive : ''}`}
-                      style={{ fontSize: '10px', padding: '2px 6px' }}
-                    >
-                      ₹0 (Udhar)
-                    </button>
-                    {effectiveTotalBill >= 100 && (
-                      <button
-                        type="button"
-                        onClick={() => setNewPaidAmount(String(Math.round(effectiveTotalBill / 2)))}
-                        className={`${styles.chipBtn} ${Number(newPaidAmount) === Math.round(effectiveTotalBill / 2) ? styles.chipBtnActive : ''}`}
-                        style={{ fontSize: '10px', padding: '2px 6px' }}
-                      >
-                        50%
-                      </button>
-                    )}
-                    {effectiveTotalBill > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setNewPaidAmount(String(effectiveTotalBill))}
-                        className={`${styles.chipBtn} ${Number(newPaidAmount) === effectiveTotalBill ? styles.chipBtnActive : ''}`}
-                        style={{ fontSize: '10px', padding: '2px 6px' }}
-                      >
-                        Full
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Calculated Udhar Added Banner */}
-              {(() => {
-                const prevDue = currentSelectedCustomer ? Number(currentSelectedCustomer.outstandingBalance || 0) : 0;
-                const updatedBalance = prevDue + newUdharAmount;
-
-                return (
-                  <div className={styles.balanceImpactCard}>
-                    <div>
-                      <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px', fontWeight: 600 }}>
-                        {isHindi ? 'खाते में नई उधारी' : 'New Udhar Added to Account:'}
-                      </span>
-                      <strong style={{ color: newUdharAmount > 0 ? '#dc2626' : '#16a34a', fontSize: '14.5px' }}>
-                        +₹{newUdharAmount.toLocaleString('en-IN')}
-                      </strong>
-                    </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px', fontWeight: 600 }}>
-                        {isHindi ? 'अपडेटेड कुल बकाया' : 'Updated Total Balance:'}
-                      </span>
-                      <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>
-                        ₹{updatedBalance.toLocaleString('en-IN')}
-                      </strong>
-                      {prevDue > 0 && (
-                        <span style={{ fontSize: '10.5px', color: '#94a3b8', display: 'block' }}>
-                          (Prev: ₹{prevDue.toLocaleString('en-IN')})
-                        </span>
+                      {/* Tender Mode for Paid Amount (Cash / UPI / Card) */}
+                      {Number(newPaidAmount) > 0 && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #e2e8f0' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+                            {isHindi ? 'प्राप्त राशि का माध्यम:' : 'Tender Method for Paid Amount:'}
+                          </span>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {[
+                              { id: 'Cash', label: 'Cash' },
+                              { id: 'UPI', label: 'UPI / QR' },
+                              { id: 'Card', label: 'Card' }
+                            ].map(m => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => setNewPaidMethod(m.id)}
+                                style={{
+                                  flex: 1,
+                                  padding: '4px',
+                                  borderRadius: 5,
+                                  border: newPaidMethod === m.id ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                                  background: newPaidMethod === m.id ? '#f0fdf4' : '#ffffff',
+                                  color: newPaidMethod === m.id ? '#15803d' : '#475569',
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {m.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
-                );
-              })()}
 
-              {/* Optional Note */}
-              <div style={{ marginBottom: 12 }}>
-                <input
-                  type="text"
-                  placeholder={isHindi ? "अतिरिक्त टिप्पणी (उदा. टेबल 3 या शाम का चाय नाश्ता)" : "Note / Remark (optional, e.g. Table 3 or evening tea)"}
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
-                />
-              </div>
+                  {/* Calculated Udhar Added & Balance Impact Banner */}
+                  {(() => {
+                    const prevDue = currentSelectedCustomer ? Number(currentSelectedCustomer.outstandingBalance || 0) : 0;
+                    const updatedBalance = prevDue + newUdharAmount;
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, cursor: 'pointer', fontSize: '12px', color: '#475569' }}
-                >
-                  {isHindi ? 'रद्द करें' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreating || effectiveTotalBill <= 0}
-                  style={{
-                    flex: 2,
-                    padding: '10px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: effectiveTotalBill > 0
-                      ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
-                      : '#cbd5e1',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    cursor: effectiveTotalBill > 0 ? 'pointer' : 'not-allowed',
-                    fontSize: '12.5px',
-                    boxShadow: effectiveTotalBill > 0 ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none'
-                  }}
-                >
-                  {isCreating
-                    ? (isHindi ? 'दर्ज हो रहा है...' : 'Recording...')
-                    : (isHindi ? `खाते में ₹${newUdharAmount} उधार जोड़ें` : `Confirm & Add ₹${newUdharAmount} to Khata`)}
-                </button>
+                    return (
+                      <div className={styles.balanceImpactCard}>
+                        <div>
+                          <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px', fontWeight: 600 }}>
+                            {isHindi ? 'खाते में नया उधार' : 'New Udhar Added:'}
+                          </span>
+                          <strong style={{ color: newUdharAmount > 0 ? '#dc2626' : '#16a34a', fontSize: '15px' }}>
+                            +₹{newUdharAmount.toLocaleString('en-IN')}
+                          </strong>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px', fontWeight: 600 }}>
+                            {isHindi ? 'अपडेटेड कुल बकाया' : 'Updated Total Due:'}
+                          </span>
+                          <strong style={{ color: '#0f172a', fontSize: '15px' }}>
+                            ₹{updatedBalance.toLocaleString('en-IN')}
+                          </strong>
+                          {prevDue > 0 && (
+                            <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block' }}>
+                              (Prev: ₹{prevDue.toLocaleString('en-IN')})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Order & Khata Metadata Inputs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#475569', marginBottom: 2 }}>
+                        {isHindi ? 'दिनांक व समय' : 'Date & Time'}
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={entryDate}
+                        onChange={(e) => setEntryDate(e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '11px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#475569', marginBottom: 2 }}>
+                        {isHindi ? 'टेबल / टोकन नंबर' : 'Table / Token #'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Table 4"
+                        value={entryOrderNumber}
+                        onChange={(e) => setEntryOrderNumber(e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Optional Note */}
+                  <div style={{ marginBottom: 14 }}>
+                    <input
+                      type="text"
+                      placeholder={isHindi ? "टिप्पणी (उदा. शाम का नाश्ता / ऑफिस ग्रुप)" : "Note / Remark (e.g. evening tea snack)"}
+                      value={newNotes}
+                      onChange={(e) => setNewNotes(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '11.5px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', fontWeight: 700, cursor: 'pointer', fontSize: '12px', color: '#475569' }}
+                    >
+                      {isHindi ? 'रद्द करें' : 'Cancel'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isCreating || effectiveTotalBill <= 0}
+                      style={{
+                        flex: 2,
+                        padding: '10px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: effectiveTotalBill > 0
+                          ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
+                          : '#cbd5e1',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                        cursor: effectiveTotalBill > 0 ? 'pointer' : 'not-allowed',
+                        fontSize: '12.5px',
+                        boxShadow: effectiveTotalBill > 0 ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none'
+                      }}
+                    >
+                      {isCreating
+                        ? (isHindi ? 'दर्ज हो रहा है...' : 'Recording...')
+                        : (isHindi ? `₹${newUdharAmount} उधार जोड़ें` : `Confirm & Add ₹${newUdharAmount}`)}
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           </div>
