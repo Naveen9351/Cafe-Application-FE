@@ -7,7 +7,8 @@ import {
     ChevronLeft, ChevronRight, ShieldAlert, Clock, AlertTriangle, CheckCircle2, History, X, Lock, Image, User, Mail, Phone, MapPin, Upload,
     Activity, TrendingUp, Globe, Smartphone, Laptop, Search, RefreshCw, Eye, ArrowUpRight, Filter,
     SlidersHorizontal, PowerOff, Power,
-    Compass, Send, Link as LinkIcon, Copy, UserCheck, DollarSign, Sparkles
+    Compass, Send, Link as LinkIcon, Copy, UserCheck, DollarSign, Sparkles,
+    Edit3, KeyRound, EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -80,6 +81,20 @@ const SuperAdminDashboard = () => {
 
     // Modals
     const [showOnboardModal, setShowOnboardModal] = useState(false);
+    const [showEditUserModal, setShowEditUserModal] = useState(false);
+    const [editingUserTenant, setEditingUserTenant] = useState(null);
+    const [editUserForm, setEditUserForm] = useState({
+        cafeName: '',
+        adminName: '',
+        email: '',
+        phone: '',
+        password: '',
+        sendEmailNotification: false
+    });
+    const [showEditPassword, setShowEditPassword] = useState(false);
+    const [isSavingUser, setIsSavingUser] = useState(false);
+    const [showResetResultModal, setShowResetResultModal] = useState(false);
+    const [resetResultInfo, setResetResultInfo] = useState(null);
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -418,6 +433,98 @@ const SuperAdminDashboard = () => {
         const url = `${window.location.origin}/register?invite=${inviteToken}`;
         navigator.clipboard.writeText(url);
         toast.success('Invitation link copied to clipboard!');
+    };
+
+    const handleOpenEditUserModal = (tenant) => {
+        setEditingUserTenant(tenant);
+        setEditUserForm({
+            cafeName: tenant.name || '',
+            adminName: tenant.adminName || tenant.ownerName || '',
+            email: tenant.adminEmail || tenant.email || '',
+            phone: tenant.adminPhone || tenant.phone || '',
+            password: '',
+            sendEmailNotification: false
+        });
+        setShowEditPassword(false);
+        setShowEditUserModal(true);
+    };
+
+    const handleSaveEditUser = async (e) => {
+        e.preventDefault();
+        if (!editUserForm.cafeName.trim() || !editUserForm.email.trim()) {
+            toast.error('Cafe name and Email address are required');
+            return;
+        }
+        if (editUserForm.phone && !/^[0-9]{10}$/.test(editUserForm.phone.trim())) {
+            toast.error('Mobile number must be exactly 10 digits');
+            return;
+        }
+        if (editUserForm.password && editUserForm.password.trim().length < 6) {
+            toast.error('Password must be at least 6 characters long');
+            return;
+        }
+
+        setIsSavingUser(true);
+        try {
+            const { sharedToken } = getSharedAuth();
+            const token = sharedToken || localStorage.getItem('token');
+            const res = await axios.put(`${API}/tenants/${editingUserTenant._id}/account`, editUserForm, {
+                headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
+            });
+            toast.success(res.data?.message || 'Cafe and user details updated successfully!');
+            setShowEditUserModal(false);
+            setEditingUserTenant(null);
+            fetchTenantsAndLeads();
+        } catch (err) {
+            console.error('Save edit user error:', err);
+            toast.error(err.response?.data?.error || 'Failed to update user details');
+        } finally {
+            setIsSavingUser(false);
+        }
+    };
+
+    const handleSendResetPasswordEmail = async (tenant) => {
+        const targetEmail = tenant.adminEmail || tenant.email;
+        const confirmMsg = `Send password reset email to ${targetEmail} for "${tenant.name}"?`;
+        if (!window.confirm(confirmMsg)) return;
+
+        const toastId = toast.loading(`Dispatching reset email to ${targetEmail}...`);
+        try {
+            const { sharedToken } = getSharedAuth();
+            const token = sharedToken || localStorage.getItem('token');
+            const res = await axios.post(`${API}/tenants/${tenant._id}/send-reset-password`, {}, {
+                headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
+            });
+
+            toast.dismiss(toastId);
+            toast.success(`Password reset email sent to ${targetEmail}!`, { duration: 5000 });
+            
+            if (res.data?.tempPassword) {
+                setResetResultInfo({
+                    tenantName: tenant.name,
+                    email: targetEmail,
+                    tempPassword: res.data.tempPassword
+                });
+                setShowResetResultModal(true);
+            }
+            fetchTenantsAndLeads();
+        } catch (err) {
+            toast.dismiss(toastId);
+            console.error('Reset password email error:', err);
+            toast.error(err.response?.data?.error || 'Failed to dispatch password reset email');
+        }
+    };
+
+    const handleGeneratePassword = () => {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let rand = '';
+        for (let i = 0; i < 6; i++) {
+            rand += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const genPass = `Dine#${rand}`;
+        setEditUserForm(prev => ({ ...prev, password: genPass }));
+        setShowEditPassword(true);
+        toast.success('Generated new password!');
     };
 
     const handleExploreCafe = async (tenant) => {
@@ -1150,6 +1257,24 @@ const SuperAdminDashboard = () => {
                                                                         title="Explore Cafe Revenue, Orders & Analytics"
                                                                     >
                                                                         <Compass size={13} />
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.editUserBtn}
+                                                                        onClick={() => handleOpenEditUserModal(tenant)}
+                                                                        title="Edit Cafe Details, Owner Profile & Password"
+                                                                    >
+                                                                        <Edit3 size={13} />
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.resetMailBtn}
+                                                                        onClick={() => handleSendResetPasswordEmail(tenant)}
+                                                                        title="Send Password Reset Email to Gmail"
+                                                                    >
+                                                                        <Mail size={13} />
                                                                     </button>
 
                                                                     <button
@@ -3007,6 +3132,246 @@ const SuperAdminDashboard = () => {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: EDIT CAFE & USER DETAILS */}
+            {showEditUserModal && editingUserTenant && (
+                <div className={styles.modalOverlay} onClick={() => setShowEditUserModal(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+                                    Edit Cafe & User Details
+                                </h2>
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                    Update credentials & profile for {editingUserTenant.name}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowEditUserModal(false)}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEditUser}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                                        Cafe / Restaurant Name *
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <Building size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                        <input
+                                            type="text"
+                                            required
+                                            value={editUserForm.cafeName}
+                                            onChange={(e) => setEditUserForm({ ...editUserForm, cafeName: e.target.value })}
+                                            style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                            placeholder="e.g. The Landmark"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                                        Owner / Admin Name
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <User size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                        <input
+                                            type="text"
+                                            value={editUserForm.adminName}
+                                            onChange={(e) => setEditUserForm({ ...editUserForm, adminName: e.target.value })}
+                                            style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                            placeholder="e.g. Naveen"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                                            Gmail / Email Address *
+                                        </label>
+                                        <div style={{ position: 'relative' }}>
+                                            <Mail size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                            <input
+                                                type="email"
+                                                required
+                                                value={editUserForm.email}
+                                                onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                                                style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                                placeholder="owner@gmail.com"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                                            Mobile Number
+                                        </label>
+                                        <div style={{ position: 'relative' }}>
+                                            <Phone size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                            <input
+                                                type="tel"
+                                                maxLength={10}
+                                                value={editUserForm.phone}
+                                                onChange={(e) => setEditUserForm({ ...editUserForm, phone: e.target.value.replace(/\D/g, '') })}
+                                                style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                                placeholder="10-digit mobile"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Password Section */}
+                                <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginTop: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                        <label style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Lock size={14} color="#4f46e5" /> Change Password
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={handleGeneratePassword}
+                                            style={{
+                                                background: '#eef2ff',
+                                                border: '1px solid #c7d2fe',
+                                                color: '#4f46e5',
+                                                borderRadius: '6px',
+                                                padding: '3px 8px',
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            ⚡ Generate
+                                        </button>
+                                    </div>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type={showEditPassword ? 'text' : 'password'}
+                                            value={editUserForm.password}
+                                            onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
+                                            placeholder="Enter new password (leave empty to keep current)"
+                                            style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEditPassword(!showEditPassword)}
+                                            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                                        >
+                                            {showEditPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                                        </button>
+                                    </div>
+
+                                    {editUserForm.password && (
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: '11.5px', color: '#475569', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={editUserForm.sendEmailNotification}
+                                                onChange={(e) => setEditUserForm({ ...editUserForm, sendEmailNotification: e.target.checked })}
+                                            />
+                                            Email these new credentials to {editUserForm.email}
+                                        </label>
+                                    )}
+                                </div>
+
+                                {/* Quick Reset Mail Action inside Modal */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#faf5ff', border: '1px dashed #c084fc', padding: '10px 12px', borderRadius: '8px' }}>
+                                    <div>
+                                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#6b21a8', display: 'block' }}>
+                                            Need to send a reset link?
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: '#9333ea' }}>
+                                            Sends a secure temporary password to user's Gmail
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowEditUserModal(false);
+                                            handleSendResetPasswordEmail(editingUserTenant);
+                                        }}
+                                        style={{
+                                            background: '#9333ea',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            padding: '6px 12px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 4
+                                        }}
+                                    >
+                                        <Mail size={12} /> Send Mail Now
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className={styles.modalActions} style={{ marginTop: 16 }}>
+                                <button type="button" onClick={() => setShowEditUserModal(false)} className={styles.cancelBtn}>
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={isSavingUser} className={styles.saveBtn}>
+                                    {isSavingUser ? 'Saving Changes...' : 'Save & Update Details'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: RESET PASSWORD RESULT */}
+            {showResetResultModal && resetResultInfo && (
+                <div className={styles.modalOverlay} onClick={() => setShowResetResultModal(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#dcfce7', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <CheckCircle2 size={24} />
+                        </div>
+                        <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem', color: '#0f172a' }}>
+                            Password Reset Email Sent!
+                        </h3>
+                        <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#64748b' }}>
+                            A password reset notification with temporary credentials was dispatched to <strong>{resetResultInfo.email}</strong>.
+                        </p>
+
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: 16 }}>
+                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: 4 }}>
+                                Temporary Password Assigned:
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                <code style={{ fontSize: '18px', fontWeight: 800, color: '#047857', letterSpacing: '1.5px' }}>
+                                    {resetResultInfo.tempPassword}
+                                </code>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(resetResultInfo.tempPassword);
+                                        toast.success('Temporary password copied to clipboard!');
+                                    }}
+                                    style={{ background: '#e2e8f0', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', fontWeight: 600 }}
+                                >
+                                    <Copy size={12} /> Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            className={styles.saveBtn}
+                            onClick={() => setShowResetResultModal(false)}
+                            style={{ width: '100%' }}
+                        >
+                            Done
+                        </button>
                     </div>
                 </div>
             )}

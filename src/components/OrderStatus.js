@@ -176,11 +176,17 @@ const OrderStatus = () => {
           ? [...currentOrder.sessionOrders]
           : [currentOrder];
 
-        // Store all active session order IDs into localStorage so customer never loses added rounds
+        // Store only active UNPAID session order IDs into localStorage so customer never loses added rounds, but cleared tables reset
         try {
-          const allIds = allOrders.map(o => o._id).filter(Boolean);
-          if (allIds.length > 0) {
-            localStorage.setItem('serviq_session_orders', JSON.stringify(allIds));
+          if (currentOrder.paymentStatus === 'paid' && allOrders.every(o => o.paymentStatus === 'paid')) {
+            localStorage.removeItem('serviq_session_orders');
+          } else {
+            const activeUnpaidIds = allOrders.filter(o => o.paymentStatus !== 'paid').map(o => o._id).filter(Boolean);
+            if (activeUnpaidIds.length > 0) {
+              localStorage.setItem('serviq_session_orders', JSON.stringify(activeUnpaidIds));
+            } else {
+              localStorage.removeItem('serviq_session_orders');
+            }
           }
         } catch (e) {}
 
@@ -292,14 +298,14 @@ const OrderStatus = () => {
 
   const getStepIndex = (status) => {
     const s = (status || 'pending').toLowerCase();
-    if (s === 'completed') return 2;
+    if (s === 'completed' || s === 'served') return 2;
     if (s === 'ready' || s === 'preparing') return 1; // ready to serve is included in preparing step
     return 0; // pending
   };
 
   const currentStepIndex = getStepIndex(trackedOrder.status);
   const isCancelled = trackedOrder.status === 'cancelled';
-  const isCompleted = trackedOrder.status === 'completed';
+  const isCompleted = trackedOrder.status === 'completed' || trackedOrder.status === 'served';
   const tableNumStr = order.tableNumber || localStorage.getItem('tableNumber') || '1';
   const tableToken = tableNumStr ? encodeTableToken(tableNumStr) : '';
   const tableTarget = tableToken ? `?t=${encodeURIComponent(tableToken)}` : '';
@@ -308,6 +314,7 @@ const OrderStatus = () => {
   const getStatusBadgeInfo = (st) => {
     switch (st) {
       case 'completed':
+      case 'served':
         return { text: '✓ Served', bg: isDarkMode ? 'rgba(16, 185, 129, 0.16)' : '#ecfdf5', color: '#059669' };
       case 'ready':
       case 'preparing':
@@ -644,6 +651,11 @@ const OrderStatus = () => {
                     <div className={styles.roundHeaderRow}>
                       <span className={styles.roundTitle} style={{ color: theme.textMain }}>
                         Round {roundNum} • {roundCode}
+                        {ord.isDirect && (
+                          <span style={{ fontSize: '0.66rem', color: '#ea580c', fontWeight: 800, marginLeft: 5 }}>
+                            ⚡ Direct
+                          </span>
+                        )}
                         {isCurrentOrd && (
                           <span style={{ fontSize: '0.66rem', color: theme.accent, textTransform: 'none', fontWeight: 800 }}>
                             (Tracking)

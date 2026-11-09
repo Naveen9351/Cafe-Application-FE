@@ -234,7 +234,7 @@ const SESSION_CHAT_KEY = 'serviq_khushi_chat_history';
 
 const defaultGreeting = {
   role: 'assistant',
-  text: `Hello! I am **Khushi AI**, your smart restaurant operations & sales growth assistant.\n\nHow can I help you boost sales, build combos, or check store insights today?`
+  text: `Hello! I am **DineviQ AI Bot**, your smart restaurant operations & sales growth assistant.\n\nHow can I help you boost sales, build combos, or check store insights today?`
 };
 
 export default function CafeAICopilotChatbot({ 
@@ -380,7 +380,7 @@ export default function CafeAICopilotChatbot({
         throw new Error('No reply received');
       }
     } catch (err) {
-      console.error('Khushi AI error:', err);
+      console.error('DineviQ AI Bot error:', err);
       // Fallback
       let fallbackText = `I analyzed your live store data. You have active menu items and orders in the database. Try asking:\n- "How do I increase my sales today?"\n- "Find any data mismatches or uncollected bills"\n- "Which ingredients are low on stock?"\n- "Raise a support ticket for main admin"`;
       setMessages(prev => {
@@ -472,16 +472,16 @@ export default function CafeAICopilotChatbot({
           type="button"
           onClick={() => setIsOpen(true)}
           className={styles.roundLauncherBtn}
-          title="Chat with Khushi AI (Store Assistant)"
+          title="Chat with DineviQ AI Bot (Store Assistant)"
         >
           <div className={styles.pulseRingCircle} />
           <div className={styles.circleBaseBackdrop} />
           <img
             src={KHUSHI_AVATAR_URL}
-            alt="Khushi AI"
+            alt="DineviQ AI Bot"
             className={styles.launcherAvatarImg}
           />
-          <span className={styles.floatingLabelPill}>Khushi AI</span>
+          <span className={styles.floatingLabelPill}>DineviQ AI Bot</span>
         </button>
       )}
 
@@ -494,13 +494,13 @@ export default function CafeAICopilotChatbot({
               <div className={styles.headerAvatarWrapper}>
                 <img
                   src={KHUSHI_AVATAR_URL}
-                  alt="Khushi AI"
+                  alt="DineviQ AI Bot"
                   className={styles.headerAvatarImg}
                 />
               </div>
               <div>
                 <div className={styles.headerTitleRow}>
-                  <h4>Khushi AI</h4>
+                  <h4>DineviQ AI Bot</h4>
                 </div>
                 <p className={styles.headerSub}>
                   {tenantInfo?.businessName || tenantInfo?.name || 'Restaurant Growth & Operations'}
@@ -563,7 +563,7 @@ export default function CafeAICopilotChatbot({
                         <div className={styles.assistantAvatar}>
                           <img
                             src={KHUSHI_AVATAR_URL}
-                            alt="Khushi AI"
+                            alt="DineviQ AI Bot"
                             className={styles.msgAvatarImg}
                           />
                         </div>
@@ -589,7 +589,7 @@ export default function CafeAICopilotChatbot({
                     <div className={styles.assistantAvatar}>
                       <img
                         src={KHUSHI_AVATAR_URL}
-                        alt="Khushi AI"
+                        alt="DineviQ AI Bot"
                         className={styles.msgAvatarImg}
                       />
                     </div>
@@ -613,7 +613,7 @@ export default function CafeAICopilotChatbot({
               >
                 <input
                   type="text"
-                  placeholder="Ask Khushi AI about sales, combos, stock, or report issues..."
+                  placeholder="Ask DineviQ AI Bot about sales, combos, stock, or report issues..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className={styles.chatInputField}

@@ -386,3 +386,36 @@
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+
+/* ── Tablet & Surface Device Responsive Styles (768px - 1024px) ── */
+@media (max-width: 1024px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .primaryBtn {
+    min-height: 36px;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+
+  .tableWrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .staffTable {
+    min-width: 720px;
+  }
+
+  .staffTable th,
+  .staffTable td {
+    padding: 10px 12px;
+  }
+}
+

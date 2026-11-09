@@ -156,10 +156,42 @@
 /* ── Streamlined Mini KPI Ribbon ── */
 .compactKpiRibbon {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.65rem;
   margin-bottom: 0.55rem;
   flex-shrink: 0;
+}
+
+.miniKpiCardActiveFilter {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+  background: #fffafa !important;
+}
+
+.paymentCancelled {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.paymentServed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .miniKpiCard {
@@ -1753,3 +1785,80 @@
   border-top: 1px solid #e2e8f0;
   flex-shrink: 0;
 }
+
+
+/* ── Tablet & Surface Device Responsive Styles (768px - 1024px) ── */
+@media (max-width: 1024px) {
+  .page {
+    padding: 0.15rem 0.25rem 0;
+  }
+
+  .headerRow {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .headerActions {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .compactKpiRibbon {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .unifiedToolbar {
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .tableWrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .table {
+    min-width: 860px;
+  }
+
+  .th {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.67rem;
+    white-space: nowrap;
+  }
+
+  .td {
+    padding: 0.62rem 0.75rem;
+    font-size: 0.82rem;
+  }
+
+  .contactIconBtn {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+  }
+
+  .viewBillBtn {
+    min-height: 34px;
+    padding: 0.38rem 0.75rem;
+    font-size: 0.78rem;
+  }
+
+  .pageBtn {
+    min-width: 36px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .compactKpiRibbon {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+

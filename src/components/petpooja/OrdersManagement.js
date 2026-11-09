@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import {
-  ShoppingBag, Search, Plus, Filter, ArrowUpDown, X,
+  ShoppingBag, Search, Plus, Filter, ArrowUpDown, X, XCircle,
   RefreshCw, Download, CheckCircle2, Clock, Eye, Printer,
   Phone, MessageSquare, IndianRupee, AlertCircle, TrendingUp,
   Receipt, Flame, Check, Utensils, Send, ChevronRight, ShieldCheck,
@@ -18,6 +18,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
   const [localOrders, setLocalOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [serverSummary, setServerSummary] = useState(null);
 
   // Applied Filter States
   const [search, setSearch] = useState('');
@@ -69,6 +70,9 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         });
 
         if (res.data) {
+          if (res.data.summary) {
+            setServerSummary(res.data.summary);
+          }
           if (res.data.orders && Array.isArray(res.data.orders)) {
             setLocalOrders(res.data.orders);
             setTotalServerOrders(res.data.total || 0);
@@ -243,13 +247,21 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
-  // Computed Metrics (Harmonized with Dashboard & Reports Suite)
+  // Computed Metrics (Harmonized with DB across all pagination pages)
   const metrics = useMemo(() => {
+    if (serverSummary) {
+      return serverSummary;
+    }
+
     const totalOrders = totalServerOrders || localOrders.length;
-    const completedOrders = localOrders.filter(o => o.status === 'completed');
+    const completedOrders = localOrders.filter(o => o.status === 'completed' || o.status === 'served');
     const completedRate = totalOrders > 0 ? Math.round((completedOrders.length / totalOrders) * 100) : 0;
 
-    const activeOrders = localOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+    const cancelledOrders = localOrders.filter(o => o.status === 'cancelled');
+    const cancelledCount = cancelledOrders.length;
+    const cancelledRate = totalOrders > 0 ? Math.round((cancelledCount / totalOrders) * 100) : 0;
+
+    const activeOrders = localOrders.filter(o => !['completed', 'served', 'cancelled'].includes(o.status));
     const pendingCount = localOrders.filter(o => o.status === 'pending').length;
 
     const totalRevenue = completedOrders
@@ -263,9 +275,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       activeOrdersCount: activeOrders.length,
       pendingCount,
       totalRevenue,
-      aov
+      aov,
+      cancelledCount,
+      cancelledRate
     };
-  }, [localOrders, totalServerOrders]);
+  }, [serverSummary, localOrders, totalServerOrders]);
 
   // Filtered & Sorted Orders
   const filteredOrders = useMemo(() => {
@@ -564,6 +578,35 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
             <Receipt size={16} />
           </div>
         </div>
+
+        {/* 5. Cancelled Orders Section */}
+        <div
+          className={`${styles.miniKpiCard} ${statusFilter === 'cancelled' ? styles.miniKpiCardActiveFilter : ''}`}
+          onClick={() => {
+            if (statusFilter === 'cancelled') {
+              setStatusFilter('all');
+              fetchOrders(1, search, paymentFilter, 'all', sortBy);
+            } else {
+              setStatusFilter('cancelled');
+              fetchOrders(1, search, paymentFilter, 'cancelled', sortBy);
+            }
+          }}
+          style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+          title="Click to view Cancelled Orders"
+        >
+          <div className={styles.miniKpiInfo}>
+            <span className={styles.miniKpiLabel} style={{ color: '#dc2626' }}>Cancelled Orders</span>
+            <div className={styles.miniKpiValueRow}>
+              <span className={styles.miniKpiVal} style={{ color: '#dc2626' }}>{metrics.cancelledCount}</span>
+              <span className={styles.miniKpiSub} style={{ color: '#ef4444' }}>
+                ({metrics.cancelledRate}% Rate)
+              </span>
+            </div>
+          </div>
+          <div className={`${styles.miniKpiIcon} ${styles.iconRose}`}>
+            <XCircle size={16} />
+          </div>
+        </div>
       </div>
 
       {/* ── Full-Width Maximized Table Card ── */}
@@ -693,7 +736,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                 <motion.tr
                                   key={ord._id}
                                   className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
-                                  onClick={() => setSelectedOrder(ord)}
+                                  style={status === 'cancelled' ? { backgroundColor: 'rgba(254, 242, 242, 0.45)', cursor: 'default' } : {}}
+                                  onClick={() => {
+                                    if (status === 'cancelled') return;
+                                    setSelectedOrder(ord);
+                                  }}
                                 >
                                   {/* Order # & Token in SINGLE LINE */}
                                   <td className={styles.td}>
@@ -742,9 +789,19 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                     )}
                                   </td>
 
-                                  {/* Payment Status */}
+                                  {/* Payment & Status */}
                                   <td className={styles.td}>
-                                    {payStatus === 'paid' ? (
+                                    {status === 'cancelled' ? (
+                                      <span className={styles.paymentCancelled}>
+                                        <XCircle size={11} />
+                                        <span>Cancelled</span>
+                                      </span>
+                                    ) : (status === 'completed' || status === 'served') ? (
+                                      <span className={styles.paymentServed}>
+                                        <CheckCircle2 size={11} />
+                                        <span>{status === 'served' ? 'Served' : 'Completed'}</span>
+                                      </span>
+                                    ) : payStatus === 'paid' ? (
                                       <span className={styles.paymentPaidUpi}>
                                         <CheckCircle2 size={11} />
                                         <span>Paid • {ord.paymentMethod?.toUpperCase() || 'UPI'}</span>
@@ -764,7 +821,16 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
                                   {/* Total Amount */}
                                   <td className={styles.td}>
-                                    <span className={styles.amountText}>{formatCurrency(total)}</span>
+                                    <span
+                                      className={styles.amountText}
+                                      style={{
+                                        color: status === 'cancelled' ? '#dc2626' : ((status === 'completed' || status === 'served') ? '#059669' : '#0f172a'),
+                                        textDecoration: status === 'cancelled' ? 'line-through' : 'none',
+                                        fontWeight: 700
+                                      }}
+                                    >
+                                      {formatCurrency(total)}
+                                    </span>
                                   </td>
 
                                   {/* Actions */}
@@ -903,9 +969,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                 fontWeight: 800,
                                 textTransform: 'capitalize',
                                 background: (selectedOrder.status === 'completed' || selectedOrder.status === 'served') ? '#f0fdf4' :
+                                  selectedOrder.status === 'cancelled' ? '#fef2f2' :
                                   selectedOrder.status === 'ready' ? '#eff6ff' :
                                     selectedOrder.status === 'preparing' ? '#fffbeb' : '#f1f5f9',
                                 color: (selectedOrder.status === 'completed' || selectedOrder.status === 'served') ? '#15803d' :
+                                  selectedOrder.status === 'cancelled' ? '#dc2626' :
                                   selectedOrder.status === 'ready' ? '#2563eb' :
                                     selectedOrder.status === 'preparing' ? '#b45309' : '#475569',
                                 border: '1px solid currentColor'

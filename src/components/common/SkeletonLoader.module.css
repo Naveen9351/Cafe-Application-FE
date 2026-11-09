@@ -49,18 +49,131 @@
 .dishCardSkeleton {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.55rem;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-height: 165px;
+  justify-content: space-between;
+  position: relative;
+  min-height: 250px;
+}
+
+.dishImgWrapSkeleton {
+  height: 110px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #f1f5f9;
 }
 
 .dishImgSkeleton {
   width: 100%;
-  height: 80px;
-  border-radius: 8px;
+  height: 100%;
+  border-radius: 0;
+}
+
+.dishImageOverlaySkeleton {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.dishCheckboxSkeleton {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.dishBadgeSkeleton {
+  width: 44px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.dishBodySkeleton {
+  padding: 8px 10px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dishTitleRowSkeleton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dishNameSkeleton {
+  width: 60%;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.dishPriceSkeleton {
+  width: 38px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.dishVariantSkeleton {
+  width: 72px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.dishDescWrapSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 1px 0;
+}
+
+.dishDescLine1 {
+  width: 100%;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.dishDescLine2 {
+  width: 60%;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.dishBottomRowSkeleton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.dishToggleSkeleton {
+  width: 28px;
+  height: 16px;
+  border-radius: 100px;
+}
+
+.dishActionsSkeleton {
+  display: flex;
+  gap: 6px;
+}
+
+.dishBtnSkeleton {
+  width: 48px;
+  height: 24px;
+  border-radius: 6px;
 }
 
 /* Metric Widgets Skeleton */

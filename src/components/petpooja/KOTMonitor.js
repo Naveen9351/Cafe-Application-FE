@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChefHat, Clock, CheckCircle, RefreshCw,
   RotateCcw, Sparkles, Filter, ChevronRight, AlertCircle,
-  Coffee, Utensils, Send, Check, Flame, ShoppingBag, Trash2, XCircle,
+  Coffee, Utensils, Send, Check, Flame, ShoppingBag, Trash2, XCircle, X,
   LayoutGrid, Table as TableIcon, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -23,7 +23,8 @@ const STAGE_LABELS = {
   pending: 'New Orders',
   preparing: 'In Kitchen',
   ready: 'Ready for Pass',
-  completed: 'Served (Completed)'
+  served: 'Served',
+  completed: 'Completed'
 };
 
 export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder, enableEstimatedPrepTime = false }) {
@@ -46,6 +47,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const [draggedOrder, setDraggedOrder] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
   const [revertConfirmModal, setRevertConfirmModal] = useState(null);
+  const [isItemSummaryOpen, setIsItemSummaryOpen] = useState(false);
 
   // Live Timer ticker: updates every second with proper lifecycle cleanup
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
     if (orders && Array.isArray(orders)) {
       const formatted = orders.map((o, idx) => ({
         _id: o._id || `ord_${idx}`,
-        orderNumber: o.orderNumber || String(o._id).slice(-4),
+        orderNumber: o.orderNumber || String(o._id).slice(-5),
         tableNumber: o.tableNumber || '1',
         customerName: o.customerDetails?.name || o.customerName || `Guest ${idx + 1}`,
         orderType: o.orderType || 'dine-in',
@@ -82,13 +84,50 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
     }
   }, [orders]);
 
-  // Format Elapsed Time as mm:ss
+  // Format Elapsed Time dynamically across seconds, minutes, hours, and days
+  // Format table badge cleanly e.g. "T 1", "T Roof", "T Outdoor"
+  const formatCardTableNumber = (tableNum) => {
+    if (!tableNum) return 'T 1';
+    let str = String(tableNum).trim();
+    if (/^table\s*/i.test(str)) {
+      str = str.replace(/^table\s*/i, '');
+    } else if (/^t\s*/i.test(str)) {
+      str = str.replace(/^t\s*/i, '');
+    }
+    str = str.trim();
+    if (!str) return 'T 1';
+    const formatted = str.charAt(0).toUpperCase() + str.slice(1);
+    return `T ${formatted}`;
+  };
+
   const formatElapsedTime = (createdAtStr) => {
-    if (!createdAtStr) return '00:00';
+    if (!createdAtStr) return '0s';
     const elapsedSeconds = Math.max(0, Math.floor((now - new Date(createdAtStr).getTime()) / 1000));
-    const mins = Math.floor(elapsedSeconds / 60);
+    const days = Math.floor(elapsedSeconds / 86400);
+    const hours = Math.floor((elapsedSeconds % 86400) / 3600);
+    const mins = Math.floor((elapsedSeconds % 3600) / 60);
     const secs = elapsedSeconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (days > 0) {
+      return hours > 0 ? `${days}d ${hours}h` : `${days}d ${mins}m`;
+    }
+    if (hours > 0) {
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+    if (mins > 0) {
+      return `${mins}m ${String(secs).padStart(2, '0')}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const formatOrderTimestamp = (createdAtStr) => {
+    if (!createdAtStr) return '';
+    try {
+      const d = new Date(createdAtStr);
+      return `Placed: ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}, ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    } catch (e) {
+      return '';
+    }
   };
 
   const getElapsedMinutes = (createdAtStr) => {
@@ -198,6 +237,86 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
     setOrderToDelete(null);
   };
 
+  // Keyboard listener for Escape to close Item Summary drawer
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isItemSummaryOpen) {
+        setIsItemSummaryOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isItemSummaryOpen]);
+
+  // Aggregate item quantities across orders in "pending" (New) and "preparing" (In Kitchen)
+  const kitchenItemSummary = useMemo(() => {
+    const activeOrders = localOrders.filter(o =>
+      o.status === 'pending' || o.status === 'confirmed' || o.status === 'preparing'
+    );
+
+    const map = new Map();
+
+    activeOrders.forEach(order => {
+      const isNew = order.status === 'pending' || order.status === 'confirmed';
+      const isKitchen = order.status === 'preparing';
+      const tableRaw = String(order.tableNumber || '1').trim();
+      const formattedTable = tableRaw.toLowerCase().startsWith('table')
+        ? tableRaw.replace(/^table\s*/i, 'T ')
+        : (tableRaw.toLowerCase().startsWith('t ') ? tableRaw : `T ${tableRaw}`);
+
+      (order.items || []).forEach(it => {
+        const rawName = String(it.name || 'Dish').trim();
+        if (!rawName) return;
+
+        const qty = Number(it.quantity) || 1;
+        const normKey = rawName.toLowerCase();
+
+        if (!map.has(normKey)) {
+          map.set(normKey, {
+            name: rawName,
+            totalQty: 0,
+            newQty: 0,
+            kitchenQty: 0,
+            modifiers: new Set(),
+            tables: []
+          });
+        }
+
+        const entry = map.get(normKey);
+        entry.totalQty += qty;
+        if (isNew) entry.newQty += qty;
+        if (isKitchen) entry.kitchenQty += qty;
+
+        if (it.modifiers && it.modifiers.trim()) {
+          entry.modifiers.add(it.modifiers.trim());
+        }
+
+        entry.tables.push({
+          table: formattedTable,
+          qty,
+          orderNumber: order.orderNumber,
+          isNew,
+          isKitchen
+        });
+      });
+    });
+
+    // Sort descending by totalQty ("most valued on top")
+    return Array.from(map.values()).sort((a, b) => b.totalQty - a.totalQty);
+  }, [localOrders]);
+
+  const totalPrepItemsCount = useMemo(() => {
+    return kitchenItemSummary.reduce((sum, it) => sum + it.totalQty, 0);
+  }, [kitchenItemSummary]);
+
+  const totalNewItemsCount = useMemo(() => {
+    return kitchenItemSummary.reduce((sum, it) => sum + it.newQty, 0);
+  }, [kitchenItemSummary]);
+
+  const totalCookingItemsCount = useMemo(() => {
+    return kitchenItemSummary.reduce((sum, it) => sum + it.kitchenQty, 0);
+  }, [kitchenItemSummary]);
+
   // Filter orders by channel
   const filteredOrders = localOrders.filter(o => {
     if (orderChannel === 'All') return true;
@@ -208,7 +327,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
   const newOrders = filteredOrders.filter(o => o.status === 'pending' || o.status === 'confirmed');
   const inKitchenOrders = filteredOrders.filter(o => o.status === 'preparing');
   const readyOrders = filteredOrders.filter(o => o.status === 'ready');
-  const servedOrders = filteredOrders.filter(o => o.status === 'completed' || o.status === 'served');
+  const servedOrders = filteredOrders.filter(o => o.status === 'served');
 
   // Filtered orders for Table View based on secondary status toggle + channel + search
   const displayedTableOrders = localOrders.filter(ord => {
@@ -264,6 +383,54 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
+                onClick={() => setIsItemSummaryOpen(prev => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  padding: '5px 13px',
+                  borderRadius: '9px',
+                  border: isItemSummaryOpen ? '1.5px solid #ea580c' : '1px solid #e2e8f0',
+                  background: isItemSummaryOpen ? '#fff7ed' : '#ffffff',
+                  color: isItemSummaryOpen ? '#c2410c' : '#0f172a',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Toggle Live Kitchen Prep Item Counter"
+              >
+                <Flame size={15} color="#ea580c" />
+                <span>Item Counter</span>
+                {totalPrepItemsCount > 0 ? (
+                  <span style={{
+                    background: '#ea580c',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 900,
+                    padding: '1px 7px',
+                    borderRadius: '100px',
+                    lineHeight: 1.2
+                  }}>
+                    {totalPrepItemsCount}
+                  </span>
+                ) : (
+                  <span style={{
+                    background: '#f1f5f9',
+                    color: '#64748b',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '1px 6px',
+                    borderRadius: '100px'
+                  }}>
+                    0
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
                 className={styles.refreshIconBtn}
                 title="Refresh Board"
                 onClick={() => toast.success('Kitchen queue synced with live tickets')}
@@ -308,22 +475,27 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                         title="Drag and drop to move between stages"
                       >
                         <div className={styles.cardHeader}>
-                          <div>
-                            <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                            <div className={styles.stationTag}>{order.channel} • Table QR</div>
+                          <div className={styles.cardHeaderLeft}>
+                            <div className={styles.tableTitleRow}>
+                              <span className={styles.tableBadge}>
+                                {formatCardTableNumber(order.tableNumber)}
+                              </span>
+                              <span className={styles.orderIdPill}>
+                                #{order.orderNumber}
+                              </span>
+                            </div>
+                            <div className={styles.stationTag}>
+                              {order.channel || 'Dine-in'} • Table QR
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}>
-                              <Clock size={12} /> {formatElapsedTime(order.createdAt)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                              title="Delete Order"
+                          <div className={styles.cardHeaderRight}>
+                            <span
+                              className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}
+                              title={formatOrderTimestamp(order.createdAt)}
                             >
-                              <Trash2 size={15} />
-                            </button>
+                              <Clock size={12} />
+                              <span>{formatElapsedTime(order.createdAt)}</span>
+                            </span>
                           </div>
                         </div>
 
@@ -332,9 +504,9 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <div key={i} className={styles.itemRow}>
                               <div className={styles.itemMain}>
                                 <span className={styles.itemName}>{it.name}</span>
-                                {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                                {it.modifiers && <span className={styles.itemModifier}>{String(it.modifiers).replace(/^[↳\s]+/, '')}</span>}
                               </div>
-                              <span className={styles.itemQty}>x{it.quantity}</span>
+                              <span className={styles.itemQty}>×{it.quantity}</span>
                             </div>
                           ))}
                         </div>
@@ -352,7 +524,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'cancelled'); }}
-                              style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                              className={styles.cancelOrderBtn}
                               title="Cancel Order"
                             >
                               Cancel
@@ -371,7 +543,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                 }
                               }}
                             >
-                              Accept & Prep →
+                              Accept
                             </button>
                           </div>
                         </div>
@@ -418,35 +590,42 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                         title="Drag and drop to move between stages"
                       >
                         <div className={styles.cardHeader}>
-                          <div>
-                            <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
+                          <div className={styles.cardHeaderLeft}>
+                            <div className={styles.tableTitleRow}>
+                              <span className={styles.tableBadge}>
+                                {formatCardTableNumber(order.tableNumber)}
+                              </span>
+                              <span className={styles.orderIdPill}>
+                                #{order.orderNumber}
+                              </span>
+                            </div>
+                            <div className={styles.stationTag}>
+                              {order.channel || 'Dine-in'} • In Kitchen
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div className={styles.cardHeaderRight}>
                             {enableEstimatedPrepTime ? (
                               <span
                                 className={`${styles.timerBadge} ${styles.timerBadgeClickable} ${isLate ? styles.timerLate : ''}`}
-                                title="Click to edit cooking target time"
+                                title={formatOrderTimestamp(order.createdAt) ? `${formatOrderTimestamp(order.createdAt)} • Click to edit cooking target time` : 'Click to edit cooking target time'}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOrderToEdit(order);
                                   setEditTimeMinutes(order.estimatedTime || 20);
                                 }}
                               >
-                                <Clock size={12} /> {formatElapsedTime(order.createdAt)} / {targetMins}m
+                                <Clock size={12} />
+                                <span>{formatElapsedTime(order.createdAt)} / {targetMins}m</span>
                               </span>
                             ) : (
-                              <span className={styles.timerBadge}>
-                                <Clock size={12} /> {formatElapsedTime(order.createdAt)}
+                              <span
+                                className={`${styles.timerBadge} ${isLate ? styles.timerLate : ''}`}
+                                title={formatOrderTimestamp(order.createdAt)}
+                              >
+                                <Clock size={12} />
+                                <span>{formatElapsedTime(order.createdAt)}</span>
                               </span>
                             )}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                              title="Delete Order"
-                            >
-                              <Trash2 size={15} />
-                            </button>
                           </div>
                         </div>
 
@@ -455,9 +634,9 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <div key={i} className={styles.itemRow}>
                               <div className={styles.itemMain}>
                                 <span className={styles.itemName}>{it.name}</span>
-                                {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                                {it.modifiers && <span className={styles.itemModifier}>{String(it.modifiers).replace(/^[↳\s]+/, '')}</span>}
                               </div>
-                              <span className={styles.itemQty}>x{it.quantity}</span>
+                              <span className={styles.itemQty}>×{it.quantity}</span>
                             </div>
                           ))}
                         </div>
@@ -485,7 +664,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                               className={styles.markReadyBtn}
                               onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'ready'); }}
                             >
-                              Mark Ready ✔
+                              Mark Ready
                             </button>
                           </div>
                         </div>
@@ -528,22 +707,24 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                         title="Drag and drop to move between stages"
                       >
                         <div className={styles.cardHeader}>
-                          <div>
-                            <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                            <div className={styles.stationTag}>{order.channel} • Ready to Serve</div>
+                          <div className={styles.cardHeaderLeft}>
+                            <div className={styles.tableTitleRow}>
+                              <span className={styles.tableBadge}>
+                                {formatCardTableNumber(order.tableNumber)}
+                              </span>
+                              <span className={styles.orderIdPill}>
+                                #{order.orderNumber}
+                              </span>
+                            </div>
+                            <div className={styles.stationTag}>
+                              {order.channel || 'Dine-in'} • Ready to Serve
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div className={styles.cardHeaderRight}>
                             <span className={`${styles.timerBadge} ${styles.timerReady}`}>
-                              <Check size={12} /> Plated
+                              <Check size={12} />
+                              <span>Plated</span>
                             </span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOrderToDelete(order); }}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2 }}
-                              title="Delete Order"
-                            >
-                              <Trash2 size={15} />
-                            </button>
                           </div>
                         </div>
 
@@ -552,9 +733,9 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <div key={i} className={styles.itemRow}>
                               <div className={styles.itemMain}>
                                 <span className={styles.itemName}>{it.name}</span>
-                                {it.modifiers && <span className={styles.itemModifier}>↳ {it.modifiers}</span>}
+                                {it.modifiers && <span className={styles.itemModifier}>{String(it.modifiers).replace(/^[↳\s]+/, '')}</span>}
                               </div>
-                              <span className={styles.itemQty}>x{it.quantity}</span>
+                              <span className={styles.itemQty}>×{it.quantity}</span>
                             </div>
                           ))}
                         </div>
@@ -564,7 +745,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                           <button
                             type="button"
                             className={styles.completeOrderBtn}
-                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'completed'); }}
+                            onClick={(e) => { e.stopPropagation(); handleUpdateStage(order._id, 'served'); }}
                           >
                             Served to Guest ✓
                           </button>
@@ -582,10 +763,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
 
               {/* COLUMN 4: SERVED */}
               <div
-                className={`${styles.kanbanCol} ${dragOverCol === 'completed' ? styles.kanbanColDragOver : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'completed')}
-                onDragLeave={(e) => handleDragLeave(e, 'completed')}
-                onDrop={(e) => handleDrop(e, 'completed')}
+                className={`${styles.kanbanCol} ${(dragOverCol === 'served' || dragOverCol === 'completed') ? styles.kanbanColDragOver : ''}`}
+                onDragOver={(e) => handleDragOver(e, 'served')}
+                onDragLeave={(e) => handleDragLeave(e, 'served')}
+                onDrop={(e) => handleDrop(e, 'served')}
               >
                 <div className={`${styles.colHeader} ${styles.colGray}`}>
                   <div className={styles.colTitleWrap}>
@@ -599,12 +780,23 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                   {servedOrders.slice((servedKanbanPage - 1) * servedLimit, servedKanbanPage * servedLimit).map(order => (
                     <div key={order._id} className={`${styles.ticketCard} ${styles.cardServed}`}>
                       <div className={styles.cardHeader}>
-                        <div>
-                          <div className={styles.tableNumberTag}>Table {order.tableNumber} <small>#{order.orderNumber}</small></div>
-                          <div className={styles.stationTag}>{order.channel} • Served</div>
+                        <div className={styles.cardHeaderLeft}>
+                          <div className={styles.tableTitleRow}>
+                            <span className={styles.tableBadge}>
+                              {formatCardTableNumber(order.tableNumber)}
+                            </span>
+                            <span className={styles.orderIdPill}>
+                              #{order.orderNumber}
+                            </span>
+                          </div>
+                          <div className={styles.stationTag}>
+                            {order.channel || 'Dine-in'} • Served
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={styles.completedPill}>Delivered</span>
+                        <div className={styles.cardHeaderRight}>
+                          <span className={styles.completedPill}>
+                            Delivered
+                          </span>
                         </div>
                       </div>
 
@@ -614,7 +806,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             <div className={styles.itemMain}>
                               <span className={styles.itemName}>{it.name}</span>
                             </div>
-                            <span className={styles.itemQty}>x{it.quantity}</span>
+                            <span className={styles.itemQty}>×{it.quantity}</span>
                           </div>
                         ))}
                       </div>
@@ -897,7 +1089,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                         }
                                       }}
                                     >
-                                      <Flame size={12} /> Start Prep
+                                      <Flame size={12} /> Accept
                                     </button>
                                     <button
                                       type="button"
@@ -930,7 +1122,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                                   <button
                                     type="button"
                                     className={styles.tblBtnServed}
-                                    onClick={() => handleUpdateStage(order._id, 'completed')}
+                                    onClick={() => handleUpdateStage(order._id, 'served')}
                                   >
                                     <CheckCircle size={12} /> Mark Served
                                   </button>
@@ -1493,7 +1685,350 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
           </div>
         )}
       </AnimatePresence>
+
+      {/* FLOATING RIGHT EDGE HANDLE FOR FAST ACCESS */}
+      {!isItemSummaryOpen && totalPrepItemsCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setIsItemSummaryOpen(true)}
+          style={{
+            position: 'fixed',
+            right: 0,
+            top: '45%',
+            transform: 'translateY(-50%)',
+            zIndex: 998,
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            color: '#ffffff',
+            border: 'none',
+            borderTopLeftRadius: '14px',
+            borderBottomLeftRadius: '14px',
+            padding: '14px 10px',
+            boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.25)',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            transition: 'all 0.2s ease'
+          }}
+          title="Open Kitchen Prep Item Counter"
+        >
+          <div style={{
+            width: 26,
+            height: 26,
+            borderRadius: '50%',
+            background: '#ea580c',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            fontSize: '12px',
+            fontWeight: 900
+          }}>
+            {totalPrepItemsCount}
+          </div>
+          <span style={{
+            writingMode: 'vertical-rl',
+            fontSize: '10.5px',
+            fontWeight: 800,
+            letterSpacing: '1.2px',
+            textTransform: 'uppercase',
+            color: '#cbd5e1'
+          }}>
+            Prep Items
+          </span>
+        </button>
+      )}
+
+      {/* OVERLAPPING SLIDE-OUT DRAWER: KITCHEN PREP ITEM COUNTER */}
+      <AnimatePresence>
+        {isItemSummaryOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsItemSummaryOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(15, 23, 42, 0.45)',
+                backdropFilter: 'blur(3px)',
+                zIndex: 9998
+              }}
+            />
+
+            {/* Slide-out Drawer Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: '400px',
+                maxWidth: '92vw',
+                background: '#ffffff',
+                boxShadow: '-12px 0 40px rgba(15, 23, 42, 0.25)',
+                zIndex: 9999,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Drawer Header */}
+              <div style={{
+                padding: '1.1rem 1.25rem',
+                borderBottom: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: '#fff7ed',
+                    border: '1px solid #fed7aa',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ea580c'
+                  }}>
+                    <Flame size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+                      Live Prep Items
+                    </h3>
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                      New & In-Kitchen summary
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsItemSummaryOpen(false)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Close Counter (Esc)"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+
+              {/* Status Breakdown Chips */}
+              {totalPrepItemsCount > 0 && (
+                <div style={{
+                  padding: '8px 1.25rem',
+                  background: '#ffffff',
+                  borderBottom: '1px solid #f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  flexShrink: 0
+                }}>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: '100px',
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    border: '1px solid #dbeafe',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
+                    {totalNewItemsCount} in New Orders
+                  </span>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: '100px',
+                    background: '#fffbeb',
+                    color: '#b45309',
+                    border: '1px solid #fef3c7',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} />
+                    {totalCookingItemsCount} In Kitchen
+                  </span>
+                </div>
+              )}
+
+              {/* Drawer Body: Aggregated Items List */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+                {kitchenItemSummary.length === 0 ? (
+                  /* Empty state when no orders in new or kitchen */
+                  <div style={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    color: '#94a3b8',
+                    padding: '2rem 1rem'
+                  }}>
+                    <div style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: '50%',
+                      background: '#f8fafc',
+                      border: '1.5px dashed #cbd5e1',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '1rem',
+                      color: '#94a3b8'
+                    }}>
+                      <ChefHat size={30} />
+                    </div>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 800, color: '#334155' }}>
+                      Kitchen Queue is Empty
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '12px', maxWidth: '240px', lineHeight: 1.5 }}>
+                      No active items in "New Orders" or "In Kitchen". When orders arrive, dishes will be counted here automatically.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {kitchenItemSummary.map((item, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: '#ffffff',
+                          borderRadius: '12px',
+                          border: '1.5px solid #e2e8f0',
+                          padding: '12px 14px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {/* Left: Item Info + Table Breakdown */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{
+                              fontSize: '10.5px',
+                              fontWeight: 800,
+                              color: idx === 0 ? '#ea580c' : '#64748b',
+                              background: idx === 0 ? '#fff7ed' : '#f1f5f9',
+                              padding: '1px 6px',
+                              borderRadius: '4px'
+                            }}>
+                              #{idx + 1}
+                            </span>
+                            <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#0f172a', wordBreak: 'break-word', lineHeight: 1.25 }}>
+                              {item.name}
+                            </span>
+                          </div>
+
+                          {/* Modifiers / Variants if any */}
+                          {item.modifiers.size > 0 && (
+                            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: 6, fontStyle: 'italic' }}>
+                              {Array.from(item.modifiers).join(' • ')}
+                            </div>
+                          )}
+
+                          {/* Tables breakdown (e.g. T 1 x2, T 3 x1) */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                            {item.tables.map((tInfo, tIdx) => (
+                              <span
+                                key={tIdx}
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: '6px',
+                                  background: tInfo.isKitchen ? '#fef3c7' : '#eff6ff',
+                                  color: tInfo.isKitchen ? '#92400e' : '#1d4ed8',
+                                  border: `1px solid ${tInfo.isKitchen ? '#fde68a' : '#dbeafe'}`
+                                }}
+                                title={`Order #${tInfo.orderNumber} (${tInfo.isKitchen ? 'In Kitchen' : 'New'})`}
+                              >
+                                {tInfo.table} ×{tInfo.qty}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Right: Big Bold Total Quantity Badge */}
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: '50px',
+                          padding: '6px 12px',
+                          background: idx === 0 ? '#ea580c' : '#0f172a',
+                          color: '#ffffff',
+                          borderRadius: '10px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                          flexShrink: 0
+                        }}>
+                          <span style={{ fontSize: '20px', fontWeight: 900, lineHeight: 1 }}>
+                            {item.totalQty}
+                          </span>
+                          <span style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase', opacity: 0.85, marginTop: 2 }}>
+                            Total
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Drawer Footer */}
+              {kitchenItemSummary.length > 0 && (
+                <div style={{
+                  padding: '12px 1.25rem',
+                  borderTop: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#475569',
+                  flexShrink: 0
+                }}>
+                  <span>Distinct Dishes: <strong style={{ color: '#0f172a' }}>{kitchenItemSummary.length}</strong></span>
+                  <span>Total Portions: <strong style={{ color: '#ea580c', fontSize: '14px' }}>{totalPrepItemsCount}</strong></span>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
-

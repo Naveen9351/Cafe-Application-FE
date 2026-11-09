@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, FileText, Plus, Search, Trash2, Edit3, LayoutDashboard, ShoppingBag, QrCode, BarChart3, X, LogOut, Loader, TrendingUp, IndianRupee,
   UtensilsCrossed, Coffee, Pizza, Sandwich, IceCream, GlassWater, Martini, Cake, Soup, Cookie, Grid,
-  ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle,
+  ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle, Volume2, Volume1, VolumeX, Play,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
   Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon
@@ -26,13 +26,15 @@ import KhataLedger from './KhataLedger';
 import SupportModal from './SupportModal';
 import CafeAICopilotChatbot, { KHUSHI_AVATAR_URL } from './CafeAICopilotChatbot';
 import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton } from './common/SkeletonLoader';
+import skeletonStyles from './common/SkeletonLoader.module.css';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
 import { resolveFoodImage, getSafeDishImage } from '../utils/foodImageResolver';
 import usePWAInstall from '../hooks/usePWAInstall';
 import PWAInstallModal from './pwa/PWAInstallModal';
 import { API_URL as API } from '../config/api';
-import { playOrderChime } from '../utils/audioChime';
+import { useTranslation } from '../utils/translations';
+import { playOrderChime, getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
 
 // Standard Categories with Icons
 const standardCategories = [
@@ -44,7 +46,9 @@ const standardCategories = [
   { id: "beverages", name: "Beverages", aliases: ['beverage', 'beverages', 'drink', 'drinks', 'mocktail', 'cocktail', 'cold drink', 'shake', 'beverage/drinks'], icon: "GlassWater", Component: GlassWater },
   { id: "burger", name: "Burgers & Sandwiches", aliases: ['burger', 'burgers', 'sandwich', 'sandwiches', 'wrap', 'wraps'], icon: "Sandwich", Component: Sandwich },
   { id: "pizza", name: "Artisan Pizza", aliases: ['pizza', 'pizzas'], icon: "Pizza", Component: Pizza },
-  { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino', 'tea'], icon: "Coffee", Component: Coffee },
+  { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino'], icon: "Coffee", Component: Coffee },
+  { id: "tea", name: "Tea & Chai", aliases: ['tea', 'chai', 'hot tea', 'green tea', 'masala chai'], icon: "Coffee", Component: Coffee },
+  { id: "ice-tea", name: "Iced Tea", aliases: ['ice-tea', 'iced-tea', 'ice tea', 'iced tea', 'lemon ice tea', 'peach ice tea'], icon: "GlassWater", Component: GlassWater },
 ];
 
 export const AVAILABLE_CATEGORY_ICONS = [
@@ -95,18 +99,31 @@ export const getCategoryIconComponent = (cat) => {
 };
 
 const itemMatchesCategory = (item, catId, customCats = []) => {
-  if (catId === 'all') return true;
-  const itemCat = (item.category || '').toLowerCase().trim();
+  if (!catId || catId === 'all') return true;
+  const targetId = String(catId).toLowerCase().trim();
+  const itemCatId = String(item.categoryId || item.category || '').toLowerCase().trim().replace(/\s+/g, '-');
+  const itemCatName = String(item.category || '').toLowerCase().trim();
+
+  // 1. Direct match by category ID or normalized slug
+  if (itemCatId === targetId || itemCatName === targetId) return true;
+
+  // 2. Match against category object by ID, exact name, or exact alias
   const allCats = customCats && customCats.length > 0 ? customCats : standardCategories;
-  const catObj = allCats.find(c => c.id === catId || (c.name && c.name.toLowerCase() === catId.toLowerCase()));
+  const catObj = allCats.find(c => c.id === catId || (c.name && c.name.toLowerCase() === targetId));
   if (catObj) {
-    if (catObj.aliases && Array.isArray(catObj.aliases) && catObj.aliases.some(a => itemCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itemCat))) {
-      return true;
+    const cId = String(catObj.id || '').toLowerCase().trim();
+    const cName = String(catObj.name || '').toLowerCase().trim();
+    if (itemCatId === cId || itemCatName === cName || itemCatName === cId) return true;
+
+    // Strict exact alias equality ONLY - never loose substring .includes()
+    if (catObj.aliases && Array.isArray(catObj.aliases)) {
+      return catObj.aliases.some(a => {
+        const cleanA = String(a).toLowerCase().trim();
+        return cleanA === itemCatId || cleanA === itemCatName;
+      });
     }
-    if (catObj.name && catObj.name.toLowerCase() === itemCat) return true;
-    if (catObj.id && catObj.id.toLowerCase() === itemCat) return true;
   }
-  return itemCat === String(catId).toLowerCase();
+  return false;
 };
 
 export const getCustomerFirstName = (customerNameOrObj, fallback = '') => {
@@ -169,10 +186,79 @@ export default function AdminPanel() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [showSupportModal, setShowSupportModal] = useState(false);
+
+  const [tenantInfo, setTenantInfo] = useState(null);
+
+  // Internationalization / Bilingual UI (English & Hindi)
+  const { t, lang, isHindi, toggleLanguage, setLanguage: setAppLanguage } = useTranslation();
+
+  // Sync tenant default language if present
+  useEffect(() => {
+    if (tenantInfo?.settings?.language && !localStorage.getItem('serviq_language')) {
+      setAppLanguage(tenantInfo.settings.language);
+    }
+  }, [tenantInfo?.settings?.language, setAppLanguage]);
+
+  // Audio Notification State & Quick Popover
+  const [audioSettings, setAudioSettings] = useState(() => getAudioSettings());
+  const [showSoundPopover, setShowSoundPopover] = useState(false);
+  const soundPopoverRef = useRef(null);
+
+  // Sync with global audio setting change events
+  useEffect(() => {
+    const handleAudioChange = (e) => {
+      if (e.detail) {
+        setAudioSettings(e.detail);
+      } else {
+        setAudioSettings(getAudioSettings());
+      }
+    };
+    window.addEventListener('serviq_audio_settings_changed', handleAudioChange);
+    return () => window.removeEventListener('serviq_audio_settings_changed', handleAudioChange);
+  }, []);
+
+  // Close Sound Popover on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (soundPopoverRef.current && !soundPopoverRef.current.contains(e.target)) {
+        setShowSoundPopover(false);
+      }
+    };
+    if (showSoundPopover) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showSoundPopover]);
+
+  const handleToggleMute = () => {
+    const nextMuted = !audioSettings.muted;
+    const nextVol = nextMuted ? 0 : (audioSettings.volume === 0 ? 7 : audioSettings.volume);
+    saveAudioSettings({ muted: nextMuted, volume: nextVol });
+    setAudioSettings(prev => ({ ...prev, muted: nextMuted, volume: nextVol }));
+    if (!nextMuted) {
+      previewTone(audioSettings.tone, nextVol);
+    }
+  };
+
+  const handleVolumeChange = (newVol) => {
+    const v = Number(newVol);
+    const isMute = v === 0;
+    saveAudioSettings({ volume: v, muted: isMute });
+    setAudioSettings(prev => ({ ...prev, volume: v, muted: isMute }));
+    if (!isMute) {
+      previewTone(audioSettings.tone, v);
+    }
+  };
+
+  const handleToneSelect = (toneId) => {
+    saveAudioSettings({ tone: toneId });
+    setAudioSettings(prev => ({ ...prev, tone: toneId }));
+    previewTone(toneId, audioSettings.volume === 0 ? 5 : audioSettings.volume);
+  };
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [items, setItems] = useState([]);
+  const [isMenuLoading, setIsMenuLoading] = useState(true);
   const [orders, setOrders] = useState([]);
-  const [tenantInfo, setTenantInfo] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
@@ -520,15 +606,23 @@ export default function AdminPanel() {
     discountType: 'percentage', // 'percentage' or 'amount'
     discountValue: '',
     image: '',
-    imageFile: null
+    imageFile: null,
+    isOpenMenu: false,
+    shiftAvailability: 'all_day',
+    nightPrice: '',
+    isNightMenu: false,
+    isPosOnly: false
   });
 
   const fileInputRef = useRef(null);
 
   // Fetch Menu Items from API
-  const fetchMenu = async () => {
+  const fetchMenu = async (showLoading = true) => {
+    if (showLoading || items.length === 0) {
+      setIsMenuLoading(true);
+    }
     try {
-      const res = await axios.get(`${API}/menu${tenantId ? `?tenantId=${tenantId}&includeUnavailable=true` : '?includeUnavailable=true'}`);
+      const res = await axios.get(`${API}/menu${tenantId ? `?tenantId=${tenantId}&includeUnavailable=true&includePosOnly=true` : '?includeUnavailable=true&includePosOnly=true'}`);
       if (res.data && Array.isArray(res.data)) {
         const enriched = res.data.map(d => ({
           ...d,
@@ -545,6 +639,8 @@ export default function AdminPanel() {
       }
     } catch (err) {
       console.log('Fetch menu error:', err.message);
+    } finally {
+      setIsMenuLoading(false);
     }
   };
 
@@ -842,7 +938,7 @@ export default function AdminPanel() {
       socket.on('newOrder', (newOrder) => {
         setOrders((prev) => [newOrder, ...prev]);
         setDashboardOrders((prev) => [newOrder, ...prev]);
-        toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-4)}`);
+        toast.success(`New order received: #${newOrder.orderNumber || newOrder._id?.slice(-5)}`);
         playOrderChime();
         fetchTables();
         fetchNotifications();
@@ -1336,7 +1432,12 @@ export default function AdminPanel() {
       discountValue: '',
       image: '',
       imageFile: null,
-      variants: []
+      variants: [],
+      isOpenMenu: false,
+      shiftAvailability: 'all_day',
+      nightPrice: '',
+      isNightMenu: false,
+      isPosOnly: false
     });
     setIsDrawerOpen(true);
   };
@@ -1359,7 +1460,12 @@ export default function AdminPanel() {
       discountValue: discount.value ? String(discount.value) : '',
       image: item.image || '',
       imageFile: null,
-      variants: itemVariants
+      variants: itemVariants,
+      isOpenMenu: Boolean(item.isOpenMenu || item.isPosOnly),
+      shiftAvailability: item.shiftAvailability || (item.isNightMenu ? 'night_only' : 'all_day'),
+      nightPrice: item.nightPrice ? String(item.nightPrice) : '',
+      isNightMenu: Boolean(item.isNightMenu),
+      isPosOnly: Boolean(item.isOpenMenu || item.isPosOnly)
     });
     setIsDrawerOpen(true);
   };
@@ -1488,6 +1594,7 @@ export default function AdminPanel() {
       formData.append('description', drawerForm.description.trim());
       formData.append('price', numPrice);
       formData.append('category', drawerForm.category);
+      formData.append('categoryId', drawerForm.category);
       formData.append('isVeg', drawerForm.isVeg);
       formData.append('isAvailable', drawerForm.available);
       formData.append('discount', JSON.stringify(discountPayload));
@@ -1495,6 +1602,11 @@ export default function AdminPanel() {
       if (effectiveTenantId) {
         formData.append('tenantId', effectiveTenantId);
       }
+      formData.append('isNightMenu', drawerForm.isNightMenu ? 'true' : 'false');
+      if (drawerForm.nightPrice) {
+        formData.append('nightPrice', drawerForm.nightPrice);
+      }
+      formData.append('isPosOnly', (drawerForm.isPosOnly || drawerForm.isNightMenu) ? 'true' : 'false');
 
       if (drawerForm.imageFile) {
         formData.append('image', drawerForm.imageFile);
@@ -2279,7 +2391,7 @@ export default function AdminPanel() {
               onClick={() => handleTabChange('dashboard')}
               title="Dashboard"
             >
-              <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>Dashboard</span>}
+              <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>{t('nav.dashboard')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
@@ -2289,14 +2401,14 @@ export default function AdminPanel() {
               }}
               title="POS Terminal & Tables"
             >
-              <IndianRupee size={18} /> {!sidebarCollapsed && <span>POS Terminal</span>}
+              <IndianRupee size={18} /> {!sidebarCollapsed && <span>{t('nav.pos')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('kds')}
               title="Live Orders & KDS"
             >
-              <ChefHat size={18} /> {!sidebarCollapsed && <span>Live Orders</span>}
+              <ChefHat size={18} /> {!sidebarCollapsed && <span>{t('nav.kds')}</span>}
               {!sidebarCollapsed && <span className={styles.navPill}>{liveActiveOrdersCount}</span>}
             </button>
             <button
@@ -2304,42 +2416,42 @@ export default function AdminPanel() {
               onClick={() => handleTabChange('orders')}
               title="All Orders Directory & Management"
             >
-              <ShoppingBag size={18} /> {!sidebarCollapsed && <span>Orders</span>}
+              <ShoppingBag size={18} /> {!sidebarCollapsed && <span>{t('nav.orders')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('menu')}
               title="Menu Management"
             >
-              <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>Menu Management</span>}
+              <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>{t('nav.menu')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('qrcodes')}
               title="Table QR Codes"
             >
-              <QrCode size={18} /> {!sidebarCollapsed && <span>Table QR Codes</span>}
+              <QrCode size={18} /> {!sidebarCollapsed && <span>{t('nav.qrcodes')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'crm' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('crm')}
               title="Customer Management & CRM"
             >
-              <Users size={18} /> {!sidebarCollapsed && <span>Customer CRM</span>}
+              <Users size={18} /> {!sidebarCollapsed && <span>{t('nav.crm')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'staff' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('staff')}
               title="Staff & Role Management"
             >
-              <Users size={18} /> {!sidebarCollapsed && <span>Staff Management</span>}
+              <Users size={18} /> {!sidebarCollapsed && <span>{t('nav.staff')}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'reports' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('reports')}
               title="Reports & Analytics"
             >
-              <BarChart3 size={18} /> {!sidebarCollapsed && <span>Reports Suite</span>}
+              <BarChart3 size={18} /> {!sidebarCollapsed && <span>{t('nav.reports')}</span>}
             </button>
             {tenantInfo?.settings?.enableKhata && (
               <button
@@ -2347,7 +2459,7 @@ export default function AdminPanel() {
                 onClick={() => handleTabChange('khata')}
                 title="Customer Khata / Borrow Ledger"
               >
-                <BookOpen size={18} /> {!sidebarCollapsed && <span>Khata Ledger</span>}
+                <BookOpen size={18} /> {!sidebarCollapsed && <span>{t('nav.khata')}</span>}
               </button>
             )}
             <button
@@ -2355,7 +2467,7 @@ export default function AdminPanel() {
               onClick={() => handleTabChange('settings')}
               title="Settings"
             >
-              <Settings size={18} /> {!sidebarCollapsed && <span>Settings</span>}
+              <Settings size={18} /> {!sidebarCollapsed && <span>{t('nav.settings')}</span>}
             </button>
           </div>
 
@@ -2366,12 +2478,12 @@ export default function AdminPanel() {
               type="button"
               className={`${styles.sidebarKhushiBtn} ${isKhushiOpen ? styles.sidebarKhushiBtnActive : ''} ${sidebarCollapsed ? styles.sidebarKhushiBtnCollapsed : ''}`}
               onClick={() => setIsKhushiOpen(prev => !prev)}
-              title="Khushi AI (Store Assistant & Copilot)"
+              title="DineviQ AI Bot (Store Assistant & Copilot)"
             >
               <div className={styles.khushiAvatarWrap}>
                 <img
                   src={KHUSHI_AVATAR_URL}
-                  alt="Khushi AI"
+                  alt="DineviQ AI Bot"
                   className={styles.khushiSidebarImg}
                 />
                 <span className={styles.khushiOnlineDot} />
@@ -2379,7 +2491,7 @@ export default function AdminPanel() {
               {!sidebarCollapsed && (
                 <div className={styles.khushiTextWrap}>
                   <div className={styles.khushiTitleRow}>
-                    <span className={styles.khushiName}>Khushi AI</span>
+                    <span className={styles.khushiName}>DineviQ AI Bot</span>
                     <span className={styles.khushiBadge}>Copilot</span>
                   </div>
                   <span className={styles.khushiSubtext}>Store Assistant</span>
@@ -2409,7 +2521,7 @@ export default function AdminPanel() {
               onClick={() => setShowLogoutModal(true)}
               title="Sign Out"
             >
-              <LogOut size={16} /> {!sidebarCollapsed && <span>Sign Out</span>}
+              <LogOut size={16} /> {!sidebarCollapsed && <span>{t('header.signOut')}</span>}
             </button>
           </div>
         </aside>
@@ -2450,7 +2562,7 @@ export default function AdminPanel() {
               <Search size={15} className={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search screens (e.g. menu, pos, staff) or dishes..."
+                placeholder={t('header.search')}
                 className={styles.topSearchInput}
                 value={headerSearchQuery}
                 onFocus={() => setIsHeaderSearchOpen(true)}
@@ -2632,6 +2744,190 @@ export default function AdminPanel() {
               </div>
             </div>
 
+            <div style={{ position: 'relative' }} ref={soundPopoverRef}>
+              <button
+                type="button"
+                className={styles.iconCircleBtn}
+                title={audioSettings.muted ? "Sound: Muted (Click to adjust)" : `Sound: Level ${audioSettings.volume}/10 (${audioSettings.tone})`}
+                onClick={() => setShowSoundPopover(prev => !prev)}
+                style={{
+                  position: 'relative',
+                  color: audioSettings.muted ? '#94a3b8' : '#4f46e5',
+                  background: audioSettings.muted ? '#f8fafc' : '#eef2ff',
+                  border: audioSettings.muted ? '1px solid #e2e8f0' : '1px solid #c7d2fe',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {audioSettings.muted ? (
+                  <VolumeX size={18} />
+                ) : audioSettings.volume <= 5 ? (
+                  <Volume1 size={18} />
+                ) : (
+                  <Volume2 size={18} />
+                )}
+              </button>
+
+              {/* Floating Quick Sound Popover */}
+              {showSoundPopover && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: '280px',
+                  background: '#ffffff',
+                  borderRadius: '14px',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
+                  padding: '14px 16px',
+                  zIndex: 9999,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12
+                }}>
+                  {/* Popover Header with Mute/Unmute Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      {audioSettings.muted ? <VolumeX size={17} color="#ef4444" /> : <Volume2 size={17} color="#4f46e5" />}
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                        Order Sound
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleMute}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: '100px',
+                        border: audioSettings.muted ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                        background: audioSettings.muted ? '#fef2f2' : '#f0fdf4',
+                        color: audioSettings.muted ? '#dc2626' : '#16a34a',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {audioSettings.muted ? 'Muted' : 'Active'}
+                    </button>
+                  </div>
+
+                  {/* Volume Slider (0 to 10) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569' }}>
+                        Volume
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 800, color: audioSettings.volume === 0 ? '#dc2626' : '#4f46e5' }}>
+                        {audioSettings.volume === 0 ? '0 (Mute)' : `${audioSettings.volume} / 10`}
+                      </span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="1"
+                      value={audioSettings.muted ? 0 : audioSettings.volume}
+                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        accentColor: '#4f46e5',
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#94a3b8', fontWeight: 600 }}>
+                      <span>0 (Mute)</span>
+                      <span>5 (Medium)</span>
+                      <span>10 (Loud)</span>
+                    </div>
+                  </div>
+
+                  {/* Tone Variations (3 to 4 tunes) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569' }}>
+                      Notification Tone
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {TONE_OPTIONS.map(tone => {
+                        const isSelected = audioSettings.tone === tone.id;
+                        return (
+                          <button
+                            key={tone.id}
+                            type="button"
+                            onClick={() => handleToneSelect(tone.id)}
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '8px',
+                              border: isSelected ? '1.5px solid #4f46e5' : '1px solid #e2e8f0',
+                              background: isSelected ? '#eef2ff' : '#f8fafc',
+                              color: isSelected ? '#4338ca' : '#334155',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              textAlign: 'left'
+                            }}
+                          >
+                            <span>{tone.label.split(' ')[0]}</span>
+                            <Play size={10} color={isSelected ? '#4f46e5' : '#94a3b8'} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Footer link to Settings */}
+                  <div style={{
+                    borderTop: '1px solid #f1f5f9',
+                    paddingTop: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => previewTone(audioSettings.tone, audioSettings.volume)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#4f46e5',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: 0
+                      }}
+                    >
+                      <Volume2 size={12} /> Test Sound
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSoundPopover(false);
+                        handleTabChange('settings');
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748b',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      All Settings ⚙️
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               className={styles.iconCircleBtn}
@@ -2667,7 +2963,7 @@ export default function AdminPanel() {
               onClick={() => setShowSupportModal(true)}
               title="Help & Support Ticket Desk"
             >
-              <HelpCircle size={16} /> <span>Support</span>
+              <HelpCircle size={16} /> <span>{t('header.support')}</span>
             </button>
 
             {!isAdmin && (
@@ -2761,6 +3057,19 @@ export default function AdminPanel() {
                     </button>
                   );
                 })}
+
+                <button
+                  type="button"
+                  className={styles.mobileNavTabBtn}
+                  onClick={() => {
+                    setIsKhushiOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', borderColor: '#c4b5fd', color: '#6d28d9', fontWeight: 700 }}
+                >
+                  <Sparkles size={18} color="#7c3aed" />
+                  <span>DineviQ AI Bot</span>
+                </button>
 
                 <div style={{ height: '1px', background: '#f1f5f9', margin: '8px 0' }} />
 
@@ -2867,7 +3176,7 @@ export default function AdminPanel() {
                   <div className={styles.dashControlBar}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Performance Overview</h3>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>{isHindi ? 'व्यापार प्रदर्शन का अवलोकन' : 'Performance Overview'}</h3>
                         {isFilterLoading && (
                           <div style={{
                             display: 'inline-flex',
@@ -2885,23 +3194,33 @@ export default function AdminPanel() {
                         )}
                       </div>
                       <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>
-                        {dateRange === 'custom'
-                          ? appliedCustomStartDate && appliedCustomEndDate
-                            ? `Showing metrics for custom (${appliedCustomStartDate} to ${appliedCustomEndDate})`
-                            : 'Showing metrics for custom (Select dates & click Apply Filter)'
-                          : dateRange === 'all'
-                            ? 'Showing metrics for all time'
-                            : `Showing metrics for ${dateRange.replace('_', ' ')}`}
+                        {isHindi ? (
+                          dateRange === 'today' ? 'आज के मुख्य व्यावसायिक आंकड़े' :
+                          dateRange === 'this_week' ? 'इस सप्ताह के व्यावसायिक आंकड़े' :
+                          dateRange === 'this_month' ? 'इस महीने के व्यावसायिक आंकड़े' :
+                          dateRange === 'all' ? 'कुल समय के व्यावसायिक आंकड़े' :
+                          appliedCustomStartDate && appliedCustomEndDate
+                            ? `कस्टम अवधि आंकड़े (${appliedCustomStartDate} से ${appliedCustomEndDate})`
+                            : 'कस्टम अवधि आंकड़े (तिथियां चुनें और फ़िल्टर लागू करें)'
+                        ) : (
+                          dateRange === 'custom'
+                            ? appliedCustomStartDate && appliedCustomEndDate
+                              ? `Showing metrics for custom (${appliedCustomStartDate} to ${appliedCustomEndDate})`
+                              : 'Showing metrics for custom (Select dates & click Apply Filter)'
+                            : dateRange === 'all'
+                              ? 'Showing metrics for all time'
+                              : `Showing metrics for ${dateRange.replace('_', ' ')}`
+                        )}
                       </p>
                     </div>
 
                     <div className={styles.datePillsWrap}>
                       {[
-                        { id: 'today', label: 'Today' },
-                        { id: 'this_week', label: 'This Week' },
-                        { id: 'this_month', label: 'This Month' },
-                        { id: 'all', label: 'All Time' },
-                        { id: 'custom', label: 'Custom' }
+                        { id: 'today', label: isHindi ? 'आज' : 'Today' },
+                        { id: 'this_week', label: isHindi ? 'इस सप्ताह' : 'This Week' },
+                        { id: 'this_month', label: isHindi ? 'इस महीने' : 'This Month' },
+                        { id: 'all', label: isHindi ? 'कुल समय' : 'All Time' },
+                        { id: 'custom', label: isHindi ? 'कस्टम' : 'Custom' }
                       ].map(r => (
                         <button
                           key={r.id}
@@ -3023,15 +3342,15 @@ export default function AdminPanel() {
                         <span className={`${styles.kpiPillBadge} ${metrics.grossSales > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
                           {metrics.grossSales > 0 ? (
                             <>
-                              <ArrowUpRight size={13} /> Active
+                              <ArrowUpRight size={13} /> {isHindi ? 'सक्रिय' : 'Active'}
                             </>
                           ) : (
-                            '● Live Sales'
+                            isHindi ? '● लाइव बिक्री' : '● Live Sales'
                           )}
                         </span>
                       </div>
                       <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>Gross Revenue</span>
+                        <span className={styles.kpiCardTag}>{isHindi ? 'सकल राजस्व' : 'Gross Revenue'}</span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
@@ -3044,7 +3363,7 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? 'Refreshing orders...' : `${metrics.completedOrders.length} settled orders`}</span>
+                        <span>{isFilterLoading ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...') : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}</span>
                         {isFilterLoading ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3112,11 +3431,11 @@ export default function AdminPanel() {
                           <TrendingUp size={16} />
                         </div>
                         <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
-                          Excl. GST & Taxes
+                          {isHindi ? 'बिना GST व टैक्स' : 'Excl. GST & Taxes'}
                         </span>
                       </div>
                       <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>Net Sales (Excl. Tax)</span>
+                        <span className={styles.kpiCardTag}>{isHindi ? 'शुद्ध बिक्री (बिना टैक्स)' : 'Net Sales (Excl. Tax)'}</span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
@@ -3129,7 +3448,7 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? 'Recalculating...' : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`}</span>
+                        <span>{isFilterLoading ? (isHindi ? 'गणना जारी...' : 'Recalculating...') : (isHindi ? `${metrics.completedOrders?.length || 0} चुकता बिलों से • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} टैक्स` : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`)}</span>
                         {isFilterLoading ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3183,11 +3502,11 @@ export default function AdminPanel() {
                           <Receipt size={16} />
                         </div>
                         <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
-                          {metrics.totalOrdersCount} Orders
+                          {metrics.totalOrdersCount} {isHindi ? 'ऑर्डर्स' : 'Orders'}
                         </span>
                       </div>
                       <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>Average Bill Value</span>
+                        <span className={styles.kpiCardTag}>{isHindi ? 'औसत बिल मूल्य (AOV)' : 'Average Bill Value'}</span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
@@ -3200,7 +3519,7 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? 'Updating average...' : 'Per order average'}</span>
+                        <span>{isFilterLoading ? (isHindi ? 'अपडेट जारी...' : 'Updating average...') : (isHindi ? 'प्रति ऑर्डर औसत' : 'Per order average')}</span>
                         {isFilterLoading ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3268,12 +3587,12 @@ export default function AdminPanel() {
                           <ShoppingBag size={16} />
                         </div>
                         <span className={`${styles.kpiPillBadge} ${liveActiveOrdersCount > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`} title="Active orders in kitchen & dining floor">
-                          {liveActiveOrdersCount} In Kitchen Queue
+                          {liveActiveOrdersCount} {isHindi ? 'किचन कतार में' : 'In Kitchen Queue'}
                         </span>
                       </div>
                       <div className={styles.kpiTitleGroup}>
                         <span className={styles.kpiCardTag}>
-                          Total Orders ({dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})
+                          {isHindi ? `कुल ऑर्डर्स (${dateRange === 'today' ? 'आज' : dateRange === 'this_week' ? 'इस सप्ताह' : dateRange === 'this_month' ? 'इस महीने' : dateRange === 'all' ? 'कुल समय' : 'फ़िल्टर किया'})` : `Total Orders (${dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})`}
                         </span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
@@ -3287,7 +3606,7 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? 'Updating count...' : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`}</span>
+                        <span>{isFilterLoading ? (isHindi ? 'गिनती जारी...' : 'Updating count...') : (isHindi ? `${metrics.completedOrders?.length || 0} पूर्ण • ${liveActiveOrdersCount} किचन में` : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`)}</span>
                         {isFilterLoading ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3357,7 +3676,7 @@ export default function AdminPanel() {
                       <div className={styles.chartTopBar}>
                         <div className={styles.chartTitleWrap}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>Revenue Velocity & Telemetry</h3>
+                            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>{isHindi ? 'राजस्व गति एवं विश्लेषण' : 'Revenue Velocity & Telemetry'}</h3>
                             {metrics.peakInsight && (
                               <span style={{
                                 fontSize: '11px',
@@ -3371,18 +3690,28 @@ export default function AdminPanel() {
                                 alignItems: 'center',
                                 gap: 4
                               }}>
-                                {metrics.peakInsight}
+                                {isHindi && typeof metrics.peakInsight === 'string' ? metrics.peakInsight.replace('Peak Rush:', 'व्यस्त समय:').replace('orders', 'ऑर्डर्स') : metrics.peakInsight}
                               </span>
                             )}
                           </div>
                           <p style={{ margin: '3px 0 0 0' }}>
-                            {dateRange === 'today' ? 'Real-time hourly telemetry for today' :
+                            {isHindi ? (
+                              dateRange === 'today' ? 'आज का प्रति घंटा लाइव विश्लेषण' :
+                              dateRange === 'this_week' ? '7-दिनों का दैनिक विश्लेषण' :
+                              dateRange === 'this_month' ? 'मासिक विश्लेषण' :
+                              dateRange === 'all' ? 'कुल समय का विश्लेषण' :
+                              appliedCustomStartDate && appliedCustomEndDate
+                                ? `कस्टम अवधि विश्लेषण (${appliedCustomStartDate} से ${appliedCustomEndDate})`
+                                : 'कस्टम अवधि विश्लेषण (तिथियां चुनें)'
+                            ) : (
+                              dateRange === 'today' ? 'Real-time hourly telemetry for today' :
                               dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
-                                dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
-                                  dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
-                                    appliedCustomStartDate && appliedCustomEndDate
-                                      ? `Custom range telemetry (${appliedCustomStartDate} to ${appliedCustomEndDate})`
-                                      : 'Custom range telemetry (Select dates & click Apply Filter)'}
+                              dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
+                              dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
+                              appliedCustomStartDate && appliedCustomEndDate
+                                ? `Custom range telemetry (${appliedCustomStartDate} to ${appliedCustomEndDate})`
+                                : 'Custom range telemetry (Select dates & click Apply Filter)'
+                            )}
                           </p>
                         </div>
 
@@ -3406,7 +3735,7 @@ export default function AdminPanel() {
                                 transition: 'all 0.15s ease'
                               }}
                             >
-                              Line
+                              {isHindi ? 'रेखा' : 'Line'}
                             </button>
                             <button
                               type="button"
@@ -3425,7 +3754,7 @@ export default function AdminPanel() {
                                 transition: 'all 0.15s ease'
                               }}
                             >
-                              Bars
+                              {isHindi ? 'बार' : 'Bars'}
                             </button>
                           </div>
 
@@ -3436,14 +3765,14 @@ export default function AdminPanel() {
                               className={`${styles.chartModeBtn} ${chartMetricTab === 'revenue' ? styles.chartModeBtnActive : ''}`}
                               onClick={() => setChartMetricTab('revenue')}
                             >
-                              Revenue (₹)
+                              {isHindi ? 'राजस्व (₹)' : 'Revenue (₹)'}
                             </button>
                             <button
                               type="button"
                               className={`${styles.chartModeBtn} ${chartMetricTab === 'orders' ? styles.chartModeBtnActive : ''}`}
                               onClick={() => setChartMetricTab('orders')}
                             >
-                              Orders (#)
+                              {isHindi ? 'ऑर्डर्स (संख्या)' : 'Orders (#)'}
                             </button>
                           </div>
                         </div>
@@ -3734,9 +4063,9 @@ export default function AdminPanel() {
                     <div className={styles.liveOrdersPanelModern}>
                       <div className={styles.liveHeaderRow}>
                         <div className={styles.liveTitleBlock}>
-                          <h3>Live Orders Queue</h3>
+                          <h3>{isHindi ? 'लाइव ऑर्डर्स कतार' : 'Live Orders Queue'}</h3>
                           <span className={styles.liveCountPill}>
-                            ● {liveActiveOrdersCount} Active
+                            ● {liveActiveOrdersCount} {isHindi ? 'सक्रिय' : 'Active'}
                           </span>
                         </div>
                         <button
@@ -3766,11 +4095,11 @@ export default function AdminPanel() {
                                     ? styles.prepChip
                                     : styles.deliveryChip
                                   }`}>
-                                  {order.status}
+                                  {isHindi ? (order.status === 'preparing' ? 'किचन में' : order.status === 'completed' ? 'तैयार' : order.status === 'pending' ? 'लंबित' : order.status) : order.status}
                                 </span>
                               </div>
                               <div className={styles.ticketBody}>
-                                <span>{tableText}</span>
+                                <span>{order.tableNumber ? (isHindi ? `टेबल ${order.tableNumber}` : `Table ${order.tableNumber}`) : (isHindi ? 'काउंटर वॉक-इन' : 'Counter Walk-in')}</span>
                               </div>
                             </div>
                           );
@@ -3781,8 +4110,8 @@ export default function AdminPanel() {
                             <div className={styles.radarPulseCircle}>
                               <Coffee size={24} />
                             </div>
-                            <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>No active orders in queue</strong>
-                            <span style={{ fontSize: '0.72rem' }}>New orders from QR codes or POS will appear here instantly.</span>
+                            <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>{isHindi ? 'कतार में कोई सक्रिय ऑर्डर नहीं है' : 'No active orders in queue'}</strong>
+                            <span style={{ fontSize: '0.72rem' }}>{isHindi ? 'क्यूआर कोड या पीओएस से नए ऑर्डर तुरंत यहां दिखाई देंगे।' : 'New orders from QR codes or POS will appear here instantly.'}</span>
                           </div>
                         )}
                       </div>
@@ -3823,7 +4152,7 @@ export default function AdminPanel() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Grid size={19} color="#4f46e5" />
                               <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
-                                Live Dining Floor & Table Matrix
+                                {isHindi ? 'लाइव डाइनिंग फ्लोर एवं टेबल स्थिति' : 'Live Dining Floor & Table Matrix'}
                               </h3>
                             </div>
 
@@ -3836,7 +4165,7 @@ export default function AdminPanel() {
                               color: occupancyRate > 60 ? '#b91c1c' : occupancyRate > 0 ? '#b45309' : '#047857',
                               border: '1px solid currentColor'
                             }}>
-                              {occupancyRate}% Occupied ({occupiedTables.length}/{tables.length} Tables Active)
+                              {isHindi ? `${occupancyRate}% भरी हुई (${occupiedTables.length}/${tables.length} टेबल सक्रिय)` : `${occupancyRate}% Occupied (${occupiedTables.length}/${tables.length} Tables Active)`}
                             </span>
                           </div>
 
@@ -3858,7 +4187,7 @@ export default function AdminPanel() {
                                   boxShadow: tableFilterTab === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                                 }}
                               >
-                                All ({tables.length})
+                                {isHindi ? `सभी (${tables.length})` : `All (${tables.length})`}
                               </button>
                               <button
                                 type="button"
@@ -3875,7 +4204,7 @@ export default function AdminPanel() {
                                   boxShadow: tableFilterTab === 'available' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                                 }}
                               >
-                                Free ({availableTables.length})
+                                {isHindi ? `खाली (${availableTables.length})` : `Free (${availableTables.length})`}
                               </button>
                               <button
                                 type="button"
@@ -3892,7 +4221,7 @@ export default function AdminPanel() {
                                   boxShadow: tableFilterTab === 'occupied' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
                                 }}
                               >
-                                Busy ({occupiedTables.length})
+                                {isHindi ? `व्यस्त (${occupiedTables.length})` : `Busy (${occupiedTables.length})`}
                               </button>
                             </div>
 
@@ -3917,7 +4246,7 @@ export default function AdminPanel() {
                                 boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
                               }}
                             >
-                              <Grid size={13} /> POS Terminal & Floor Plan →
+                              <Grid size={13} /> {isHindi ? 'पीओएस बिलिंग व फ्लोर प्लान →' : 'POS Terminal & Floor Plan →'}
                             </button>
                           </div>
                         </div>
@@ -3932,9 +4261,17 @@ export default function AdminPanel() {
                               const isOccupied = tableOrders.length > 0;
                               const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
                               const firstOrder = tableOrders[0];
-                              const elapsedMins = firstOrder?.createdAt
-                                ? Math.max(1, Math.round((new Date() - new Date(firstOrder.createdAt)) / 60000))
-                                : 5;
+                              const formatTableElapsed = (createdAt) => {
+                                if (!createdAt) return '5 Min';
+                                const diffSec = Math.max(1, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
+                                const d = Math.floor(diffSec / 86400);
+                                const h = Math.floor((diffSec % 86400) / 3600);
+                                const m = Math.floor((diffSec % 3600) / 60);
+                                if (d > 0) return h > 0 ? `${d}d ${h}h` : `${d}d`;
+                                if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+                                return `${Math.max(1, m)} Min`;
+                              };
+                              const elapsedMins = formatTableElapsed(firstOrder?.createdAt);
 
                               const totalSum = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
                               const orderTotal = Math.round(totalSum * 100) / 100;
@@ -4001,7 +4338,7 @@ export default function AdminPanel() {
                                     title={`Table ${tbl.tableNumber} - All Orders Served/Paid. Click to open POS.`}
                                   >
                                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
-                                      ✓ {elapsedMins} Min
+                                      ✓ {elapsedMins}
                                     </div>
                                     <span style={{ fontSize: '1rem', fontWeight: 600, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
@@ -4042,7 +4379,7 @@ export default function AdminPanel() {
                                   title={`Table ${tbl.tableNumber} - Running Order ₹${orderTotal}. Click to open POS.`}
                                 >
                                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
-                                    ⏱️ {elapsedMins} Min
+                                    ⏱️ {elapsedMins}
                                   </div>
                                   <span style={{ fontSize: '1rem', fontWeight: 600, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
@@ -4330,10 +4667,10 @@ export default function AdminPanel() {
                       <div className={styles.opsHeaderRow}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckCircle2 size={18} color="#4f46e5" />
-                          <h3>Daily Operational Checklist</h3>
+                          <h3>{isHindi ? 'दैनिक परिचालन चेकलिस्ट' : 'Daily Operational Checklist'}</h3>
                         </div>
                         <span className={styles.opsProgressPill}>
-                          {checklist.filter(c => c.done).length} / {checklist.length} Completed
+                          {checklist.filter(c => c.done).length} / {checklist.length} {isHindi ? 'पूर्ण' : 'Completed'}
                         </span>
                       </div>
 
@@ -4369,13 +4706,13 @@ export default function AdminPanel() {
                       <form onSubmit={handleAddChecklistItem} className={styles.opsAddForm}>
                         <input
                           type="text"
-                          placeholder="Add quick operational task..."
+                          placeholder={isHindi ? "नया कार्य जोड़ें..." : "Add quick operational task..."}
                           value={newChecklistText}
                           onChange={(e) => setNewChecklistText(e.target.value)}
                           className={styles.opsInput}
                         />
                         <button type="submit" className={styles.opsAddBtn}>
-                          Add
+                          {isHindi ? 'जोड़ें' : 'Add'}
                         </button>
                       </form>
                     </div>
@@ -4385,7 +4722,7 @@ export default function AdminPanel() {
                       <div className={styles.opsHeaderRow}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Flame size={18} color="#e11d48" />
-                          <h3>Popular Menu Performers</h3>
+                          <h3>{isHindi ? 'सबसे लोकप्रिय व्यंजन' : 'Popular Menu Performers'}</h3>
                         </div>
                         <button
                           type="button"
@@ -4468,7 +4805,7 @@ export default function AdminPanel() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
-                  style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+                  style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
                 >
                   <KOTMonitor
                     orders={orders}
@@ -4648,7 +4985,16 @@ export default function AdminPanel() {
                           <div className={styles.categoryPillMain}>
                             <IconComp size={15} />
                             <span>{cat.name}</span>
-                            <span className={styles.catCountBadge}>{count}</span>
+                            {isMenuLoading && items.length === 0 ? (
+                              <span
+                                className={`${styles.catCountBadge} ${skeletonStyles.shimmer}`}
+                                style={{ minWidth: 16, height: 14, color: 'transparent', display: 'inline-block' }}
+                              >
+                                &nbsp;
+                              </span>
+                            ) : (
+                              <span className={styles.catCountBadge}>{count}</span>
+                            )}
                           </div>
                           {cat.id !== 'all' && (
                             <div className={styles.catActionGroup}>
@@ -4702,9 +5048,12 @@ export default function AdminPanel() {
                     </button>
                   </div>
 
-                  {/* Items Grid */}
-                  <div className={styles.menuItemsGrid}>
-                    {filteredMenuItems.map((item) => {
+                  {/* Items Grid or Skeleton Loader */}
+                  {isMenuLoading ? (
+                    <DishGridSkeleton count={10} gridClassName={styles.menuItemsGrid} />
+                  ) : filteredMenuItems.length > 0 ? (
+                    <div className={styles.menuItemsGrid}>
+                      {filteredMenuItems.map((item) => {
                       const isSelected = selectedItemIds.includes(item._id);
                       const discount = item.discount || {};
                       const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -4780,6 +5129,26 @@ export default function AdminPanel() {
                               </div>
                             </div>
                             <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                              {(item.isOpenMenu || item.isPosOnly) && (
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#86198f', background: '#fae8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f0abfc' }}>
+                                  ⚡ Open Menu (POS Only)
+                                </span>
+                              )}
+                              {item.shiftAvailability === 'night_only' && (
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #d8b4fe' }}>
+                                  🌙 Night Only
+                                </span>
+                              )}
+                              {item.shiftAvailability === 'day_only' && (
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                  ☀️ Day Only
+                                </span>
+                              )}
+                              {item.nightPrice && Number(item.nightPrice) > 0 && (
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#4338ca', background: '#e0e7ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
+                                  🌙 ₹{item.nightPrice} Night
+                                </span>
+                              )}
                               {item.category === 'uncategorized' && (
                                 <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
                                   ⚠️ Uncategorized
@@ -4867,11 +5236,8 @@ export default function AdminPanel() {
                         </motion.div>
                       );
                     })}
-                  </div>
-
-
-
-                  {filteredMenuItems.length === 0 && (
+                    </div>
+                  ) : (
                     <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", gap: '1rem' }}>
                       <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
                         <UtensilsCrossed size={28} color="#94a3b8" />
@@ -4985,7 +5351,7 @@ export default function AdminPanel() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <QRCodeComponent orders={orders} initialTables={tables} />
+                  <QRCodeComponent orders={orders} initialTables={tables} tenantInfo={tenantInfo} />
                 </motion.div>
               )}
 
@@ -5048,7 +5414,7 @@ export default function AdminPanel() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <KhataLedger />
+                  <KhataLedger menuItems={items} tenantId={tenantId || tenantInfo?._id} />
                 </motion.div>
               )}
 
@@ -5463,6 +5829,168 @@ export default function AdminPanel() {
                     <ImagePlus size={28} color="#94a3b8" style={{ marginBottom: 6 }} />
                     <p style={{ fontSize: '12px', fontWeight: 700, color: '#334155', margin: '0 0 2px 0' }}>Click to upload image from device</p>
                     <span style={{ fontSize: '11px', color: '#94a3b8' }}>PNG, JPG, WEBP up to 5MB</span>
+                  </div>
+                )}
+              </div>
+
+              {/* A. OPEN MENU SETTING (Owner / POS Only) */}
+              <div style={{
+                padding: '12px 14px',
+                background: drawerForm.isOpenMenu ? '#fdf4ff' : '#f8fafc',
+                borderRadius: '10px',
+                border: drawerForm.isOpenMenu ? '1.5px solid #d946ef' : '1px solid #e2e8f0',
+                marginBottom: '1rem',
+                transition: 'all 0.2s'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: drawerForm.isOpenMenu ? '#fae8ff' : '#f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px'
+                    }}>
+                      ⚡
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: drawerForm.isOpenMenu ? '#86198f' : '#1e293b' }}>
+                        Open Menu (Owner / POS Only)
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px', lineHeight: 1.3 }}>
+                        Hidden from customer QR code menu. Visible only to cashier/owner on POS terminal (e.g. cigarettes, off-menu items).
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => setDrawerForm(prev => {
+                      const next = !prev.isOpenMenu;
+                      return { ...prev, isOpenMenu: next, isPosOnly: next };
+                    })}
+                    style={{
+                      width: 40,
+                      height: 22,
+                      borderRadius: 100,
+                      background: drawerForm.isOpenMenu ? '#c026d3' : '#cbd5e1',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      flexShrink: 0
+                    }}
+                  >
+                    <div style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      background: '#ffffff',
+                      position: 'absolute',
+                      top: 3,
+                      left: drawerForm.isOpenMenu ? 21 : 3,
+                      transition: 'left 0.2s'
+                    }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* B. NIGHT MENU & SHIFT AVAILABILITY */}
+              <div style={{
+                padding: '14px',
+                background: drawerForm.shiftAvailability !== 'all_day' || drawerForm.nightPrice ? '#f5f3ff' : '#f8fafc',
+                borderRadius: '10px',
+                border: drawerForm.shiftAvailability !== 'all_day' || drawerForm.nightPrice ? '1.5px solid #a855f7' : '1px solid #e2e8f0',
+                marginBottom: '1.25rem',
+                transition: 'all 0.2s'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '16px' }}>🌙</span>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#4c1d95' }}>
+                      Night Menu & Shift Availability
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      Shift-based visibility (Customer QR & POS) and special late-night pricing.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shift Selector Buttons */}
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 5 }}>
+                    Available In Shift
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    {[
+                      { id: 'all_day', label: '☀️ All Day', sub: 'Day & Night' },
+                      { id: 'day_only', label: '☀️ Day Only', sub: 'Hidden at night' },
+                      { id: 'night_only', label: '🌙 Night Only', sub: 'Only late-night' }
+                    ].map(opt => {
+                      const isSel = (drawerForm.shiftAvailability || 'all_day') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setDrawerForm(prev => ({
+                            ...prev,
+                            shiftAvailability: opt.id,
+                            isNightMenu: opt.id === 'night_only' || Boolean(prev.nightPrice && Number(prev.nightPrice) > 0)
+                          }))}
+                          style={{
+                            padding: '7px 4px',
+                            borderRadius: '8px',
+                            border: isSel ? '1.5px solid #7c3aed' : '1px solid #cbd5e1',
+                            background: isSel ? '#ede9fe' : '#ffffff',
+                            color: isSel ? '#5b21b6' : '#334155',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <div style={{ fontSize: '11px', fontWeight: 700 }}>{opt.label}</div>
+                          <div style={{ fontSize: '9px', color: isSel ? '#6d28d9' : '#94a3b8' }}>{opt.sub}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Night Price Override (for All Day & Night Only dishes) */}
+                {drawerForm.shiftAvailability !== 'day_only' && (
+                  <div style={{ paddingTop: '8px', borderTop: '1px solid #ddd6fe' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#5b21b6' }}>
+                        🌙 Night Shift Price (₹)
+                      </label>
+                      <span style={{ fontSize: '10px', color: '#7c3aed', fontWeight: 600 }}>
+                        Base: ₹{drawerForm.price || '0'}
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      placeholder={`e.g. ${drawerForm.price ? Number(drawerForm.price) + 20 : 150} (leave blank to use base ₹${drawerForm.price || '0'})`}
+                      value={drawerForm.nightPrice}
+                      onChange={(e) => setDrawerForm(prev => ({
+                        ...prev,
+                        nightPrice: e.target.value,
+                        isNightMenu: prev.shiftAvailability === 'night_only' || Boolean(e.target.value && Number(e.target.value) > 0)
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #c4b5fd',
+                        background: '#ffffff',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#1e293b',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    <span style={{ fontSize: '10px', color: '#6d28d9', marginTop: '4px', display: 'block' }}>
+                      ⚡ During night shift hours, customer QR code and POS automatically show this price.
+                    </span>
                   </div>
                 )}
               </div>

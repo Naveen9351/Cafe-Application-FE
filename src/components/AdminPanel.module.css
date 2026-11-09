@@ -4488,7 +4488,11 @@
   gap: 0.85rem;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1180px) {
+  .sidebar {
+    display: none !important;
+  }
+
   .menuItemsGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -5019,7 +5023,10 @@
   font-weight: 700;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1180px) {
+  .sidebar {
+    display: none !important;
+  }
   .hamburgerBtn {
     display: flex !important;
   }
@@ -5028,3 +5035,37 @@
     display: none !important;
   }
 }
+
+
+/* ── Tablet Top Navbar & Container Ergonomics (768px - 1024px) ── */
+@media (max-width: 1024px) {
+  .topGlobalBar {
+    padding: 0 0.85rem;
+    height: 50px;
+  }
+
+  .topSearchWrapper {
+    width: 220px;
+    max-width: 32vw;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .userEmailText {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topBarRight {
+    gap: 0.5rem;
+  }
+
+  .mainContentFitScreen,
+  .mainContentPos {
+    padding: 0.45rem 0.65rem !important;
+    height: calc(100vh - 50px) !important;
+    max-height: calc(100vh - 50px) !important;
+  }
+}
+

@@ -14,6 +14,19 @@ import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
 import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioChime';
 
+// Smart table name formatter:
+// 1. Pure numbers ("1", "12") -> "Table 1", "Table 12"
+// 2. Already starts with "Table" -> keeps as is
+// 3. Custom names/identifiers ("abc", "M1", "Ground", "Patio 2") -> shows exact name without prepending "Table"!
+export const formatTableName = (num) => {
+  if (num === null || num === undefined || num === '') return 'Table';
+  const str = String(num).trim();
+  if (str.toLowerCase() === 'walk-in') return 'Walk-in';
+  if (/^\d+$/.test(str)) return `Table ${str}`;
+  if (/^table[\s-_]*/i.test(str)) return str;
+  return str;
+};
+
 export default function POSTerminal({
   tenantId,
   tenantInfo,
@@ -39,12 +52,16 @@ export default function POSTerminal({
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSettling, setIsSettling] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingKitchen, setIsSendingKitchen] = useState(false);
+  const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
   const [dbTables, setDbTables] = useState([]);
   const [isLoadingTables, setIsLoadingTables] = useState(true);
 
   // Khata / Borrow Modal states
   const [showKhataModal, setShowKhataModal] = useState(false);
+  const [khataCustomerList, setKhataCustomerList] = useState([]);
+  const [selectedKhataCustomerChoice, setSelectedKhataCustomerChoice] = useState('NEW');
+
   const [khataPaidAmount, setKhataPaidAmount] = useState('');
   const [khataBorrowAmount, setKhataBorrowAmount] = useState(0);
   const [khataNotes, setKhataNotes] = useState('');
@@ -80,6 +97,18 @@ export default function POSTerminal({
   const [isSubmittingItemPay, setIsSubmittingItemPay] = useState(false);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [clearTablePaymentMethod, setClearTablePaymentMethod] = useState('Cash');
+
+  // Load existing khata customers
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    axios.get(`${API}/khata/customers`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    }).then(res => {
+      if (res.data?.success && Array.isArray(res.data.customers)) {
+        setKhataCustomerList(res.data.customers);
+      }
+    }).catch(() => {});
+  }, [showPayItemsModal]);
 
   const prevOrdersCountRef = useRef(orders ? orders.length : 0);
   useEffect(() => {
@@ -209,10 +238,10 @@ export default function POSTerminal({
     return allTablesList.filter(t => {
       const tableOrders = getOrdersForTableObj(t);
       const isOccupied = tableOrders.length > 0;
-      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
+      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
 
       // Zone filter
-      if (selectedZone !== 'all' && (t.zone || 'Main Floor') !== selectedZone) {
+      if (selectedZone !== 'all' && (t.zone || t.section || 'Main Floor') !== selectedZone) {
         return false;
       }
 
@@ -234,6 +263,17 @@ export default function POSTerminal({
     });
   }, [allTablesList, getOrdersForTableObj, selectedZone, tableStatusFilter, tableSearch]);
 
+  // Grouped tables by category / section
+  const groupedFloorTables = useMemo(() => {
+    const map = {};
+    filteredFloorTables.forEach(t => {
+      const sec = (t.section || t.zone || 'Main Hall').trim();
+      if (!map[sec]) map[sec] = [];
+      map[sec].push(t);
+    });
+    return map;
+  }, [filteredFloorTables]);
+
   // Active table stats
   const tableStats = useMemo(() => {
     let freeCount = 0;
@@ -244,7 +284,7 @@ export default function POSTerminal({
       const ords = getOrdersForTableObj(t);
       if (ords.length === 0) {
         freeCount++;
-      } else if (ords.every(o => o.paymentStatus === 'paid' || o.status === 'served')) {
+      } else if (ords.every(o => o.paymentStatus === 'paid')) {
         paidCount++;
       } else {
         occupiedCount++;
@@ -399,14 +439,70 @@ export default function POSTerminal({
     setSelectedItemKeys(next);
   };
 
-  // Categories list for POS Menu
+  // Night Menu Active Check
+  const isNightActiveNow = useMemo(() => {
+    if (!tenantInfo?.settings?.enableNightMenu) return false;
+    const start = tenantInfo?.settings?.nightMenuStart || '22:00';
+    const end = tenantInfo?.settings?.nightMenuEnd || '05:00';
+    try {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+      const [sh, sm] = (start || '22:00').split(':').map(Number);
+      const [eh, em] = (end || '05:00').split(':').map(Number);
+      const startMins = (sh || 0) * 60 + (sm || 0);
+      const endMins = (eh || 0) * 60 + (em || 0);
+      if (startMins <= endMins) {
+        return currentMins >= startMins && currentMins <= endMins;
+      } else {
+        return currentMins >= startMins || currentMins <= endMins;
+      }
+    } catch {
+      return false;
+    }
+  }, [tenantInfo?.settings?.enableNightMenu, tenantInfo?.settings?.nightMenuStart, tenantInfo?.settings?.nightMenuEnd]);
+
+  // Helper to determine effective item price (considering active night pricing)
+  const getItemEffectivePrice = (item) => {
+    if (!item) return 0;
+    if (isNightActiveNow && (item.isNightMenu || item.nightPrice)) {
+      const np = Number(item.nightPrice);
+      if (np > 0) return np;
+    }
+    return Number(item.salePrice || item.price) || 0;
+  };
+
+  // Categories list for POS Menu (separating Open Menu and Night Menu)
   const categories = useMemo(() => {
-    return ['all', ...new Set(menuItems.map(item => item.category || 'main-courses'))];
-  }, [menuItems]);
+    const cats = ['all'];
+
+    // 1. Open Menu pill (Cigarettes, off-menu counter items - Owner/POS only)
+    const hasOpenMenu = menuItems.some(i => i.isOpenMenu || i.isPosOnly);
+    if (hasOpenMenu) {
+      cats.push('⚡ Open Menu');
+    }
+
+    // 2. Night Menu pill (Night shift dishes & dishes with night pricing)
+    const hasNight = Boolean(tenantInfo?.settings?.enableNightMenu || menuItems.some(i => i.isNightMenu || i.shiftAvailability === 'night_only' || (i.nightPrice && Number(i.nightPrice) > 0)));
+    if (hasNight) {
+      cats.push('🌙 Night Menu');
+    }
+
+    const regularCats = [...new Set(menuItems.filter(i => !i.isOpenMenu && !i.isPosOnly).map(item => item.category || 'main-courses'))];
+    return [...cats, ...regularCats];
+  }, [menuItems, tenantInfo?.settings?.enableNightMenu]);
 
   const filteredMenuItems = useMemo(() => {
     return menuItems.filter(item => {
-      const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
+      let matchesCat = false;
+      if (selectedCategory === 'all') {
+        matchesCat = true;
+      } else if (selectedCategory === '⚡ Open Menu') {
+        matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
+      } else if (selectedCategory === '🌙 Night Menu') {
+        matchesCat = Boolean(item.shiftAvailability === 'night_only' || item.isNightMenu || (item.nightPrice && Number(item.nightPrice) > 0));
+      } else {
+        matchesCat = item.category === selectedCategory;
+      }
       const matchesSearch = !dishSearch || item.name.toLowerCase().includes(dishSearch.toLowerCase());
       return matchesCat && matchesSearch;
     });
@@ -428,7 +524,7 @@ export default function POSTerminal({
         setCart([...cart, {
           id: item._id,
           name: item.name,
-          price: Number(item.salePrice || item.price) || 0,
+          price: getItemEffectivePrice(item),
           quantity: 1,
           variant: null,
           addons: []
@@ -453,7 +549,7 @@ export default function POSTerminal({
 
   const handleAddCustomized = () => {
     if (!customizingItem) return;
-    let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
+    let finalPrice = getItemEffectivePrice(customizingItem);
     let variantName = '';
     if (selectedVariant) {
       finalPrice = Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : finalPrice;
@@ -549,7 +645,10 @@ export default function POSTerminal({
       return;
     }
 
-    setIsSubmitting(true);
+    const effName = customerName.trim() || (tableNumber === 'Walk-in' ? 'Walk-in Guest' : `Table ${tableNumber} Guest`);
+    const cleanPh = (customerPhone || '').replace(/\D/g, '');
+
+    setIsSendingKitchen(true);
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
@@ -593,7 +692,7 @@ export default function POSTerminal({
       console.error('Send order error:', err);
       toast.error('Failed to submit order: ' + (err.response?.data?.error || err.message));
     } finally {
-      setIsSubmitting(false);
+      setIsSendingKitchen(false);
     }
   };
 
@@ -604,7 +703,10 @@ export default function POSTerminal({
       return;
     }
 
-    setIsSubmitting(true);
+    const effName = customerName.trim() || (tableNumber === 'Walk-in' ? 'Walk-in Guest' : `Table ${tableNumber} Guest`);
+    const cleanPh = (customerPhone || '').replace(/\D/g, '');
+
+    setIsSubmittingDirect(true);
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
@@ -650,7 +752,7 @@ export default function POSTerminal({
       console.error('Direct order error:', err);
       toast.error('Failed to submit direct order: ' + (err.response?.data?.error || err.message));
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingDirect(false);
     }
   };
 
@@ -713,6 +815,30 @@ export default function POSTerminal({
     }
   };
 
+  // Quick Settle & Clear Table directly from floor view
+  const handleQuickSettleTable = async (tNum) => {
+    const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+    try {
+      await axios.put(
+        `${API}/orders/table/${encodeURIComponent(String(tNum).trim())}/settle`,
+        {
+          paymentMethod: 'Cash',
+          paymentStatus: 'paid',
+          tenantId: effectiveTenantId
+        },
+        { headers: token ? { 'x-auth-token': token } : {} }
+      );
+      toast.success(`Table ${tNum} cleared and is now free!`);
+      if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+      if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+    } catch (err) {
+      console.error('Quick settle error:', err);
+      toast.error('Failed to clear table: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   // Settle Bill & Free Table
   const handleSettleBill = async (overrideMethod = null) => {
     if (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0) {
@@ -766,9 +892,9 @@ export default function POSTerminal({
       if (tableNumber !== 'Walk-in' && currentTableOrders.length > 0) {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { 
-            paymentMethod: settleMethod, 
-            paymentStatus: 'paid', 
+          {
+            paymentMethod: settleMethod,
+            paymentStatus: 'paid',
             tenantId: effectiveTenantId,
             mergedTables: allSettleTables,
             settledAmount: finalSettledAmount,
@@ -809,14 +935,8 @@ export default function POSTerminal({
   const handleConfirmKhataSettlement = async (e) => {
     if (e) e.preventDefault();
     const cleanPhone = (customerPhone || '').replace(/\D/g, '');
-    if (!customerName.trim()) {
-      toast.error('Customer Name is required to record Khata / Borrow');
-      return;
-    }
-    if (!cleanPhone || cleanPhone.length < 5) {
-      toast.error('Customer phone number must be at least 5 digits');
-      return;
-    }
+    const effLegacyName = customerName.trim() || (tableNumber !== 'Walk-in' ? `Table ${tableNumber} Guest` : 'Walk-in Guest');
+    const effLegacyPhone = cleanPhone || customerPhone.trim() || 'N/A';
 
     const curDue = balanceDue > 0 ? balanceDue : grandTotal;
     const paidNum = Number(khataPaidAmount) || 0;
@@ -876,9 +996,9 @@ export default function POSTerminal({
       if (tableNumber !== 'Walk-in') {
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-          { 
-            paymentMethod: 'Khata / Borrow', 
-            paymentStatus: borrowNum === 0 ? 'paid' : 'partial', 
+          {
+            paymentMethod: 'Khata / Borrow',
+            paymentStatus: borrowNum === 0 ? 'paid' : 'partial',
             tenantId: effectiveTenantId,
             mergedTables: allSettleTables,
             actualAmount: paidNum,
@@ -970,13 +1090,13 @@ export default function POSTerminal({
 
   return (
     <div className={styles.terminalWrapper}>
-      
+
       {/* ========================================================= */}
       {/* 1. FLOOR & TABLES MATRIX VIEW (Petpooja Reference Style)  */}
       {/* ========================================================= */}
       {viewMode === 'tables' && (
         <div className={styles.floorContainer}>
-          
+
           {/* Streamlined Top Control Toolbar */}
           <div className={styles.floorTopBarClean}>
             {/* Quick Status Filter Tabs (Segmented Control) */}
@@ -1049,88 +1169,145 @@ export default function POSTerminal({
               ))}
             </div>
           ) : (
-            <div className={styles.tablesGrid}>
-              {filteredFloorTables.map(tbl => {
-                const tableOrders = getOrdersForTableObj(tbl);
-                const isOccupied = tableOrders.length > 0;
-                const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
-                const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
-
-                // Calculate running elapsed minutes
-                let elapsedMin = null;
-                if (isOccupied && tableOrders[0]?.createdAt) {
-                  const start = new Date(tableOrders[0].createdAt);
-                  const diffMs = Date.now() - start.getTime();
-                  elapsedMin = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-                }
-
-                // 1. FREE / EMPTY CARD
-                if (!isOccupied) {
-                  return (
-                    <div
-                      key={tbl._id || tbl.tableNumber}
-                      className={`${styles.tableTile} ${styles.tileFree}`}
-                      onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                      title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
-                    >
-                      <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                      <span className={styles.tileName}>Table {tbl.tableNumber}</span>
-                      <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                    </div>
-                  );
-                }
-
-                const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
-                const custName = getCustomerFirstName(rawCustName);
-
-                // 2. PAID / BILLED / SERVED CARD (Soft Green)
-                if (isAllPaid) {
-                  return (
-                    <div
-                      key={tbl._id || tbl.tableNumber}
-                      className={`${styles.tableTile} ${styles.tilePaid}`}
-                      onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                      title={`Table ${tbl.tableNumber} - Billed/Paid. Click to open POS.`}
-                    >
-                      <div className={styles.tileTopMeta}>
-                        <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
-                      </div>
-                      <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                        {custName || `Table ${tbl.tableNumber}`}
-                      </span>
-                      {custName && (
-                        <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
-                          Table {tbl.tableNumber}
-                        </span>
-                      )}
-                      <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
-                    </div>
-                  );
-                }
-
-                // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
-                return (
-                  <div
-                    key={tbl._id || tbl.tableNumber}
-                    className={`${styles.tableTile} ${styles.tileOccupied}`}
-                    onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                    title={`Table ${tbl.tableNumber} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
-                  >
-                    <div className={styles.tileTopMeta}>
-                      <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
-                    </div>
-                    <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                      {custName || `Table ${tbl.tableNumber}`}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {Object.entries(groupedFloorTables).map(([secName, secTables]) => (
+                <div key={secName} style={{ background: '#ffffff', borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '0.75rem',
+                    paddingBottom: '6px',
+                    borderBottom: '1.5px solid #f1f5f9'
+                  }}>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                      {secName}
+                    </h3>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '100px',
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      {secTables.length} {secTables.length === 1 ? 'Table' : 'Tables'}
                     </span>
-                    {custName && (
-                      <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
-                        Table {tbl.tableNumber}
-                      </span>
-                    )}
-                    <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                   </div>
-                );
-              })}
+                  <div className={styles.tablesGrid}>
+                    {secTables.map(tbl => {
+                      const tableOrders = getOrdersForTableObj(tbl);
+                      const isOccupied = tableOrders.length > 0;
+                      const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
+                      const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+
+                      let elapsedMin = null;
+                      if (isOccupied && tableOrders[0]?.createdAt) {
+                        const diffSec = Math.max(1, Math.floor((Date.now() - new Date(tableOrders[0].createdAt).getTime()) / 1000));
+                        const d = Math.floor(diffSec / 86400);
+                        const h = Math.floor((diffSec % 86400) / 3600);
+                        const m = Math.floor((diffSec % 3600) / 60);
+                        if (d > 0) elapsedMin = h > 0 ? `${d}d ${h}h` : `${d}d`;
+                        else if (h > 0) elapsedMin = m > 0 ? `${h}h ${m}m` : `${h}h`;
+                        else elapsedMin = `${Math.max(1, m)} Min`;
+                      }
+
+                      // 1. FREE / EMPTY CARD
+                      if (!isOccupied) {
+                        return (
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={`${styles.tableTile} ${styles.tileFree}`}
+                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            title={`${formatTableName(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
+                          >
+                            <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                            <span className={styles.tileName}>{formatTableName(tbl.tableNumber)}</span>
+                            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                          </div>
+                        );
+                      }
+
+                      const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
+                      const custName = getCustomerFirstName(rawCustName);
+
+                      // 2. PAID / BILLED / SERVED CARD (Soft Green)
+                      if (isAllPaid) {
+                        return (
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={`${styles.tableTile} ${styles.tilePaid}`}
+                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            title={`${formatTableName(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
+                          >
+                            <div className={styles.tileTopMeta}>
+                              <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
+                            </div>
+                            <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                              {custName || formatTableName(tbl.tableNumber)}
+                            </span>
+                            {custName && (
+                              <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
+                                Table {tbl.tableNumber}
+                              </span>
+                            )}
+                            <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickSettleTable(tbl.tableNumber);
+                              }}
+                              style={{
+                                marginTop: '6px',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: '#059669',
+                                color: '#ffffff',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                              }}
+                              title={`Click to clear and free Table ${tbl.tableNumber}`}
+                            >
+                              <CheckCircle2 size={12} /> Clear Table
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
+                      return (
+                        <div
+                          key={tbl._id || tbl.tableNumber}
+                          className={`${styles.tableTile} ${styles.tileOccupied}`}
+                          onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                          title={`${formatTableName(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
+                        >
+                          <div className={styles.tileTopMeta}>
+                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
+                          </div>
+                          <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                            {custName || `Table ${tbl.tableNumber}`}
+                          </span>
+                          {custName && (
+                            <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
+                              Table {tbl.tableNumber}
+                            </span>
+                          )}
+                          <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -1168,8 +1345,8 @@ export default function POSTerminal({
                 {tableSearch
                   ? `No tables match "${tableSearch}"`
                   : tableStatusFilter !== 'all'
-                  ? `There are currently no tables with status "${tableStatusFilter}". Switch filter to see other tables.`
-                  : 'No tables available on this floor.'}
+                    ? `There are currently no tables with status "${tableStatusFilter}". Switch filter to see other tables.`
+                    : 'No tables available on this floor.'}
               </p>
               {tableStatusFilter !== 'all' && (
                 <button
@@ -1201,39 +1378,25 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {viewMode === 'terminal' && (
         <div className={styles.terminalContainerWrap}>
-          
+
           {/* POS Two-Column Grid */}
           <div className={styles.posGrid}>
-            
+
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
               <div className={styles.menuFilterBar}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {/* Inline Back Arrow Button */}
-                  <button
-                    type="button"
-                    className={styles.backIconBtn}
-                    onClick={() => setViewMode('tables')}
-                    title="Back to Floor Tables"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
+                {/* Inline Back Arrow Button */}
+                <button
+                  type="button"
+                  className={styles.backIconBtn}
+                  onClick={() => setViewMode('tables')}
+                  title="Back to Floor Tables"
+                >
+                  <ArrowLeft size={16} />
+                </button>
 
-                  <div className={styles.categoryPillsWrap}>
-                    {categories.map(cat => (
-                      <button
-                        key={cat}
-                        type="button"
-                        className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
-                        onClick={() => setSelectedCategory(cat)}
-                      >
-                        {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.searchBox} style={{ width: 180 }}>
+                {/* Dish Search input right after back button */}
+                <div className={styles.searchBox}>
                   <Search size={13} color="#94a3b8" />
                   <input
                     type="text"
@@ -1242,14 +1405,64 @@ export default function POSTerminal({
                     onChange={(e) => setDishSearch(e.target.value)}
                     className={styles.searchInput}
                   />
+                  {dishSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDishSearch('')}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
+
+                {isNightActiveNow && (
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: 'linear-gradient(135deg, #4c1d95, #6d28d9)',
+                    color: '#ffffff',
+                    padding: '5px 11px',
+                    borderRadius: '20px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(109, 40, 217, 0.35)',
+                    flexShrink: 0
+                  }}>
+                    <span>🌙</span>
+                    <span>Night Pricing Active ({tenantInfo?.settings?.nightMenuStart || '22:00'} - {tenantInfo?.settings?.nightMenuEnd || '05:00'})</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Horizontally scrollable Category Pills row below search */}
+              <div
+                className={styles.categoryPillsWrap}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+              >
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                  </button>
+                ))}
               </div>
 
               {/* Dish Cards Grid */}
               <div className={styles.dishesGrid}>
                 {filteredMenuItems.map(item => {
                   const imgUrl = getValidFoodImage(item);
-                  const price = Number(item.salePrice || item.price) || 0;
+                  const price = getItemEffectivePrice(item);
                   const cartQty = cart
                     .filter(c => c.id === item._id || c._id === item._id || c.name === item.name)
                     .reduce((sum, c) => sum + (c.quantity || 1), 0);
@@ -1273,6 +1486,42 @@ export default function POSTerminal({
                         <div className={styles.vegBadge}>
                           <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
                         </div>
+                        {(item.isOpenMenu || item.isPosOnly) && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: 6,
+                            background: 'rgba(192, 38, 211, 0.92)',
+                            color: '#ffffff',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2
+                          }}>
+                            ⚡ Open Menu
+                          </div>
+                        )}
+                        {!(item.isOpenMenu || item.isPosOnly) && (item.shiftAvailability === 'night_only' || item.isNightMenu) && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: 6,
+                            background: 'rgba(76, 29, 149, 0.92)',
+                            color: '#ffffff',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2
+                          }}>
+                            🌙 Night Menu
+                          </div>
+                        )}
                       </div>
 
                       <div className={styles.dishInfo}>
@@ -1320,14 +1569,14 @@ export default function POSTerminal({
 
             {/* Right: Order Slip & Settlement Drawer */}
             <div className={styles.orderDrawer}>
-              
+
               {/* Top Block: Title & Inputs (Pinned Top) */}
               <div className={styles.drawerTopBlock}>
                 <div className={styles.drawerHeader}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <h4 className={styles.drawerTitle} style={{ margin: 0 }}>
-                        {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `Table ${tableNumber}`}
+                        {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `${formatTableName(tableNumber)} Order Slip`}
                       </h4>
                       {mergedTables.map(mTable => (
                         <span
@@ -1385,18 +1634,6 @@ export default function POSTerminal({
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !isMuted;
-                        setIsMuted(next);
-                        setAudioMuted(next);
-                      }}
-                      title={isMuted ? "Unmute Order Chimes" : "Mute Order Chimes"}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: isMuted ? '#94a3b8' : '#e05c5c', padding: 2 }}
-                    >
-                      {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                    </button>
                     {cart.length > 0 && (
                       <button
                         type="button"
@@ -1422,7 +1659,7 @@ export default function POSTerminal({
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    placeholder="10-digit Phone No"
+                    placeholder="Phone Number (Optional)"
                     value={customerPhone}
                     onKeyDown={(e) => {
                       if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
@@ -1448,7 +1685,7 @@ export default function POSTerminal({
                     {/* Quick selection bar for partial/paid order */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 2px 8px', fontSize: '11px', fontWeight: 700, color: '#64748b' }}>
                       <span>
-                        {selectedItemsSummary.count > 0 
+                        {selectedItemsSummary.count > 0
                           ? `Selected: ${selectedItemsSummary.count} item(s) (₹${formatAmount(selectedItemsSummary.total)})`
                           : 'Select items below to mark as Paid:'}
                       </span>
@@ -1539,14 +1776,14 @@ export default function POSTerminal({
 
                               return (
                                 <div key={itemIdx} className={styles.cartItem} style={{
-                                    padding: '6px 8px',
-                                    borderRadius: '8px',
-                                    marginBottom: '4px',
-                                    border: isSelected ? '1.5px solid #c4b5fd' : (itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : '1px solid transparent'),
-                                    background: isSelected ? '#f5f3ff' : 'transparent',
-                                    transition: 'all 0.15s ease',
-                                    opacity: isPaid ? 0.78 : 1
-                                  }}>
+                                  padding: '6px 8px',
+                                  borderRadius: '8px',
+                                  marginBottom: '4px',
+                                  border: isSelected ? '1.5px solid #c4b5fd' : (itemIdx < ord.items.length - 1 ? '1px dashed #e2e8f0' : '1px solid transparent'),
+                                  background: isSelected ? '#f5f3ff' : 'transparent',
+                                  transition: 'all 0.15s ease',
+                                  opacity: isPaid ? 0.78 : 1
+                                }}>
                                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                     {!isPaid ? (
                                       <button
@@ -1712,80 +1949,92 @@ export default function POSTerminal({
                   </div>
                 </div>
 
-                {/* 4-Button Unified Terminal Action System */}
-                <div className={styles.terminalActionBtns}>
-                  {/* Button 1: Send to Kitchen */}
-                  <button
-                    type="button"
-                    className={styles.sendKotBtn}
-                    onClick={handleSendKOT}
-                    disabled={isSubmitting || cart.length === 0}
-                    title="Send draft items to Kitchen KDS (Status: In Kitchen)"
-                  >
-                    <ChefHat size={14} />
-                    <span>{isSubmitting ? 'Sending...' : 'Send to Kitchen'}</span>
-                  </button>
+                {/* Progressive Terminal Action System */}
+                {(() => {
+                  const hasActiveOrders = currentTableOrders.length > 0;
+                  const hasDraftItems = cart.length > 0;
 
-                  {/* Button 2: Direct (Counter Handover) */}
-                  <button
-                    type="button"
-                    className={styles.directBtn}
-                    onClick={handleDirectOrder}
-                    disabled={isSubmitting || cart.length === 0}
-                    title="Direct counter items (Water/Cold Drinks) - bypasses kitchen, status: Served"
-                  >
-                    <Zap size={14} />
-                    <span>{isSubmitting ? 'Processing...' : 'Direct (Counter)'}</span>
-                  </button>
+                  return (
+                    <>
+                      {/* Dynamic Action Buttons */}
+                      {(hasDraftItems || hasActiveOrders) && (
+                        <div className={styles.terminalActionBtns}>
+                          {/* 1. Send to Kitchen: Shown whenever draft items exist */}
+                          {hasDraftItems && (
+                            <button
+                              type="button"
+                              className={styles.sendKotBtn}
+                              onClick={handleSendKOT}
+                              disabled={isSendingKitchen}
+                              title="Send draft items to Kitchen KDS (Status: In Kitchen)"
+                            >
+                              <ChefHat size={14} />
+                              <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
+                            </button>
+                          )}
 
-                  {/* Button 3: Pay Order */}
-                  <button
-                    type="button"
-                    className={styles.paidOrderBtn}
-                    onClick={() => {
-                      if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
-                        toast.error('All active items on this table are already paid!');
-                        return;
-                      }
-                      setKhataPaidAmount('0');
-                      setKhataBorrowAmount(0);
-                      setShowPayItemsModal(true);
-                    }}
-                    disabled={isSubmittingItemPay || (currentTableOrders.length === 0 && cart.length === 0) || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
-                    title="Mark selected items (or all unpaid items) as Paid"
-                  >
-                    <CreditCard size={14} />
-                    <span>
-                      {selectedItemsSummary.count > 0 
-                        ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})` 
-                        : (balanceDue > 0 ? `Pay Unpaid (₹${formatAmount(balanceDue)})` : 'Paid Order')}
-                    </span>
-                  </button>
+                          {/* 2. Direct (Counter): Shown whenever draft items exist */}
+                          {hasDraftItems && (
+                            <button
+                              type="button"
+                              className={styles.directBtn}
+                              onClick={handleDirectOrder}
+                              disabled={isSubmittingDirect}
+                              title="Direct counter items - bypasses kitchen, status: Served"
+                            >
+                              <Zap size={14} />
+                              <span>{isSubmittingDirect ? 'Processing...' : 'Direct (Counter)'}</span>
+                            </button>
+                          )}
 
-                  {/* Button 4: Clear Table */}
-                  <button
-                    type="button"
-                    className={styles.clearTableBtn}
-                    onClick={() => {
-                      if (balanceDue > 0) {
-                        setKhataPaidAmount('0');
-                        setKhataBorrowAmount(0);
-                        setShowPayItemsModal(true);
-                      } else {
-                        handleClearTableClick();
-                      }
-                    }}
-                    disabled={isSettling || (grandTotal <= 0 && currentTableOrders.length === 0 && cart.length === 0)}
-                    title="Clear and reset table once customer finishes"
-                  >
-                    <CheckCircle2 size={14} />
-                    <span>
-                      {isSettling 
-                        ? 'Clearing...' 
-                        : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
-                    </span>
-                  </button>
-                </div>
+                          {/* 3. Pay Order: Shown ONLY AFTER order is sent to kitchen or served from counter */}
+                          {hasActiveOrders && (
+                            <button
+                              type="button"
+                              className={styles.paidOrderBtn}
+                              onClick={() => {
+                                if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
+                                  toast.error('All active items on this table are already paid!');
+                                  return;
+                                }
+                                setKhataPaidAmount('0');
+                                setKhataBorrowAmount(0);
+                                setShowPayItemsModal(true);
+                              }}
+                              disabled={isSubmittingItemPay || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
+                              title="Mark selected items (or all unpaid items) as Paid"
+                            >
+                              <CreditCard size={14} />
+                              <span>
+                                {selectedItemsSummary.count > 0
+                                  ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
+                                  : (balanceDue > 0 ? `Pay (₹${formatAmount(balanceDue)})` : 'Paid Order')}
+                              </span>
+                            </button>
+                          )}
+
+                          {/* 4. Clear Table: Shown ONLY AFTER order is active on the table */}
+                          {hasActiveOrders && (
+                            <button
+                              type="button"
+                              className={styles.clearTableBtn}
+                              onClick={handleClearTableClick}
+                              disabled={isSettling}
+                              title="Clear and reset table once customer finishes"
+                            >
+                              <CheckCircle2 size={14} />
+                              <span>
+                                {isSettling
+                                  ? 'Clearing...'
+                                  : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
             </div>
@@ -1811,30 +2060,31 @@ export default function POSTerminal({
 
         const handleModalConfirm = async () => {
           if (payItemsMethod === 'Khata / Borrow') {
-            const cleanPhone = (customerPhone || '').replace(/\D/g, '');
-            if (!customerName.trim()) {
-              toast.error('Customer Name is required to record Khata / Borrow');
-              return;
-            }
-            if (!cleanPhone || cleanPhone.length < 5) {
-              toast.error('Please enter a valid phone number (at least 5 digits)');
-              return;
-            }
+            const effName = customerName.trim() || (tableNumber !== 'Walk-in' ? `Table ${tableNumber} Guest` : 'Walk-in Guest');
+            const effPhone = customerPhone.trim() || 'N/A';
 
             setIsSubmittingKhata(true);
             const token = localStorage.getItem('token');
             const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
             try {
+              // Extract items from table orders to record in Khata
+              const khataItems = currentTableOrders.flatMap(o => (o.items || []).map(it => ({
+                name: it.name || it.item?.name || 'Dish',
+                quantity: it.quantity || 1,
+                price: Number(it.price || it.item?.price) || 0
+              })));
+
               // 1. Record directly in Khata / Customer Credit Ledger
               await axios.post(`${API}/khata`, {
                 tenantId: effectiveTenantId,
-                customerName: customerName.trim(),
-                customerPhone: customerPhone.trim(),
+                customerName: effName,
+                customerPhone: effPhone,
                 totalBill: tenderAmount,
                 paidAmount: paidNowNum,
                 borrowAmount: borrowDueNum,
-                notes: khataNotes || `Table ${tableNumber} order`
+                notes: khataNotes || `Table ${tableNumber} order`,
+                items: khataItems
               }, {
                 headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
               });
@@ -1844,9 +2094,9 @@ export default function POSTerminal({
               if (tableNumber !== 'Walk-in') {
                 await axios.put(
                   `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
-                  { 
-                    paymentMethod: 'Khata / Borrow', 
-                    paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'), 
+                  {
+                    paymentMethod: 'Khata / Borrow',
+                    paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'),
                     tenantId: effectiveTenantId,
                     mergedTables: allSettleTables,
                     actualAmount: paidNowNum,
@@ -1898,12 +2148,14 @@ export default function POSTerminal({
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className={styles.splitModalContent}
               style={{
-                maxWidth: '470px',
+                maxWidth: '460px',
                 width: '94%',
-                padding: '24px',
-                borderRadius: '16px',
+                padding: '16px 20px',
+                borderRadius: '14px',
                 background: '#ffffff',
-                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)'
+                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+                maxHeight: '90vh',
+                overflowY: 'auto'
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -2011,14 +2263,14 @@ export default function POSTerminal({
                         style={{
                           padding: '9px 4px',
                           borderRadius: '10px',
-                          border: isSelected 
-                            ? (isKhata ? '2px solid #d97706' : '2px solid #7c3aed') 
+                          border: isSelected
+                            ? (isKhata ? '2px solid #d97706' : '2px solid #7c3aed')
                             : '1.5px solid #e2e8f0',
-                          background: isSelected 
-                            ? (isKhata ? '#fffbeb' : '#f5f3ff') 
+                          background: isSelected
+                            ? (isKhata ? '#fffbeb' : '#f5f3ff')
                             : '#ffffff',
-                          color: isSelected 
-                            ? (isKhata ? '#92400e' : '#7c3aed') 
+                          color: isSelected
+                            ? (isKhata ? '#92400e' : '#7c3aed')
                             : '#475569',
                           fontWeight: isSelected ? 800 : 600,
                           fontSize: '0.74rem',
@@ -2043,157 +2295,174 @@ export default function POSTerminal({
               {/* INLINE KHATA / BORROW MODERN SUITE */}
               {payItemsMethod === 'Khata / Borrow' && (
                 <div style={{
-                  background: '#fafaf9',
-                  border: '1.5px solid #fde68a',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  marginBottom: '1.1rem',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.02)'
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '11px 13px',
+                  marginBottom: '0.85rem'
                 }}>
                   {/* Subtle Accent Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <BookOpen size={14} color="#d97706" />
-                      <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                        Customer Udhar Ledger
+                      <BookOpen size={13} color="#2563eb" />
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        Customer Udhar Account
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>
-                      Live Balance Sync
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                      Khata Ledger
                     </span>
                   </div>
 
-                  {/* Customer Info Inputs */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '10px' }}>
+                  {/* Customer Dropdown (Select Existing or Create New) */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#475569', marginBottom: '3px' }}>
+                      Select Customer Account
+                    </label>
+                    <select
+                      value={selectedKhataCustomerChoice}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedKhataCustomerChoice(val);
+                        if (val === 'NEW') {
+                          setCustomerName('');
+                          setCustomerPhone('');
+                        } else {
+                          const found = khataCustomerList.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
+                          if (found) {
+                            setCustomerName(found.customerName);
+                            setCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <option value="NEW">➕ Create New Customer</option>
+                      {khataCustomerList.map((c, i) => (
+                        <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                          {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹${c.outstandingBalance}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Customer Info Inputs (Both Optional) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#475569', marginBottom: '4px' }}>
-                        Customer Name <span style={{ color: '#ef4444' }}>*</span>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 600, color: '#64748b', marginBottom: '3px' }}>
+                        Customer Name (Optional)
                       </label>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <User size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
-                        <input
-                          type="text"
-                          placeholder="e.g. Rahul Sharma"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '7px 8px 7px 27px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #e2e8f0',
-                            background: '#ffffff',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            color: '#0f172a',
-                            boxSizing: 'border-box',
-                            outline: 'none',
-                            transition: 'border-color 0.15s ease'
-                          }}
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. Rahul"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '0.76rem',
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#475569', marginBottom: '4px' }}>
-                        Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 600, color: '#64748b', marginBottom: '3px' }}>
+                        Mobile Number (Optional)
                       </label>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          placeholder="10-digit Phone"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          style={{
-                            width: '100%',
-                            padding: '7px 8px 7px 27px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #e2e8f0',
-                            background: '#ffffff',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            color: '#0f172a',
-                            boxSizing: 'border-box',
-                            outline: 'none',
-                            transition: 'border-color 0.15s ease'
-                          }}
-                        />
-                      </div>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="e.g. 9876543210"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '0.76rem',
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
                   </div>
 
                   {/* Amounts: Amount Paid Now & Read-Only Borrow Due */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '9px', marginBottom: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
                     {/* Amount Paid Now (Editable) */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#15803d' }}>
-                          Amount Paid Now
-                        </label>
-                        <span style={{ fontSize: '0.64rem', color: '#16a34a', fontWeight: 700 }}>
-                          (Cash/UPI)
-                        </span>
-                      </div>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <span style={{ position: 'absolute', left: '10px', fontSize: '0.82rem', fontWeight: 900, color: '#15803d' }}>₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max={tenderAmount}
-                          placeholder="0"
-                          value={khataPaidAmount}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            if (raw === '') {
-                              setKhataPaidAmount('');
-                            } else {
-                              const num = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
-                              setKhataPaidAmount(String(num));
-                            }
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '7px 8px 7px 24px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #86efac',
-                            background: '#ffffff',
-                            fontSize: '0.9rem',
-                            fontWeight: 800,
-                            color: '#15803d',
-                            boxSizing: 'border-box',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#16a34a', marginBottom: '3px' }}>
+                        Paid Now (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={tenderAmount}
+                        placeholder="0"
+                        value={khataPaidAmount}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setKhataPaidAmount('');
+                          } else {
+                            const num = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
+                            setKhataPaidAmount(String(num));
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #bbf7d0',
+                          background: '#ffffff',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          color: '#16a34a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
                     </div>
 
-                    {/* Borrow / Udhar Due (Calculated & READ-ONLY / Locked) */}
+                    {/* Borrow / Udhar Due (Calculated) */}
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#b45309' }}>
-                          Udhar Due (Locked)
-                        </label>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#78350f', background: '#fef3c7', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                          <Lock size={9} /> Auto
-                        </span>
-                      </div>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#dc2626', marginBottom: '3px' }}>
+                        Udhar Due (₹)
+                      </label>
                       <div style={{
                         width: '100%',
-                        padding: '7px 10px',
-                        borderRadius: '8px',
-                        border: '1.5px solid #fde68a',
-                        background: '#fef3c7',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #fecaca',
+                        background: '#fef2f2',
                         boxSizing: 'border-box',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'not-allowed',
-                        userSelect: 'none'
-                      }} title="Automatically calculated: Total Bill minus Amount Paid Now (Non-editable)">
-                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#b45309' }}>
+                        justifyContent: 'space-between'
+                      }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#dc2626' }}>
                           ₹{formatAmount(borrowDueNum)}
                         </span>
-                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400e', background: '#fde68a', padding: '2px 5px', borderRadius: '4px' }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#991b1b', background: '#fee2e2', padding: '1px 4px', borderRadius: '3px' }}>
                           DUE
                         </span>
                       </div>
@@ -2202,53 +2471,23 @@ export default function POSTerminal({
 
                   {/* Notes / Ledger Memo (Optional) */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 800, color: '#64748b', marginBottom: '4px' }}>
-                      Notes / Ledger Memo (Optional)
-                    </label>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <StickyNote size={13} color="#94a3b8" style={{ position: 'absolute', left: '9px' }} />
-                      <input
-                        type="text"
-                        placeholder="e.g. Regular customer, will settle Friday"
-                        value={khataNotes}
-                        onChange={(e) => setKhataNotes(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '7px 8px 7px 27px',
-                          borderRadius: '8px',
-                          border: '1.5px solid #e2e8f0',
-                          background: '#ffffff',
-                          fontSize: '0.78rem',
-                          color: '#334155',
-                          boxSizing: 'border-box',
-                          outline: 'none',
-                          marginBottom: '6px'
-                        }}
-                      />
-                    </div>
-                    {/* Quick preset chips */}
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                      {['Regular Customer', 'Will Pay Tomorrow', 'Office Tab'].map(tag => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => setKhataNotes(prev => prev ? `${prev} • ${tag}` : tag)}
-                          style={{
-                            background: '#ffffff',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '5px',
-                            padding: '2px 7px',
-                            fontSize: '0.66rem',
-                            color: '#64748b',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            transition: 'all 0.12s ease'
-                          }}
-                        >
-                          + {tag}
-                        </button>
-                      ))}
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="Note / remark (optional)"
+                      value={khataNotes}
+                      onChange={(e) => setKhataNotes(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '5px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0',
+                        background: '#ffffff',
+                        fontSize: '0.74rem',
+                        color: '#334155',
+                        boxSizing: 'border-box',
+                        outline: 'none'
+                      }}
+                    />
                   </div>
                 </div>
               )}
@@ -2293,8 +2532,8 @@ export default function POSTerminal({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    boxShadow: payItemsMethod === 'Khata / Borrow' 
-                      ? '0 4px 12px rgba(217, 119, 6, 0.3)' 
+                    boxShadow: payItemsMethod === 'Khata / Borrow'
+                      ? '0 4px 12px rgba(217, 119, 6, 0.3)'
                       : '0 4px 12px rgba(124, 58, 237, 0.3)',
                     transition: 'all 0.15s ease'
                   }}
@@ -2302,10 +2541,12 @@ export default function POSTerminal({
                   {payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <CheckCircle2 size={16} />}
                   <span>
                     {isSubmittingItemPay || isSubmittingKhata
-                      ? 'Processing...' 
-                      : (payItemsMethod === 'Khata / Borrow' 
-                          ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`) 
-                          : `Confirm & Pay ₹${formatAmount(tenderAmount)}`)}
+                      ? 'Processing...'
+                      : (payItemsMethod === 'Khata / Borrow'
+                        ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
+                        : (actualAmountReceived !== '' && Number(actualAmountReceived) < tenderAmount
+                            ? `Confirm & Pay ₹${formatAmount(Number(actualAmountReceived))} (₹${formatAmount(tenderAmount - Number(actualAmountReceived))} Due)`
+                            : `Confirm & Pay ₹${formatAmount(tenderAmount)}`))}
                   </span>
                 </button>
               </div>
@@ -2405,7 +2646,10 @@ export default function POSTerminal({
               </button>
               <button
                 type="button"
-                onClick={() => handleSettleBill(clearTablePaymentMethod)}
+                onClick={() => {
+                  setShowClearConfirmModal(false);
+                  handleSettleBill(clearTablePaymentMethod);
+                }}
                 disabled={isSettling}
                 style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#ffffff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
@@ -2591,7 +2835,7 @@ export default function POSTerminal({
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             style={{ accentColor: '#2563eb', width: 15, height: 15 }}
                           />
                           <span>{addon.name}</span>
@@ -2746,7 +2990,7 @@ export default function POSTerminal({
                         <input
                           type="checkbox"
                           checked={isMerged}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           style={{ accentColor: '#4f46e5', width: 16, height: 16 }}
                         />
                         <div>
@@ -2798,12 +3042,12 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {showKhataModal && (
         <div className={styles.splitModalOverlay} onClick={() => setShowKhataModal(false)}>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={styles.khataModal} 
+            className={styles.khataModal}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -2842,13 +3086,13 @@ export default function POSTerminal({
               {/* Live Visual Split Bar */}
               <div className={styles.khataSplitVisualizer}>
                 <div className={styles.khataSplitTrack}>
-                  <div 
-                    className={styles.khataPaidFill} 
-                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, ((Number(khataPaidAmount) || 0) / grandTotal) * 100)) : 0}%` }} 
+                  <div
+                    className={styles.khataPaidFill}
+                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, ((Number(khataPaidAmount) || 0) / grandTotal) * 100)) : 0}%` }}
                   />
-                  <div 
-                    className={styles.khataBorrowFill} 
-                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, (Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)) / grandTotal) * 100)) : 100}%` }} 
+                  <div
+                    className={styles.khataBorrowFill}
+                    style={{ width: `${grandTotal > 0 ? Math.min(100, Math.max(0, (Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)) / grandTotal) * 100)) : 100}%` }}
                   />
                 </div>
 
@@ -3069,8 +3313,8 @@ export default function POSTerminal({
               >
                 <CheckCircle2 size={16} />
                 <span>
-                  {isSubmittingKhata || isSettling 
-                    ? 'Recording...' 
+                  {isSubmittingKhata || isSettling
+                    ? 'Recording...'
                     : `Record Khata & Settle (₹${formatAmount(Math.max(0, grandTotal - (Number(khataPaidAmount) || 0)))} Due)`}
                 </span>
               </button>

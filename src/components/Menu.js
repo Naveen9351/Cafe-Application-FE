@@ -1,4 +1,69 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+  // Determine whether Night Shift is active based on tenant timings
+  const isNightActiveNow = useMemo(() => {
+    try {
+      const enabled = tenantInfo?.settings?.nightMenuEnabled;
+      if (enabled === false) return false;
+      const startStr = tenantInfo?.settings?.nightMenuStart || '22:00';
+      const endStr = tenantInfo?.settings?.nightMenuEnd || '05:00';
+
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const [startH, startM] = startStr.split(':').map(Number);
+      const [endH, endM] = endStr.split(':').map(Number);
+
+      const startMinutes = (startH || 0) * 60 + (startM || 0);
+      const endMinutes = (endH || 0) * 60 + (endM || 0);
+
+      if (startMinutes > endMinutes) {
+        return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+      } else {
+        return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      }
+    } catch (e) {
+      return false;
+    }
+  }, [tenantInfo]);
+
+  // Helper: item effective price based on active night shift
+  const getItemEffectivePrice = useCallback((item) => {
+    if (!item) return 0;
+    if (isNightActiveNow && item.nightPrice && Number(item.nightPrice) > 0) {
+      return Math.round(Number(item.nightPrice));
+    }
+    return Math.round(Number(item.price) || 0);
+  }, [isNightActiveNow]);
+
+  // Filter items: strictly exclude Open Menu (POS only), and apply shift-based availability & Pure Veg
+  const displayItems = useMemo(() => {
+    let list = items || [];
+
+    // 1. Strictly exclude Open Menu / POS Only dishes from customer QR menu
+    list = list.filter(it => !it.isOpenMenu && !it.isPosOnly);
+
+    // 2. Shift Availability filter
+    if (isNightActiveNow) {
+      // Night Shift: Hide dishes marked day_only
+      list = list.filter(it => it.shiftAvailability !== 'day_only');
+    } else {
+      // Day Shift: Hide dishes marked night_only
+      list = list.filter(it => it.shiftAvailability !== 'night_only');
+    }
+
+    if (isVegOnly) {
+      list = list.filter(it => it.isVeg !== false);
+    }
+    const seen = new Set();
+    return list.filter(it => {
+      const idKey = String(it._id || it.id || '');
+      const nameCatKey = `${String(it.name || '').toLowerCase().trim()}__${String(it.category || '').toLowerCase().trim()}`;
+      if (idKey && seen.has(idKey)) return false;
+      if (nameCatKey && seen.has(nameCatKey)) return false;
+      if (idKey) seen.add(idKey);
+      if (nameCatKey) seen.add(nameCatKey);
+      return true;
+    });
+  }, [items, isVegOnly, isNightActiveNow]);import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useCartContext } from "../context/CartContext";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -218,7 +283,7 @@ export default function Menu() {
   // Live Active Order on Customer Dashboard
   const [activeRunningOrder, setActiveRunningOrder] = useState(null);
 
-  const { addItem, updateItemQuantity, removeItem, items: cartItems, getCartTotal } = useCartContext();
+  const { addItem, updateItemQuantity, removeItem, items: cartItems, getCartTotal, setItems: setCartItems } = useCartContext();
   const [searchParams] = useSearchParams();
 
   const [categories, setCategories] = useState([]);
@@ -434,7 +499,7 @@ export default function Menu() {
       for (const ordId of candidateIds) {
         try {
           const res = await axios.get(`${API}/orders/status/${ordId}`);
-          if (res.data && ['pending', 'confirmed', 'preparing', 'ready'].includes(res.data.status)) {
+          if (res.data && ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(res.data.status)) {
             setActiveRunningOrder(res.data);
             return;
           }
@@ -458,7 +523,7 @@ export default function Menu() {
               phone: phone
             }
           });
-          if (res.data && ['pending', 'confirmed', 'preparing', 'ready'].includes(res.data.status)) {
+          if (res.data && ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(res.data.status)) {
             setActiveRunningOrder(res.data);
             if (res.data._id) {
               localStorage.setItem('serviq_last_order_id', res.data._id);
@@ -526,6 +591,12 @@ export default function Menu() {
     }
 
     if (urlTenant) {
+      const prevTenant = localStorage.getItem("tenantId");
+      if (prevTenant && prevTenant !== urlTenant) {
+        // Cafe/tenant changed: reset cart so items from old cafe or demo don't leak into new cafe
+        if (setCartItems) setCartItems([]);
+        localStorage.removeItem("cartItems");
+      }
       setTenantId(urlTenant);
       localStorage.setItem("tenantId", urlTenant);
       fetchTenantInfo(urlTenant);
@@ -570,7 +641,7 @@ export default function Menu() {
     axios
       .get(`${API}/menu`, { params: currentTenantId ? { tenantId: currentTenantId } : {} })
       .then((res) => {
-        if (res.data && res.data.length > 0) {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
           // Deduplicate items so identical dishes never repeat multiple times
           const seen = new Set();
           const uniqueItems = [];
@@ -583,14 +654,39 @@ export default function Menu() {
             if (nameCatKey) seen.add(nameCatKey);
             uniqueItems.push(item);
           }
-          setItems(uniqueItems.length > 0 ? uniqueItems : res.data);
+          const finalItems = uniqueItems.length > 0 ? uniqueItems : res.data;
+          setItems(finalItems);
+
+          // Clean up any stale cart items not matching this tenant's menu
+          if (currentTenantId !== 'demo-tenant') {
+            const validIds = new Set(finalItems.map(it => String(it._id || it.id)));
+            const sanitized = (cartItems || []).filter(ci => {
+              const baseId = String(ci.itemId || ci.id || '').split('_')[0];
+              return validIds.has(String(ci.itemId || ci.id)) || validIds.has(baseId);
+            });
+            if (sanitized.length !== (cartItems || []).length) {
+              if (setCartItems) setCartItems(sanitized);
+            }
+          }
         } else {
-          setItems(defaultGourmetItemsFallback);
+          // Real onboarded tenant with 0 menu items: accurately reflect empty menu, NEVER show fake demo dishes!
+          if (currentTenantId === 'demo-tenant') {
+            setItems(defaultGourmetItemsFallback);
+          } else {
+            setItems([]);
+            // Clear any stale cart items since tenant has no items
+            if (setCartItems) setCartItems([]);
+            localStorage.removeItem("cartItems");
+          }
         }
       })
       .catch((err) => {
-        console.log("Using dynamic gourmet catalog fallback:", err);
-        setItems(defaultGourmetItemsFallback);
+        console.log("Menu fetch error:", err);
+        if (currentTenantId === 'demo-tenant') {
+          setItems(defaultGourmetItemsFallback);
+        } else {
+          setItems([]);
+        }
       })
       .finally(() => {
         setIsFetchingMenu(false);
@@ -746,12 +842,15 @@ export default function Menu() {
 
     const list = Array.from(map.values()).map(cat => {
       const count = displayItems.filter(it => {
+        const itCatId = String(it.categoryId || it.category || '').toLowerCase().trim().replace(/\s+/g, '-');
         const itCat = String(it.category || '').toLowerCase().trim();
-        const itCatNorm = itCat.replace(/\s+/g, '-');
-        const targetId = cat.id.toLowerCase();
-        const targetName = cat.name.toLowerCase();
-        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
-        return itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        const targetId = String(cat.id || '').toLowerCase().trim();
+        const targetName = String(cat.name || '').toLowerCase().trim();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => {
+          const cleanA = String(a).toLowerCase().trim();
+          return cleanA === itCatId || cleanA === itCat;
+        });
+        return itCatId === targetId || itCat === targetName || itCat === targetId || itCatId === targetName.replace(/\s+/g, '-') || matchesAlias;
       }).length;
       return { ...cat, count };
     });
@@ -766,12 +865,15 @@ export default function Menu() {
     if (cat.imageUrl) return cat.imageUrl;
     if (cat.id !== 'all') {
       const itWithImg = items.find(it => {
+        const itCatId = String(it.categoryId || it.category || '').toLowerCase().trim().replace(/\s+/g, '-');
         const itCat = String(it.category || '').toLowerCase().trim();
-        const itCatNorm = itCat.replace(/\s+/g, '-');
-        const targetId = cat.id.toLowerCase();
-        const targetName = cat.name.toLowerCase();
-        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
-        const belongs = itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        const targetId = String(cat.id || '').toLowerCase().trim();
+        const targetName = String(cat.name || '').toLowerCase().trim();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => {
+          const cleanA = String(a).toLowerCase().trim();
+          return cleanA === itCatId || cleanA === itCat;
+        });
+        const belongs = itCatId === targetId || itCat === targetName || itCat === targetId || itCatId === targetName.replace(/\s+/g, '-') || matchesAlias;
         return belongs && it.image;
       });
       if (itWithImg && itWithImg.image) return itWithImg.image;
@@ -801,12 +903,15 @@ export default function Menu() {
 
     allCategories.forEach(cat => {
       const catItems = displayItems.filter(it => {
+        const itCatId = String(it.categoryId || it.category || '').toLowerCase().trim().replace(/\s+/g, '-');
         const itCat = String(it.category || '').toLowerCase().trim();
-        const itCatNorm = itCat.replace(/\s+/g, '-');
-        const targetId = cat.id.toLowerCase();
-        const targetName = cat.name.toLowerCase();
-        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => itCat.includes(a.toLowerCase()) || a.toLowerCase().includes(itCat));
-        const belongsToCat = itCatNorm === targetId || itCat === targetName || itCat === targetId || itCatNorm === targetName.replace(/\s+/g, '-') || matchesAlias;
+        const targetId = String(cat.id || '').toLowerCase().trim();
+        const targetName = String(cat.name || '').toLowerCase().trim();
+        const matchesAlias = cat.aliases && Array.isArray(cat.aliases) && cat.aliases.some(a => {
+          const cleanA = String(a).toLowerCase().trim();
+          return cleanA === itCatId || cleanA === itCat;
+        });
+        const belongsToCat = itCatId === targetId || itCat === targetName || itCat === targetId || itCatId === targetName.replace(/\s+/g, '-') || matchesAlias;
 
         if (!belongsToCat) return false;
 
@@ -1097,7 +1202,7 @@ export default function Menu() {
     }
 
     const chosenVariant = overrideVariant || selectedVariant || (vars.length > 0 ? vars[0] : null);
-    let basePrice = item.price;
+    let basePrice = getItemEffectivePrice(item);
     let variantLabel = '';
 
     if (chosenVariant) {
@@ -1550,7 +1655,7 @@ export default function Menu() {
                         <p style={{ fontSize: '0.74rem', color: theme.textMuted, margin: '0 0 1.1rem 0', maxWidth: '270px', lineHeight: 1.45 }}>
                           {searchQuery
                             ? "We couldn't find any dishes matching your search. Try checking your spelling or explore other items."
-                            : "No dishes found in this section right now. Explore other categories!"}
+                            : (items.length === 0 ? "This restaurant's menu catalog is currently empty. Please check back shortly or ask the staff!" : "No dishes found in this section right now. Explore other categories!")}
                         </p>
 
                         {/* Quick Action Button */}
@@ -1685,12 +1790,13 @@ export default function Menu() {
                               {group.items.map((item) => {
                                 const discount = item.discount || {};
                                 const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
-                                let discountedPrice = item.price;
+                                const effectiveBasePrice = getItemEffectivePrice(item);
+                                let discountedPrice = effectiveBasePrice;
                                 if (hasDiscount) {
                                   if (discount.type === 'percentage') {
-                                    discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+                                    discountedPrice = Math.max(0, Math.round(effectiveBasePrice * (1 - discount.value / 100)));
                                   } else {
-                                    discountedPrice = Math.max(0, item.price - discount.value);
+                                    discountedPrice = Math.max(0, effectiveBasePrice - discount.value);
                                   }
                                 }
                                 const isOutOfStock = item.available === false || item.isAvailable === false;
@@ -1778,7 +1884,7 @@ export default function Menu() {
                                           </span>
                                           {hasDiscount && (
                                             <span className={styles.priceOriginal} style={{ color: theme.textMuted }}>
-                                              ₹{item.price}
+                                              ₹{effectiveBasePrice}
                                             </span>
                                           )}
                                         </div>
