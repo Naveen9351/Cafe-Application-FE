@@ -122,6 +122,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
   // New Khata Entry Modal State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [lockedCustomer, setLockedCustomer] = useState(null); // When opened for a specific customer
   const [customerMode, setCustomerMode] = useState('existing'); // 'existing' or 'new'
   const [selectedCustomerChoice, setSelectedCustomerChoice] = useState('NEW');
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -234,6 +235,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
   // Currently active customer profile in Add Udhar modal
   const currentSelectedCustomer = useMemo(() => {
+    if (lockedCustomer) return lockedCustomer;
     if (customerMode === 'new') {
       return matchedExistingCustomer || null;
     }
@@ -241,7 +243,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       (c.customerPhone !== 'N/A' && c.customerPhone === selectedCustomerChoice) ||
       c.customerName === selectedCustomerChoice
     ) || (customerAccounts.length > 0 ? customerAccounts[0] : null);
-  }, [customerMode, customerAccounts, selectedCustomerChoice, matchedExistingCustomer]);
+  }, [lockedCustomer, customerMode, customerAccounts, selectedCustomerChoice, matchedExistingCustomer]);
 
   // Filter available menu dishes by search query
   const filteredAvailableMenu = useMemo(() => {
@@ -339,14 +341,20 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
   // Open Add Modal for a specific existing customer
   const handleAddUdharForCustomer = (cust) => {
+    setLockedCustomer(cust);
     setCustomerMode('existing');
     setSelectedCustomerChoice(cust.customerPhone !== 'N/A' ? cust.customerPhone : cust.customerName);
     setNewCustomerName(cust.customerName);
     setNewCustomerPhone(cust.customerPhone !== 'N/A' ? cust.customerPhone : '');
     setLineItems([]);
     setNewPaidAmount('0');
+    setNewPaidMethod('Cash');
     setManualTotalBill('');
     setUseManualTotal(false);
+    setDishSearch('');
+    setCustomerSearchText('');
+    setEntryOrderNumber('');
+    setEntryDate(new Date().toISOString().slice(0, 16));
     setNewNotes('');
     setShowAddModal(true);
   };
@@ -414,7 +422,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     let effName = newCustomerName.trim();
     let effPhone = newCustomerPhone.trim();
 
-    if (customerMode === 'existing' && currentSelectedCustomer) {
+    if (lockedCustomer) {
+      effName = lockedCustomer.customerName;
+      effPhone = lockedCustomer.customerPhone;
+    } else if (customerMode === 'existing' && currentSelectedCustomer) {
       effName = currentSelectedCustomer.customerName;
       effPhone = currentSelectedCustomer.customerPhone;
     }
@@ -456,6 +467,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       });
 
       setShowAddModal(false);
+      setLockedCustomer(null);
       setNewCustomerName('');
       setNewCustomerPhone('');
       setSelectedCustomerChoice('NEW');
@@ -613,6 +625,12 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           <button
             type="button"
             onClick={() => {
+              setLockedCustomer(null);
+              setCustomerSearchText('');
+              setDishSearch('');
+              setEntryOrderNumber('');
+              setEntryDate(new Date().toISOString().slice(0, 16));
+              setNewPaidMethod('Cash');
               if (customerAccounts.length > 0) {
                 setCustomerMode('existing');
                 const first = customerAccounts[0];
@@ -1220,7 +1238,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
       {/* MODAL 1: ADD CUSTOMER KHATA / UDHAR ENTRY (WIDE 2-COLUMN ENTERPRISE SUITE) */}
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+        <div className={styles.modalOverlay} onClick={() => { setShowAddModal(false); setLockedCustomer(null); }}>
           <div
             className={`${styles.modalContent} ${styles.wideModal}`}
             onClick={(e) => e.stopPropagation()}
@@ -1241,16 +1259,23 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.3px' }}>
-                    {isHindi ? 'ग्राहक उधार प्रविष्टि जोड़ें' : 'Add Customer Udhar / Khata Entry'}
+                    {lockedCustomer
+                      ? (isHindi ? `${lockedCustomer.customerName} के लिए उधार जोड़ें` : `Add Udhar for ${lockedCustomer.customerName}`)
+                      : (isHindi ? 'ग्राहक उधार प्रविष्टि जोड़ें' : 'Add Customer Udhar / Khata Entry')}
                   </h3>
                   <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                    {isHindi ? 'व्यक्तिगत खाते में खरीदारी व उधारी जोड़ें एवं बकाया अपडेट करें' : 'Record person-specific credit, dish purchases, and balance settlements'}
+                    {lockedCustomer
+                      ? (isHindi ? `खाता: ${lockedCustomer.customerName} (फोन: ${lockedCustomer.customerPhone || 'N/A'}) में सीधे उधार जोड़ें` : `Record credit and dish purchases directly to ${lockedCustomer.customerName}'s ledger`)
+                      : (isHindi ? 'व्यक्तिगत खाते में खरीदारी व उधारी जोड़ें एवं बकाया अपडेट करें' : 'Record person-specific credit, dish purchases, and balance settlements')}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setLockedCustomer(null);
+                }}
                 style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 title="Close"
               >
@@ -1262,278 +1287,360 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <div className={styles.modalBodyTwoCol}>
                 {/* ── LEFT COLUMN: CUSTOMER & DISH ITEMIZATION ── */}
                 <div>
-                  {/* Segmented Customer Mode Switch: Existing vs New */}
-                  <div style={{ marginBottom: 12 }}>
+                  {/* Customer Block: If Locked (clicked row '+ Add'), show Locked Card; otherwise show Tabs & Selector */}
+                  {lockedCustomer ? (
                     <div style={{
+                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      marginBottom: 14,
                       display: 'flex',
-                      background: '#f1f5f9',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 10,
-                      padding: 3,
-                      gap: 3
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                     }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerMode('existing');
-                          if (customerAccounts.length > 0 && selectedCustomerChoice === 'NEW') {
-                            const first = customerAccounts[0];
-                            setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
-                            setNewCustomerName(first.customerName);
-                            setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '8px 12px',
-                          borderRadius: 8,
-                          border: 'none',
-                          outline: 'none',
-                          cursor: 'pointer',
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: '50%',
+                          background: getAvatarStyle(lockedCustomer.customerName).bg,
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: 6,
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          background: customerMode === 'existing' ? '#ffffff' : 'transparent',
-                          color: customerMode === 'existing' ? '#0f172a' : '#64748b',
-                          boxShadow: customerMode === 'existing' ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <User size={13} />
-                        <span>{isHindi ? 'मौजूदा ग्राहक' : 'Existing Customer'} ({customerAccounts.length})</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerMode('new');
-                          setSelectedCustomerChoice('NEW');
-                          setNewCustomerName('');
-                          setNewCustomerPhone('');
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '8px 12px',
-                          borderRadius: 8,
-                          border: 'none',
-                          outline: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          background: customerMode === 'new' ? '#ffffff' : 'transparent',
-                          color: customerMode === 'new' ? '#0f172a' : '#64748b',
-                          boxShadow: customerMode === 'new' ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <Plus size={13} />
-                        <span>{isHindi ? 'नया ग्राहक' : 'New Customer'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Customer Selection: Existing */}
-                  {customerMode === 'existing' && (
-                    <div style={{ marginBottom: 14 }}>
-                      {customerAccounts.length === 0 ? (
-                        <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
-                          {isHindi ? 'कोई पुराना खाता नहीं है। कृपया "नया ग्राहक" चुनें।' : 'No existing customers found. Switch to "New Customer" to create one.'}
+                          fontWeight: 800,
+                          fontSize: '17px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                        }}>
+                          {lockedCustomer.customerName.charAt(0).toUpperCase()}
                         </div>
-                      ) : (
-                        <>
-                          {/* Live search input if customer list has > 3 entries */}
-                          {customerAccounts.length > 3 && (
-                            <div style={{ position: 'relative', marginBottom: 6 }}>
-                              <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                              <input
-                                type="text"
-                                placeholder={isHindi ? "नाम या फ़ोन से ग्राहक खोजें..." : "Filter customer by name or phone..."}
-                                value={customerSearchText}
-                                onChange={(e) => setCustomerSearchText(e.target.value)}
-                                style={{
-                                  width: '100%',
-                                  padding: '7px 10px 7px 30px',
-                                  borderRadius: 7,
-                                  border: '1px solid #cbd5e1',
-                                  fontSize: '12px',
-                                  boxSizing: 'border-box'
-                                }}
-                              />
-                            </div>
-                          )}
-
-                          <select
-                            value={selectedCustomerChoice}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedCustomerChoice(val);
-                              const found = customerAccounts.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
-                              if (found) {
-                                setNewCustomerName(found.customerName);
-                                setNewCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
-                              }
-                            }}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              borderRadius: 8,
-                              border: '1.5px solid #cbd5e1',
-                              fontSize: '12.5px',
-                              fontWeight: 600,
-                              background: '#ffffff',
-                              color: '#0f172a',
-                              boxSizing: 'border-box',
-                              outline: 'none'
-                            }}
-                          >
-                            {filteredCustomerAccounts.map((c, i) => (
-                              <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
-                                {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance.toLocaleString('en-IN')}` : 'Nil Due'}
-                              </option>
-                            ))}
-                          </select>
-
-                          {/* Selected Customer Profile Card */}
-                          {currentSelectedCustomer && (
-                            <div className={styles.custCardSelected}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: '50%',
-                                  background: getAvatarStyle(currentSelectedCustomer.customerName).bg,
-                                  color: '#ffffff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontWeight: 800,
-                                  fontSize: '16px',
-                                  boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
-                                }}>
-                                  {currentSelectedCustomer.customerName.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <strong style={{ fontSize: '13.5px', color: '#0f172a', display: 'block' }}>
-                                    {currentSelectedCustomer.customerName}
-                                  </strong>
-                                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                                    📞 {currentSelectedCustomer.customerPhone} &nbsp;•&nbsp; {currentSelectedCustomer.entriesCount} visit{currentSelectedCustomer.entriesCount > 1 ? 's' : ''}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
-                                  {isHindi ? 'वर्तमान बकाया' : 'Current Due'}
-                                </span>
-                                <span style={{
-                                  fontSize: '13px',
-                                  fontWeight: 800,
-                                  color: currentSelectedCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a',
-                                  background: currentSelectedCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
-                                  padding: '2px 8px',
-                                  borderRadius: 6,
-                                  border: currentSelectedCustomer.outstandingBalance > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0',
-                                  display: 'inline-block',
-                                  marginTop: 2
-                                }}>
-                                  ₹{currentSelectedCustomer.outstandingBalance.toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Customer Selection: New */}
-                  {customerMode === 'new' && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                            {isHindi ? 'मोबाइल नंबर (10 अंक)' : 'Customer Phone (10 digits)'}
-                          </label>
-                          <div style={{ position: 'relative' }}>
-                            <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                            <input
-                              type="tel"
-                              placeholder="e.g. 9876543210"
-                              value={newCustomerPhone}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                setNewCustomerPhone(val);
-                                const match = customerAccounts.find(c => c.customerPhone === val);
-                                if (match && !newCustomerName) {
-                                  setNewCustomerName(match.customerName);
-                                }
-                              }}
-                              style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                            />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <strong style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: 800 }}>
+                              {lockedCustomer.customerName}
+                            </strong>
+                            <span style={{
+                              fontSize: '10px',
+                              background: '#dbeafe',
+                              color: '#1d4ed8',
+                              fontWeight: 700,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.4px'
+                            }}>
+                              {isHindi ? 'चयनित ग्राहक खाता' : 'Selected Account'}
+                            </span>
                           </div>
-                        </div>
-
-                        <div>
-                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                            {isHindi ? 'ग्राहक का नाम' : 'Customer Name'}
-                          </label>
-                          <div style={{ position: 'relative' }}>
-                            <User size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                            <input
-                              type="text"
-                              placeholder="e.g. Rahul Sharma"
-                              value={newCustomerName}
-                              onChange={(e) => setNewCustomerName(e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                            />
+                          <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: 2 }}>
+                            📞 {lockedCustomer.customerPhone !== 'N/A' ? lockedCustomer.customerPhone : 'No Phone Number'} &nbsp;•&nbsp; {lockedCustomer.entriesCount || 1} visit{lockedCustomer.entriesCount > 1 ? 's' : ''}
                           </div>
                         </div>
                       </div>
 
-                      {matchedExistingCustomer && (
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, color: '#64748b' }}>
+                          {isHindi ? 'वर्तमान बकाया' : 'Current Due'}
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: (lockedCustomer.outstandingBalance || 0) > 0 ? '#ef4444' : '#10b981' }}>
+                          ₹{Number(lockedCustomer.outstandingBalance || 0).toLocaleString('en-IN')}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setLockedCustomer(null)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#2563eb',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            padding: '2px 0',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          {isHindi ? 'खाता बदलें' : 'Change Account'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Segmented Customer Mode Switch: Existing vs New */}
+                      <div style={{ marginBottom: 12 }}>
                         <div style={{
-                          background: '#eff6ff',
-                          border: '1px solid #bfdbfe',
-                          borderRadius: 8,
-                          padding: '8px 12px',
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '12px'
+                          background: '#f1f5f9',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 10,
+                          padding: 3,
+                          gap: 3
                         }}>
-                          <span style={{ color: '#1e40af' }}>
-                            💡 Found existing: <strong>{matchedExistingCustomer.customerName}</strong> (₹{matchedExistingCustomer.outstandingBalance} Due)
-                          </span>
                           <button
                             type="button"
                             onClick={() => {
                               setCustomerMode('existing');
-                              setSelectedCustomerChoice(matchedExistingCustomer.customerPhone !== 'N/A' ? matchedExistingCustomer.customerPhone : matchedExistingCustomer.customerName);
+                              if (customerAccounts.length > 0 && selectedCustomerChoice === 'NEW') {
+                                const first = customerAccounts[0];
+                                setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
+                                setNewCustomerName(first.customerName);
+                                setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
+                              }
                             }}
                             style={{
-                              background: '#2563eb',
-                              color: '#ffffff',
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: 8,
                               border: 'none',
-                              borderRadius: 6,
-                              padding: '3px 9px',
-                              fontSize: '11px',
+                              outline: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 6,
+                              fontSize: '12px',
                               fontWeight: 700,
-                              cursor: 'pointer'
+                              background: customerMode === 'existing' ? '#ffffff' : 'transparent',
+                              color: customerMode === 'existing' ? '#0f172a' : '#64748b',
+                              boxShadow: customerMode === 'existing' ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                              transition: 'all 0.15s ease'
                             }}
                           >
-                            Use Account
+                            <User size={13} />
+                            <span>{isHindi ? 'मौजूदा ग्राहक' : 'Existing Customer'} ({customerAccounts.length})</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomerMode('new');
+                              setSelectedCustomerChoice('NEW');
+                              setNewCustomerName('');
+                              setNewCustomerPhone('');
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              border: 'none',
+                              outline: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 6,
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              background: customerMode === 'new' ? '#ffffff' : 'transparent',
+                              color: customerMode === 'new' ? '#0f172a' : '#64748b',
+                              boxShadow: customerMode === 'new' ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <Plus size={13} />
+                            <span>{isHindi ? 'नया ग्राहक' : 'New Customer'}</span>
                           </button>
                         </div>
+                      </div>
+
+                      {/* Customer Selection: Existing */}
+                      {customerMode === 'existing' && (
+                        <div style={{ marginBottom: 14 }}>
+                          {customerAccounts.length === 0 ? (
+                            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+                              {isHindi ? 'कोई पुराना खाता नहीं है। कृपया "नया ग्राहक" चुनें।' : 'No existing customers found. Switch to "New Customer" to create one.'}
+                            </div>
+                          ) : (
+                            <>
+                              {/* Live search input if customer list has > 3 entries */}
+                              {customerAccounts.length > 3 && (
+                                <div style={{ position: 'relative', marginBottom: 6 }}>
+                                  <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                                  <input
+                                    type="text"
+                                    placeholder={isHindi ? "नाम या फ़ोन से ग्राहक खोजें..." : "Filter customer by name or phone..."}
+                                    value={customerSearchText}
+                                    onChange={(e) => setCustomerSearchText(e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '7px 10px 7px 30px',
+                                      borderRadius: 7,
+                                      border: '1px solid #cbd5e1',
+                                      fontSize: '12px',
+                                      boxSizing: 'border-box'
+                                    }}
+                                  />
+                                </div>
+                              )}
+
+                              <select
+                                value={selectedCustomerChoice}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setSelectedCustomerChoice(val);
+                                  const found = customerAccounts.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
+                                  if (found) {
+                                    setNewCustomerName(found.customerName);
+                                    setNewCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
+                                  }
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  borderRadius: 8,
+                                  border: '1.5px solid #cbd5e1',
+                                  fontSize: '12.5px',
+                                  fontWeight: 600,
+                                  background: '#ffffff',
+                                  color: '#0f172a',
+                                  boxSizing: 'border-box',
+                                  outline: 'none'
+                                }}
+                              >
+                                {filteredCustomerAccounts.map((c, i) => (
+                                  <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                                    {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance.toLocaleString('en-IN')}` : 'Nil Due'}
+                                  </option>
+                                ))}
+                              </select>
+
+                              {/* Selected Customer Profile Card */}
+                              {currentSelectedCustomer && (
+                                <div className={styles.custCardSelected}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{
+                                      width: 40,
+                                      height: 40,
+                                      borderRadius: '50%',
+                                      background: getAvatarStyle(currentSelectedCustomer.customerName).bg,
+                                      color: '#ffffff',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontWeight: 800,
+                                      fontSize: '16px',
+                                      boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                                    }}>
+                                      {currentSelectedCustomer.customerName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <strong style={{ fontSize: '13.5px', color: '#0f172a', display: 'block' }}>
+                                        {currentSelectedCustomer.customerName}
+                                      </strong>
+                                      <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                        📞 {currentSelectedCustomer.customerPhone} &nbsp;•&nbsp; {currentSelectedCustomer.entriesCount} visit{currentSelectedCustomer.entriesCount > 1 ? 's' : ''}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ textAlign: 'right' }}>
+                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
+                                      {isHindi ? 'वर्तमान बकाया' : 'Current Due'}
+                                    </span>
+                                    <span style={{
+                                      fontSize: '13px',
+                                      fontWeight: 800,
+                                      color: currentSelectedCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a',
+                                      background: currentSelectedCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
+                                      padding: '2px 8px',
+                                      borderRadius: 6,
+                                      border: currentSelectedCustomer.outstandingBalance > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                                      display: 'inline-block',
+                                      marginTop: 2
+                                    }}>
+                                      ₹{currentSelectedCustomer.outstandingBalance.toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       )}
-                    </div>
+
+                      {/* Customer Selection: New */}
+                      {customerMode === 'new' && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                                {isHindi ? 'मोबाइल नंबर (10 अंक)' : 'Customer Phone (10 digits)'}
+                              </label>
+                              <div style={{ position: 'relative' }}>
+                                <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                                <input
+                                  type="tel"
+                                  placeholder="e.g. 9876543210"
+                                  value={newCustomerPhone}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    setNewCustomerPhone(val);
+                                    const match = customerAccounts.find(c => c.customerPhone === val);
+                                    if (match && !newCustomerName) {
+                                      setNewCustomerName(match.customerName);
+                                    }
+                                  }}
+                                  style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                                {isHindi ? 'ग्राहक का नाम' : 'Customer Name'}
+                              </label>
+                              <div style={{ position: 'relative' }}>
+                                <User size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Rahul Sharma"
+                                  value={newCustomerName}
+                                  onChange={(e) => setNewCustomerName(e.target.value)}
+                                  style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {matchedExistingCustomer && (
+                            <div style={{
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: 8,
+                              padding: '8px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '12px'
+                            }}>
+                              <span style={{ color: '#1e40af' }}>
+                                💡 Found existing: <strong>{matchedExistingCustomer.customerName}</strong> (₹{matchedExistingCustomer.outstandingBalance} Due)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCustomerMode('existing');
+                                  setSelectedCustomerChoice(matchedExistingCustomer.customerPhone !== 'N/A' ? matchedExistingCustomer.customerPhone : matchedExistingCustomer.customerName);
+                                }}
+                                style={{
+                                  background: '#2563eb',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  padding: '3px 9px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Use Account
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* ── PURCHASE DETAILS / ITEMIZATION ── */}
@@ -1587,35 +1694,102 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     {!useManualTotal ? (
                       <div className={styles.itemsCartBox}>
                         {/* Live Dish Filter & Category Dropdown */}
-                        <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <div style={{ position: 'relative', flex: 1 }}>
-                              <Search size={12} color="#94a3b8" style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }} />
-                              <input
-                                type="text"
-                                placeholder={isHindi ? "व्यंजन खोजें (उदा. चाय, बर्गर)..." : "Filter dish (e.g. coffee, sandwich)..."}
-                                value={dishSearch}
-                                onChange={(e) => setDishSearch(e.target.value)}
+                        <div style={{ padding: '10px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                          {/* Dish Search input - Full Width */}
+                          <div style={{ position: 'relative', marginBottom: 8 }}>
+                            <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                            <input
+                              type="text"
+                              placeholder={isHindi ? "व्यंजन खोजें (उदा. चाय, कोल्ड कॉफ़ी, सैंडविच)..." : "Search menu item (e.g. coffee, burger, pasta)..."}
+                              value={dishSearch}
+                              onChange={(e) => setDishSearch(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '7px 28px 7px 30px',
+                                borderRadius: 7,
+                                border: '1px solid #cbd5e1',
+                                fontSize: '12px',
+                                boxSizing: 'border-box',
+                                outline: 'none',
+                                background: '#ffffff'
+                              }}
+                            />
+                            {dishSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setDishSearch('')}
                                 style={{
-                                  width: '100%',
-                                  padding: '6px 8px 6px 26px',
-                                  borderRadius: 6,
-                                  border: '1px solid #cbd5e1',
-                                  fontSize: '11.5px',
-                                  boxSizing: 'border-box'
+                                  position: 'absolute',
+                                  right: 8,
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  background: '#e2e8f0',
+                                  border: 'none',
+                                  borderRadius: '50%',
+                                  width: 18,
+                                  height: 18,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  fontSize: '11px',
+                                  color: '#475569'
                                 }}
-                              />
-                            </div>
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
 
+                          {/* If searching: Quick matching dish chips */}
+                          {dishSearch.trim() ? (
+                            <div style={{ maxHeight: 96, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 0' }}>
+                              {filteredAvailableMenu.slice(0, 12).map((d) => (
+                                <button
+                                  key={d._id || d.id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleQuickAddDish(d._id || d.id);
+                                  }}
+                                  style={{
+                                    background: '#ffffff',
+                                    border: '1px solid #bfdbfe',
+                                    color: '#1e40af',
+                                    borderRadius: 6,
+                                    padding: '4px 8px',
+                                    fontSize: '11.5px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  title={`Click to add ${d.name} (₹${d.price})`}
+                                >
+                                  <span style={{ color: '#2563eb', fontWeight: 800 }}>+</span>
+                                  <span>{d.name}</span>
+                                  <span style={{ color: '#059669', fontWeight: 700 }}>₹{d.price}</span>
+                                </button>
+                              ))}
+                              {filteredAvailableMenu.length === 0 && (
+                                <div style={{ fontSize: '11.5px', color: '#94a3b8', fontStyle: 'italic', padding: '4px' }}>
+                                  {isHindi ? 'कोई व्यंजन नहीं मिला।' : 'No matching dishes found in menu.'}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* Categorized Dropdown to pick any dish */
                             <select
                               onChange={(e) => {
                                 handleQuickAddDish(e.target.value);
                                 e.target.value = "";
                               }}
                               style={{
-                                flex: 1.6,
-                                padding: '6px 10px',
-                                borderRadius: 6,
+                                width: '100%',
+                                padding: '7px 10px',
+                                borderRadius: 7,
                                 border: '1.5px solid #cbd5e1',
                                 background: '#ffffff',
                                 fontSize: '12px',
@@ -1628,7 +1802,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                               defaultValue=""
                             >
                               <option value="" disabled>
-                                ➕ {isHindi ? 'मेन्यू से जोड़ें...' : `+ Pick dish (${filteredAvailableMenu.length} matches)...`}
+                                ➕ {isHindi ? `मेन्यू से व्यंजन चुनें (${availableMenu.length} उपलब्ध)...` : `+ Pick dish from menu (${availableMenu.length} available)...`}
                               </option>
                               {Object.entries(groupedFilteredMenu).map(([categoryName, dishes]) => (
                                 <optgroup key={categoryName} label={`📂 ${categoryName}`}>
@@ -1640,7 +1814,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                 </optgroup>
                               ))}
                             </select>
-                          </div>
+                          )}
                         </div>
 
                         {/* Cart items list */}
@@ -1971,7 +2145,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
-                      onClick={() => setShowAddModal(false)}
+                      onClick={() => {
+                        setShowAddModal(false);
+                        setLockedCustomer(null);
+                      }}
                       style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', fontWeight: 700, cursor: 'pointer', fontSize: '12px', color: '#475569' }}
                     >
                       {isHindi ? 'रद्द करें' : 'Cancel'}
