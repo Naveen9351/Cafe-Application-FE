@@ -1,142 +1,201 @@
 .container {
   padding: 0px;
-  background-color: #f8fafc;
-  min-height: calc(100vh - 80px);
+  background-color: transparent;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 .titleGroup h2 {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.45rem;
+  font-weight: 800;
   color: #0f172a;
-  margin: 0 0 2px 0;
+  margin: 0 0 4px 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: -0.4px;
 }
 
 .titleGroup p {
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   margin: 0;
+  font-weight: 500;
+}
+
+.liveSyncBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  borderRadius: 20px;
+}
+
+.liveSyncDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .searchBar {
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 9px 12px 9px 34px;
+  border-radius: 10px;
   border: 1px solid #cbd5e1;
   width: 100%;
-  min-width: 200px;
-  max-width: 270px;
-  font-size: 0.82rem;
+  min-width: 210px;
+  max-width: 280px;
+  font-size: 0.84rem;
   outline: none;
   background: #ffffff;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: all 0.15s ease;
 }
 
 .searchBar:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .refreshBtn {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 9px 12px;
   cursor: pointer;
-  color: #64748b;
+  color: #475569;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: all 0.15s ease;
 }
 
 .refreshBtn:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
+  border-color: #94a3b8;
   color: #0f172a;
 }
 
 .addRecordBtn {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 15px;
-  font-size: 0.82rem;
-  font-weight: 700;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 0.84rem;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
-  transition: all 0.15s ease;
+  gap: 7px;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+  transition: all 0.18s ease;
 }
 
 .addRecordBtn:hover {
-  background: #1d4ed8;
   transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.35);
 }
 
+/* ── Modern Fintech KPI Ribbon ── */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .statCard {
   background: #ffffff;
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 16px 18px;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
 }
 
 .statIcon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
+.statInfo {
+  display: flex;
+  flex-direction: column;
+}
+
 .statInfo h4 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #0f172a;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
 }
 
 .statInfo span {
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   color: #64748b;
   font-weight: 600;
+  margin-top: 2px;
 }
 
-/* ── Modern High-End Table Styles ── */
+/* ── Table Container ── */
 .tableCard {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .tableWrap {
@@ -160,9 +219,9 @@
   background: #f8fafc;
   padding: 13px 18px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: #475569;
   border-bottom: 1.5px solid #e2e8f0;
   white-space: nowrap;
@@ -179,7 +238,7 @@
 
 .khataTable td {
   padding: 13px 18px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: #1e293b;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
@@ -189,26 +248,27 @@
   border-bottom: none;
 }
 
+/* ── Pagination ── */
 .paginationFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
+  padding: 13px 20px;
   border-top: 1px solid #f1f5f9;
-  background: #fafafa;
+  background: #fafbfc;
   font-size: 12.5px;
   color: #64748b;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .paginationBtn {
-  padding: 5px 10px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #334155;
   cursor: pointer;
   display: inline-flex;
@@ -229,11 +289,11 @@
 }
 
 .pageNumberBtn {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  font-size: 11.5px;
-  font-weight: 700;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -241,26 +301,88 @@
   transition: all 0.12s ease;
 }
 
-/* Modal Overlay & Card */
+/* ── Modals & Overlays ── */
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
-  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
+  z-index: 999999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modalContent {
   background: #ffffff;
   width: 100%;
   max-width: 520px;
-  border-radius: 14px;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
-  padding: 22px;
+  border-radius: 18px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  padding: 24px;
+  animation: slideUp 0.18s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── Micro-Action Buttons ── */
+.actionBtn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.12s ease;
+  border: 1px solid transparent;
+}
+
+.actionBtnSecondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.actionBtnSecondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.actionBtnSuccess {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.actionBtnSuccess:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.actionBtnWhatsapp {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+  padding: 6px 10px;
+}
+
+.actionBtnWhatsapp:hover {
+  background: #25d366;
+  border-color: #25d366;
+  color: #ffffff;
 }
 
 .spin {
@@ -272,10 +394,219 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Quick Amount Chips ── */
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.chipBtn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.chipBtn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.chipBtnActive {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+/* ── Payment Method Toggle Cards ── */
+.methodCard {
+  flex: 1;
+  padding: 9px 8px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.methodCard:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.methodCardActive {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.12);
+}
+
+/* ── UPI Interactive QR Box ── */
+.upiBox {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px dashed #86efac;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.qrContainer {
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  display: inline-flex;
+  margin-bottom: 8px;
+}
+
+/* ── Dual Progress Bar for Credit Health ── */
+.creditBarWrap {
+  width: 100%;
+  max-width: 120px;
+  height: 5px;
+  background: #fee2e2;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+  display: flex;
+}
+
+.creditBarPaid {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 4px 0 0 4px;
+}
+
+.creditBarDue {
+  height: 100%;
+  background: #ef4444;
+}
+
+/* ── Passbook Full Modal ── */
+.passbookModal {
+  max-width: 720px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+
+.passbookHeaderCard {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+}
+
+.passbookSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.passbookSummaryTile {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.passbookSummaryTile h5 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+.passbookSummaryTile span {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* ── Timeline / Passbook Table ── */
+.passbookTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.passbookTable th {
+  background: #f8fafc;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.passbookTable td {
+  padding: 11px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.passbookTable tr:hover td {
+  background-color: #fafbfc;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printablePassbook, .printablePassbook * {
+    visibility: visible;
+  }
+  .printablePassbook {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+  }
+  .noPrint {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .header {
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .headerActions {
+    width: 100%;
   }
 
   .searchBar {
@@ -289,6 +620,6 @@
   }
 
   .khataTable {
-    min-width: 700px;
+    min-width: 720px;
   }
 }

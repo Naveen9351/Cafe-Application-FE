@@ -2052,7 +2052,7 @@ export default function POSTerminal({
           { id: 'Cash', label: 'Cash', icon: Banknote },
           { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
           { id: 'Card', label: 'Card', icon: CreditCard },
-          ...(tenantInfo?.settings?.enableKhata ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
+          ...(tenantInfo?.settings?.enableKhata !== false ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
         ];
         const rawPaidNow = Number(khataPaidAmount) || 0;
         const paidNowNum = Math.min(tenderAmount, Math.max(0, rawPaidNow));
@@ -2405,6 +2405,103 @@ export default function POSTerminal({
                       />
                     </div>
                   </div>
+
+                  {(() => {
+                    const matchedCustomer = khataCustomerList.find(c =>
+                      (selectedKhataCustomerChoice !== 'NEW' && (c.customerPhone === selectedKhataCustomerChoice || c.customerName === selectedKhataCustomerChoice)) ||
+                      (customerPhone && customerPhone.length >= 7 && c.customerPhone === customerPhone)
+                    );
+                    const prevDue = matchedCustomer ? Number(matchedCustomer.outstandingBalance || 0) : 0;
+                    const combinedDue = prevDue + borrowDueNum;
+
+                    return (
+                      <>
+                        {/* Quick Pay / Udhar Split Buttons */}
+                        <div style={{ display: 'flex', gap: '5px', marginBottom: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setKhataPaidAmount('0')}
+                            style={{
+                              flex: 1,
+                              padding: '5px 6px',
+                              borderRadius: '6px',
+                              border: khataPaidAmount === '0' || khataPaidAmount === '' ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                              background: khataPaidAmount === '0' || khataPaidAmount === '' ? '#fef2f2' : '#ffffff',
+                              color: khataPaidAmount === '0' || khataPaidAmount === '' ? '#dc2626' : '#475569',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.12s ease'
+                            }}
+                          >
+                            100% Udhar (₹0 Paid)
+                          </button>
+                          {tenderAmount >= 100 && (
+                            <button
+                              type="button"
+                              onClick={() => setKhataPaidAmount(String(Math.round(tenderAmount / 2)))}
+                              style={{
+                                flex: 1,
+                                padding: '5px 6px',
+                                borderRadius: '6px',
+                                border: Number(khataPaidAmount) === Math.round(tenderAmount / 2) ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                                background: Number(khataPaidAmount) === Math.round(tenderAmount / 2) ? '#eff6ff' : '#ffffff',
+                                color: Number(khataPaidAmount) === Math.round(tenderAmount / 2) ? '#1d4ed8' : '#475569',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.12s ease'
+                              }}
+                            >
+                              50% Paid (₹{Math.round(tenderAmount / 2)})
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setKhataPaidAmount(String(tenderAmount))}
+                            style={{
+                              flex: 1,
+                              padding: '5px 6px',
+                              borderRadius: '6px',
+                              border: Number(khataPaidAmount) === tenderAmount ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                              background: Number(khataPaidAmount) === tenderAmount ? '#f0fdf4' : '#ffffff',
+                              color: Number(khataPaidAmount) === tenderAmount ? '#16a34a' : '#475569',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.12s ease'
+                            }}
+                          >
+                            Fully Paid (₹{tenderAmount})
+                          </button>
+                        </div>
+
+                        {/* Customer Ledger Balance Impact Banner */}
+                        {prevDue > 0 && (
+                          <div style={{
+                            background: '#fffbeb',
+                            border: '1px solid #fde68a',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
+                            marginBottom: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '0.68rem'
+                          }}>
+                            <div>
+                              <span style={{ color: '#92400e', fontWeight: 600 }}>Previous Due: </span>
+                              <strong style={{ color: '#b45309' }}>₹{formatAmount(prevDue)}</strong>
+                            </div>
+                            <div>
+                              <span style={{ color: '#92400e', fontWeight: 600 }}>New Total Due: </span>
+                              <strong style={{ color: '#dc2626', fontSize: '0.74rem' }}>₹{formatAmount(combinedDue)}</strong>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Amounts: Amount Paid Now & Read-Only Borrow Due */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
