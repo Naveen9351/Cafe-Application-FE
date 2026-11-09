@@ -122,6 +122,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
   // New Khata Entry Modal State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [customerMode, setCustomerMode] = useState('existing'); // 'existing' or 'new'
   const [selectedCustomerChoice, setSelectedCustomerChoice] = useState('NEW');
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
@@ -131,9 +132,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const [useManualTotal, setUseManualTotal] = useState(false);
 
   // Line items state
-  const [lineItems, setLineItems] = useState([
-    { name: '', quantity: 1, price: '' }
-  ]);
+  const [lineItems, setLineItems] = useState([]);
 
   const [isCreating, setIsCreating] = useState(false);
   const [actionMessage, setActionMessage] = useState(null);
@@ -228,6 +227,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     return null;
   }, [customerAccounts, newCustomerPhone, newCustomerName]);
 
+  // Currently active customer profile in Add Udhar modal
+  const currentSelectedCustomer = useMemo(() => {
+    if (customerMode === 'new') {
+      return matchedExistingCustomer || null;
+    }
+    return customerAccounts.find(c =>
+      (c.customerPhone !== 'N/A' && c.customerPhone === selectedCustomerChoice) ||
+      c.customerName === selectedCustomerChoice
+    ) || (customerAccounts.length > 0 ? customerAccounts[0] : null);
+  }, [customerMode, customerAccounts, selectedCustomerChoice, matchedExistingCustomer]);
+
   // Calculated items total
   const calculatedItemsTotal = useMemo(() => {
     if (useManualTotal) {
@@ -278,25 +288,32 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     const dish = availableMenu.find(m => String(m._id || m.id) === String(dishId));
     if (dish) {
       setLineItems(prev => {
+        // If dish already in list, increment quantity
+        const existingIdx = prev.findIndex(it => it.name.toLowerCase().trim() === dish.name.toLowerCase().trim());
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx].quantity = (Number(updated[existingIdx].quantity) || 1) + 1;
+          return updated;
+        }
         // If there is an empty row, populate it
         const emptyIdx = prev.findIndex(it => !it.name.trim());
         if (emptyIdx > -1) {
           const updated = [...prev];
           updated[emptyIdx] = { name: dish.name, quantity: 1, price: String(dish.price || 0) };
           return updated;
-        } else {
-          return [...prev, { name: dish.name, quantity: 1, price: String(dish.price || 0) }];
         }
+        return [...prev, { name: dish.name, quantity: 1, price: String(dish.price || 0) }];
       });
     }
   };
 
   // Open Add Modal for a specific existing customer
   const handleAddUdharForCustomer = (cust) => {
+    setCustomerMode('existing');
     setSelectedCustomerChoice(cust.customerPhone !== 'N/A' ? cust.customerPhone : cust.customerName);
     setNewCustomerName(cust.customerName);
     setNewCustomerPhone(cust.customerPhone !== 'N/A' ? cust.customerPhone : '');
-    setLineItems([{ name: '', quantity: 1, price: '' }]);
+    setLineItems([]);
     setNewPaidAmount('0');
     setManualTotalBill('');
     setUseManualTotal(false);
@@ -364,9 +381,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const handleCreateKhata = async (e) => {
     e.preventDefault();
 
-    const effName = newCustomerName.trim() || 'Walk-in Guest';
-    const cleanPhone = newCustomerPhone.replace(/[^0-9]/g, '');
-    const effPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (newCustomerPhone.trim() || 'N/A');
+    let effName = newCustomerName.trim();
+    let effPhone = newCustomerPhone.trim();
+
+    if (customerMode === 'existing' && currentSelectedCustomer) {
+      effName = currentSelectedCustomer.customerName;
+      effPhone = currentSelectedCustomer.customerPhone;
+    }
+
+    if (!effName) effName = 'Walk-in Guest';
+    const cleanPhone = effPhone.replace(/[^0-9]/g, '');
+    const finalPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A');
 
     if (effectiveTotalBill <= 0) {
       alert('Please add at least one item or enter a total purchase amount greater than 0.');
@@ -387,7 +412,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       const res = await axios.post(`${API_URL}/khata`, {
         tenantId,
         customerName: effName,
-        customerPhone: effPhone,
+        customerPhone: finalPhone,
         totalBill: effectiveTotalBill,
         paidAmount: effectivePaid,
         borrowAmount: newUdharAmount,
@@ -401,7 +426,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       setNewCustomerName('');
       setNewCustomerPhone('');
       setSelectedCustomerChoice('NEW');
-      setLineItems([{ name: '', quantity: 1, price: '' }]);
+      setLineItems([]);
       setManualTotalBill('');
       setUseManualTotal(false);
       setNewPaidAmount('0');
@@ -550,10 +575,19 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           <button
             type="button"
             onClick={() => {
-              setSelectedCustomerChoice('NEW');
-              setNewCustomerName('');
-              setNewCustomerPhone('');
-              setLineItems([{ name: '', quantity: 1, price: '' }]);
+              if (customerAccounts.length > 0) {
+                setCustomerMode('existing');
+                const first = customerAccounts[0];
+                setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
+                setNewCustomerName(first.customerName);
+                setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
+              } else {
+                setCustomerMode('new');
+                setSelectedCustomerChoice('NEW');
+                setNewCustomerName('');
+                setNewCustomerPhone('');
+              }
+              setLineItems([]);
               setNewPaidAmount('0');
               setManualTotalBill('');
               setUseManualTotal(false);
@@ -1180,127 +1214,270 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             </div>
 
             <form onSubmit={handleCreateKhata}>
-              {/* Customer Account Selector Dropdown */}
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 3 }}>
-                  {isHindi ? 'ग्राहक खाता चुनें या नया बनाएं' : 'Select Customer Account or Create New'}
-                </label>
-                <select
-                  value={selectedCustomerChoice}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedCustomerChoice(val);
-                    if (val === 'NEW') {
-                      setNewCustomerName('');
-                      setNewCustomerPhone('');
-                    } else {
-                      const found = customerAccounts.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
-                      if (found) {
-                        setNewCustomerName(found.customerName);
-                        setNewCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
-                      }
+              {/* Segmented Customer Mode Switch: Existing vs New */}
+              <div className={styles.segmentTabs}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerMode('existing');
+                    if (customerAccounts.length > 0 && selectedCustomerChoice === 'NEW') {
+                      const first = customerAccounts[0];
+                      setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
+                      setNewCustomerName(first.customerName);
+                      setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
                     }
                   }}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: 7,
-                    border: '1px solid #cbd5e1',
-                    fontSize: '12.5px',
-                    background: '#ffffff',
-                    color: '#0f172a',
-                    boxSizing: 'border-box'
-                  }}
+                  className={`${styles.segmentTab} ${customerMode === 'existing' ? styles.segmentTabActive : ''}`}
                 >
-                  <option value="NEW">➕ {isHindi ? 'नया ग्राहक बनाएं' : 'Create New Customer'}</option>
-                  {customerAccounts.map((c, i) => (
-                    <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
-                      {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance}` : 'Settled'}
-                    </option>
-                  ))}
-                </select>
+                  <User size={13} />
+                  <span>{isHindi ? 'मौजूदा ग्राहक' : 'Existing Customer'} ({customerAccounts.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerMode('new');
+                    setSelectedCustomerChoice('NEW');
+                    setNewCustomerName('');
+                    setNewCustomerPhone('');
+                  }}
+                  className={`${styles.segmentTab} ${customerMode === 'new' ? styles.segmentTabActive : ''}`}
+                >
+                  <Plus size={13} />
+                  <span>{isHindi ? 'नया ग्राहक' : 'New Customer'}</span>
+                </button>
               </div>
 
-              {/* Customer Phone & Name (Both Optional) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: 3 }}>
-                    {isHindi ? 'फ़ोन नंबर (वैकल्पिक)' : 'Customer Phone (Optional)'}
+              {/* Customer Selection: Existing */}
+              {customerMode === 'existing' && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                    {isHindi ? 'ग्राहक खाता चुनें' : 'Select Customer Account'}
                   </label>
-                  <input
-                    type="tel"
-                    placeholder="e.g. 9876543210"
-                    value={newCustomerPhone}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setNewCustomerPhone(val);
-                      const cleanP = val.replace(/[^0-9]/g, '');
-                      const match = customerAccounts.find(c => c.customerPhone === cleanP);
-                      if (match && !newCustomerName) {
-                        setNewCustomerName(match.customerName);
-                      }
-                    }}
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
-                  />
-                </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: 3 }}>
-                    {isHindi ? 'ग्राहक का नाम (वैकल्पिक)' : 'Customer Name (Optional)'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Naveen"
-                    value={newCustomerName}
-                    onChange={(e) => setNewCustomerName(e.target.value)}
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
+                  {customerAccounts.length === 0 ? (
+                    <div style={{ padding: '12px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+                      {isHindi ? 'कोई पुराना खाता नहीं है। कृपया "नया ग्राहक" चुनें।' : 'No existing customers found. Switch to "New Customer" to create one.'}
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedCustomerChoice}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedCustomerChoice(val);
+                          const found = customerAccounts.find(c => (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val);
+                          if (found) {
+                            setNewCustomerName(found.customerName);
+                            setNewCustomerPhone(found.customerPhone !== 'N/A' ? found.customerPhone : '');
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      >
+                        {customerAccounts.map((c, i) => (
+                          <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                            {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance.toLocaleString('en-IN')}` : 'Nil Due'}
+                          </option>
+                        ))}
+                      </select>
 
-              {/* Existing Account Match Banner */}
-              {matchedExistingCustomer && (
-                <div style={{
-                  padding: '6px 10px',
-                  borderRadius: 6,
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  marginBottom: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '11.5px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <User size={12} color="#475569" />
-                    <span><strong>{matchedExistingCustomer.customerName}</strong> ({matchedExistingCustomer.customerPhone})</span>
-                  </div>
-                  <span style={{ fontWeight: 800, color: matchedExistingCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a' }}>
-                    {isHindi ? `वर्तमान बकाया: ₹${matchedExistingCustomer.outstandingBalance}` : `Current Due: ₹${matchedExistingCustomer.outstandingBalance}`}
-                  </span>
+                      {/* Clean Selected Customer Profile Card */}
+                      {currentSelectedCustomer && (
+                        <div className={styles.custCardSelected}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: '50%',
+                              background: getAvatarStyle(currentSelectedCustomer.customerName).bg,
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 800,
+                              fontSize: '15px',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                            }}>
+                              {currentSelectedCustomer.customerName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <strong style={{ fontSize: '13.5px', color: '#0f172a', display: 'block' }}>
+                                {currentSelectedCustomer.customerName}
+                              </strong>
+                              <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                📞 {currentSelectedCustomer.customerPhone} &nbsp;•&nbsp; {currentSelectedCustomer.entriesCount} visit{currentSelectedCustomer.entriesCount > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
+                              {isHindi ? 'वर्तमान बकाया' : 'Current Due'}
+                            </span>
+                            <span style={{
+                              fontSize: '13px',
+                              fontWeight: 800,
+                              color: currentSelectedCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a',
+                              background: currentSelectedCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
+                              padding: '2px 8px',
+                              borderRadius: 6,
+                              border: currentSelectedCustomer.outstandingBalance > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                              display: 'inline-block',
+                              marginTop: 2
+                            }}>
+                              ₹{currentSelectedCustomer.outstandingBalance.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* Dishes / Items Taken Section */}
-              <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', border: '1px solid #e2e8f0', marginBottom: 10 }}>
+              {/* Customer Selection: New */}
+              {customerMode === 'new' && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                        {isHindi ? 'मोबाइल नंबर (10 अंक)' : 'Customer Phone (10 digits)'}
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Phone size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="tel"
+                          placeholder="e.g. 9876543210"
+                          value={newCustomerPhone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                            setNewCustomerPhone(val);
+                            const match = customerAccounts.find(c => c.customerPhone === val);
+                            if (match && !newCustomerName) {
+                              setNewCustomerName(match.customerName);
+                            }
+                          }}
+                          style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                        {isHindi ? 'ग्राहक का नाम' : 'Customer Name'}
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <User size={13} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="text"
+                          placeholder="e.g. Rahul Sharma"
+                          value={newCustomerName}
+                          onChange={(e) => setNewCustomerName(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Matching existing account notification banner */}
+                  {matchedExistingCustomer && (
+                    <div style={{
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px'
+                    }}>
+                      <span style={{ color: '#1e40af' }}>
+                        💡 Found existing customer: <strong>{matchedExistingCustomer.customerName}</strong> (₹{matchedExistingCustomer.outstandingBalance} Due)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerMode('existing');
+                          setSelectedCustomerChoice(matchedExistingCustomer.customerPhone !== 'N/A' ? matchedExistingCustomer.customerPhone : matchedExistingCustomer.customerName);
+                        }}
+                        style={{
+                          background: '#2563eb',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '3px 9px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Use Account
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Dishes / Purchase Breakdown Section */}
+              <div style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Utensils size={13} color="#475569" />
-                    {isHindi ? 'व्यंजन / सामान सूची' : 'Dishes / Items Taken'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setUseManualTotal(prev => !prev)}
-                    style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    {useManualTotal ? (isHindi ? 'आइटम अनुसार जोड़ें' : 'Switch to item list') : (isHindi ? 'सीधा कुल बिल दर्ज करें' : 'Direct total amount')}
-                  </button>
+                  <label style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Utensils size={14} color="#2563eb" />
+                    {isHindi ? 'खरीदारी विवरण (Dishes / Bill)' : 'Purchase & Dish Breakdown'}
+                  </label>
+
+                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '2px', borderRadius: '7px', border: '1px solid #e2e8f0' }}>
+                    <button
+                      type="button"
+                      onClick={() => setUseManualTotal(false)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '5px',
+                        border: 'none',
+                        background: !useManualTotal ? '#ffffff' : 'transparent',
+                        color: !useManualTotal ? '#0f172a' : '#64748b',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: !useManualTotal ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+                      }}
+                    >
+                      🍽️ {isHindi ? 'मेन्यू से' : 'From Menu'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUseManualTotal(true)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '5px',
+                        border: 'none',
+                        background: useManualTotal ? '#ffffff' : 'transparent',
+                        color: useManualTotal ? '#0f172a' : '#64748b',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: useManualTotal ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+                      }}
+                    >
+                      💰 {isHindi ? 'सीधा बिल' : 'Direct Total'}
+                    </button>
+                  </div>
                 </div>
 
                 {!useManualTotal ? (
-                  <div>
-                    {/* Category-Grouped Full Cafe Menu Quick Picker (All 196 Dishes) */}
-                    <div style={{ marginBottom: 8 }}>
+                  <div className={styles.itemsCartBox}>
+                    {/* Menu Dropdown Selector */}
+                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       <select
                         onChange={(e) => {
                           handleQuickAddDish(e.target.value);
@@ -1308,7 +1485,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         }}
                         style={{
                           width: '100%',
-                          padding: '7px 10px',
+                          padding: '8px 10px',
                           borderRadius: 6,
                           border: '1.5px solid #cbd5e1',
                           background: '#ffffff',
@@ -1316,12 +1493,13 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           fontWeight: 600,
                           color: '#0f172a',
                           cursor: 'pointer',
-                          boxSizing: 'border-box'
+                          boxSizing: 'border-box',
+                          outline: 'none'
                         }}
                         defaultValue=""
                       >
                         <option value="" disabled>
-                          ➕ {isHindi ? 'मेन्यू से व्यंजन चुनें...' : `Select any dish from Cafe Menu (${availableMenu.length} dishes available)...`}
+                          ➕ {isHindi ? 'मेन्यू से व्यंजन चुनें...' : `+ Add dish from Cafe Menu (${availableMenu.length} dishes available)...`}
                         </option>
                         {Object.entries(groupedMenu).map(([categoryName, dishes]) => (
                           <optgroup key={categoryName} label={`📂 ${categoryName}`}>
@@ -1335,126 +1513,168 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                       </select>
                     </div>
 
-                    {/* Line Items List */}
-                    {lineItems.map((item, idx) => {
-                      const qty = Number(item.quantity) || 1;
-                      const pr = Number(item.price) || 0;
-                      const lineTotal = qty * pr;
+                    {/* Cart Items List */}
+                    {lineItems.length === 0 ? (
+                      <div className={styles.cartEmpty}>
+                        <Utensils size={22} color="#cbd5e1" />
+                        <span>{isHindi ? 'ऊपर मेन्यू से व्यंजन चुनें या नीचे कस्टम आइटम जोड़ें' : 'No items added yet. Pick dishes from the dropdown above'}</span>
+                      </div>
+                    ) : (
+                      <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                        {lineItems.map((item, idx) => {
+                          const qty = Number(item.quantity) || 1;
+                          const pr = Number(item.price) || 0;
+                          const lineTotal = qty * pr;
 
-                      return (
-                        <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                          {/* Dish Name input with native browser datalist auto-complete */}
-                          <input
-                            type="text"
-                            list="all-cafe-dishes"
-                            placeholder={isHindi ? "व्यंजन नाम टाइप करें या सूची से चुनें" : "Type dish name or pick from list..."}
-                            value={item.name}
-                            onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                            style={{ flex: 2, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', background: '#ffffff' }}
-                          />
+                          return (
+                            <div key={idx} className={styles.cartRow}>
+                              <input
+                                type="text"
+                                list="all-cafe-dishes"
+                                placeholder="Dish name..."
+                                value={item.name}
+                                onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                                style={{ flex: 2, padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 600 }}
+                              />
 
-                          {/* Quantity Controls */}
-                          <div style={{ display: 'flex', alignItems: 'center', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '1px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleItemChange(idx, 'quantity', Math.max(1, qty - 1))}
-                              style={{ width: 20, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Minus size={11} />
-                            </button>
-                            <span style={{ minWidth: 20, textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
-                              {qty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleItemChange(idx, 'quantity', qty + 1)}
-                              style={{ width: 20, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Plus size={11} />
-                            </button>
-                          </div>
+                              {/* Quantity Stepper */}
+                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleItemChange(idx, 'quantity', Math.max(1, qty - 1))}
+                                  style={{ width: 22, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Minus size={11} />
+                                </button>
+                                <span style={{ minWidth: 22, textAlign: 'center', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                                  {qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleItemChange(idx, 'quantity', qty + 1)}
+                                  style={{ width: 22, height: 26, background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                  <Plus size={11} />
+                                </button>
+                              </div>
 
-                          {/* Unit Price */}
-                          <div style={{ position: 'relative', width: '65px' }}>
-                            <span style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#64748b' }}>₹</span>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={item.price}
-                              onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
-                              style={{ width: '100%', padding: '6px 6px 6px 14px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', textAlign: 'right', boxSizing: 'border-box' }}
-                            />
-                          </div>
+                              {/* Unit Price */}
+                              <div style={{ position: 'relative', width: '65px' }}>
+                                <span style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#64748b' }}>₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  value={item.price}
+                                  onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
+                                  style={{ width: '100%', padding: '5px 6px 5px 14px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', textAlign: 'right', boxSizing: 'border-box' }}
+                                />
+                              </div>
 
-                          {/* Line total */}
-                          <div style={{ minWidth: '45px', textAlign: 'right', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
-                            ₹{lineTotal}
-                          </div>
+                              {/* Line Total */}
+                              <div style={{ minWidth: '45px', textAlign: 'right', fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                                ₹{lineTotal}
+                              </div>
 
-                          {/* Delete Row */}
-                          {lineItems.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItemRow(idx)}
-                              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2 }}
-                              title="Remove item"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItemRow(idx)}
+                                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2 }}
+                                title="Remove item"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleAddItemRow()}
-                      style={{
-                        background: '#ffffff',
-                        border: '1px dashed #cbd5e1',
-                        borderRadius: 6,
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#475569',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4
-                      }}
-                    >
-                      <Plus size={11} />
-                      {isHindi ? 'खाली पंक्ति जोड़ें' : 'Add custom row'}
-                    </button>
+                    {/* Footer add custom row */}
+                    <div style={{ padding: '6px 10px', background: '#fafbfc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAddItemRow()}
+                        style={{ background: 'transparent', border: 'none', color: '#2563eb', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Plus size={12} />
+                        {isHindi ? 'कस्टम आइटम जोड़ें' : 'Add custom item'}
+                      </button>
+
+                      {lineItems.length > 0 && (
+                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                          {lineItems.length} item{lineItems.length > 1 ? 's' : ''} added
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder={isHindi ? "कुल बिल राशि (उदा. 450)" : "Total Bill Amount (e.g. 450)"}
-                      value={manualTotalBill}
-                      onChange={(e) => setManualTotalBill(e.target.value)}
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                    />
+                  /* Direct Total Amount Input */
+                  <div style={{ background: '#f8fafc', padding: '14px', borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      {isHindi ? 'सीधा कुल बिल राशि दर्ज करें (₹)' : 'Enter Total Bill Amount (₹)'}
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '18px', fontWeight: 800, color: '#64748b' }}>₹</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="0"
+                        value={manualTotalBill}
+                        onChange={(e) => setManualTotalBill(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px 10px 30px',
+                          borderRadius: 8,
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '18px',
+                          fontWeight: 800,
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Quick Amount Chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      {[50, 100, 150, 200, 300, 500, 1000].map(amt => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setManualTotalBill(String(amt))}
+                          className={`${styles.chipBtn} ${Number(manualTotalBill) === amt ? styles.chipBtnActive : ''}`}
+                        >
+                          ₹{amt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Total Purchase Bill & Paid Now */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              {/* Bill & Paid Now Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 3 }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
                     {isHindi ? 'कुल खरीदारी बिल' : 'Total Purchase Bill'}
                   </label>
-                  <div style={{ padding: '7px 10px', borderRadius: 6, background: '#f1f5f9', border: '1px solid #e2e8f0', fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>
+                  <div style={{
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    fontWeight: 900,
+                    fontSize: '15px',
+                    color: '#0f172a'
+                  }}>
                     ₹{effectiveTotalBill.toLocaleString('en-IN')}
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 3 }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>
                     {isHindi ? 'अभी भुगतान (₹)' : 'Paid Now (₹)'}
                   </label>
                   <input
@@ -1464,50 +1684,94 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     placeholder="0"
                     value={newPaidAmount}
                     onChange={(e) => setNewPaidAmount(e.target.value)}
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 700, boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: 8,
+                      border: '1.5px solid #86efac',
+                      fontSize: '15px',
+                      fontWeight: 800,
+                      color: '#15803d',
+                      boxSizing: 'border-box',
+                      outline: 'none'
+                    }}
                   />
+
+                  {/* Quick paid chips */}
+                  <div style={{ display: 'flex', gap: 4, marginTop: 5 }}>
+                    <button
+                      type="button"
+                      onClick={() => setNewPaidAmount('0')}
+                      className={`${styles.chipBtn} ${newPaidAmount === '0' || newPaidAmount === '' ? styles.chipBtnActive : ''}`}
+                      style={{ fontSize: '10px', padding: '2px 6px' }}
+                    >
+                      ₹0 (Udhar)
+                    </button>
+                    {effectiveTotalBill >= 100 && (
+                      <button
+                        type="button"
+                        onClick={() => setNewPaidAmount(String(Math.round(effectiveTotalBill / 2)))}
+                        className={`${styles.chipBtn} ${Number(newPaidAmount) === Math.round(effectiveTotalBill / 2) ? styles.chipBtnActive : ''}`}
+                        style={{ fontSize: '10px', padding: '2px 6px' }}
+                      >
+                        50%
+                      </button>
+                    )}
+                    {effectiveTotalBill > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setNewPaidAmount(String(effectiveTotalBill))}
+                        className={`${styles.chipBtn} ${Number(newPaidAmount) === effectiveTotalBill ? styles.chipBtnActive : ''}`}
+                        style={{ fontSize: '10px', padding: '2px 6px' }}
+                      >
+                        Full
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Calculated Udhar Added Banner */}
-              <div style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 6,
-                padding: '7px 10px',
-                marginBottom: 10,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '11.5px'
-              }}>
-                <div>
-                  <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px' }}>
-                    {isHindi ? 'खाते में नई उधारी' : 'New Udhar Added to Account:'}
-                  </span>
-                  <strong style={{ color: newUdharAmount > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
-                    ₹{newUdharAmount.toLocaleString('en-IN')}
-                  </strong>
-                </div>
+              {(() => {
+                const prevDue = currentSelectedCustomer ? Number(currentSelectedCustomer.outstandingBalance || 0) : 0;
+                const updatedBalance = prevDue + newUdharAmount;
 
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px' }}>
-                    {isHindi ? 'अपडेटेड कुल बकाया' : 'Updated Total Balance:'}
-                  </span>
-                  <strong style={{ color: '#0f172a', fontSize: '13px' }}>
-                    ₹{((matchedExistingCustomer?.outstandingBalance || 0) + newUdharAmount).toLocaleString('en-IN')}
-                  </strong>
-                </div>
-              </div>
+                return (
+                  <div className={styles.balanceImpactCard}>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px', fontWeight: 600 }}>
+                        {isHindi ? 'खाते में नई उधारी' : 'New Udhar Added to Account:'}
+                      </span>
+                      <strong style={{ color: newUdharAmount > 0 ? '#dc2626' : '#16a34a', fontSize: '14.5px' }}>
+                        +₹{newUdharAmount.toLocaleString('en-IN')}
+                      </strong>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '10.5px', fontWeight: 600 }}>
+                        {isHindi ? 'अपडेटेड कुल बकाया' : 'Updated Total Balance:'}
+                      </span>
+                      <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>
+                        ₹{updatedBalance.toLocaleString('en-IN')}
+                      </strong>
+                      {prevDue > 0 && (
+                        <span style={{ fontSize: '10.5px', color: '#94a3b8', display: 'block' }}>
+                          (Prev: ₹{prevDue.toLocaleString('en-IN')})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Optional Note */}
               <div style={{ marginBottom: 12 }}>
                 <input
                   type="text"
-                  placeholder={isHindi ? "अतिरिक्त टिप्पणी (वैकल्पिक)" : "Note / Remark (optional)"}
+                  placeholder={isHindi ? "अतिरिक्त टिप्पणी (उदा. टेबल 3 या शाम का चाय नाश्ता)" : "Note / Remark (optional, e.g. Table 3 or evening tea)"}
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '12px', boxSizing: 'border-box' }}
                 />
               </div>
 
@@ -1516,16 +1780,31 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  style={{ flex: 1, padding: '9px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
+                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, cursor: 'pointer', fontSize: '12px', color: '#475569' }}
                 >
                   {isHindi ? 'रद्द करें' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  disabled={isCreating}
-                  style={{ flex: 2, padding: '9px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, cursor: 'pointer', fontSize: '12px' }}
+                  disabled={isCreating || effectiveTotalBill <= 0}
+                  style={{
+                    flex: 2,
+                    padding: '10px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: effectiveTotalBill > 0
+                      ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
+                      : '#cbd5e1',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    cursor: effectiveTotalBill > 0 ? 'pointer' : 'not-allowed',
+                    fontSize: '12.5px',
+                    boxShadow: effectiveTotalBill > 0 ? '0 4px 12px rgba(37, 99, 235, 0.25)' : 'none'
+                  }}
                 >
-                  {isCreating ? (isHindi ? 'दर्ज हो रहा है...' : 'Recording...') : (isHindi ? `खाते में ₹${newUdharAmount} उधार जोड़ें` : `Record ₹${newUdharAmount} to Khata`)}
+                  {isCreating
+                    ? (isHindi ? 'दर्ज हो रहा है...' : 'Recording...')
+                    : (isHindi ? `खाते में ₹${newUdharAmount} उधार जोड़ें` : `Confirm & Add ₹${newUdharAmount} to Khata`)}
                 </button>
               </div>
             </form>
