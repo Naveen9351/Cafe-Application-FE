@@ -5414,7 +5414,14 @@ export default function AdminPanel() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <KhataLedger menuItems={items} tenantId={tenantId || tenantInfo?._id} />
+                  <KhataLedger
+                    menuItems={items}
+                    tenantId={tenantId || tenantInfo?._id}
+                    onNavigateToPos={(cust) => {
+                      setPosSelectedTable('Walk-in');
+                      handleTabChange('pos');
+                    }}
+                  />
                 </motion.div>
               )}
 

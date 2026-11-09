@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Grid, Plus, Minus, Search, Check, X, RefreshCw, CreditCard,
@@ -37,6 +38,18 @@ export default function POSTerminal({
   onOrderPlaced,
   onSettleTable
 }) {
+  const navigate = useNavigate();
+
+  // Khata Order Mode: active when opened from Khata Ledger
+  const [khataActiveCustomer, setKhataActiveCustomer] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('pos_khata_customer');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // View mode: 'tables' (Petpooja table matrix) or 'terminal' (POS billing)
   const [viewMode, setViewMode] = useState(initialTable ? 'terminal' : 'tables');
   const [tableNumber, setTableNumber] = useState(initialTable || '1');
@@ -50,6 +63,45 @@ export default function POSTerminal({
   const [dishSearch, setDishSearch] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+
+  // Setup Khata Order Mode if customer is present in sessionStorage
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('pos_khata_customer');
+      if (stored) {
+        const cust = JSON.parse(stored);
+        if (cust && cust.customerName) {
+          setKhataActiveCustomer(cust);
+          setCustomerName(cust.customerName);
+          if (cust.customerPhone && cust.customerPhone !== 'N/A') {
+            setCustomerPhone(cust.customerPhone);
+          }
+          setViewMode('terminal');
+          setTableNumber('Walk-in');
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse pos_khata_customer', err);
+    }
+  }, []);
+
+  const handleExitKhataMode = () => {
+    try {
+      sessionStorage.removeItem('pos_khata_customer');
+    } catch (e) {}
+    setKhataActiveCustomer(null);
+    setCustomerName('');
+    setCustomerPhone('');
+    toast.info('Exited Khata Order Mode');
+  };
+
+  const handleBackToKhata = () => {
+    try {
+      sessionStorage.removeItem('pos_khata_customer');
+    } catch (e) {}
+    setKhataActiveCustomer(null);
+    navigate('/admin/khata');
+  };
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSettling, setIsSettling] = useState(false);
   const [isSendingKitchen, setIsSendingKitchen] = useState(false);
@@ -978,7 +1030,19 @@ export default function POSTerminal({
         });
       }
 
-      // 2. Record in Khata / Customer Credit Ledger
+      // 2. Record in Khata / Customer Credit Ledger with itemized dishes
+      const khataItemsList = cart.length > 0
+        ? cart.map(it => ({
+            name: it.name + (it.variant ? ` (${it.variant.name || it.variant})` : ''),
+            quantity: Number(it.quantity) || 1,
+            price: Number(it.price) || 0
+          }))
+        : currentTableOrders.flatMap(o => (o.items || []).map(it => ({
+            name: it.name,
+            quantity: Number(it.quantity) || 1,
+            price: Number(it.price) || 0
+          })));
+
       await axios.post(`${API}/khata`, {
         tenantId: effectiveTenantId,
         customerName: customerName.trim(),
@@ -986,7 +1050,8 @@ export default function POSTerminal({
         totalBill: totalRecordedBill,
         paidAmount: (grandTotal - curDue) + paidNum,
         borrowAmount: borrowNum,
-        notes: khataNotes || `Table ${tableNumber} order`
+        notes: khataNotes || `Table ${tableNumber} order`,
+        items: khataItemsList
       }, {
         headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
       });
@@ -1025,6 +1090,15 @@ export default function POSTerminal({
         if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
         if (onSettleTable) onSettleTable(tNum);
       });
+
+      if (khataActiveCustomer) {
+        try {
+          sessionStorage.removeItem('pos_khata_customer');
+        } catch (e) {}
+        setKhataActiveCustomer(null);
+        navigate('/admin/khata');
+        return;
+      }
 
       // Crucial: Clear view and return to tables matrix
       setViewMode('tables');
@@ -1378,6 +1452,84 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {viewMode === 'terminal' && (
         <div className={styles.terminalContainerWrap}>
+
+          {/* Active Khata Order Mode Banner */}
+          {khataActiveCustomer && (
+            <div style={{
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+              color: '#ffffff',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 4px 14px rgba(37,99,235,0.22)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <BookOpen size={18} color="#ffffff" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 800, letterSpacing: '-0.2px' }}>
+                    Khata Order Mode: <span style={{ color: '#fef08a' }}>{khataActiveCustomer.customerName}</span>
+                    {khataActiveCustomer.customerPhone && khataActiveCustomer.customerPhone !== 'N/A' && (
+                      <span style={{ fontSize: '12px', opacity: 0.9, marginLeft: 8 }}>📞 {khataActiveCustomer.customerPhone}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '11.5px', opacity: 0.9, marginTop: 1 }}>
+                    Current Due: <strong>₹{Number(khataActiveCustomer.outstandingBalance || 0).toLocaleString('en-IN')}</strong> • Select dishes below to add directly to account
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleBackToKhata}
+                  style={{
+                    background: '#ffffff',
+                    color: '#1e3a8a',
+                    border: 'none',
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  ← Back to Ledger
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExitKhataMode}
+                  style={{
+                    background: 'rgba(255,255,255,0.18)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    color: '#ffffff',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                  title="Exit Khata mode"
+                >
+                  ✕ Exit
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* POS Two-Column Grid */}
           <div className={styles.posGrid}>
@@ -1970,6 +2122,39 @@ export default function POSTerminal({
                             >
                               <ChefHat size={14} />
                               <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
+                            </button>
+                          )}
+
+                          {/* 1.5. Khata Quick Record Button: Shown in Khata Mode */}
+                          {hasDraftItems && khataActiveCustomer && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setKhataBorrowAmount(draftCartTotal);
+                                setKhataPaidAmount('0');
+                                setSelectedKhataCustomerChoice(khataActiveCustomer.customerPhone || khataActiveCustomer.customerName);
+                                setShowKhataModal(true);
+                              }}
+                              style={{
+                                background: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '9px 12px',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                fontSize: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                boxShadow: '0 3px 8px rgba(30, 64, 175, 0.35)',
+                                flex: 1.3
+                              }}
+                              title="Record draft items directly to customer's Khata account"
+                            >
+                              <BookOpen size={14} />
+                              <span>Record Khata (₹{formatAmount(draftCartTotal)})</span>
                             </button>
                           )}
 
