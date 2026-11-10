@@ -132,34 +132,57 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     return groups;
   }, [availableMenu]);
 
-  // Categories list for POS Menu (separating Open Menu and Night Menu - same as POS Terminal)
+  // Menu items: strictly prefer menuItems prop from AdminPanel (preserving exact POS Terminal order!)
+  const effectiveMenu = useMemo(() => {
+    if (menuItems && menuItems.length > 0) {
+      return menuItems;
+    }
+    return availableMenu;
+  }, [menuItems, availableMenu]);
+
+  // Categories list for POS Menu (preserving exact POS Terminal order)
   const posCategories = useMemo(() => {
     const cats = ['all'];
 
-    const hasOpenMenu = availableMenu.some(i => i.isOpenMenu || i.isPosOnly);
+    const hasOpenMenu = effectiveMenu.some(i => i.isOpenMenu || i.isPosOnly);
     if (hasOpenMenu) {
       cats.push('⚡ Open Menu');
     }
 
-    const hasNight = availableMenu.some(i => i.isNightMenu || i.shiftAvailability === 'night_only' || (i.nightPrice && Number(i.nightPrice) > 0));
-    if (hasNight) {
-      cats.push('🌙 Night Menu');
-    }
+    // Always include 🌙 Night Menu pill so user can browse night items anytime (exact same as POS Terminal)
+    cats.push('🌙 Night Menu');
 
-    const regularCats = [...new Set(availableMenu.filter(i => !i.isOpenMenu && !i.isPosOnly).map(item => item.category || 'main-courses'))].sort();
+    // Regular categories in their natural order from effectiveMenu (no artificial .sort())
+    const regularCats = [...new Set(
+      effectiveMenu
+        .filter(i =>
+          !i.isOpenMenu &&
+          !i.isPosOnly &&
+          !i.isNightMenu &&
+          i.shiftAvailability !== 'night_only' &&
+          !(i.category && i.category.toLowerCase().includes('night'))
+        )
+        .map(item => item.category || 'main-courses')
+    )];
+
     return [...cats, ...regularCats];
-  }, [availableMenu]);
+  }, [effectiveMenu]);
 
-  // Filtered dishes for POS visual grid
+  // Filtered dishes for POS visual grid - exact same order as POS Terminal
   const posFilteredDishes = useMemo(() => {
-    return availableMenu.filter(item => {
+    return effectiveMenu.filter(item => {
       let matchesCat = false;
       if (posSelectedCategory === 'all') {
         matchesCat = true;
       } else if (posSelectedCategory === '⚡ Open Menu') {
         matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
       } else if (posSelectedCategory === '🌙 Night Menu') {
-        matchesCat = Boolean(item.isNightMenu || item.shiftAvailability === 'night_only' || (item.nightPrice && Number(item.nightPrice) > 0));
+        matchesCat = Boolean(
+          item.shiftAvailability === 'night_only' ||
+          item.isNightMenu ||
+          (item.nightPrice && Number(item.nightPrice) > 0) ||
+          (item.category && item.category.toLowerCase().includes('night'))
+        );
       } else {
         matchesCat = (item.category || 'main-courses') === posSelectedCategory;
       }
@@ -169,7 +192,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
       return matchesCat && matchesSearch;
     });
-  }, [availableMenu, posDishSearch, posSelectedCategory]);
+  }, [effectiveMenu, posDishSearch, posSelectedCategory]);
 
   // Pagination states
   const [customerPage, setCustomerPage] = useState(1);
@@ -830,120 +853,120 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
       {khataMode === 'pos_menu' ? (
         <div className={styles.posScreen}>
-          {/* Top Header Bar */}
-          <div className={styles.posHeader}>
-            <div className={styles.posHeaderLeft}>
-              <button
-                type="button"
-                onClick={() => {
-                  setKhataMode('ledger');
-                  setActivePosCustomer(null);
-                  setLineItems([]);
-                }}
-                className={styles.posBackIconBtn}
-                title="Back to Khata Ledger"
-                aria-label="Back"
-              >
-                <ArrowLeft size={16} />
-              </button>
+          {/* Left Column: Top Navigation Bar + Visual Dishes Catalog */}
+          <div className={styles.posLeftSection}>
+            {/* Top Navigation & Customer Header Bar */}
+            <div className={styles.posHeader}>
+              <div className={styles.posHeaderLeft}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setKhataMode('ledger');
+                    setActivePosCustomer(null);
+                    setLineItems([]);
+                  }}
+                  className={styles.posBackIconBtn}
+                  title="Back to Khata Ledger"
+                  aria-label="Back"
+                >
+                  <ArrowLeft size={16} />
+                </button>
 
-              <div className={styles.posCustomerCard}>
-                <div className={styles.posCustomerInfo}>
-                  <div className={styles.posCustomerNameRow}>
-                    <span className={styles.posCustomerName}>
-                      {activePosCustomer?.isNew ? (activePosCustomer?.customerName || 'New Customer') : (activePosCustomer?.customerName || 'Customer')}
-                    </span>
-                    <span className={styles.posDueBadge}>
-                      ₹{(Number(activePosCustomer?.outstandingBalance) || 0).toLocaleString('en-IN')} Due
-                    </span>
-                    {activePosCustomer?.customerPhone && activePosCustomer?.customerPhone !== 'N/A' && (
-                      <span className={styles.posCustomerPhone}>
-                        • {activePosCustomer.customerPhone}
+                <div className={styles.posCustomerCard}>
+                  <div className={styles.posCustomerInfo}>
+                    <div className={styles.posCustomerNameRow}>
+                      <span className={styles.posCustomerName}>
+                        {activePosCustomer?.isNew ? (activePosCustomer?.customerName || 'New Customer') : (activePosCustomer?.customerName || 'Customer')}
                       </span>
-                    )}
+                      <span className={styles.posDueBadge}>
+                        ₹{(Number(activePosCustomer?.outstandingBalance) || 0).toLocaleString('en-IN')} Due
+                      </span>
+                      {activePosCustomer?.customerPhone && activePosCustomer?.customerPhone !== 'N/A' && (
+                        <span className={styles.posCustomerPhone}>
+                          • {activePosCustomer.customerPhone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sleek integrated customer switcher */}
+                  <div className={styles.posSwitchBtnWrap}>
+                    <select
+                      value={activePosCustomer?.isNew ? '__NEW__' : (activePosCustomer?.customerPhone !== 'N/A' ? activePosCustomer?.customerPhone : activePosCustomer?.customerName)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '__NEW__') {
+                          setIsNewCustomerInline(true);
+                          setActivePosCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
+                        } else {
+                          setIsNewCustomerInline(false);
+                          const found = customerAccounts.find(c =>
+                            (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val
+                          );
+                          if (found) setActivePosCustomer(found);
+                        }
+                      }}
+                      className={styles.posSwitchSelect}
+                      title="Switch to another customer account"
+                    >
+                      <option value="" disabled hidden>Change</option>
+                      <optgroup label="Select Customer">
+                        {customerAccounts.map(c => (
+                          <option key={c.customerPhone + c.customerName} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                            {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹{c.outstandingBalance.toLocaleString('en-IN')}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <option value="__NEW__">➕ New Customer (नया ग्राहक)</option>
+                    </select>
+                    <span className={styles.posSwitchBtnLabel}>Switch ▾</span>
                   </div>
                 </div>
 
-                {/* Sleek integrated customer switcher */}
-                <div className={styles.posSwitchBtnWrap}>
-                  <select
-                    value={activePosCustomer?.isNew ? '__NEW__' : (activePosCustomer?.customerPhone !== 'N/A' ? activePosCustomer?.customerPhone : activePosCustomer?.customerName)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '__NEW__') {
-                        setIsNewCustomerInline(true);
-                        setActivePosCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
-                      } else {
-                        setIsNewCustomerInline(false);
-                        const found = customerAccounts.find(c =>
-                          (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val
-                        );
-                        if (found) setActivePosCustomer(found);
-                      }
-                    }}
-                    className={styles.posSwitchSelect}
-                    title="Switch to another customer account"
-                  >
-                    <option value="" disabled hidden>Change</option>
-                    <optgroup label="Select Customer">
-                      {customerAccounts.map(c => (
-                        <option key={c.customerPhone + c.customerName} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
-                          {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹{c.outstandingBalance.toLocaleString('en-IN')}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <option value="__NEW__">➕ New Customer (नया ग्राहक)</option>
-                  </select>
-                  <span className={styles.posSwitchBtnLabel}>Switch ▾</span>
-                </div>
-              </div>
+                {(activePosCustomer?.isNew || isNewCustomerInline) && (
+                  <div className={styles.posNewCustomerInputs}>
+                    <input
+                      type="text"
+                      placeholder="Customer Name *"
+                      value={activePosCustomer?.customerName || ''}
+                      onChange={(e) => setActivePosCustomer(prev => ({ ...prev, customerName: e.target.value }))}
+                      className={styles.posInlineInput}
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone (optional)"
+                      value={activePosCustomer?.customerPhone || ''}
+                      onChange={(e) => setActivePosCustomer(prev => ({ ...prev, customerPhone: e.target.value }))}
+                      className={styles.posInlineInput}
+                    />
+                  </div>
+                )}
 
-              {(activePosCustomer?.isNew || isNewCustomerInline) && (
-                <div className={styles.posNewCustomerInputs}>
+                {/* Search Box expands cleanly across left row */}
+                <div className={styles.posSearchWrap}>
+                  <Search size={14} color="#64748b" />
                   <input
                     type="text"
-                    placeholder="Customer Name *"
-                    value={activePosCustomer?.customerName || ''}
-                    onChange={(e) => setActivePosCustomer(prev => ({ ...prev, customerName: e.target.value }))}
-                    className={styles.posInlineInput}
+                    placeholder={isHindi ? "मेनू में खोजें..." : "Search menu dishes..."}
+                    value={posDishSearch}
+                    onChange={(e) => setPosDishSearch(e.target.value)}
+                    className={styles.posSearchInput}
                   />
-                  <input
-                    type="tel"
-                    placeholder="Phone (optional)"
-                    value={activePosCustomer?.customerPhone || ''}
-                    onChange={(e) => setActivePosCustomer(prev => ({ ...prev, customerPhone: e.target.value }))}
-                    className={styles.posInlineInput}
-                  />
+                  {posDishSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPosDishSearch('')}
+                      className={styles.posClearSearchBtn}
+                      title="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
-              )}
-
-              {/* Repositioned Search Box right next to Customer Card above Menu */}
-              <div className={styles.posSearchWrap}>
-                <Search size={14} color="#64748b" />
-                <input
-                  type="text"
-                  placeholder={isHindi ? "मेनू में खोजें..." : "Search menu dishes..."}
-                  value={posDishSearch}
-                  onChange={(e) => setPosDishSearch(e.target.value)}
-                  className={styles.posSearchInput}
-                />
-                {posDishSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setPosDishSearch('')}
-                    className={styles.posClearSearchBtn}
-                    title="Clear search"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
               </div>
             </div>
-          </div>
 
-          {/* POS Two-Column Grid */}
-          <div className={styles.posMainGrid}>
-            {/* Left Column: Visual Dishes Catalog */}
+            {/* Menu Panel */}
             <div className={styles.posMenuPanel}>
               {/* Category Pills - Same as POS Terminal */}
               <div
@@ -1085,9 +1108,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Right Column: Customer Khata Slip */}
-            <div className={styles.posSlipPanel}>
+          {/* Right Column: Customer Khata Slip (Starts from Top alongside Left Section!) */}
+          <div className={styles.posSlipPanel}>
               {/* Slip Header */}
               <div className={styles.posSlipHeader}>
                 <div className={styles.posSlipTitleRow}>
@@ -1311,7 +1335,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 );
               })()}
             </div>
-          </div>
 
           {/* DISH CUSTOMIZATION MODAL (VARIANTS & ADDONS) - Same as POS Terminal */}
           {customizingItem && (
