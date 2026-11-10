@@ -34,6 +34,8 @@ export default function POSTerminal({
   menuItems = [],
   orders = [],
   initialTable = null,
+  initialKhataCustomer = null,
+  onClearKhataCustomer = null,
   onOrderCreated,
   onOrderPlaced,
   onSettleTable
@@ -42,6 +44,9 @@ export default function POSTerminal({
 
   // Khata Order Mode: active when opened from Khata Ledger
   const [khataActiveCustomer, setKhataActiveCustomer] = useState(() => {
+    if (initialKhataCustomer && initialKhataCustomer.customerName) {
+      return initialKhataCustomer;
+    }
     try {
       const stored = sessionStorage.getItem('pos_khata_customer');
       return stored ? JSON.parse(stored) : null;
@@ -64,8 +69,19 @@ export default function POSTerminal({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
 
-  // Setup Khata Order Mode if customer is present in sessionStorage
+  // Setup Khata Order Mode if customer is present in prop or sessionStorage
   useEffect(() => {
+    if (initialKhataCustomer && initialKhataCustomer.customerName) {
+      setKhataActiveCustomer(initialKhataCustomer);
+      setCustomerName(initialKhataCustomer.customerName);
+      if (initialKhataCustomer.customerPhone && initialKhataCustomer.customerPhone !== 'N/A') {
+        setCustomerPhone(initialKhataCustomer.customerPhone);
+      }
+      setViewMode('terminal');
+      setTableNumber('Walk-in');
+      return;
+    }
+
     try {
       const stored = sessionStorage.getItem('pos_khata_customer');
       if (stored) {
@@ -83,7 +99,7 @@ export default function POSTerminal({
     } catch (err) {
       console.warn('Failed to parse pos_khata_customer', err);
     }
-  }, []);
+  }, [initialKhataCustomer]);
 
   const handleExitKhataMode = () => {
     try {
@@ -92,6 +108,7 @@ export default function POSTerminal({
     setKhataActiveCustomer(null);
     setCustomerName('');
     setCustomerPhone('');
+    if (onClearKhataCustomer) onClearKhataCustomer();
     toast.info('Exited Khata Order Mode');
   };
 
@@ -100,6 +117,7 @@ export default function POSTerminal({
       sessionStorage.removeItem('pos_khata_customer');
     } catch (e) {}
     setKhataActiveCustomer(null);
+    if (onClearKhataCustomer) onClearKhataCustomer();
     navigate('/admin/khata');
   };
   const [paymentMethod, setPaymentMethod] = useState('Cash');
@@ -353,6 +371,11 @@ export default function POSTerminal({
 
   // Handle clicking a table card -> opens POS Terminal
   const handleOpenTableInPOS = (tblNum) => {
+    if (khataActiveCustomer) {
+      try { sessionStorage.removeItem('pos_khata_customer'); } catch (e) {}
+      setKhataActiveCustomer(null);
+      if (onClearKhataCustomer) onClearKhataCustomer();
+    }
     const tStr = String(tblNum).trim();
     setTableNumber(tStr);
     setViewMode('terminal');
@@ -373,6 +396,11 @@ export default function POSTerminal({
 
   // Quick Walkin / Counter POS
   const handleQuickWalkin = () => {
+    if (khataActiveCustomer) {
+      try { sessionStorage.removeItem('pos_khata_customer'); } catch (e) {}
+      setKhataActiveCustomer(null);
+      if (onClearKhataCustomer) onClearKhataCustomer();
+    }
     setTableNumber('Walk-in');
     setCustomerName('Walk-in Guest');
     setCustomerPhone('');
@@ -1096,6 +1124,7 @@ export default function POSTerminal({
           sessionStorage.removeItem('pos_khata_customer');
         } catch (e) {}
         setKhataActiveCustomer(null);
+        if (onClearKhataCustomer) onClearKhataCustomer();
         navigate('/admin/khata');
         return;
       }
@@ -1541,8 +1570,14 @@ export default function POSTerminal({
                 <button
                   type="button"
                   className={styles.backIconBtn}
-                  onClick={() => setViewMode('tables')}
-                  title="Back to Floor Tables"
+                  onClick={() => {
+                    if (khataActiveCustomer) {
+                      handleBackToKhata();
+                    } else {
+                      setViewMode('tables');
+                    }
+                  }}
+                  title={khataActiveCustomer ? "Back to Khata Ledger" : "Back to Floor Tables"}
                 >
                   <ArrowLeft size={16} />
                 </button>
