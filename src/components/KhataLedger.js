@@ -751,10 +751,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 title="Back to Khata Ledger"
               >
                 <ArrowLeft size={16} />
-                <span>{isHindi ? 'लेजर पर वापस जाएं' : 'Back to Ledger'}</span>
+                <span>{isHindi ? 'लेजर' : 'Back to Ledger'}</span>
               </button>
 
-              <div className={styles.posCustomerBadge}>
+              <div className={styles.posCustomerCard}>
                 <div
                   className={styles.posAvatar}
                   style={getAvatarStyle(activePosCustomer?.customerName || 'Customer')}
@@ -773,7 +773,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   <div className={styles.posCustomerMeta}>
                     {activePosCustomer?.customerPhone && activePosCustomer?.customerPhone !== 'N/A' && (
                       <span className={styles.posCustomerPhone}>
-                        <Phone size={11} /> {activePosCustomer.customerPhone}
+                        <Phone size={10} /> {activePosCustomer.customerPhone}
                       </span>
                     )}
                     {activePosCustomer?.entriesCount > 0 && (
@@ -781,36 +781,37 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Customer Selector */}
-              <div className={styles.posCustomerSelectorWrap}>
-                <select
-                  value={activePosCustomer?.isNew ? '__NEW__' : (activePosCustomer?.customerPhone !== 'N/A' ? activePosCustomer?.customerPhone : activePosCustomer?.customerName)}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '__NEW__') {
-                      setIsNewCustomerInline(true);
-                      setActivePosCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
-                    } else {
-                      setIsNewCustomerInline(false);
-                      const found = customerAccounts.find(c =>
-                        (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val
-                      );
-                      if (found) setActivePosCustomer(found);
-                    }
-                  }}
-                  className={styles.posCustomerSelect}
-                >
-                  <optgroup label="Select Existing Customer">
-                    {customerAccounts.map(c => (
-                      <option key={c.customerPhone + c.customerName} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
-                        {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹{c.outstandingBalance.toLocaleString('en-IN')}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <option value="__NEW__">➕ New Customer (नया ग्राहक)</option>
-                </select>
+                {/* Integrated Customer Selector */}
+                <div className={styles.posCustomerSelectorWrap}>
+                  <select
+                    value={activePosCustomer?.isNew ? '__NEW__' : (activePosCustomer?.customerPhone !== 'N/A' ? activePosCustomer?.customerPhone : activePosCustomer?.customerName)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__NEW__') {
+                        setIsNewCustomerInline(true);
+                        setActivePosCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
+                      } else {
+                        setIsNewCustomerInline(false);
+                        const found = customerAccounts.find(c =>
+                          (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val
+                        );
+                        if (found) setActivePosCustomer(found);
+                      }
+                    }}
+                    className={styles.posCustomerSelect}
+                    title="Switch customer account"
+                  >
+                    <optgroup label="Switch Customer Account">
+                      {customerAccounts.map(c => (
+                        <option key={c.customerPhone + c.customerName} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                          {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹{c.outstandingBalance.toLocaleString('en-IN')}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <option value="__NEW__">➕ New Customer (नया ग्राहक)</option>
+                  </select>
+                </div>
               </div>
 
               {(activePosCustomer?.isNew || isNewCustomerInline) && (
@@ -835,10 +836,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
             <div className={styles.posHeaderRight}>
               <div className={styles.posSearchWrap}>
-                <Search size={15} color="#94a3b8" />
+                <Search size={15} color="#64748b" />
                 <input
                   type="text"
-                  placeholder={isHindi ? "मेनू में खोजें..." : "Search dish on menu..."}
+                  placeholder={isHindi ? "मेनू में खोजें..." : "Search menu dishes..."}
                   value={posDishSearch}
                   onChange={(e) => setPosDishSearch(e.target.value)}
                   className={styles.posSearchInput}
@@ -848,6 +849,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     type="button"
                     onClick={() => setPosDishSearch('')}
                     className={styles.posClearSearchBtn}
+                    title="Clear search"
                   >
                     <X size={13} />
                   </button>
@@ -968,31 +970,44 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <div className={styles.posSlipPanel}>
               {/* Slip Header */}
               <div className={styles.posSlipHeader}>
-                <div>
-                  <div className={styles.posSlipTitleRow}>
-                    <h3 className={styles.posSlipTitle}>
-                      {activePosCustomer?.customerName || 'Customer'} Order Slip
-                    </h3>
-                    <span className={styles.posSlipTypeTag}>Khata / Udhar</span>
+                <div className={styles.posSlipTitleRow}>
+                  <div className={styles.posSlipTitleGroup}>
+                    <div className={styles.posSlipIconBadge}>
+                      <BookOpen size={16} color="#2563eb" />
+                    </div>
+                    <div>
+                      <h3 className={styles.posSlipTitle}>
+                        {activePosCustomer?.customerName || 'Customer'}
+                      </h3>
+                      <span className={styles.posSlipSubtitle}>Khata Order Slip</span>
+                    </div>
                   </div>
-                  <p className={styles.posSlipSubtitle}>
-                    Selected items will be charged directly to customer ledger
-                  </p>
+                  <span className={styles.posSlipTypeTag}>
+                    <Sparkles size={11} />
+                    <span>Khata Debit</span>
+                  </span>
                 </div>
+
                 <div className={styles.posSlipMetaRow}>
-                  <input
-                    type="text"
-                    placeholder="Table / Token # (opt)"
-                    value={entryOrderNumber}
-                    onChange={(e) => setEntryOrderNumber(e.target.value)}
-                    className={styles.posSlipMetaInput}
-                  />
-                  <input
-                    type="datetime-local"
-                    value={entryDate}
-                    onChange={(e) => setEntryDate(e.target.value)}
-                    className={styles.posSlipDateInput}
-                  />
+                  <div className={styles.posMetaInputWrap}>
+                    <span className={styles.posMetaPrefix}>#</span>
+                    <input
+                      type="text"
+                      placeholder="Table / Token (opt)"
+                      value={entryOrderNumber}
+                      onChange={(e) => setEntryOrderNumber(e.target.value)}
+                      className={styles.posMetaInput}
+                    />
+                  </div>
+                  <div className={styles.posMetaInputWrap}>
+                    <Calendar size={13} className={styles.posMetaIcon} />
+                    <input
+                      type="datetime-local"
+                      value={entryDate}
+                      onChange={(e) => setEntryDate(e.target.value)}
+                      className={styles.posMetaDateInput}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1000,9 +1015,11 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <div className={styles.posSlipItemsContainer}>
                 {lineItems.length === 0 ? (
                   <div className={styles.posSlipEmpty}>
-                    <ShoppingBag size={44} color="#cbd5e1" strokeWidth={1.5} />
+                    <div className={styles.posEmptyIconCircle}>
+                      <ShoppingBag size={28} color="#3b82f6" />
+                    </div>
                     <h4>Order Slip is Empty</h4>
-                    <p>Click dishes on the menu to take order</p>
+                    <p>Click dishes on the menu to add items to this customer's khata</p>
                   </div>
                 ) : (
                   <div className={styles.posSlipItemsList}>
@@ -1013,7 +1030,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           <div className={styles.posSlipItemLeft}>
                             <div className={item.isVeg ? styles.posVegDot : styles.posNonVegDot} style={{ flexShrink: 0 }} />
                             <div className={styles.posSlipItemDetails}>
-                              <span className={styles.posSlipItemName}>{item.name}</span>
+                              <span className={styles.posSlipItemName} title={item.name}>{item.name}</span>
                               <span className={styles.posSlipItemRate}>₹{item.price} each</span>
                             </div>
                           </div>
@@ -1024,6 +1041,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                 type="button"
                                 className={styles.posStepperBtn}
                                 onClick={() => handlePosDecrement(item)}
+                                title="Decrease"
                               >
                                 <Minus size={11} />
                               </button>
@@ -1032,6 +1050,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                 type="button"
                                 className={styles.posStepperBtn}
                                 onClick={() => handlePosQuickAdd(item)}
+                                title="Increase"
                               >
                                 <Plus size={11} />
                               </button>
@@ -1074,8 +1093,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   }}
                   className={styles.posAddCustomBtn}
                 >
-                  <Plus size={12} />
-                  <span>+ Add Custom Item (Off-Menu)</span>
+                  <Plus size={13} />
+                  <span>Add Off-Menu Custom Item</span>
                 </button>
               </div>
 
@@ -1089,16 +1108,16 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
                 return (
                   <div className={styles.posSlipFooter}>
-                    {/* Gross Total */}
+                    {/* Gross Total Bar */}
                     <div className={styles.posSlipTotalRow}>
-                      <span>Gross Total:</span>
-                      <span className={styles.posSlipTotalAmount}>₹{grossTotal}</span>
+                      <span className={styles.posSlipTotalLabel}>Gross Order Bill:</span>
+                      <span className={styles.posSlipTotalAmount}>₹{grossTotal.toLocaleString('en-IN')}</span>
                     </div>
 
                     {/* Paid Now Section */}
                     <div className={styles.posPaidSection}>
                       <div className={styles.posPaidLabelRow}>
-                        <label>Paid Now at Counter (₹):</label>
+                        <label className={styles.posPaidTitle}>Paid Now at Counter:</label>
                         <div className={styles.posPaidChips}>
                           <button
                             type="button"
@@ -1109,76 +1128,92 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           </button>
                           <button
                             type="button"
-                            className={styles.posChip}
+                            className={`${styles.posChip} ${newPaidAmount === String(Math.round(grossTotal / 2)) && grossTotal > 0 ? styles.posChipActive : ''}`}
                             onClick={() => setNewPaidAmount(String(Math.round(grossTotal / 2)))}
                           >
                             50%
                           </button>
                           <button
                             type="button"
-                            className={`${styles.posChip} ${newPaidAmount === String(grossTotal) ? styles.posChipActive : ''}`}
+                            className={`${styles.posChip} ${newPaidAmount === String(grossTotal) && grossTotal > 0 ? styles.posChipActive : ''}`}
                             onClick={() => setNewPaidAmount(String(grossTotal))}
                           >
                             Full Paid
                           </button>
                         </div>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        max={grossTotal}
-                        value={newPaidAmount}
-                        onChange={(e) => setNewPaidAmount(e.target.value)}
-                        className={styles.posPaidInput}
-                      />
+
+                      <div className={styles.posPaidInputWrap}>
+                        <span className={styles.posCurrencyPrefix}>₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max={grossTotal}
+                          value={newPaidAmount}
+                          onChange={(e) => setNewPaidAmount(e.target.value)}
+                          placeholder="0"
+                          className={styles.posPaidInput}
+                        />
+                      </div>
+
+                      {/* Payment Tender Method */}
+                      {Number(newPaidAmount) > 0 && (
+                        <div className={styles.posTenderRow}>
+                          <span className={styles.posTenderLabel}>Tender Mode:</span>
+                          <div className={styles.posTenderPills}>
+                            {[
+                              { id: 'Cash', label: 'Cash', icon: <Banknote size={12} /> },
+                              { id: 'UPI', label: 'UPI / QR', icon: <Smartphone size={12} /> },
+                              { id: 'Card', label: 'Card', icon: <CreditCard size={12} /> }
+                            ].map(m => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                className={`${styles.posTenderPill} ${newPaidMethod === m.id ? styles.posTenderPillActive : ''}`}
+                                onClick={() => setNewPaidMethod(m.id)}
+                              >
+                                {m.icon}
+                                <span>{m.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Payment Tender Method */}
-                    {Number(newPaidAmount) > 0 && (
-                      <div className={styles.posTenderRow}>
-                        <label>Paid Via:</label>
-                        <div className={styles.posTenderPills}>
-                          {['Cash', 'UPI', 'Card'].map(m => (
-                            <button
-                              key={m}
-                              type="button"
-                              className={`${styles.posTenderPill} ${newPaidMethod === m ? styles.posTenderPillActive : ''}`}
-                              onClick={() => setNewPaidMethod(m)}
-                            >
-                              {m === 'Cash' && <Banknote size={12} />}
-                              {m === 'UPI' && <Smartphone size={12} />}
-                              {m === 'Card' && <CreditCard size={12} />}
-                              <span>{m}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Balance Impact Box */}
-                    <div className={styles.posBalanceImpactBox}>
-                      <div className={styles.posBalanceImpactRow}>
-                        <span className={styles.posBalanceLabel}>New Udhar Added:</span>
-                        <span className={styles.posBalanceValPositive}>+₹{newUdhar}</span>
+                    {/* Khata Balance Calculation Card */}
+                    <div className={styles.posBalanceImpactCard}>
+                      <div className={styles.posImpactCardHeader}>
+                        <span>Khata Balance Calculation</span>
                       </div>
                       <div className={styles.posBalanceImpactRow}>
-                        <span className={styles.posBalanceLabel}>Previous Due:</span>
-                        <span>₹{prevDue.toLocaleString('en-IN')}</span>
+                        <span>Previous Due:</span>
+                        <span className={styles.posImpactPrevVal}>₹{prevDue.toLocaleString('en-IN')}</span>
                       </div>
-                      <div className={`${styles.posBalanceImpactRow} ${styles.posBalanceImpactTotal}`}>
-                        <span className={styles.posBalanceLabel}>Updated Total Due:</span>
-                        <span className={styles.posBalanceUpdatedVal}>₹{updatedDue.toLocaleString('en-IN')}</span>
+                      <div className={styles.posBalanceImpactRow}>
+                        <span>New Udhar Added:</span>
+                        <span className={styles.posImpactAddVal}>
+                          {newUdhar > 0 ? `+₹${newUdhar.toLocaleString('en-IN')}` : '₹0'}
+                        </span>
+                      </div>
+                      <div className={styles.posBalanceImpactDivider} />
+                      <div className={`${styles.posBalanceImpactRow} ${styles.posBalanceImpactFinal}`}>
+                        <span className={styles.posFinalDueLabel}>Updated Total Due:</span>
+                        <span className={styles.posFinalDueVal}>₹{updatedDue.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 
                     {/* Notes input */}
-                    <input
-                      type="text"
-                      placeholder="Note / Remark (optional, e.g. Table 4 or evening tea)"
-                      value={newNotes}
-                      onChange={(e) => setNewNotes(e.target.value)}
-                      className={styles.posNotesInput}
-                    />
+                    <div className={styles.posNotesWrap}>
+                      <FileText size={13} className={styles.posNotesIcon} />
+                      <input
+                        type="text"
+                        placeholder="Add remark (e.g. Table 4 or evening tea)..."
+                        value={newNotes}
+                        onChange={(e) => setNewNotes(e.target.value)}
+                        className={styles.posNotesInput}
+                      />
+                    </div>
 
                     {/* Action Buttons */}
                     <div className={styles.posActionsRow}>
@@ -1207,7 +1242,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         ) : (
                           <>
                             <Check size={16} />
-                            <span>Confirm & Record ₹{newUdhar} to Khata</span>
+                            <span>Confirm & Record {newUdhar > 0 ? `₹${newUdhar.toLocaleString('en-IN')}` : ''} to Khata</span>
                           </>
                         )}
                       </button>

@@ -769,36 +769,37 @@
 }
 
 /* ==========================================================================
-   Khata In-Screen POS Visual Menu View
+   Khata In-Screen POS Visual Menu View (Enhanced High-End UI)
    ========================================================================== */
 
 .posScreen {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  height: calc(100vh - 120px);
-  min-height: 600px;
+  gap: 0.85rem;
+  height: calc(100vh - 105px);
+  min-height: 640px;
   overflow: hidden;
   box-sizing: border-box;
 }
 
+/* 1. Header Bar */
 .posHeader {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.6rem 0.85rem;
+  border-radius: 14px;
+  padding: 0.65rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  gap: 1.25rem;
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.05);
   flex-shrink: 0;
 }
 
 .posHeaderLeft {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
   flex-wrap: wrap;
   flex: 1;
 }
@@ -806,70 +807,83 @@
 .posBackBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: #f8fafc;
+  gap: 7px;
+  background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #334155;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 7px 14px;
+  border-radius: 10px;
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .posBackBtn:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
   border-color: #94a3b8;
   color: #0f172a;
+  transform: translateX(-1px);
 }
 
-.posCustomerBadge {
+/* Consolidated Customer Card */
+.posCustomerCard {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
+  gap: 10px;
+  padding: 5px 12px 5px 8px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.posCustomerCard:hover {
+  border-color: #cbd5e1;
 }
 
 .posAvatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 800;
+  color: #ffffff;
   flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .posCustomerInfo {
   display: flex;
   flex-direction: column;
+  gap: 1px;
 }
 
 .posCustomerNameRow {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .posCustomerName {
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 800;
   color: #0f172a;
 }
 
 .posDueBadge {
   font-size: 0.72rem;
   font-weight: 800;
-  background: #fee2e2;
+  background: #fef2f2;
   color: #dc2626;
-  padding: 1px 6px;
+  border: 1px solid #fecaca;
+  padding: 1px 7px;
   border-radius: 6px;
+  letter-spacing: 0.2px;
 }
 
 .posCustomerMeta {
@@ -884,27 +898,33 @@
 .posCustomerPhone {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
+/* Customer Switch Dropdown inside card */
 .posCustomerSelectorWrap {
-  margin-left: 4px;
+  margin-left: 6px;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 8px;
 }
 
 .posCustomerSelect {
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  padding: 5px 8px;
+  padding: 5px 10px;
   border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: #1e293b;
   cursor: pointer;
   outline: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .posCustomerSelect:focus {
   border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .posNewCustomerInputs {
@@ -916,39 +936,42 @@
 .posInlineInput {
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-radius: 8px;
   font-size: 0.8rem;
-  width: 140px;
+  font-weight: 600;
+  color: #0f172a;
+  width: 135px;
   outline: none;
+  transition: all 0.15s ease;
 }
 
 .posInlineInput:focus {
   border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
 .posHeaderRight {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .posSearchWrap {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 4px 10px;
-  width: 240px;
+  border-radius: 10px;
+  padding: 6px 12px;
+  width: 270px;
   transition: all 0.15s ease;
 }
 
 .posSearchWrap:focus-within {
   border-color: #2563eb;
   background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .posSearchInput {
@@ -956,8 +979,13 @@
   background: transparent;
   outline: none;
   font-size: 0.82rem;
+  font-weight: 500;
   width: 100%;
   color: #0f172a;
+}
+
+.posSearchInput::placeholder {
+  color: #94a3b8;
 }
 
 .posClearSearchBtn {
@@ -965,12 +993,15 @@
   border: none;
   color: #94a3b8;
   cursor: pointer;
-  padding: 0;
+  padding: 2px;
   display: flex;
+  border-radius: 50%;
+  transition: all 0.15s ease;
 }
 
 .posClearSearchBtn:hover {
-  color: #475569;
+  color: #1e293b;
+  background: #e2e8f0;
 }
 
 /* Main Two-Column Grid */
@@ -1020,49 +1051,45 @@
 .posCategoryPills {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 4px;
+  padding-bottom: 5px;
   white-space: nowrap;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-width: none;
   flex-shrink: 0;
 }
 
 .posCategoryPills::-webkit-scrollbar {
-  height: 4px;
-}
-
-.posCategoryPills::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  display: none;
 }
 
 .posCatPill {
-  background: #f1f5f9;
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: #475569;
-  padding: 6px 14px;
-  border-radius: 20px;
+  padding: 6px 15px;
+  border-radius: 9999px;
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
   flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .posCatPill:hover {
-  background: #e2e8f0;
-  color: #1e293b;
+  background: #edf2f7;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 
 .posCatPillActive {
-  background: #2563eb !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
   color: #ffffff !important;
   border-color: #2563eb !important;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28) !important;
 }
 
 .posDishesGrid {
@@ -1278,25 +1305,25 @@
   gap: 0.5rem;
 }
 
-/* Right: Khata Order Slip */
+/* Right: Khata Order Slip (High-End Receipt Layout) */
 .posSlipPanel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
 }
 
 .posSlipHeader {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding-bottom: 0.5rem;
+  gap: 0.6rem;
+  padding-bottom: 0.65rem;
   border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
 }
@@ -1308,57 +1335,101 @@
   gap: 0.5rem;
 }
 
+.posSlipTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.posSlipIconBadge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .posSlipTitle {
   font-size: 0.95rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0;
-}
-
-.posSlipTypeTag {
-  font-size: 0.7rem;
-  font-weight: 700;
-  background: #eff6ff;
-  color: #2563eb;
-  padding: 2px 7px;
-  border-radius: 6px;
-  border: 1px solid #bfdbfe;
+  line-height: 1.2;
 }
 
 .posSlipSubtitle {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: #64748b;
-  margin: 0;
+  font-weight: 600;
+  display: block;
+}
+
+.posSlipTypeTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #bfdbfe;
+  letter-spacing: 0.2px;
 }
 
 .posSlipMetaRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.posMetaInputWrap {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.posSlipMetaInput {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  border-radius: 8px;
+  padding: 0 8px;
+  height: 30px;
+  transition: all 0.15s ease;
+}
+
+.posMetaInputWrap:focus-within {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.posMetaPrefix {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #94a3b8;
+  margin-right: 5px;
+}
+
+.posMetaIcon {
+  color: #94a3b8;
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+
+.posMetaInput,
+.posMetaDateInput {
+  border: none;
+  background: transparent;
+  font-size: 0.74rem;
+  font-weight: 600;
   color: #334155;
-  width: 50%;
+  width: 100%;
   outline: none;
 }
 
-.posSlipDateInput {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  color: #334155;
-  width: 50%;
-  outline: none;
-}
-
+/* Cart Items Container */
 .posSlipItemsContainer {
   flex: 1;
   overflow-y: auto;
@@ -1379,27 +1450,40 @@
 
 .posSlipEmpty {
   height: 100%;
-  min-height: 140px;
+  min-height: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
   text-align: center;
-  gap: 0.4rem;
+  padding: 1rem;
+}
+
+.posEmptyIconCircle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #eff6ff;
+  border: 1.5px solid #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.6rem;
 }
 
 .posSlipEmpty h4 {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #475569;
-  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #334155;
+  margin: 0 0 4px 0;
 }
 
 .posSlipEmpty p {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   color: #94a3b8;
   margin: 0;
+  max-width: 220px;
+  line-height: 1.35;
 }
 
 .posSlipItemsList {
@@ -1412,17 +1496,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem;
-  padding: 6px 8px;
-  background: #f8fafc;
+  gap: 0.5rem;
+  padding: 7px 10px;
+  background: #ffffff;
   border: 1px solid #f1f5f9;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
+}
+
+.posSlipItemRow:hover {
+  border-color: #e2e8f0;
+  background: #fafcff;
 }
 
 .posSlipItemLeft {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
@@ -1434,7 +1525,7 @@
 }
 
 .posSlipItemName {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #1e293b;
   white-space: nowrap;
@@ -1445,58 +1536,62 @@
 .posSlipItemRate {
   font-size: 0.7rem;
   color: #64748b;
+  font-weight: 500;
 }
 
 .posSlipItemRight {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .posSlipItemTotal {
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: #0f172a;
-  min-width: 38px;
+  min-width: 44px;
   text-align: right;
 }
 
 .posSlipTrashBtn {
-  background: transparent;
-  border: none;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
   color: #ef4444;
   cursor: pointer;
-  padding: 3px;
-  border-radius: 4px;
+  padding: 4px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .posSlipTrashBtn:hover {
   background: #fee2e2;
+  color: #dc2626;
+  border-color: #fecaca;
 }
 
+/* Off-menu dish button */
 .posAddCustomRow {
-  padding: 4px 0;
+  padding: 5px 0;
   flex-shrink: 0;
 }
 
 .posAddCustomBtn {
-  background: transparent;
-  border: 1px dashed #cbd5e1;
+  background: #fafbfc;
+  border: 1.5px dashed #cbd5e1;
   color: #475569;
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1504,16 +1599,16 @@
 .posAddCustomBtn:hover {
   border-color: #2563eb;
   color: #2563eb;
-  background: #f8fafc;
+  background: #eff6ff;
 }
 
-/* Slip Footer: Summary & Controls */
+/* Slip Footer: Summary & Settlement */
 .posSlipFooter {
   border-top: 1px solid #f1f5f9;
-  padding-top: 0.5rem;
+  padding-top: 0.65rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
   flex-shrink: 0;
 }
 
@@ -1521,23 +1616,32 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.95rem;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+}
+
+.posSlipTotalLabel {
+  font-size: 0.88rem;
   font-weight: 800;
-  color: #0f172a;
+  color: #334155;
 }
 
 .posSlipTotalAmount {
-  font-size: 1.15rem;
-  color: #2563eb;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f172a;
 }
 
+/* Paid Now Section */
 .posPaidSection {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.45rem;
   background: #f8fafc;
-  padding: 6px 8px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
 }
 
@@ -1545,9 +1649,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #334155;
+  gap: 6px;
+}
+
+.posPaidTitle {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #1e293b;
 }
 
 .posPaidChips {
@@ -1562,8 +1670,8 @@
   color: #475569;
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1577,22 +1685,40 @@
   background: #2563eb !important;
   color: #ffffff !important;
   border-color: #2563eb !important;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+}
+
+.posPaidInputWrap {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 34px;
+  transition: all 0.15s ease;
+}
+
+.posPaidInputWrap:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.posCurrencyPrefix {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #10b981;
+  margin-right: 6px;
 }
 
 .posPaidInput {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #10b981;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #047857;
+  width: 100%;
   outline: none;
-}
-
-.posPaidInput:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
 }
 
 .posTenderRow {
@@ -1600,6 +1726,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.posTenderLabel {
   font-size: 0.74rem;
   font-weight: 700;
   color: #475569;
@@ -1607,17 +1738,17 @@
 
 .posTenderPills {
   display: flex;
-  gap: 4px;
+  gap: 5px;
 }
 
 .posTenderPill {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #475569;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 700;
@@ -1634,85 +1765,126 @@
   background: #eff6ff !important;
   border-color: #2563eb !important;
   color: #2563eb !important;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
 }
 
-.posBalanceImpactBox {
+/* Khata Balance Calculation Card */
+.posBalanceImpactCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 6px 8px;
+  border-radius: 10px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 0.74rem;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.posImpactCardHeader {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
 }
 
 .posBalanceImpactRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #64748b;
+  font-size: 0.76rem;
+  color: #475569;
 }
 
-.posBalanceLabel {
-  font-weight: 600;
+.posImpactPrevVal {
+  font-weight: 700;
+  color: #334155;
 }
 
-.posBalanceValPositive {
+.posImpactAddVal {
   font-weight: 800;
-  color: #dc2626;
+  color: #e11d48;
 }
 
-.posBalanceImpactTotal {
-  border-top: 1px dashed #e2e8f0;
-  padding-top: 3px;
-  margin-top: 2px;
+.posBalanceImpactDivider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 3px 0;
+}
+
+.posBalanceImpactFinal {
+  padding-top: 1px;
+}
+
+.posFinalDueLabel {
+  font-weight: 800;
   color: #0f172a;
 }
 
-.posBalanceUpdatedVal {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #dc2626;
+.posFinalDueVal {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #e11d48;
+}
+
+/* Notes Input */
+.posNotesWrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 32px;
+  transition: all 0.15s ease;
+}
+
+.posNotesWrap:focus-within {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.posNotesIcon {
+  color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .posNotesInput {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 5px 8px;
-  border-radius: 6px;
-  font-size: 0.74rem;
-  color: #334155;
+  border: none;
+  background: transparent;
+  font-size: 0.75rem;
+  color: #1e293b;
+  width: 100%;
   outline: none;
 }
 
-.posNotesInput:focus {
-  border-color: #2563eb;
-  background: #ffffff;
-}
-
+/* Actions Row */
 .posActionsRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 0.2rem;
+  gap: 8px;
+  margin-top: 0.25rem;
 }
 
 .posCancelBtn {
-  background: #f8fafc;
+  background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #475569;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .posCancelBtn:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
   color: #0f172a;
+  border-color: #94a3b8;
 }
 
 .posConfirmBtn {
@@ -1720,27 +1892,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border: none;
   color: #ffffff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 0.84rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
   transition: all 0.15s ease;
 }
 
 .posConfirmBtn:hover:not(:disabled) {
-  opacity: 0.95;
+  opacity: 0.96;
   transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
 }
 
 .posConfirmBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
