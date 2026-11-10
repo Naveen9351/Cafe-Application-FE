@@ -182,7 +182,6 @@ export default function AdminPanel() {
   } = usePWAInstall();
 
   const [posSelectedTable, setPosSelectedTable] = useState(null);
-  const [posKhataCustomer, setPosKhataCustomer] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
@@ -2398,8 +2397,6 @@ export default function AdminPanel() {
               className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
               onClick={() => {
                 setPosSelectedTable(null);
-                setPosKhataCustomer(null);
-                try { sessionStorage.removeItem('pos_khata_customer'); } catch (e) {}
                 handleTabChange('pos');
               }}
               title="POS Terminal & Tables"
@@ -5304,8 +5301,6 @@ export default function AdminPanel() {
                     menuItems={items}
                     orders={orders}
                     initialTable={posSelectedTable}
-                    initialKhataCustomer={posKhataCustomer}
-                    onClearKhataCustomer={() => setPosKhataCustomer(null)}
                     onOrderPlaced={(newOrd) => {
                       // For settlement (_refreshAll flag), just re-fetch to clear table
                       if (newOrd?._refreshAll) {
@@ -5419,15 +5414,7 @@ export default function AdminPanel() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <KhataLedger
-                    menuItems={items}
-                    tenantId={tenantId || tenantInfo?._id}
-                    onNavigateToPos={(cust) => {
-                      setPosKhataCustomer(cust);
-                      setPosSelectedTable('Walk-in');
-                      handleTabChange('pos');
-                    }}
-                  />
+                  <KhataLedger menuItems={items} tenantId={tenantId || tenantInfo?._id} />
                 </motion.div>
               )}
 
