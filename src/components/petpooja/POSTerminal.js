@@ -109,7 +109,7 @@ export default function POSTerminal({
     setCustomerName('');
     setCustomerPhone('');
     if (onClearKhataCustomer) onClearKhataCustomer();
-    toast.info('Exited Khata Order Mode');
+    toast('Exited Khata Order Mode', { icon: 'ℹ️' });
   };
 
   const handleBackToKhata = () => {
