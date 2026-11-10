@@ -747,20 +747,14 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   setActivePosCustomer(null);
                   setLineItems([]);
                 }}
-                className={styles.posBackBtn}
+                className={styles.posBackIconBtn}
                 title="Back to Khata Ledger"
+                aria-label="Back"
               >
-                <ArrowLeft size={15} />
-                <span>{isHindi ? 'लेजर' : 'Back'}</span>
+                <ArrowLeft size={16} />
               </button>
 
               <div className={styles.posCustomerCard}>
-                <div
-                  className={styles.posAvatar}
-                  style={getAvatarStyle(activePosCustomer?.customerName || 'Customer')}
-                >
-                  {(activePosCustomer?.customerName || 'C').charAt(0).toUpperCase()}
-                </div>
                 <div className={styles.posCustomerInfo}>
                   <div className={styles.posCustomerNameRow}>
                     <span className={styles.posCustomerName}>
@@ -829,9 +823,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   />
                 </div>
               )}
-            </div>
 
-            <div className={styles.posHeaderRight}>
+              {/* Repositioned Search Box right next to Customer Card above Menu */}
               <div className={styles.posSearchWrap}>
                 <Search size={14} color="#64748b" />
                 <input
@@ -965,29 +958,15 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
             {/* Right Column: Customer Khata Slip */}
             <div className={styles.posSlipPanel}>
-              {/* Compact Slip Header */}
+              {/* Slip Header */}
               <div className={styles.posSlipHeader}>
                 <div className={styles.posSlipTitleRow}>
-                  <div className={styles.posSlipTitleGroup}>
-                    <BookOpen size={15} color="#2563eb" />
-                    <h3 className={styles.posSlipTitle}>
-                      {activePosCustomer?.customerName || 'Customer'}
-                    </h3>
-                    <span className={styles.posSlipTypeTag}>Khata Slip</span>
-                  </div>
-
-                  <div className={styles.posSlipMetaRow}>
-                    <div className={styles.posMetaInputWrap}>
-                      <span className={styles.posMetaPrefix}>#</span>
-                      <input
-                        type="text"
-                        placeholder="Table/Token"
-                        value={entryOrderNumber}
-                        onChange={(e) => setEntryOrderNumber(e.target.value)}
-                        className={styles.posMetaInput}
-                      />
-                    </div>
-                  </div>
+                  <h3 className={styles.posSlipTitle}>Order Slip</h3>
+                  {lineItems.length > 0 && (
+                    <span className={styles.posSlipItemCountBadge}>
+                      {lineItems.reduce((acc, it) => acc + (Number(it.quantity) || 1), 0)} items
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1052,32 +1031,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 )}
               </div>
 
-              {/* Add Custom Dish Pill */}
-              <div className={styles.posAddCustomRow}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const customName = prompt('Enter dish name:');
-                    if (!customName || !customName.trim()) return;
-                    const customPrice = prompt('Enter dish price (₹):', '100');
-                    if (customPrice === null) return;
-                    setLineItems(prev => [
-                      ...prev,
-                      {
-                        name: customName.trim(),
-                        quantity: 1,
-                        price: String(Number(customPrice) || 0),
-                        isVeg: true
-                      }
-                    ]);
-                  }}
-                  className={styles.posAddCustomBtn}
-                >
-                  <Plus size={12} />
-                  <span>+ Custom Dish (Off-Menu)</span>
-                </button>
-              </div>
-
               {/* Compact Footer: Summary & Settlement */}
               {(() => {
                 const grossTotal = lineItems.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
@@ -1137,24 +1090,28 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         </div>
                       </div>
 
-                      {Number(newPaidAmount) > 0 && (
-                        <div className={styles.posTenderPills}>
-                          {[
-                            { id: 'Cash', label: 'Cash' },
-                            { id: 'UPI', label: 'UPI' },
-                            { id: 'Card', label: 'Card' }
-                          ].map(m => (
-                            <button
-                              key={m.id}
-                              type="button"
-                              className={`${styles.posTenderPill} ${newPaidMethod === m.id ? styles.posTenderPillActive : ''}`}
-                              onClick={() => setNewPaidMethod(m.id)}
-                            >
-                              <span>{m.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <div
+                        className={styles.posTenderPills}
+                        style={{
+                          opacity: Number(newPaidAmount) > 0 ? 1 : 0.4,
+                          pointerEvents: Number(newPaidAmount) > 0 ? 'auto' : 'none'
+                        }}
+                      >
+                        {[
+                          { id: 'Cash', label: 'Cash' },
+                          { id: 'UPI', label: 'UPI' },
+                          { id: 'Card', label: 'Card' }
+                        ].map(m => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className={`${styles.posTenderPill} ${newPaidMethod === m.id ? styles.posTenderPillActive : ''}`}
+                            onClick={() => setNewPaidMethod(m.id)}
+                          >
+                            <span>{m.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Khata Balance Impact Strip */}
@@ -1167,7 +1124,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                       <div className={styles.posImpactCol}>
                         <span className={styles.posImpactSub}>New Udhar</span>
                         <span className={styles.posImpactAddVal}>
-                          +{newUdhar > 0 ? `₹${newUdhar.toLocaleString('en-IN')}` : '₹0'}
+                          ₹{newUdhar.toLocaleString('en-IN')}
                         </span>
                       </div>
                       <span className={styles.posImpactOp}>=</span>
