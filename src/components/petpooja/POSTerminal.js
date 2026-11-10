@@ -2326,7 +2326,7 @@ export default function POSTerminal({
                 );
               }
 
-              toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNowNum}, Borrow: ₹${borrowDueNum}). Table ${tableNumber} cleared!`);
+              toast.success(`✓ Khata recorded for ${effName} (Paid: ₹${paidNowNum}, Borrow: ₹${borrowDueNum}). Table ${tableNumber} cleared!`);
               setCart([]);
               setCustomerName('');
               setCustomerPhone('');
@@ -2343,6 +2343,16 @@ export default function POSTerminal({
                 if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
                 if (onSettleTable) onSettleTable(tNum);
               });
+
+              if (khataActiveCustomer) {
+                try {
+                  sessionStorage.removeItem('pos_khata_customer');
+                } catch (e) {}
+                setKhataActiveCustomer(null);
+                if (onClearKhataCustomer) onClearKhataCustomer();
+                navigate('/admin/khata');
+                return;
+              }
 
               // Return to table matrix view - table is completely clear
               setViewMode('tables');
