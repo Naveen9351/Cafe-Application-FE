@@ -47,13 +47,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const [posSelectedCategory, setPosSelectedCategory] = useState('all');
   const [posDishSearch, setPosDishSearch] = useState('');
 
-  // Customization dialog state (variants & addons) - same as POS Terminal
-  const [customizingItem, setCustomizingItem] = useState(null);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [selectedAddons, setSelectedAddons] = useState([]);
-  const [customNotes, setCustomNotes] = useState('');
-  const [customQty, setCustomQty] = useState(1);
-
   // Full Cafe Menu Catalog from Database
   const [availableMenu, setAvailableMenu] = useState([]);
 
@@ -426,94 +419,31 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     }
   };
 
-  // POS Visual Menu Handlers - Same as POS Terminal
-  const handlePosQuickAdd = (item) => {
-    if ((item.variants && item.variants.length > 0) || (item.addons && item.addons.length > 0)) {
-      setCustomizingItem(item);
-      setSelectedVariant(item.variants && item.variants.length > 0 ? item.variants[0] : null);
-      setSelectedAddons([]);
-      setCustomNotes('');
-      setCustomQty(1);
-    } else {
-      const effPrice = Number(item.salePrice || item.price) || 0;
-      setLineItems(prev => {
-        const idx = prev.findIndex(c =>
-          (c.id === item._id || c._id === item._id || c.name.toLowerCase() === item.name.toLowerCase()) &&
-          !c.variant && (!c.addons || c.addons.length === 0)
-        );
-        if (idx > -1) {
-          const copy = [...prev];
-          copy[idx] = {
-            ...copy[idx],
-            quantity: (Number(copy[idx].quantity) || 1) + 1
-          };
-          return copy;
-        }
-        return [
-          ...prev,
-          {
-            id: item._id,
-            name: item.name,
-            quantity: 1,
-            price: String(effPrice),
-            isVeg: item.isVeg,
-            variant: null,
-            addons: []
-          }
-        ];
-      });
-      toast.success(`Added ${item.name}`);
-    }
-  };
-
-  const handleAddCustomized = () => {
-    if (!customizingItem) return;
-    let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
-    let variantName = '';
-    if (selectedVariant) {
-      finalPrice = Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : finalPrice;
-      variantName = selectedVariant.name || '';
-    }
-    const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
-    const totalPrice = finalPrice + addonPrice;
-    const addQty = Math.max(1, customQty || 1);
-    const displayName = variantName ? `${customizingItem.name} (${variantName})` : customizingItem.name;
-
+  // POS Visual Menu Handlers
+  const handlePosQuickAdd = (dish) => {
+    const effPrice = Number(dish.salePrice || dish.price) || 0;
     setLineItems(prev => {
-      const idx = prev.findIndex(c =>
-        (c.id === customizingItem._id || c.name === displayName) &&
-        ((!c.variant && !selectedVariant) || (c.variant?.name === selectedVariant?.name)) &&
-        JSON.stringify(c.addons || []) === JSON.stringify(selectedAddons || [])
-      );
-
+      const idx = prev.findIndex(it => (it.id === dish._id || it.name.toLowerCase() === dish.name.toLowerCase()));
       if (idx > -1) {
         const copy = [...prev];
         copy[idx] = {
           ...copy[idx],
-          quantity: (Number(copy[idx].quantity) || 1) + addQty
+          quantity: (Number(copy[idx].quantity) || 1) + 1
         };
         return copy;
       }
-
       return [
         ...prev,
         {
-          id: customizingItem._id,
-          name: displayName,
-          price: String(totalPrice),
-          quantity: addQty,
-          isVeg: customizingItem.isVeg,
-          variant: selectedVariant,
-          addons: selectedAddons,
-          specialNotes: customNotes
+          id: dish._id,
+          name: dish.name,
+          quantity: 1,
+          price: String(effPrice),
+          isVeg: dish.isVeg
         }
       ];
     });
-
-    toast.success(`Added ${addQty}x ${displayName}`);
-    setCustomizingItem(null);
-    setCustomNotes('');
-    setCustomQty(1);
+    toast.success(`Added ${dish.name}`);
   };
 
   const handlePosDecrement = (dish, e) => {
@@ -1335,199 +1265,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 );
               })()}
             </div>
-
-          {/* DISH CUSTOMIZATION MODAL (VARIANTS & ADDONS) - Same as POS Terminal */}
-          {customizingItem && (
-            <div className={styles.posModalOverlay} onClick={() => setCustomizingItem(null)}>
-              <div className={styles.posModalContent} onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
-                    Customize {customizingItem.name}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setCustomizingItem(null)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* Variants */}
-                {customizingItem.variants && customizingItem.variants.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 6 }}>
-                      Select Portion / Variant
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {customizingItem.variants.map((v, i) => (
-                        <label
-                          key={i}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '8px 12px',
-                            borderRadius: 8,
-                            border: selectedVariant?.name === v.name ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                            background: selectedVariant?.name === v.name ? '#eff6ff' : '#ffffff',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem',
-                            fontWeight: 600
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name="pos_khata_variant"
-                            checked={selectedVariant?.name === v.name}
-                            onChange={() => setSelectedVariant(v)}
-                            style={{ display: 'none' }}
-                          />
-                          <span>{v.name}</span>
-                          <span style={{ fontWeight: 800, color: '#059669' }}>₹{v.price}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Add-ons */}
-                {customizingItem.addons && customizingItem.addons.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 6 }}>
-                      Extra Add-ons
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {customizingItem.addons.map((addon, aIdx) => {
-                        const isChecked = selectedAddons.some(a => a.name === addon.name);
-                        return (
-                          <div
-                            key={addon.name || aIdx}
-                            onClick={() => {
-                              if (isChecked) {
-                                setSelectedAddons(prev => prev.filter(a => a.name !== addon.name));
-                              } else {
-                                setSelectedAddons(prev => [...prev, addon]);
-                              }
-                            }}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '8px 12px',
-                              borderRadius: 8,
-                              border: isChecked ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                              background: isChecked ? '#eff6ff' : '#ffffff',
-                              cursor: 'pointer',
-                              fontSize: '0.8rem',
-                              fontWeight: 600
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => { }}
-                                style={{ accentColor: '#2563eb', width: 15, height: 15 }}
-                              />
-                              <span>{addon.name}</span>
-                            </div>
-                            <span style={{ fontWeight: 800, color: '#059669' }}>+₹{addon.price || 0}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Special Instructions / Notes */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 4 }}>
-                    Special Cooking Instructions / Notes
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Less spicy, extra sauce, well done..."
-                    value={customNotes}
-                    onChange={(e) => setCustomNotes(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: '1px solid #cbd5e1',
-                      fontSize: '0.8rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                {/* Quantity Stepper & Dynamic Total */}
-                {(() => {
-                  const vPrice = selectedVariant ? (Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : (customizingItem.salePrice || customizingItem.price)) : (customizingItem.salePrice || customizingItem.price);
-                  const aPrice = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
-                  const singleUnitPrice = (Number(vPrice) || 0) + aPrice;
-                  const modalTotal = singleUnitPrice * customQty;
-
-                  return (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        border: '1.5px solid #2563eb',
-                        borderRadius: 8,
-                        padding: '4px 8px',
-                        gap: 10,
-                        height: '42px',
-                        boxSizing: 'border-box'
-                      }}>
-                        <button
-                          type="button"
-                          onClick={() => setCustomQty(prev => Math.max(1, prev - 1))}
-                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', display: 'flex', padding: 0 }}
-                        >
-                          <Minus size={15} />
-                        </button>
-                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', minWidth: 16, textAlign: 'center' }}>
-                          {customQty}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setCustomQty(prev => prev + 1)}
-                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', display: 'flex', padding: 0 }}
-                        >
-                          <Plus size={15} />
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleAddCustomized}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          borderRadius: 8,
-                          border: 'none',
-                          background: '#2563eb',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6
-                        }}
-                      >
-                        <span>Add to Slip</span>
-                        <span style={{ opacity: 0.85 }}>•</span>
-                        <span>₹{modalTotal.toLocaleString('en-IN')}</span>
-                      </button>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <>
