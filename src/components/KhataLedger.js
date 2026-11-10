@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
 import { useTranslation } from '../utils/translations';
 import { getValidFoodImage } from './AdminPanel';
@@ -45,6 +46,13 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const [isNewCustomerInline, setIsNewCustomerInline] = useState(false);
   const [posSelectedCategory, setPosSelectedCategory] = useState('all');
   const [posDishSearch, setPosDishSearch] = useState('');
+
+  // Customization dialog state (variants & addons) - same as POS Terminal
+  const [customizingItem, setCustomizingItem] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [customNotes, setCustomNotes] = useState('');
+  const [customQty, setCustomQty] = useState(1);
 
   // Full Cafe Menu Catalog from Database
   const [availableMenu, setAvailableMenu] = useState([]);
@@ -124,27 +132,42 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     return groups;
   }, [availableMenu]);
 
-  // Derived unique categories for POS visual catalog pills
+  // Categories list for POS Menu (separating Open Menu and Night Menu - same as POS Terminal)
   const posCategories = useMemo(() => {
-    const cats = new Set();
-    availableMenu.forEach(item => {
-      if (item && item.category) {
-        cats.add(item.category);
-      }
-    });
-    return ['all', ...Array.from(cats).sort()];
+    const cats = ['all'];
+
+    const hasOpenMenu = availableMenu.some(i => i.isOpenMenu || i.isPosOnly);
+    if (hasOpenMenu) {
+      cats.push('⚡ Open Menu');
+    }
+
+    const hasNight = availableMenu.some(i => i.isNightMenu || i.shiftAvailability === 'night_only' || (i.nightPrice && Number(i.nightPrice) > 0));
+    if (hasNight) {
+      cats.push('🌙 Night Menu');
+    }
+
+    const regularCats = [...new Set(availableMenu.filter(i => !i.isOpenMenu && !i.isPosOnly).map(item => item.category || 'main-courses'))].sort();
+    return [...cats, ...regularCats];
   }, [availableMenu]);
 
   // Filtered dishes for POS visual grid
   const posFilteredDishes = useMemo(() => {
     return availableMenu.filter(item => {
+      let matchesCat = false;
+      if (posSelectedCategory === 'all') {
+        matchesCat = true;
+      } else if (posSelectedCategory === '⚡ Open Menu') {
+        matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
+      } else if (posSelectedCategory === '🌙 Night Menu') {
+        matchesCat = Boolean(item.isNightMenu || item.shiftAvailability === 'night_only' || (item.nightPrice && Number(item.nightPrice) > 0));
+      } else {
+        matchesCat = (item.category || 'main-courses') === posSelectedCategory;
+      }
+
       const q = (posDishSearch || '').toLowerCase().trim();
       const matchesSearch = !q || (item.name && item.name.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
-      if (!matchesSearch) return false;
-      if (posSelectedCategory !== 'all') {
-        return item.category === posSelectedCategory;
-      }
-      return true;
+
+      return matchesCat && matchesSearch;
     });
   }, [availableMenu, posDishSearch, posSelectedCategory]);
 
@@ -380,34 +403,104 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     }
   };
 
-  // POS Visual Menu Handlers
-  const handlePosQuickAdd = (dish) => {
+  // POS Visual Menu Handlers - Same as POS Terminal
+  const handlePosQuickAdd = (item) => {
+    if ((item.variants && item.variants.length > 0) || (item.addons && item.addons.length > 0)) {
+      setCustomizingItem(item);
+      setSelectedVariant(item.variants && item.variants.length > 0 ? item.variants[0] : null);
+      setSelectedAddons([]);
+      setCustomNotes('');
+      setCustomQty(1);
+    } else {
+      const effPrice = Number(item.salePrice || item.price) || 0;
+      setLineItems(prev => {
+        const idx = prev.findIndex(c =>
+          (c.id === item._id || c._id === item._id || c.name.toLowerCase() === item.name.toLowerCase()) &&
+          !c.variant && (!c.addons || c.addons.length === 0)
+        );
+        if (idx > -1) {
+          const copy = [...prev];
+          copy[idx] = {
+            ...copy[idx],
+            quantity: (Number(copy[idx].quantity) || 1) + 1
+          };
+          return copy;
+        }
+        return [
+          ...prev,
+          {
+            id: item._id,
+            name: item.name,
+            quantity: 1,
+            price: String(effPrice),
+            isVeg: item.isVeg,
+            variant: null,
+            addons: []
+          }
+        ];
+      });
+      toast.success(`Added ${item.name}`);
+    }
+  };
+
+  const handleAddCustomized = () => {
+    if (!customizingItem) return;
+    let finalPrice = Number(customizingItem.salePrice || customizingItem.price) || 0;
+    let variantName = '';
+    if (selectedVariant) {
+      finalPrice = Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : finalPrice;
+      variantName = selectedVariant.name || '';
+    }
+    const addonPrice = selectedAddons.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
+    const totalPrice = finalPrice + addonPrice;
+    const addQty = Math.max(1, customQty || 1);
+    const displayName = variantName ? `${customizingItem.name} (${variantName})` : customizingItem.name;
+
     setLineItems(prev => {
-      const idx = prev.findIndex(it => it.name.toLowerCase() === dish.name.toLowerCase());
+      const idx = prev.findIndex(c =>
+        (c.id === customizingItem._id || c.name === displayName) &&
+        ((!c.variant && !selectedVariant) || (c.variant?.name === selectedVariant?.name)) &&
+        JSON.stringify(c.addons || []) === JSON.stringify(selectedAddons || [])
+      );
+
       if (idx > -1) {
         const copy = [...prev];
         copy[idx] = {
           ...copy[idx],
-          quantity: (Number(copy[idx].quantity) || 1) + 1
+          quantity: (Number(copy[idx].quantity) || 1) + addQty
         };
         return copy;
       }
+
       return [
         ...prev,
         {
-          name: dish.name,
-          quantity: 1,
-          price: String(dish.price || 0),
-          isVeg: dish.isVeg
+          id: customizingItem._id,
+          name: displayName,
+          price: String(totalPrice),
+          quantity: addQty,
+          isVeg: customizingItem.isVeg,
+          variant: selectedVariant,
+          addons: selectedAddons,
+          specialNotes: customNotes
         }
       ];
     });
+
+    toast.success(`Added ${addQty}x ${displayName}`);
+    setCustomizingItem(null);
+    setCustomNotes('');
+    setCustomQty(1);
   };
 
   const handlePosDecrement = (dish, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     setLineItems(prev => {
-      const idx = prev.findIndex(it => it.name.toLowerCase() === dish.name.toLowerCase());
+      const idx = prev.map(c => (
+        c.id === dish._id || c._id === dish._id ||
+        c.name.toLowerCase() === dish.name.toLowerCase() ||
+        c.name.toLowerCase().startsWith(dish.name.toLowerCase())
+      )).lastIndexOf(true);
       if (idx === -1) return prev;
       const currentQty = Number(prev[idx].quantity) || 1;
       if (currentQty <= 1) {
@@ -852,7 +945,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           <div className={styles.posMainGrid}>
             {/* Left Column: Visual Dishes Catalog */}
             <div className={styles.posMenuPanel}>
-              {/* Category Pills */}
+              {/* Category Pills - Same as POS Terminal */}
               <div
                 className={styles.posCategoryPills}
                 onWheel={(e) => {
@@ -870,20 +963,21 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   >
                     {cat === 'all'
                       ? 'All Dishes'
-                      : cat.toLowerCase().includes('night')
-                        ? `🌙 ${cat.replace('-', ' ')}`
+                      : cat === '⚡ Open Menu' || cat === '🌙 Night Menu'
+                        ? cat
                         : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
                   </button>
                 ))}
               </div>
 
-              {/* Dishes Grid */}
+              {/* Dishes Grid - Identical to POS Terminal */}
               <div className={styles.posDishesGrid}>
                 {posFilteredDishes.map(item => {
-                  const inCart = lineItems.find(it => it.name.toLowerCase() === item.name.toLowerCase());
-                  const cartQty = inCart ? (Number(inCart.quantity) || 0) : 0;
                   const imgUrl = getValidFoodImage(item);
-                  const price = Number(item.price) || 0;
+                  const price = Number(item.salePrice || item.price) || 0;
+                  const cartQty = lineItems
+                    .filter(c => (c.id === item._id || c._id === item._id || c.name.toLowerCase() === item.name.toLowerCase() || c.name.toLowerCase().startsWith(item.name.toLowerCase())))
+                    .reduce((sum, c) => sum + (Number(c.quantity) || 1), 0);
 
                   return (
                     <div
@@ -901,9 +995,45 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400';
                           }}
                         />
-                        <div className={styles.posVegBadge}>
+                        <div className={item.isVeg ? styles.posVegBadge : styles.posNonVegBadge}>
                           <div className={item.isVeg ? styles.posVegDot : styles.posNonVegDot} />
                         </div>
+                        {(item.isOpenMenu || item.isPosOnly) && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: 6,
+                            background: 'rgba(192, 38, 211, 0.92)',
+                            color: '#ffffff',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2
+                          }}>
+                            ⚡ Open Menu
+                          </div>
+                        )}
+                        {!(item.isOpenMenu || item.isPosOnly) && (item.shiftAvailability === 'night_only' || item.isNightMenu) && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: 6,
+                            background: 'rgba(76, 29, 149, 0.92)',
+                            color: '#ffffff',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2
+                          }}>
+                            🌙 Night Menu
+                          </div>
+                        )}
                       </div>
 
                       <div className={styles.posDishInfo}>
@@ -911,14 +1041,14 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                       </div>
 
                       <div className={styles.posDishPriceRow}>
-                        <span className={styles.posDishPrice}>₹{price}</span>
+                        <span className={styles.posDishPrice}>₹{price.toLocaleString('en-IN')}</span>
                         {cartQty > 0 ? (
                           <div className={styles.posStepper} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               className={styles.posStepperBtn}
                               onClick={(e) => handlePosDecrement(item, e)}
-                              title="Decrease"
+                              title="Decrease quantity"
                             >
                               <Minus size={11} />
                             </button>
@@ -927,7 +1057,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                               type="button"
                               className={styles.posStepperBtn}
                               onClick={(e) => { e.stopPropagation(); handlePosQuickAdd(item); }}
-                              title="Increase"
+                              title="Increase quantity"
                             >
                               <Plus size={11} />
                             </button>
@@ -937,7 +1067,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             type="button"
                             className={styles.posAddBtn}
                             onClick={(e) => { e.stopPropagation(); handlePosQuickAdd(item); }}
-                            title="Add to slip"
+                            title="Add to order"
                           >
                             <Plus size={13} />
                           </button>
@@ -1182,6 +1312,199 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               })()}
             </div>
           </div>
+
+          {/* DISH CUSTOMIZATION MODAL (VARIANTS & ADDONS) - Same as POS Terminal */}
+          {customizingItem && (
+            <div className={styles.posModalOverlay} onClick={() => setCustomizingItem(null)}>
+              <div className={styles.posModalContent} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Customize {customizingItem.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setCustomizingItem(null)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Variants */}
+                {customizingItem.variants && customizingItem.variants.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 6 }}>
+                      Select Portion / Variant
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {customizingItem.variants.map((v, i) => (
+                        <label
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: selectedVariant?.name === v.name ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                            background: selectedVariant?.name === v.name ? '#eff6ff' : '#ffffff',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="pos_khata_variant"
+                            checked={selectedVariant?.name === v.name}
+                            onChange={() => setSelectedVariant(v)}
+                            style={{ display: 'none' }}
+                          />
+                          <span>{v.name}</span>
+                          <span style={{ fontWeight: 800, color: '#059669' }}>₹{v.price}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add-ons */}
+                {customizingItem.addons && customizingItem.addons.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 6 }}>
+                      Extra Add-ons
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {customizingItem.addons.map((addon, aIdx) => {
+                        const isChecked = selectedAddons.some(a => a.name === addon.name);
+                        return (
+                          <div
+                            key={addon.name || aIdx}
+                            onClick={() => {
+                              if (isChecked) {
+                                setSelectedAddons(prev => prev.filter(a => a.name !== addon.name));
+                              } else {
+                                setSelectedAddons(prev => [...prev, addon]);
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              border: isChecked ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                              background: isChecked ? '#eff6ff' : '#ffffff',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => { }}
+                                style={{ accentColor: '#2563eb', width: 15, height: 15 }}
+                              />
+                              <span>{addon.name}</span>
+                            </div>
+                            <span style={{ fontWeight: 800, color: '#059669' }}>+₹{addon.price || 0}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Special Instructions / Notes */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: 4 }}>
+                    Special Cooking Instructions / Notes
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Less spicy, extra sauce, well done..."
+                    value={customNotes}
+                    onChange={(e) => setCustomNotes(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.8rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Quantity Stepper & Dynamic Total */}
+                {(() => {
+                  const vPrice = selectedVariant ? (Number(selectedVariant.price) >= 0 ? Number(selectedVariant.price) : (customizingItem.salePrice || customizingItem.price)) : (customizingItem.salePrice || customizingItem.price);
+                  const aPrice = selectedAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+                  const singleUnitPrice = (Number(vPrice) || 0) + aPrice;
+                  const modalTotal = singleUnitPrice * customQty;
+
+                  return (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        border: '1.5px solid #2563eb',
+                        borderRadius: 8,
+                        padding: '4px 8px',
+                        gap: 10,
+                        height: '42px',
+                        boxSizing: 'border-box'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setCustomQty(prev => Math.max(1, prev - 1))}
+                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', display: 'flex', padding: 0 }}
+                        >
+                          <Minus size={15} />
+                        </button>
+                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a', minWidth: 16, textAlign: 'center' }}>
+                          {customQty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCustomQty(prev => prev + 1)}
+                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', display: 'flex', padding: 0 }}
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleAddCustomized}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: '#2563eb',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <span>Add to Slip</span>
+                        <span style={{ opacity: 0.85 }}>•</span>
+                        <span>₹{modalTotal.toLocaleString('en-IN')}</span>
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>
