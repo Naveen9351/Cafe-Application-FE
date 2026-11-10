@@ -767,3 +767,980 @@
     min-width: 720px;
   }
 }
+
+/* ==========================================================================
+   Khata In-Screen POS Visual Menu View
+   ========================================================================== */
+
+.posScreen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: calc(100vh - 120px);
+  min-height: 600px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.posHeader {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.6rem 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  flex-shrink: 0;
+}
+
+.posHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.posBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posBackBtn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.posCustomerBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.posAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.posCustomerInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.posCustomerNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.posCustomerName {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.posDueBadge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.posCustomerMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.posCustomerPhone {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.posCustomerSelectorWrap {
+  margin-left: 4px;
+}
+
+.posCustomerSelect {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+}
+
+.posCustomerSelect:focus {
+  border-color: #2563eb;
+}
+
+.posNewCustomerInputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.posInlineInput {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  width: 140px;
+  outline: none;
+}
+
+.posInlineInput:focus {
+  border-color: #2563eb;
+}
+
+.posHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.posSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 10px;
+  width: 240px;
+  transition: all 0.15s ease;
+}
+
+.posSearchWrap:focus-within {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.posSearchInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.82rem;
+  width: 100%;
+  color: #0f172a;
+}
+
+.posClearSearchBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+}
+
+.posClearSearchBtn:hover {
+  color: #475569;
+}
+
+/* Main Two-Column Grid */
+.posMainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 0.75rem;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1100px) {
+  .posMainGrid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+@media (max-width: 768px) {
+  .posScreen {
+    height: auto;
+    overflow-y: auto;
+  }
+  .posMainGrid {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow-y: visible;
+  }
+}
+
+/* Left: Menu Panel */
+.posMenuPanel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.posCategoryPills {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  flex-shrink: 0;
+}
+
+.posCategoryPills::-webkit-scrollbar {
+  height: 4px;
+}
+
+.posCategoryPills::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.posCatPill {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.posCatPill:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.posCatPillActive {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.posDishesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0.75rem;
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 2px 14px 2px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.posDishesGrid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.posDishesGrid::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.posDishCard {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.55rem 0.55rem 0.65rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  position: relative;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.posDishCard:hover {
+  border-color: #2563eb;
+  background: #fafcff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.posDishCardActive {
+  border-color: #2563eb !important;
+  background: #f0f7ff !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.posDishImgWrap {
+  width: 100%;
+  height: 94px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #f1f5f9;
+}
+
+.posDishImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.posDishCard:hover .posDishImg {
+  transform: scale(1.04);
+}
+
+.posVegBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 3px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.posVegDot {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #16a34a;
+  border-radius: 2px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.posVegDot::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: #16a34a;
+  border-radius: 50%;
+}
+
+.posNonVegDot {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #dc2626;
+  border-radius: 2px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.posNonVegDot::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: #dc2626;
+  border-radius: 50%;
+}
+
+.posDishInfo h4 {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.1em;
+}
+
+.posDishPriceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  margin-top: 0.1rem;
+}
+
+.posDishPrice {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.posAddBtn {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posAddBtn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.posStepper {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.posStepperBtn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.posStepperBtn:hover {
+  background: #eff6ff;
+}
+
+.posStepperQty {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+  min-width: 18px;
+  text-align: center;
+}
+
+.posNoDishes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+  gap: 0.5rem;
+}
+
+/* Right: Khata Order Slip */
+.posSlipPanel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.posSlipHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.posSlipTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.posSlipTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.posSlipTypeTag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #bfdbfe;
+}
+
+.posSlipSubtitle {
+  font-size: 0.74rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.posSlipMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.posSlipMetaInput {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #334155;
+  width: 50%;
+  outline: none;
+}
+
+.posSlipDateInput {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: #334155;
+  width: 50%;
+  outline: none;
+}
+
+.posSlipItemsContainer {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.5rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.posSlipItemsContainer::-webkit-scrollbar {
+  width: 4px;
+}
+
+.posSlipItemsContainer::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.posSlipEmpty {
+  height: 100%;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  text-align: center;
+  gap: 0.4rem;
+}
+
+.posSlipEmpty h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #475569;
+  margin: 0;
+}
+
+.posSlipEmpty p {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.posSlipItemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.posSlipItemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+}
+
+.posSlipItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.posSlipItemDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.posSlipItemName {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.posSlipItemRate {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.posSlipItemRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.posSlipItemTotal {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+  min-width: 38px;
+  text-align: right;
+}
+
+.posSlipTrashBtn {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.posSlipTrashBtn:hover {
+  background: #fee2e2;
+}
+
+.posAddCustomRow {
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.posAddCustomBtn {
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posAddCustomBtn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #f8fafc;
+}
+
+/* Slip Footer: Summary & Controls */
+.posSlipFooter {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.posSlipTotalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.posSlipTotalAmount {
+  font-size: 1.15rem;
+  color: #2563eb;
+}
+
+.posPaidSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.posPaidLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.posPaidChips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.posChip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posChip:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.posChipActive {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+.posPaidInput {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #10b981;
+  outline: none;
+}
+
+.posPaidInput:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.posTenderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.posTenderPills {
+  display: flex;
+  gap: 4px;
+}
+
+.posTenderPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posTenderPill:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.posTenderPillActive {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+.posBalanceImpactBox {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.74rem;
+}
+
+.posBalanceImpactRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #64748b;
+}
+
+.posBalanceLabel {
+  font-weight: 600;
+}
+
+.posBalanceValPositive {
+  font-weight: 800;
+  color: #dc2626;
+}
+
+.posBalanceImpactTotal {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 3px;
+  margin-top: 2px;
+  color: #0f172a;
+}
+
+.posBalanceUpdatedVal {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #dc2626;
+}
+
+.posNotesInput {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  color: #334155;
+  outline: none;
+}
+
+.posNotesInput:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.posActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.2rem;
+}
+
+.posCancelBtn {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posCancelBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.posConfirmBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: none;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  transition: all 0.15s ease;
+}
+
+.posConfirmBtn:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.posConfirmBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+

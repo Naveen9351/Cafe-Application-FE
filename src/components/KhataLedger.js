@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Search, CheckCircle, AlertCircle, Check, X, Phone, User, Plus,
   RefreshCw, Calendar, ArrowUpRight, ArrowDownRight, MessageCircle, Trash2, ShoppingBag, CreditCard,
   ChevronRight, ChevronLeft, Utensils, Minus, Printer, QrCode, Smartphone, Banknote,
-  FileText, Clock, Sparkles
+  FileText, Clock, Sparkles, ArrowLeft
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import { useTranslation } from '../utils/translations';
+import { getValidFoodImage } from './AdminPanel';
 import styles from './KhataLedger.module.css';
 
 const getAvatarStyle = (name = '') => {
@@ -29,8 +29,7 @@ const getAvatarStyle = (name = '') => {
   return palettes[Math.abs(hash) % palettes.length];
 };
 
-export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos }) {
-  const navigate = useNavigate();
+export default function KhataLedger({ menuItems = [], tenantId }) {
   const { t, isHindi } = useTranslation();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +38,13 @@ export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos 
   const [viewMode, setViewMode] = useState('customers'); // 'customers' or 'transactions'
   const [tenantInfo, setTenantInfo] = useState(null);
   const [passbookCustomer, setPassbookCustomer] = useState(null);
+
+  // In-Screen POS Visual Menu Order Mode
+  const [khataMode, setKhataMode] = useState('ledger'); // 'ledger' or 'pos_menu'
+  const [activePosCustomer, setActivePosCustomer] = useState(null);
+  const [isNewCustomerInline, setIsNewCustomerInline] = useState(false);
+  const [posSelectedCategory, setPosSelectedCategory] = useState('all');
+  const [posDishSearch, setPosDishSearch] = useState('');
 
   // Full Cafe Menu Catalog from Database
   const [availableMenu, setAvailableMenu] = useState([]);
@@ -106,6 +112,30 @@ export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos 
     });
     return groups;
   }, [availableMenu]);
+
+  // Derived unique categories for POS visual catalog pills
+  const posCategories = useMemo(() => {
+    const cats = new Set();
+    availableMenu.forEach(item => {
+      if (item && item.category) {
+        cats.add(item.category);
+      }
+    });
+    return ['all', ...Array.from(cats).sort()];
+  }, [availableMenu]);
+
+  // Filtered dishes for POS visual grid
+  const posFilteredDishes = useMemo(() => {
+    return availableMenu.filter(item => {
+      const q = (posDishSearch || '').toLowerCase().trim();
+      const matchesSearch = !q || (item.name && item.name.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
+      if (!matchesSearch) return false;
+      if (posSelectedCategory !== 'all') {
+        return item.category === posSelectedCategory;
+      }
+      return true;
+    });
+  }, [availableMenu, posDishSearch, posSelectedCategory]);
 
   // Pagination states
   const [customerPage, setCustomerPage] = useState(1);
@@ -339,25 +369,134 @@ export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos 
     }
   };
 
-  // Open POS Menu screen with this customer pre-selected (Option 1)
+  // POS Visual Menu Handlers
+  const handlePosQuickAdd = (dish) => {
+    setLineItems(prev => {
+      const idx = prev.findIndex(it => it.name.toLowerCase() === dish.name.toLowerCase());
+      if (idx > -1) {
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          quantity: (Number(copy[idx].quantity) || 1) + 1
+        };
+        return copy;
+      }
+      return [
+        ...prev,
+        {
+          name: dish.name,
+          quantity: 1,
+          price: String(dish.price || 0),
+          isVeg: dish.isVeg
+        }
+      ];
+    });
+  };
+
+  const handlePosDecrement = (dish, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setLineItems(prev => {
+      const idx = prev.findIndex(it => it.name.toLowerCase() === dish.name.toLowerCase());
+      if (idx === -1) return prev;
+      const currentQty = Number(prev[idx].quantity) || 1;
+      if (currentQty <= 1) {
+        return prev.filter((_, i) => i !== idx);
+      }
+      const copy = [...prev];
+      copy[idx] = {
+        ...copy[idx],
+        quantity: currentQty - 1
+      };
+      return copy;
+    });
+  };
+
+  const handlePosRemoveItem = (idxToRemove) => {
+    setLineItems(prev => prev.filter((_, i) => i !== idxToRemove));
+  };
+
+  // Open POS Visual Menu for a customer
   const handleAddUdharForCustomer = (cust) => {
-    if (!cust) return;
-    const khataPayload = {
-      customerName: cust.customerName,
-      customerPhone: cust.customerPhone !== 'N/A' ? cust.customerPhone : '',
-      outstandingBalance: cust.outstandingBalance || 0,
-      entriesCount: cust.entriesCount || 0
-    };
-    try {
-      sessionStorage.setItem('pos_khata_customer', JSON.stringify(khataPayload));
-    } catch (err) {
-      console.warn('sessionStorage error', err);
+    setActivePosCustomer(cust);
+    setIsNewCustomerInline(false);
+    setPosDishSearch('');
+    setPosSelectedCategory('all');
+    setLineItems([]);
+    setNewPaidAmount('0');
+    setNewPaidMethod('Cash');
+    setNewNotes('');
+    setEntryDate(new Date().toISOString().slice(0, 16));
+    setEntryOrderNumber('');
+    setKhataMode('pos_menu');
+  };
+
+  // Confirm and Record POS Visual Menu Order directly to Khata
+  const handleConfirmPosOrder = async () => {
+    let effName = activePosCustomer?.customerName || '';
+    let effPhone = activePosCustomer?.customerPhone || '';
+
+    if (activePosCustomer?.isNew || isNewCustomerInline) {
+      if (!effName.trim()) {
+        alert('Please enter a Customer Name.');
+        return;
+      }
     }
 
-    if (typeof onNavigateToPos === 'function') {
-      onNavigateToPos(khataPayload);
-    } else {
-      navigate('/admin/pos');
+    if (!effName) effName = 'Walk-in Guest';
+    const cleanPhone = effPhone.replace(/[^0-9]/g, '');
+    const finalPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A');
+
+    const totalBill = lineItems.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
+
+    if (totalBill <= 0) {
+      alert('Please select at least one dish from the menu.');
+      return;
+    }
+
+    const effectivePaid = Math.min(Math.max(0, Number(newPaidAmount) || 0), totalBill);
+    const newUdharAmount = Math.max(0, totalBill - effectivePaid);
+
+    const validItems = lineItems
+      .filter(it => it.name && it.name.trim())
+      .map(it => ({
+        name: it.name.trim(),
+        quantity: Number(it.quantity) || 1,
+        price: Number(it.price) || 0
+      }));
+
+    try {
+      setIsCreating(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_URL}/khata`, {
+        tenantId,
+        orderNumber: entryOrderNumber.trim(),
+        customerName: effName.trim(),
+        customerPhone: finalPhone,
+        totalBill: totalBill,
+        paidAmount: effectivePaid,
+        borrowAmount: newUdharAmount,
+        notes: newNotes.trim(),
+        items: validItems,
+        date: entryDate,
+        paidMethod: effectivePaid > 0 ? newPaidMethod : 'Cash'
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      setKhataMode('ledger');
+      setActivePosCustomer(null);
+      setLineItems([]);
+      setNewPaidAmount('0');
+      setNewNotes('');
+      setEntryOrderNumber('');
+      setIsNewCustomerInline(false);
+
+      showFeedback(res.data?.message || `✓ Khata recorded for ${effName}! (New Due: ₹${newUdharAmount})`);
+      fetchKhataRecords();
+    } catch (err) {
+      showFeedback(err.response?.data?.error || err.response?.data?.message || 'Failed to record khata entry.', true);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -585,6 +724,491 @@ export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos 
         </div>
       )}
 
+      {khataMode === 'pos_menu' ? (
+        <div className={styles.posScreen}>
+          {/* Top Header Bar */}
+          <div className={styles.posHeader}>
+            <div className={styles.posHeaderLeft}>
+              <button
+                type="button"
+                onClick={() => {
+                  setKhataMode('ledger');
+                  setActivePosCustomer(null);
+                  setLineItems([]);
+                }}
+                className={styles.posBackBtn}
+                title="Back to Khata Ledger"
+              >
+                <ArrowLeft size={16} />
+                <span>{isHindi ? 'लेजर पर वापस जाएं' : 'Back to Ledger'}</span>
+              </button>
+
+              <div className={styles.posCustomerBadge}>
+                <div
+                  className={styles.posAvatar}
+                  style={getAvatarStyle(activePosCustomer?.customerName || 'Customer')}
+                >
+                  {(activePosCustomer?.customerName || 'C').charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.posCustomerInfo}>
+                  <div className={styles.posCustomerNameRow}>
+                    <span className={styles.posCustomerName}>
+                      {activePosCustomer?.isNew ? (activePosCustomer?.customerName || 'New Customer') : (activePosCustomer?.customerName || 'Customer')}
+                    </span>
+                    <span className={styles.posDueBadge}>
+                      ₹{(Number(activePosCustomer?.outstandingBalance) || 0).toLocaleString('en-IN')} Due
+                    </span>
+                  </div>
+                  <div className={styles.posCustomerMeta}>
+                    {activePosCustomer?.customerPhone && activePosCustomer?.customerPhone !== 'N/A' && (
+                      <span className={styles.posCustomerPhone}>
+                        <Phone size={11} /> {activePosCustomer.customerPhone}
+                      </span>
+                    )}
+                    {activePosCustomer?.entriesCount > 0 && (
+                      <span>• {activePosCustomer.entriesCount} visits</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Selector */}
+              <div className={styles.posCustomerSelectorWrap}>
+                <select
+                  value={activePosCustomer?.isNew ? '__NEW__' : (activePosCustomer?.customerPhone !== 'N/A' ? activePosCustomer?.customerPhone : activePosCustomer?.customerName)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__NEW__') {
+                      setIsNewCustomerInline(true);
+                      setActivePosCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
+                    } else {
+                      setIsNewCustomerInline(false);
+                      const found = customerAccounts.find(c =>
+                        (c.customerPhone !== 'N/A' && c.customerPhone === val) || c.customerName === val
+                      );
+                      if (found) setActivePosCustomer(found);
+                    }
+                  }}
+                  className={styles.posCustomerSelect}
+                >
+                  <optgroup label="Select Existing Customer">
+                    {customerAccounts.map(c => (
+                      <option key={c.customerPhone + c.customerName} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
+                        {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹{c.outstandingBalance.toLocaleString('en-IN')}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <option value="__NEW__">➕ New Customer (नया ग्राहक)</option>
+                </select>
+              </div>
+
+              {(activePosCustomer?.isNew || isNewCustomerInline) && (
+                <div className={styles.posNewCustomerInputs}>
+                  <input
+                    type="text"
+                    placeholder="Customer Name *"
+                    value={activePosCustomer?.customerName || ''}
+                    onChange={(e) => setActivePosCustomer(prev => ({ ...prev, customerName: e.target.value }))}
+                    className={styles.posInlineInput}
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone (optional)"
+                    value={activePosCustomer?.customerPhone || ''}
+                    onChange={(e) => setActivePosCustomer(prev => ({ ...prev, customerPhone: e.target.value }))}
+                    className={styles.posInlineInput}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className={styles.posHeaderRight}>
+              <div className={styles.posSearchWrap}>
+                <Search size={15} color="#94a3b8" />
+                <input
+                  type="text"
+                  placeholder={isHindi ? "मेनू में खोजें..." : "Search dish on menu..."}
+                  value={posDishSearch}
+                  onChange={(e) => setPosDishSearch(e.target.value)}
+                  className={styles.posSearchInput}
+                />
+                {posDishSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPosDishSearch('')}
+                    className={styles.posClearSearchBtn}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* POS Two-Column Grid */}
+          <div className={styles.posMainGrid}>
+            {/* Left Column: Visual Dishes Catalog */}
+            <div className={styles.posMenuPanel}>
+              {/* Category Pills */}
+              <div
+                className={styles.posCategoryPills}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+              >
+                {posCategories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`${styles.posCatPill} ${posSelectedCategory === cat ? styles.posCatPillActive : ''}`}
+                    onClick={() => setPosSelectedCategory(cat)}
+                  >
+                    {cat === 'all'
+                      ? 'All Dishes'
+                      : cat.toLowerCase().includes('night')
+                        ? `🌙 ${cat.replace('-', ' ')}`
+                        : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Dishes Grid */}
+              <div className={styles.posDishesGrid}>
+                {posFilteredDishes.map(item => {
+                  const inCart = lineItems.find(it => it.name.toLowerCase() === item.name.toLowerCase());
+                  const cartQty = inCart ? (Number(inCart.quantity) || 0) : 0;
+                  const imgUrl = getValidFoodImage(item);
+                  const price = Number(item.price) || 0;
+
+                  return (
+                    <div
+                      key={item._id || item.name}
+                      className={`${styles.posDishCard} ${cartQty > 0 ? styles.posDishCardActive : ''}`}
+                      onClick={() => handlePosQuickAdd(item)}
+                    >
+                      <div className={styles.posDishImgWrap}>
+                        <img
+                          src={imgUrl}
+                          alt={item.name}
+                          className={styles.posDishImg}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400';
+                          }}
+                        />
+                        <div className={styles.posVegBadge}>
+                          <div className={item.isVeg ? styles.posVegDot : styles.posNonVegDot} />
+                        </div>
+                      </div>
+
+                      <div className={styles.posDishInfo}>
+                        <h4 title={item.name}>{item.name}</h4>
+                      </div>
+
+                      <div className={styles.posDishPriceRow}>
+                        <span className={styles.posDishPrice}>₹{price}</span>
+                        {cartQty > 0 ? (
+                          <div className={styles.posStepper} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className={styles.posStepperBtn}
+                              onClick={(e) => handlePosDecrement(item, e)}
+                              title="Decrease"
+                            >
+                              <Minus size={11} />
+                            </button>
+                            <span className={styles.posStepperQty}>{cartQty}</span>
+                            <button
+                              type="button"
+                              className={styles.posStepperBtn}
+                              onClick={(e) => { e.stopPropagation(); handlePosQuickAdd(item); }}
+                              title="Increase"
+                            >
+                              <Plus size={11} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.posAddBtn}
+                            onClick={(e) => { e.stopPropagation(); handlePosQuickAdd(item); }}
+                            title="Add to slip"
+                          >
+                            <Plus size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {posFilteredDishes.length === 0 && (
+                  <div className={styles.posNoDishes}>
+                    <Utensils size={36} color="#94a3b8" />
+                    <p>No dishes found matching "{posDishSearch}".</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Customer Khata Slip */}
+            <div className={styles.posSlipPanel}>
+              {/* Slip Header */}
+              <div className={styles.posSlipHeader}>
+                <div>
+                  <div className={styles.posSlipTitleRow}>
+                    <h3 className={styles.posSlipTitle}>
+                      {activePosCustomer?.customerName || 'Customer'} Order Slip
+                    </h3>
+                    <span className={styles.posSlipTypeTag}>Khata / Udhar</span>
+                  </div>
+                  <p className={styles.posSlipSubtitle}>
+                    Selected items will be charged directly to customer ledger
+                  </p>
+                </div>
+                <div className={styles.posSlipMetaRow}>
+                  <input
+                    type="text"
+                    placeholder="Table / Token # (opt)"
+                    value={entryOrderNumber}
+                    onChange={(e) => setEntryOrderNumber(e.target.value)}
+                    className={styles.posSlipMetaInput}
+                  />
+                  <input
+                    type="datetime-local"
+                    value={entryDate}
+                    onChange={(e) => setEntryDate(e.target.value)}
+                    className={styles.posSlipDateInput}
+                  />
+                </div>
+              </div>
+
+              {/* Cart Items List */}
+              <div className={styles.posSlipItemsContainer}>
+                {lineItems.length === 0 ? (
+                  <div className={styles.posSlipEmpty}>
+                    <ShoppingBag size={44} color="#cbd5e1" strokeWidth={1.5} />
+                    <h4>Order Slip is Empty</h4>
+                    <p>Click dishes on the menu to take order</p>
+                  </div>
+                ) : (
+                  <div className={styles.posSlipItemsList}>
+                    {lineItems.map((item, idx) => {
+                      const itemTotal = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+                      return (
+                        <div key={idx} className={styles.posSlipItemRow}>
+                          <div className={styles.posSlipItemLeft}>
+                            <div className={item.isVeg ? styles.posVegDot : styles.posNonVegDot} style={{ flexShrink: 0 }} />
+                            <div className={styles.posSlipItemDetails}>
+                              <span className={styles.posSlipItemName}>{item.name}</span>
+                              <span className={styles.posSlipItemRate}>₹{item.price} each</span>
+                            </div>
+                          </div>
+
+                          <div className={styles.posSlipItemRight}>
+                            <div className={styles.posStepper}>
+                              <button
+                                type="button"
+                                className={styles.posStepperBtn}
+                                onClick={() => handlePosDecrement(item)}
+                              >
+                                <Minus size={11} />
+                              </button>
+                              <span className={styles.posStepperQty}>{item.quantity}</span>
+                              <button
+                                type="button"
+                                className={styles.posStepperBtn}
+                                onClick={() => handlePosQuickAdd(item)}
+                              >
+                                <Plus size={11} />
+                              </button>
+                            </div>
+                            <span className={styles.posSlipItemTotal}>₹{itemTotal}</span>
+                            <button
+                              type="button"
+                              onClick={() => handlePosRemoveItem(idx)}
+                              className={styles.posSlipTrashBtn}
+                              title="Remove dish"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Custom Dish Row */}
+              <div className={styles.posAddCustomRow}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const customName = prompt('Enter dish name:');
+                    if (!customName || !customName.trim()) return;
+                    const customPrice = prompt('Enter dish price (₹):', '100');
+                    if (customPrice === null) return;
+                    setLineItems(prev => [
+                      ...prev,
+                      {
+                        name: customName.trim(),
+                        quantity: 1,
+                        price: String(Number(customPrice) || 0),
+                        isVeg: true
+                      }
+                    ]);
+                  }}
+                  className={styles.posAddCustomBtn}
+                >
+                  <Plus size={12} />
+                  <span>+ Add Custom Item (Off-Menu)</span>
+                </button>
+              </div>
+
+              {/* Slip Summary & Payment Controls */}
+              {(() => {
+                const grossTotal = lineItems.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
+                const paidNum = Math.min(Math.max(0, Number(newPaidAmount) || 0), grossTotal);
+                const newUdhar = Math.max(0, grossTotal - paidNum);
+                const prevDue = Number(activePosCustomer?.outstandingBalance) || 0;
+                const updatedDue = prevDue + newUdhar;
+
+                return (
+                  <div className={styles.posSlipFooter}>
+                    {/* Gross Total */}
+                    <div className={styles.posSlipTotalRow}>
+                      <span>Gross Total:</span>
+                      <span className={styles.posSlipTotalAmount}>₹{grossTotal}</span>
+                    </div>
+
+                    {/* Paid Now Section */}
+                    <div className={styles.posPaidSection}>
+                      <div className={styles.posPaidLabelRow}>
+                        <label>Paid Now at Counter (₹):</label>
+                        <div className={styles.posPaidChips}>
+                          <button
+                            type="button"
+                            className={`${styles.posChip} ${newPaidAmount === '0' ? styles.posChipActive : ''}`}
+                            onClick={() => setNewPaidAmount('0')}
+                          >
+                            ₹0 (Full Udhar)
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.posChip}
+                            onClick={() => setNewPaidAmount(String(Math.round(grossTotal / 2)))}
+                          >
+                            50%
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.posChip} ${newPaidAmount === String(grossTotal) ? styles.posChipActive : ''}`}
+                            onClick={() => setNewPaidAmount(String(grossTotal))}
+                          >
+                            Full Paid
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        max={grossTotal}
+                        value={newPaidAmount}
+                        onChange={(e) => setNewPaidAmount(e.target.value)}
+                        className={styles.posPaidInput}
+                      />
+                    </div>
+
+                    {/* Payment Tender Method */}
+                    {Number(newPaidAmount) > 0 && (
+                      <div className={styles.posTenderRow}>
+                        <label>Paid Via:</label>
+                        <div className={styles.posTenderPills}>
+                          {['Cash', 'UPI', 'Card'].map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              className={`${styles.posTenderPill} ${newPaidMethod === m ? styles.posTenderPillActive : ''}`}
+                              onClick={() => setNewPaidMethod(m)}
+                            >
+                              {m === 'Cash' && <Banknote size={12} />}
+                              {m === 'UPI' && <Smartphone size={12} />}
+                              {m === 'Card' && <CreditCard size={12} />}
+                              <span>{m}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Balance Impact Box */}
+                    <div className={styles.posBalanceImpactBox}>
+                      <div className={styles.posBalanceImpactRow}>
+                        <span className={styles.posBalanceLabel}>New Udhar Added:</span>
+                        <span className={styles.posBalanceValPositive}>+₹{newUdhar}</span>
+                      </div>
+                      <div className={styles.posBalanceImpactRow}>
+                        <span className={styles.posBalanceLabel}>Previous Due:</span>
+                        <span>₹{prevDue.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className={`${styles.posBalanceImpactRow} ${styles.posBalanceImpactTotal}`}>
+                        <span className={styles.posBalanceLabel}>Updated Total Due:</span>
+                        <span className={styles.posBalanceUpdatedVal}>₹{updatedDue.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+
+                    {/* Notes input */}
+                    <input
+                      type="text"
+                      placeholder="Note / Remark (optional, e.g. Table 4 or evening tea)"
+                      value={newNotes}
+                      onChange={(e) => setNewNotes(e.target.value)}
+                      className={styles.posNotesInput}
+                    />
+
+                    {/* Action Buttons */}
+                    <div className={styles.posActionsRow}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKhataMode('ledger');
+                          setActivePosCustomer(null);
+                          setLineItems([]);
+                        }}
+                        className={styles.posCancelBtn}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmPosOrder}
+                        disabled={isCreating || lineItems.length === 0}
+                        className={styles.posConfirmBtn}
+                      >
+                        {isCreating ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin" />
+                            <span>Recording...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check size={16} />
+                            <span>Confirm & Record ₹{newUdhar} to Khata</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Top Header Bar */}
       <div className={styles.header}>
         <div className={styles.titleGroup}>
@@ -624,23 +1248,11 @@ export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos 
             type="button"
             onClick={() => {
               if (customerAccounts.length > 0) {
-                setCustomerMode('existing');
-                const first = customerAccounts[0];
-                setSelectedCustomerChoice(first.customerPhone !== 'N/A' ? first.customerPhone : first.customerName);
-                setNewCustomerName(first.customerName);
-                setNewCustomerPhone(first.customerPhone !== 'N/A' ? first.customerPhone : '');
+                handleAddUdharForCustomer(customerAccounts[0]);
               } else {
-                setCustomerMode('new');
-                setSelectedCustomerChoice('NEW');
-                setNewCustomerName('');
-                setNewCustomerPhone('');
+                handleAddUdharForCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
+                setIsNewCustomerInline(true);
               }
-              setLineItems([]);
-              setNewPaidAmount('0');
-              setManualTotalBill('');
-              setUseManualTotal(false);
-              setNewNotes('');
-              setShowAddModal(true);
             }}
             className={styles.addRecordBtn}
           >
@@ -2514,6 +3126,8 @@ export default function KhataLedger({ menuItems = [], tenantId, onNavigateToPos 
           </div>
         );
       })()}
+        </>
+      )}
     </div>
   );
 }
