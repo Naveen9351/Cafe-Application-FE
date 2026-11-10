@@ -49,22 +49,30 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   // Full Cafe Menu Catalog from Database
   const [availableMenu, setAvailableMenu] = useState([]);
 
-  // Fetch full database menu (all dishes across all categories)
+  // Fetch full restaurant menu catalog strictly filtered for THIS tenant/restaurant
   useEffect(() => {
     const fetchFullMenu = async () => {
       try {
         const token = localStorage.getItem('token');
-        // Fetch full database menu without restricting by tenant to ensure all items are available
-        const res = await axios.get(`${API_URL}/menu?includeUnavailable=true&includePosOnly=true`, {
+        const tid = tenantId || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+        const menuUrl = tid
+          ? `${API_URL}/menu?tenantId=${tid}&includeUnavailable=true&includePosOnly=true`
+          : `${API_URL}/menu?includeUnavailable=true&includePosOnly=true`;
+
+        const res = await axios.get(menuUrl, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
 
         const list = Array.isArray(res.data) ? res.data : [];
         const menuMap = new Map();
 
-        // Add fetched items deduplicated by lowercase name
+        // Add fetched items strictly for this restaurant
         list.forEach(item => {
           if (item && item.name) {
+            if (tid && item.tenantId && String(item.tenantId) !== String(tid)) {
+              return;
+            }
             const key = item.name.toLowerCase().trim();
             if (!menuMap.has(key)) {
               menuMap.set(key, {
@@ -75,9 +83,12 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           }
         });
 
-        // Also merge any items passed from parent props
+        // Also merge items passed from parent props (AdminPanel passes this restaurant's items)
         (menuItems || []).forEach(item => {
           if (item && item.name) {
+            if (tid && item.tenantId && String(item.tenantId) !== String(tid)) {
+              return;
+            }
             const key = item.name.toLowerCase().trim();
             if (!menuMap.has(key)) {
               menuMap.set(key, {
@@ -91,7 +102,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         const sorted = Array.from(menuMap.values()).sort((a, b) => a.name.localeCompare(b.name));
         setAvailableMenu(sorted);
       } catch (err) {
-        console.warn('Failed to load full menu catalog:', err.message);
+        console.warn('Failed to load restaurant menu catalog:', err.message);
         if (Array.isArray(menuItems) && menuItems.length > 0) {
           setAvailableMenu(menuItems);
         }
@@ -99,7 +110,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     };
 
     fetchFullMenu();
-  }, [menuItems]);
+  }, [menuItems, tenantId]);
 
   // Group menu items by category for the quick-add selector
   const groupedMenu = useMemo(() => {
