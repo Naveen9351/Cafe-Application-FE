@@ -3340,6 +3340,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
         // Compute Item-wise Aggregation across all customer records
         const itemMap = {};
+        let nonItemizedTotal = 0;
+        let nonItemizedCount = 0;
         customerHistory.forEach(rec => {
           if (rec.items && Array.isArray(rec.items) && rec.items.length > 0) {
             rec.items.forEach(it => {
@@ -3355,6 +3357,9 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               itemMap[name].ordersCount += 1;
               if (new Date(rec.createdAt) > new Date(itemMap[name].lastOrdered)) itemMap[name].lastOrdered = rec.createdAt;
             });
+          } else {
+            nonItemizedTotal += Number(rec.totalBill) || 0;
+            nonItemizedCount += 1;
           }
         });
         const allItemsList = Object.values(itemMap).sort((a, b) => b.quantity - a.quantity);
@@ -3962,12 +3967,12 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     </table>
                   </div>
 
-                  {/* Properly Placed Bottom Summary Bar (Always visible at card bottom) */}
+                  {/* Properly Placed Bottom Summary Bar (Reconciled with Total Billed) */}
                   {filteredItemsList.length > 0 && (
                     <div className={styles.passbookSummaryBar}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '12.5px' }}>
-                          Total ({filteredItemsList.length} {filteredItemsList.length > 1 ? 'dishes' : 'dish'})
+                          Dish Items: ₹{totalItemsValue.toLocaleString('en-IN')}
                         </span>
                         <span style={{
                           background: 'rgba(59,130,246,0.12)',
@@ -3977,13 +3982,18 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           padding: '2px 8px',
                           borderRadius: 12
                         }}>
-                          ×{totalItemsQty} items consumed
+                          {filteredItemsList.length} dishes • ×{totalItemsQty} items
                         </span>
+                        {nonItemizedCount > 0 && (
+                          <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
+                            + ₹{nonItemizedTotal.toLocaleString('en-IN')} ({nonItemizedCount} manual / other {nonItemizedCount > 1 ? 'orders' : 'order'})
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Spent:</span>
-                        <span style={{ color: '#16a34a', fontWeight: 900, fontSize: '14.5px' }}>
-                          ₹{totalItemsValue.toLocaleString('en-IN')}
+                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Billed:</span>
+                        <span style={{ color: '#0f172a', fontWeight: 900, fontSize: '15px' }}>
+                          ₹{(totalItemsValue + nonItemizedTotal).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>
