@@ -279,12 +279,14 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     records.forEach(r => {
       const phone = String(r.customerPhone || '').trim();
       const name = String(r.customerName || 'Walk-in Guest').trim();
-      const key = (phone && phone !== 'N/A') ? phone : `NAME_${name.toLowerCase()}`;
+      const cleanPhone = phone.replace(/\D/g, '');
+      const stdPhone = (cleanPhone.length >= 10) ? cleanPhone.slice(-10) : cleanPhone;
+      const key = (stdPhone && stdPhone !== 'N/A') ? stdPhone : `NAME_${name.toLowerCase()}`;
 
       if (!map.has(key)) {
         map.set(key, {
           customerName: name,
-          customerPhone: (phone && phone !== 'N/A') ? phone : 'N/A',
+          customerPhone: (stdPhone && stdPhone.length >= 10) ? stdPhone : (phone && phone !== 'N/A' ? phone : 'N/A'),
           totalPurchases: 0,
           totalPaid: 0,
           outstandingBalance: 0,
@@ -706,6 +708,20 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
   const handleConfirmSettle = async (e) => {
     e.preventDefault();
+    const payAmt = Number(settleAmount);
+    const dueLimit = selectedCustomerAccount
+      ? selectedCustomerAccount.outstandingBalance
+      : (selectedRecord ? Number(selectedRecord.borrowAmount !== undefined ? selectedRecord.borrowAmount : (selectedRecord.remainingAmount || 0)) : 0);
+
+    if (isNaN(payAmt) || payAmt <= 0) {
+      showFeedback('Please enter a valid payment amount greater than 0.', true);
+      return;
+    }
+    if (payAmt > dueLimit) {
+      showFeedback(`Amount cannot exceed the total due of ₹${dueLimit.toLocaleString('en-IN')}`, true);
+      return;
+    }
+
     try {
       setIsSettling(true);
       const token = localStorage.getItem('token');
@@ -714,7 +730,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         const res = await axios.post(`${API_URL}/khata/customer-payment`, {
           customerPhone: selectedCustomerAccount.customerPhone,
           customerName: selectedCustomerAccount.customerName,
-          amount: Number(settleAmount),
+          amount: payAmt,
           paymentMethod: settleMethod.toLowerCase(),
           notes: settleNotes
         }, {
@@ -724,8 +740,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         showFeedback(res.data?.message || 'Payment recorded successfully!');
       } else if (selectedRecord) {
         const res = await axios.put(`${API_URL}/khata/${selectedRecord._id}/settle`, {
-          amountReceived: Number(settleAmount),
-          amount: Number(settleAmount),
+          amountReceived: payAmt,
+          amount: payAmt,
           paymentMethod: settleMethod.toLowerCase(),
           notes: settleNotes
         }, {
@@ -2093,7 +2109,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <table className={styles.khataTable}>
               <thead>
                 <tr>
-                  <th>{isHindi ? 'ग्राहक विवरण' : 'Customer'}</th>
+                  <th>{isHindi ? 'ग्राहक का नाम' : 'Customer Name'}</th>
+                  <th>{isHindi ? 'मोबाइल नंबर' : 'Mobile Number'}</th>
                   <th>{isHindi ? 'व्यंजन / सामान' : 'Items Taken'}</th>
                   <th>{isHindi ? 'कुल बिल' : 'Total Bill'}</th>
                   <th>{isHindi ? 'भुगतान' : 'Paid Now'}</th>
@@ -2106,7 +2123,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <tbody>
                 {paginatedTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <Calendar size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
                       <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155', display: 'block' }}>
                         {isHindi ? 'कोई लेन-देन नहीं मिला' : 'No Transactions Recorded'}
@@ -2120,30 +2137,23 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
                     return (
                       <tr key={rec._id}>
-                        {/* Customer */}
+                        {/* Customer Name */}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                            <div style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: '50%',
-                              background: getAvatarStyle(rec.customerName).bg,
-                              color: '#ffffff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 800,
-                              fontSize: '12px',
-                              flexShrink: 0,
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                            }}>
-                              {(rec.customerName || 'G').charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <strong style={{ display: 'block', color: '#0f172a', fontSize: '13px' }}>{rec.customerName}</strong>
-                              <span style={{ fontSize: '11.5px', color: '#64748b' }}>📞 {rec.customerPhone}</span>
-                            </div>
-                          </div>
+                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>
+                            {rec.customerName}
+                          </span>
+                        </td>
+
+                        {/* Mobile Number */}
+                        <td>
+                          <span style={{
+                            fontSize: '12px',
+                            color: rec.customerPhone && rec.customerPhone !== 'N/A' ? '#475569' : '#94a3b8',
+                            fontWeight: 600,
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            {rec.customerPhone && rec.customerPhone !== 'N/A' ? rec.customerPhone : '—'}
+                          </span>
                         </td>
 
                         {/* Items Taken */}
@@ -3159,7 +3169,19 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     max={currentDue}
                     required
                     value={settleAmount}
-                    onChange={(e) => setSettleAmount(e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setSettleAmount('');
+                        return;
+                      }
+                      const val = Number(raw);
+                      if (!isNaN(val) && val > currentDue) {
+                        setSettleAmount(String(currentDue));
+                      } else {
+                        setSettleAmount(raw);
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '9px 12px',
