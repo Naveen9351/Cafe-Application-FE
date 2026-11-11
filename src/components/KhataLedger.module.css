@@ -648,51 +648,173 @@
   background: #ef4444;
 }
 
-/* ── Passbook Full Modal ── */
+/* ── Passbook Full Modal (Upgraded Wide & Clean Executive UI) ── */
 .passbookModal {
-  max-width: 720px;
+  max-width: 940px;
   width: 95%;
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35);
+  border: 1px solid #e2e8f0;
 }
 
 .passbookHeaderCard {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
-  border-radius: 14px;
-  padding: 16px 20px;
+  border-radius: 16px;
+  padding: 18px 22px;
   margin-bottom: 18px;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .passbookSummaryGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 14px;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .passbookSummaryTile {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+  transition: all 0.15s ease;
+}
+
+.passbookSummaryTile:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.passbookTileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+}
+
+.passbookTileIcon {
+  color: #94a3b8;
+  opacity: 0.8;
 }
 
 .passbookSummaryTile h5 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.3px;
 }
 
-.passbookSummaryTile span {
-  font-size: 0.72rem;
+.passbookTileSub {
+  font-size: 0.7rem;
   color: #94a3b8;
+  font-weight: 500;
+}
+
+/* ── Passbook Tabs & Search Bar ── */
+.passbookTabsBar {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.passbookTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.passbookTabBtn:hover {
+  color: #0f172a;
+}
+
+.passbookTabBtnActive {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.passbookTabCount {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.passbookTabBtn:not(.passbookTabBtnActive) .passbookTabCount {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.passbookSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 5px 10px;
+  width: 220px;
+}
+
+.passbookSearchInput {
+  border: none;
+  outline: none;
+  font-size: 0.78rem;
+  color: #0f172a;
+  width: 100%;
+  background: transparent;
+}
+
+/* ── Item Chips in Bill-wise view ── */
+.passbookItemChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #1e293b;
   font-weight: 600;
+}
+
+.passbookItemQtyBadge {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
 }
 
 /* ── Timeline / Passbook Table ── */
@@ -717,11 +839,54 @@
   padding: 11px 14px;
   font-size: 12.5px;
   border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .passbookTable tr:hover td {
   background-color: #fafbfc;
+}
+
+/* ── Item-wise Aggregated Table ── */
+.passbookItemTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.passbookItemTable th {
+  background: #f8fafc;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.passbookItemTable td {
+  padding: 11px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.passbookItemTable tr:hover td {
+  background-color: #fafbfc;
+}
+
+.passbookSummaryFooter {
+  background: #f8fafc;
+  border-top: 1.5px solid #e2e8f0;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 @media print {
