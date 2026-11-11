@@ -572,7 +572,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
     if (!effName) effName = 'Walk-in Guest';
     const cleanPhone = effPhone.replace(/[^0-9]/g, '');
-    const finalPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A');
+    const finalPhone = cleanPhone && cleanPhone.length >= 10 ? cleanPhone.slice(-10) : (cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A'));
 
     const totalBill = lineItems.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
     const prevDue = Number(activePosCustomer?.outstandingBalance) || 0;
@@ -772,7 +772,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
     if (!effName) effName = 'Walk-in Guest';
     const cleanPhone = effPhone.replace(/[^0-9]/g, '');
-    const finalPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A');
+    const finalPhone = cleanPhone && cleanPhone.length >= 10 ? cleanPhone.slice(-10) : (cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A'));
 
     if (effectiveTotalBill <= 0) {
       alert('Please add at least one item or enter a total purchase amount greater than 0.');
