@@ -573,91 +573,41 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     const finalPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (effPhone || 'N/A');
 
     const totalBill = lineItems.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
-    const prevDue = Number(activePosCustomer?.outstandingBalance) || 0;
-    const maxPayable = totalBill + prevDue;
-    const enteredPaid = Math.min(Math.max(0, Number(newPaidAmount) || 0), maxPayable > 0 ? maxPayable : 0);
 
-    // If no dishes and no payment entered
-    if (totalBill <= 0 && enteredPaid <= 0) {
-      alert('Please select at least one dish from the menu or enter a payment amount.');
+    if (totalBill <= 0) {
+      alert('Please select at least one dish from the menu.');
       return;
     }
+
+    const effectivePaid = Math.min(Math.max(0, Number(newPaidAmount) || 0), totalBill);
+    const newUdharAmount = Math.max(0, totalBill - effectivePaid);
+
+    const validItems = lineItems
+      .filter(it => it.name && it.name.trim())
+      .map(it => ({
+        name: it.name.trim(),
+        quantity: Number(it.quantity) || 1,
+        price: Number(it.price) || 0
+      }));
 
     try {
       setIsCreating(true);
       const token = localStorage.getItem('token');
-
-      // Case 1: Pure settlement payment (no dishes ordered, customer paying towards old due)
-      if (totalBill <= 0 && enteredPaid > 0) {
-        const res = await axios.post(`${API_URL}/khata/customer-payment`, {
-          customerPhone: finalPhone,
-          customerName: effName.trim(),
-          amount: enteredPaid,
-          paymentMethod: (newPaidMethod || 'cash').toLowerCase(),
-          notes: newNotes.trim() || 'Settlement payment recorded at counter'
-        }, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-
-        setKhataMode('ledger');
-        setActivePosCustomer(null);
-        setLineItems([]);
-        setNewPaidAmount('0');
-        setNewNotes('');
-        setEntryOrderNumber('');
-        setIsNewCustomerInline(false);
-
-        showFeedback(res.data?.message || `✓ Payment of ₹${enteredPaid.toLocaleString('en-IN')} recorded for ${effName}!`);
-        fetchKhataRecords();
-        return;
-      }
-
-      // Case 2: Dishes ordered (totalBill > 0)
-      const billPaid = Math.min(enteredPaid, totalBill);
-      const newUdharAmount = Math.max(0, totalBill - billPaid);
-      const excessPaid = Math.max(0, enteredPaid - totalBill);
-
-      const validItems = lineItems
-        .filter(it => it.name && it.name.trim())
-        .map(it => ({
-          name: it.name.trim(),
-          quantity: Number(it.quantity) || 1,
-          price: Number(it.price) || 0
-        }));
-
-      // 1. Create the new khata record for this purchase
       const res = await axios.post(`${API_URL}/khata`, {
         tenantId,
         orderNumber: entryOrderNumber.trim(),
         customerName: effName.trim(),
         customerPhone: finalPhone,
         totalBill: totalBill,
-        paidAmount: billPaid,
+        paidAmount: effectivePaid,
         borrowAmount: newUdharAmount,
         notes: newNotes.trim(),
         items: validItems,
         date: entryDate,
-        paidMethod: billPaid > 0 ? newPaidMethod : 'Cash'
+        paidMethod: effectivePaid > 0 ? newPaidMethod : 'Cash'
       }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-
-      // 2. If excess payment was made towards previous due, record customer payment
-      if (excessPaid > 0 && prevDue > 0) {
-        try {
-          await axios.post(`${API_URL}/khata/customer-payment`, {
-            customerPhone: finalPhone,
-            customerName: effName.trim(),
-            amount: excessPaid,
-            paymentMethod: (newPaidMethod || 'cash').toLowerCase(),
-            notes: `Paid with order: ₹${excessPaid} settled towards prior due`
-          }, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-          });
-        } catch (settleErr) {
-          console.error('Failed to record excess payment towards prior due:', settleErr);
-        }
-      }
 
       setKhataMode('ledger');
       setActivePosCustomer(null);
@@ -667,11 +617,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       setEntryOrderNumber('');
       setIsNewCustomerInline(false);
 
-      if (excessPaid > 0) {
-        showFeedback(`✓ Order recorded! Bill paid (₹${totalBill.toLocaleString('en-IN')}) + ₹${excessPaid.toLocaleString('en-IN')} settled from old due for ${effName}.`);
-      } else {
-        showFeedback(res.data?.message || `✓ Khata recorded for ${effName}! (New Due: ₹${newUdharAmount.toLocaleString('en-IN')})`);
-      }
+      showFeedback(res.data?.message || `✓ Khata recorded for ${effName}! (New Due: ₹${newUdharAmount})`);
       fetchKhataRecords();
     } catch (err) {
       showFeedback(err.response?.data?.error || err.response?.data?.message || 'Failed to record khata entry.', true);
@@ -1259,63 +1205,25 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                       <div className={styles.posPaidChips}>
                         <button
                           type="button"
-                          className={`${styles.posChip} ${newPaidAmount === '0' || newPaidAmount === '' ? styles.posChipActive : ''}`}
+                          className={`${styles.posChip} ${newPaidAmount === '0' ? styles.posChipActive : ''}`}
                           onClick={() => setNewPaidAmount('0')}
                         >
                           Full Udhar
                         </button>
-                        {grossTotal > 0 && prevDue > 0 ? (
-                          <>
-                            <button
-                              type="button"
-                              className={`${styles.posChip} ${newPaidAmount === String(grossTotal) ? styles.posChipActive : ''}`}
-                              onClick={() => setNewPaidAmount(String(grossTotal))}
-                            >
-                              Bill (₹{grossTotal})
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.posChip} ${newPaidAmount === String(maxPayable) ? styles.posChipActive : ''}`}
-                              onClick={() => setNewPaidAmount(String(maxPayable))}
-                            >
-                              Clear All
-                            </button>
-                          </>
-                        ) : grossTotal > 0 ? (
-                          <>
-                            <button
-                              type="button"
-                              className={`${styles.posChip} ${newPaidAmount === String(Math.round(grossTotal / 2)) ? styles.posChipActive : ''}`}
-                              onClick={() => setNewPaidAmount(String(Math.round(grossTotal / 2)))}
-                            >
-                              50%
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.posChip} ${newPaidAmount === String(grossTotal) ? styles.posChipActive : ''}`}
-                              onClick={() => setNewPaidAmount(String(grossTotal))}
-                            >
-                              Paid
-                            </button>
-                          </>
-                        ) : prevDue > 0 ? (
-                          <>
-                            <button
-                              type="button"
-                              className={`${styles.posChip} ${newPaidAmount === String(Math.round(prevDue / 2)) ? styles.posChipActive : ''}`}
-                              onClick={() => setNewPaidAmount(String(Math.round(prevDue / 2)))}
-                            >
-                              50% Due
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.posChip} ${newPaidAmount === String(prevDue) ? styles.posChipActive : ''}`}
-                              onClick={() => setNewPaidAmount(String(prevDue))}
-                            >
-                              Clear Due
-                            </button>
-                          </>
-                        ) : null}
+                        <button
+                          type="button"
+                          className={`${styles.posChip} ${newPaidAmount === String(Math.round(grossTotal / 2)) && grossTotal > 0 ? styles.posChipActive : ''}`}
+                          onClick={() => setNewPaidAmount(String(Math.round(grossTotal / 2)))}
+                        >
+                          50%
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.posChip} ${newPaidAmount === String(grossTotal) && grossTotal > 0 ? styles.posChipActive : ''}`}
+                          onClick={() => setNewPaidAmount(String(grossTotal))}
+                        >
+                          Paid
+                        </button>
                       </div>
                     </div>
 
@@ -1328,21 +1236,9 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           <input
                             type="number"
                             min="0"
-                            max={maxPayable}
+                            max={grossTotal}
                             value={newPaidAmount}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '') {
-                                setNewPaidAmount('');
-                                return;
-                              }
-                              const num = Number(val);
-                              if (maxPayable > 0 && num > maxPayable) {
-                                setNewPaidAmount(String(maxPayable));
-                              } else {
-                                setNewPaidAmount(val);
-                              }
-                            }}
+                            onChange={(e) => setNewPaidAmount(e.target.value)}
                             placeholder="0"
                             className={styles.posPaidInput}
                           />
@@ -1374,49 +1270,22 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     </div>
 
                     {/* Khata Balance Impact Strip */}
-                    <div
-                      className={styles.posBalanceImpactStrip}
-                      style={excessPaid > 0 ? { background: '#f0fdf4', borderColor: '#bbf7d0' } : {}}
-                    >
+                    <div className={styles.posBalanceImpactStrip}>
                       <div className={styles.posImpactCol}>
                         <span className={styles.posImpactSub}>Old Due</span>
                         <span className={styles.posImpactVal}>₹{prevDue.toLocaleString('en-IN')}</span>
                       </div>
-
-                      {excessPaid > 0 ? (
-                        <>
-                          <span className={styles.posImpactOp} style={{ color: '#16a34a' }}>-</span>
-                          <div className={styles.posImpactCol}>
-                            <span className={styles.posImpactSub} style={{ color: '#15803d' }}>Settled</span>
-                            <span className={styles.posImpactAddVal} style={{ color: '#16a34a' }}>
-                              ₹{excessPaid.toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <span className={styles.posImpactOp}>+</span>
-                          <div className={styles.posImpactCol}>
-                            <span className={styles.posImpactSub}>New Udhar</span>
-                            <span className={styles.posImpactAddVal}>
-                              ₹{newUdhar.toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                        </>
-                      )}
-
-                      <span className={styles.posImpactOp}>=</span>
-                      <div
-                        className={`${styles.posImpactCol} ${styles.posImpactTotalCol}`}
-                        style={excessPaid > 0 ? { borderColor: '#86efac' } : {}}
-                      >
-                        <span className={styles.posImpactSubTotal}>Updated Due</span>
-                        <span
-                          className={styles.posImpactFinalVal}
-                          style={{ color: updatedDue > 0 ? '#dc2626' : '#16a34a' }}
-                        >
-                          ₹{updatedDue.toLocaleString('en-IN')}
+                      <span className={styles.posImpactOp}>+</span>
+                      <div className={styles.posImpactCol}>
+                        <span className={styles.posImpactSub}>New Udhar</span>
+                        <span className={styles.posImpactAddVal}>
+                          ₹{newUdhar.toLocaleString('en-IN')}
                         </span>
+                      </div>
+                      <span className={styles.posImpactOp}>=</span>
+                      <div className={`${styles.posImpactCol} ${styles.posImpactTotalCol}`}>
+                        <span className={styles.posImpactSubTotal}>Updated Due</span>
+                        <span className={styles.posImpactFinalVal}>₹{updatedDue.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 
@@ -1447,7 +1316,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                       <button
                         type="button"
                         onClick={handleConfirmPosOrder}
-                        disabled={isCreating || (lineItems.length === 0 && Number(newPaidAmount) <= 0)}
+                        disabled={isCreating || lineItems.length === 0}
                         className={styles.posConfirmBtn}
                       >
                         {isCreating ? (
@@ -1458,15 +1327,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         ) : (
                           <>
                             <Check size={14} />
-                            <span>
-                              {lineItems.length === 0 && paidNum > 0
-                                ? `Confirm & Settle ₹${paidNum.toLocaleString('en-IN')} Due`
-                                : newUdhar > 0
-                                ? `Confirm & Add ₹${newUdhar.toLocaleString('en-IN')} to Khata`
-                                : excessPaid > 0
-                                ? `Confirm Bill & Settle ₹${excessPaid.toLocaleString('en-IN')} Due`
-                                : `Confirm & Record ₹${grossTotal.toLocaleString('en-IN')} Paid`}
-                            </span>
+                            <span>Confirm & Add {newUdhar > 0 ? `₹${newUdhar.toLocaleString('en-IN')}` : ''} to Khata</span>
                           </>
                         )}
                       </button>
@@ -3332,8 +3193,235 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         const waLink = getWhatsAppStatementLink(passbookCustomer);
 
+        // Compute Item-wise Aggregation across all customer records
+        const itemMap = {};
+        customerHistory.forEach(rec => {
+          if (rec.items && Array.isArray(rec.items) && rec.items.length > 0) {
+            rec.items.forEach(it => {
+              const name = (it.name || 'Custom Dish').trim();
+              const qty = Number(it.quantity) || 1;
+              const price = Number(it.price) || 0;
+              if (!itemMap[name]) {
+                itemMap[name] = { name, quantity: 0, unitPrice: price, totalAmount: 0, ordersCount: 0, lastOrdered: rec.createdAt, isVeg: it.isVeg };
+              }
+              itemMap[name].quantity += qty;
+              if (price > 0 && itemMap[name].unitPrice === 0) itemMap[name].unitPrice = price;
+              itemMap[name].totalAmount += (price > 0 ? (price * qty) : 0);
+              itemMap[name].ordersCount += 1;
+              if (new Date(rec.createdAt) > new Date(itemMap[name].lastOrdered)) itemMap[name].lastOrdered = rec.createdAt;
+            });
+          }
+        });
+        const allItemsList = Object.values(itemMap).sort((a, b) => b.quantity - a.quantity);
+
+        // Search filter
+        const q = (passbookSearch || '').toLowerCase().trim();
+        const filteredHistory = customerHistory.filter(rec => {
+          if (!q) return true;
+          return rec.items?.some(it => it.name?.toLowerCase().includes(q)) || rec.notes?.toLowerCase().includes(q);
+        });
+        const filteredItemsList = allItemsList.filter(it => !q || it.name.toLowerCase().includes(q));
+        const totalUniqueDishes = allItemsList.length;
+        const totalItemsQty = allItemsList.reduce((sum, it) => sum + it.quantity, 0);
+        const totalItemsValue = allItemsList.reduce((sum, it) => sum + it.totalAmount, 0);
+
+        // Professional, branded printing handler
+        const handlePrintStatement = () => {
+          const restaurantName = tenantInfo?.name || 'Cafe Restaurant';
+          const restaurantPhone = tenantInfo?.phone || tenantInfo?.settings?.phone || '';
+          const restaurantAddress = tenantInfo?.address || tenantInfo?.settings?.address || '';
+          const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+          const printWin = window.open('', '_blank', 'width=880,height=960');
+          if (!printWin) {
+            window.print();
+            return;
+          }
+
+          const rowsHtml = customerHistory.map((rec) => {
+            const due = Number(rec.borrowAmount !== undefined ? rec.borrowAmount : (rec.remainingAmount || 0));
+            const isSettled = rec.status === 'settled' || due <= 0;
+            const recDate = new Date(rec.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const recTime = new Date(rec.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            const itemsList = rec.items && rec.items.length > 0
+              ? rec.items.map(it => `${it.name} ×${it.quantity || 1}${it.price ? ` (₹${it.price})` : ''}`).join(', ')
+              : (rec.notes || 'Order purchase');
+
+            return `
+              <tr>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+                  <div style="font-weight: 700; color: #1e293b;">${recDate}</div>
+                  <div style="font-size: 10px; color: #64748b;">${recTime}</div>
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5px; color: #334155;">
+                  ${itemsList}
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5px; text-align: right; font-weight: 700; color: #0f172a;">
+                  ₹${(Number(rec.totalBill) || 0).toLocaleString('en-IN')}
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5px; text-align: right; color: #16a34a; font-weight: 700;">
+                  ₹${(Number(rec.paidAmount) || 0).toLocaleString('en-IN')}
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5px; text-align: right; font-weight: 800; color: ${due > 0 ? '#dc2626' : '#16a34a'};">
+                  ₹${due.toLocaleString('en-IN')}
+                </td>
+                <td style="padding: 7px 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                  <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; background: ${isSettled ? '#f0fdf4' : '#fef2f2'}; color: ${isSettled ? '#16a34a' : '#dc2626'}; border: 1px solid ${isSettled ? '#bbf7d0' : '#fecaca'};">
+                    ${isSettled ? 'Settled ✓' : 'Due'}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          const itemsSummaryHtml = allItemsList && allItemsList.length > 0 ? `
+            <div style="margin-top: 22px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #334155; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 6px;">
+                Dish-wise Consumption Summary (${allItemsList.length} unique dishes)
+              </h4>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px;">
+                <thead>
+                  <tr style="background: #f1f5f9;">
+                    <th style="padding: 6px 8px; text-align: left; font-size: 10.5px; font-weight: 700; color: #475569;">#</th>
+                    <th style="padding: 6px 8px; text-align: left; font-size: 10.5px; font-weight: 700; color: #475569;">Dish Name</th>
+                    <th style="padding: 6px 8px; text-align: center; font-size: 10.5px; font-weight: 700; color: #475569;">Total Qty</th>
+                    <th style="padding: 6px 8px; text-align: right; font-size: 10.5px; font-weight: 700; color: #475569;">Unit Price</th>
+                    <th style="padding: 6px 8px; text-align: right; font-size: 10.5px; font-weight: 700; color: #475569;">Total Spent</th>
+                    <th style="padding: 6px 8px; text-align: center; font-size: 10.5px; font-weight: 700; color: #475569;">Orders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${allItemsList.map((it, idx) => `
+                    <tr>
+                      <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9; font-size: 10.5px; color: #94a3b8;">${idx + 1}</td>
+                      <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 700; color: #1e293b;">${it.name}</td>
+                      <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; text-align: center; font-weight: 700; color: #2563eb;">×${it.quantity}</td>
+                      <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; text-align: right; color: #64748b;">₹${it.unitPrice.toLocaleString('en-IN')}</td>
+                      <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; text-align: right; font-weight: 800; color: #16a34a;">₹${it.totalAmount.toLocaleString('en-IN')}</td>
+                      <td style="padding: 5px 8px; border-bottom: 1px solid #f1f5f9; font-size: 10.5px; text-align: center; color: #64748b;">${it.ordersCount}×</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : '';
+
+          printWin.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="utf-8" />
+                <title>Passbook_${passbookCustomer.customerName}_${passbookCustomer.customerPhone}</title>
+                <style>
+                  @page {
+                    size: A4 portrait;
+                    margin: 14mm;
+                  }
+                  * { box-sizing: border-box; }
+                  body {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    color: #0f172a;
+                    background: #ffffff;
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.4;
+                  }
+                  @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  }
+                </style>
+              </head>
+              <body>
+                <!-- Restaurant Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
+                  <div>
+                    <h1 style="margin: 0 0 3px 0; font-size: 21px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: -0.02em;">
+                      ${restaurantName}
+                    </h1>
+                    ${restaurantAddress ? '<div style="font-size: 11px; color: #475569; margin-bottom: 2px;">' + restaurantAddress + '</div>' : ''}
+                    ${restaurantPhone ? '<div style="font-size: 11px; color: #475569;">📞 ' + restaurantPhone + '</div>' : ''}
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="display: inline-block; background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #bfdbfe;">
+                      Customer Digital Passbook
+                    </div>
+                    <div style="font-size: 10px; color: #64748b; margin-top: 5px;">
+                      Statement Date: ${dateStr}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Customer Details & Metrics -->
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; margin-bottom: 18px;">
+                  <div>
+                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px;">Customer Account</div>
+                    <h2 style="margin: 2px 0 3px 0; font-size: 17px; font-weight: 800; color: #0f172a;">${passbookCustomer.customerName}</h2>
+                    <div style="font-size: 11.5px; color: #475569;">📞 ${passbookCustomer.customerPhone} &nbsp;•&nbsp; ${passbookCustomer.entriesCount || customerHistory.length} visits recorded</div>
+                  </div>
+
+                  <!-- 3 Summary Badges -->
+                  <div style="display: flex; gap: 10px;">
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 95px;">
+                      <div style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Purchases</div>
+                      <div style="font-size: 15px; font-weight: 900; color: #0f172a; margin-top: 2px;">₹${passbookCustomer.totalPurchases.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div style="background: #ffffff; border: 1px solid #86efac; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 95px;">
+                      <div style="font-size: 9.5px; font-weight: 700; color: #16a34a; text-transform: uppercase;">Total Paid</div>
+                      <div style="font-size: 15px; font-weight: 900; color: #15803d; margin-top: 2px;">₹${passbookCustomer.totalPaid.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div style="background: ${passbookCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${passbookCustomer.outstandingBalance > 0 ? '#fca5a5' : '#86efac'}; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 95px;">
+                      <div style="font-size: 9.5px; font-weight: 700; color: ${passbookCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a'}; text-transform: uppercase;">Current Due</div>
+                      <div style="font-size: 15px; font-weight: 900; color: ${passbookCustomer.outstandingBalance > 0 ? '#b91c1c' : '#15803d'}; margin-top: 2px;">₹${passbookCustomer.outstandingBalance.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Transaction Ledger Table -->
+                <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #334155; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 6px;">
+                  Transaction Ledger History (${customerHistory.length} transactions)
+                </h4>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                  <thead>
+                    <tr style="background: #f1f5f9;">
+                      <th style="padding: 8px 10px; text-align: left; font-size: 10.5px; font-weight: 700; color: #475569; width: 110px;">Date & Time</th>
+                      <th style="padding: 8px 10px; text-align: left; font-size: 10.5px; font-weight: 700; color: #475569;">Particulars / Items</th>
+                      <th style="padding: 8px 10px; text-align: right; font-size: 10.5px; font-weight: 700; color: #475569; width: 85px;">Total Bill</th>
+                      <th style="padding: 8px 10px; text-align: right; font-size: 10.5px; font-weight: 700; color: #475569; width: 80px;">Paid</th>
+                      <th style="padding: 8px 10px; text-align: right; font-size: 10.5px; font-weight: 700; color: #475569; width: 90px;">Udhar Due</th>
+                      <th style="padding: 8px 10px; text-align: center; font-size: 10.5px; font-weight: 700; color: #475569; width: 75px;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rowsHtml}
+                  </tbody>
+                </table>
+
+                ${itemsSummaryHtml}
+
+                <!-- Product Branding & Official Footer -->
+                <div style="margin-top: 26px; padding-top: 12px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #64748b;">
+                  <div>
+                    <span>${restaurantName}</span> • Customer Khata Statement • Official Copy
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 5px; font-weight: 700; color: #475569;">
+                    <span>Powered by</span>
+                    <span style="color: #2563eb; font-weight: 900; letter-spacing: -0.01em;">DineviQ OS</span>
+                    <span style="color: #94a3b8; font-weight: 500;">• Restaurant & Khata OS</span>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `);
+
+          printWin.document.close();
+          printWin.focus();
+          setTimeout(() => {
+            printWin.print();
+          }, 250);
+        };
+
         return (
-          <div className={styles.modalOverlay} onClick={() => setPassbookCustomer(null)}>
+          <div className={styles.modalOverlay} onClick={() => { setPassbookCustomer(null); setPassbookTab('bills'); setPassbookSearch(''); }}>
             <div className={`${styles.modalContent} ${styles.passbookModal} printablePassbook`} onClick={(e) => e.stopPropagation()}>
               {/* Passbook Top Bar */}
               <div className="noPrint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -3346,7 +3434,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={handlePrintStatement}
                     className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
                     title="Print Passbook Statement"
                   >
@@ -3367,7 +3455,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   )}
                   <button
                     type="button"
-                    onClick={() => setPassbookCustomer(null)}
+                    onClick={() => { setPassbookCustomer(null); setPassbookTab('bills'); setPassbookSearch(''); }}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
                   >
                     <X size={20} />
@@ -3375,32 +3463,38 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 </div>
               </div>
 
-              {/* Passbook Customer Header Card */}
+              {/* Passbook Customer Header Card (Light, clean, soft background) */}
               <div className={styles.passbookHeaderCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{
-                      width: 44,
-                      height: 44,
+                      width: 48,
+                      height: 48,
                       borderRadius: '50%',
-                      background: getAvatarStyle(passbookCustomer.customerName).bg,
+                      background: getAvatarStyle(passbookCustomer.customerName).background,
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
-                      fontSize: '18px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      fontSize: '20px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                      flexShrink: 0
                     }}>
                       {passbookCustomer.customerName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#ffffff' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
                         {passbookCustomer.customerName}
                       </h4>
-                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        📞 {passbookCustomer.customerPhone} &nbsp;•&nbsp; {passbookCustomer.entriesCount} visit{passbookCustomer.entriesCount > 1 ? 's' : ''}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          📞 {passbookCustomer.customerPhone}
+                        </span>
+                        <span style={{ fontSize: '10.5px', background: '#eff6ff', color: '#2563eb', padding: '1px 8px', borderRadius: 10, fontWeight: 700, border: '1px solid #bfdbfe' }}>
+                          {passbookCustomer.entriesCount} visit{passbookCustomer.entriesCount > 1 ? 's' : ''}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -3413,10 +3507,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         handleAddUdharForCustomer(cust);
                       }}
                       className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
-                      style={{ background: 'rgba(255,255,255,0.15)', color: '#ffffff', borderColor: 'rgba(255,255,255,0.25)' }}
+                      style={{ background: '#ffffff', color: '#2563eb', borderColor: '#bfdbfe', fontWeight: 700 }}
                     >
-                      <Plus size={13} />
-                      <span>{isHindi ? '+ नया उधार' : '+ Add Udhar'}</span>
+                      <Plus size={14} />
+                      <span>{isHindi ? 'नया उधार' : 'Add Udhar'}</span>
                     </button>
 
                     {passbookCustomer.outstandingBalance > 0 && (
@@ -3428,161 +3522,348 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           handleOpenCustomerSettle(cust);
                         }}
                         className={`${styles.actionBtn} ${styles.actionBtnSuccess}`}
-                        style={{ background: '#22c55e', color: '#ffffff', borderColor: '#16a34a' }}
+                        style={{ background: '#16a34a', color: '#ffffff', borderColor: '#15803d', fontWeight: 700 }}
                       >
-                        <Check size={13} />
+                        <Check size={14} />
                         <span>{isHindi ? 'जमा करें' : 'Settle Due'}</span>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* 3 Metric Tiles */}
+                {/* 3 Metric Tiles (Light, clean modern style) */}
                 <div className={styles.passbookSummaryGrid}>
-                  <div className={styles.passbookSummaryTile}>
-                    <h5>₹{passbookCustomer.totalPurchases.toLocaleString('en-IN')}</h5>
-                    <span>{isHindi ? 'कुल खरीदारी' : 'Total Purchases'}</span>
+                  <div className={styles.passbookSummaryTile} style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+                    <div className={styles.passbookTileHeader}>
+                      <span className={styles.passbookTileIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
+                        <ShoppingBag size={14} />
+                      </span>
+                      <span style={{ color: '#64748b' }}>{isHindi ? 'कुल खरीदारी' : 'Total Purchases'}</span>
+                    </div>
+                    <h5 style={{ color: '#0f172a' }}>₹{passbookCustomer.totalPurchases.toLocaleString('en-IN')}</h5>
+                    <span className={styles.passbookTileSub}>{customerHistory.length} transaction{customerHistory.length > 1 ? 's' : ''}</span>
                   </div>
-                  <div className={styles.passbookSummaryTile}>
-                    <h5 style={{ color: '#4ade80' }}>₹{passbookCustomer.totalPaid.toLocaleString('en-IN')}</h5>
-                    <span>{isHindi ? 'कुल चुकता' : 'Total Paid'}</span>
+
+                  <div className={styles.passbookSummaryTile} style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                    <div className={styles.passbookTileHeader}>
+                      <span className={styles.passbookTileIcon} style={{ background: '#dcfce7', color: '#16a34a' }}>
+                        <CheckCircle size={14} />
+                      </span>
+                      <span style={{ color: '#15803d' }}>{isHindi ? 'कुल चुकता' : 'Total Paid'}</span>
+                    </div>
+                    <h5 style={{ color: '#16a34a' }}>₹{passbookCustomer.totalPaid.toLocaleString('en-IN')}</h5>
+                    <span className={styles.passbookTileSub} style={{ color: '#15803d' }}>
+                      {passbookCustomer.totalPurchases > 0 ? Math.round((passbookCustomer.totalPaid / passbookCustomer.totalPurchases) * 100) : 0}% paid
+                    </span>
                   </div>
-                  <div className={styles.passbookSummaryTile} style={{ background: passbookCustomer.outstandingBalance > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)', borderColor: passbookCustomer.outstandingBalance > 0 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)' }}>
-                    <h5 style={{ color: passbookCustomer.outstandingBalance > 0 ? '#fca5a5' : '#4ade80' }}>
+
+                  <div
+                    className={styles.passbookSummaryTile}
+                    style={{
+                      background: passbookCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
+                      borderColor: passbookCustomer.outstandingBalance > 0 ? '#fecaca' : '#bbf7d0'
+                    }}
+                  >
+                    <div className={styles.passbookTileHeader}>
+                      <span
+                        className={styles.passbookTileIcon}
+                        style={{
+                          background: passbookCustomer.outstandingBalance > 0 ? '#fee2e2' : '#dcfce7',
+                          color: passbookCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a'
+                        }}
+                      >
+                        <Clock size={14} />
+                      </span>
+                      <span style={{ color: passbookCustomer.outstandingBalance > 0 ? '#991b1b' : '#15803d' }}>
+                        {isHindi ? 'बकाया उधार' : 'Current Due'}
+                      </span>
+                    </div>
+                    <h5 style={{ color: passbookCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a' }}>
                       ₹{passbookCustomer.outstandingBalance.toLocaleString('en-IN')}
                     </h5>
-                    <span>{isHindi ? 'बकाया उधार' : 'Current Due'}</span>
+                    <span
+                      className={styles.passbookTileSub}
+                      style={{ color: passbookCustomer.outstandingBalance > 0 ? '#b91c1c' : '#15803d' }}
+                    >
+                      {passbookCustomer.outstandingBalance > 0 ? 'Pending' : 'All Clear ✓'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Passbook Chronological Ledger Table */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
-                <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#475569' }}>
-                    {isHindi ? 'खाता विवरण व लेन-देन इतिहास' : 'Detailed Ledger Statement & History'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                    {customerHistory.length} transaction{customerHistory.length > 1 ? 's' : ''}
-                  </span>
+              {/* Tabs Bar + Search */}
+              <div className="noPrint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+                <div className={styles.passbookTabsBar}>
+                  <button
+                    type="button"
+                    className={`${styles.passbookTabBtn} ${passbookTab === 'bills' ? styles.passbookTabBtnActive : ''}`}
+                    onClick={() => setPassbookTab('bills')}
+                  >
+                    <FileText size={13} />
+                    <span>Bill-wise History</span>
+                    <span className={styles.passbookTabCount}>{customerHistory.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.passbookTabBtn} ${passbookTab === 'items' ? styles.passbookTabBtnActive : ''}`}
+                    onClick={() => setPassbookTab('items')}
+                  >
+                    <Utensils size={13} />
+                    <span>Item-wise Summary</span>
+                    <span className={styles.passbookTabCount}>{totalUniqueDishes}</span>
+                  </button>
                 </div>
 
-                <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-                  <table className={styles.passbookTable}>
-                    <thead>
-                      <tr>
-                        <th>{isHindi ? 'दिनांक' : 'Date'}</th>
-                        <th>{isHindi ? 'विवरण / व्यंजन' : 'Particulars / Items'}</th>
-                        <th>{isHindi ? 'कुल बिल' : 'Total Bill'}</th>
-                        <th>{isHindi ? 'भुगतान' : 'Paid'}</th>
-                        <th>{isHindi ? 'उधार (बकाया)' : 'Udhar Due'}</th>
-                        <th>{isHindi ? 'स्थिति' : 'Status'}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {customerHistory.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>
-                            {isHindi ? 'कोई लेन-देन नहीं मिला' : 'No Transactions Found'}
-                          </td>
-                        </tr>
-                      ) : (
-                        customerHistory.map((rec) => {
-                          const due = Number(rec.borrowAmount !== undefined ? rec.borrowAmount : (rec.remainingAmount || 0));
-                          const isSettled = rec.status === 'settled' || due <= 0;
-
-                          return (
-                            <tr key={rec._id}>
-                              <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px', color: '#64748b' }}>
-                                <div style={{ fontWeight: 700, color: '#334155' }}>
-                                  {new Date(rec.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </div>
-                                <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
-                                  {new Date(rec.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                              </td>
-
-                              <td>
-                                {rec.items && rec.items.length > 0 ? (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '240px' }}>
-                                    {rec.items.map((it, idx) => (
-                                      <span
-                                        key={idx}
-                                        style={{
-                                          fontSize: '11px',
-                                          color: '#334155',
-                                          background: '#f1f5f9',
-                                          padding: '2px 6px',
-                                          borderRadius: 4,
-                                          border: '1px solid #e2e8f0',
-                                          fontWeight: 600
-                                        }}
-                                      >
-                                        {it.name} ×{it.quantity || 1}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
-                                    {rec.notes || 'Order purchase'}
-                                  </span>
-                                )}
-
-                                {/* Settlement history breakdown if any repayments were recorded on this ticket */}
-                                {rec.settlementHistory && rec.settlementHistory.length > 0 && (
-                                  <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #86efac' }}>
-                                    {rec.settlementHistory.map((sh, sIdx) => (
-                                      <div key={sIdx} style={{ fontSize: '10.5px', color: '#16a34a', fontWeight: 600 }}>
-                                        ✓ Repaid ₹{sh.amount} via {sh.paymentMethod?.toUpperCase()} on {new Date(sh.settledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
-
-                              <td>
-                                <strong style={{ fontSize: '12.5px', color: '#0f172a' }}>
-                                  ₹{(Number(rec.totalBill) || 0).toLocaleString('en-IN')}
-                                </strong>
-                              </td>
-
-                              <td>
-                                <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '12px' }}>
-                                  ₹{(Number(rec.paidAmount) || 0).toLocaleString('en-IN')}
-                                </span>
-                              </td>
-
-                              <td>
-                                <span style={{ color: due > 0 ? '#dc2626' : '#16a34a', fontWeight: 800, fontSize: '12.5px' }}>
-                                  ₹{due.toLocaleString('en-IN')}
-                                </span>
-                              </td>
-
-                              <td>
-                                <span style={{
-                                  padding: '2px 7px',
-                                  borderRadius: 4,
-                                  fontSize: '10.5px',
-                                  fontWeight: 700,
-                                  background: isSettled ? '#f0fdf4' : '#fef2f2',
-                                  color: isSettled ? '#16a34a' : '#dc2626',
-                                  border: isSettled ? '1px solid #bbf7d0' : '1px solid #fecaca'
-                                }}>
-                                  {isSettled ? 'Settled ✓' : 'Due'}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                <div className={styles.passbookSearchWrap}>
+                  <Search size={14} color="#94a3b8" />
+                  <input
+                    type="text"
+                    className={styles.passbookSearchInput}
+                    placeholder={passbookTab === 'bills' ? 'Search bills...' : 'Search dishes...'}
+                    value={passbookSearch}
+                    onChange={(e) => setPassbookSearch(e.target.value)}
+                  />
+                  {passbookSearch && (
+                    <button type="button" onClick={() => setPassbookSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2 }}>
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
+              {/* Tab Content: Bill-wise History */}
+              {passbookTab === 'bills' && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#475569' }}>
+                      {isHindi ? 'खाता विवरण व लेन-देन इतिहास' : 'Detailed Ledger Statement & History'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                      {filteredHistory.length} transaction{filteredHistory.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                    <table className={styles.passbookTable}>
+                      <thead>
+                        <tr>
+                          <th>{isHindi ? 'दिनांक' : 'Date'}</th>
+                          <th>{isHindi ? 'विवरण / व्यंजन' : 'Particulars / Items'}</th>
+                          <th>{isHindi ? 'कुल बिल' : 'Total Bill'}</th>
+                          <th>{isHindi ? 'भुगतान' : 'Paid'}</th>
+                          <th>{isHindi ? 'उधार (बकाया)' : 'Udhar Due'}</th>
+                          <th>{isHindi ? 'स्थिति' : 'Status'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredHistory.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>
+                              {q ? 'No matching transactions found' : (isHindi ? 'कोई लेन-देन नहीं मिला' : 'No Transactions Found')}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredHistory.map((rec) => {
+                            const due = Number(rec.borrowAmount !== undefined ? rec.borrowAmount : (rec.remainingAmount || 0));
+                            const isSettled = rec.status === 'settled' || due <= 0;
+
+                            return (
+                              <tr key={rec._id}>
+                                <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px', color: '#64748b' }}>
+                                  <div style={{ fontWeight: 700, color: '#334155' }}>
+                                    {new Date(rec.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </div>
+                                  <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                                    {new Date(rec.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </td>
+
+                                <td>
+                                  {rec.items && rec.items.length > 0 ? (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '240px' }}>
+                                      {rec.items.map((it, idx) => (
+                                        <span
+                                          key={idx}
+                                          className={styles.passbookItemChip}
+                                        >
+                                          <span style={{
+                                            width: 6, height: 6, borderRadius: '50%',
+                                            background: it.isVeg === false ? '#ef4444' : '#22c55e',
+                                            display: 'inline-block', flexShrink: 0
+                                          }} />
+                                          {it.name} ×{it.quantity || 1}
+                                          {it.price > 0 && <span style={{ color: '#94a3b8', fontSize: '10px' }}>₹{it.price}</span>}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                                      {rec.notes || 'Order purchase'}
+                                    </span>
+                                  )}
+
+                                  {/* Settlement history breakdown */}
+                                  {rec.settlementHistory && rec.settlementHistory.length > 0 && (
+                                    <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #86efac' }}>
+                                      {rec.settlementHistory.map((sh, sIdx) => (
+                                        <div key={sIdx} style={{ fontSize: '10.5px', color: '#16a34a', fontWeight: 600 }}>
+                                          ✓ Repaid ₹{sh.amount} via {sh.paymentMethod?.toUpperCase()} on {new Date(sh.settledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </td>
+
+                                <td>
+                                  <strong style={{ fontSize: '12.5px', color: '#0f172a' }}>
+                                    ₹{(Number(rec.totalBill) || 0).toLocaleString('en-IN')}
+                                  </strong>
+                                </td>
+
+                                <td>
+                                  <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '12px' }}>
+                                    ₹{(Number(rec.paidAmount) || 0).toLocaleString('en-IN')}
+                                  </span>
+                                </td>
+
+                                <td>
+                                  <span style={{ color: due > 0 ? '#dc2626' : '#16a34a', fontWeight: 800, fontSize: '12.5px' }}>
+                                    ₹{due.toLocaleString('en-IN')}
+                                  </span>
+                                </td>
+
+                                <td>
+                                  <span style={{
+                                    padding: '2px 7px',
+                                    borderRadius: 4,
+                                    fontSize: '10.5px',
+                                    fontWeight: 700,
+                                    background: isSettled ? '#f0fdf4' : '#fef2f2',
+                                    color: isSettled ? '#16a34a' : '#dc2626',
+                                    border: isSettled ? '1px solid #bbf7d0' : '1px solid #fecaca'
+                                  }}>
+                                    {isSettled ? 'Settled ✓' : 'Due'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content: Item-wise Summary */}
+              {passbookTab === 'items' && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#475569' }}>
+                      {isHindi ? 'व्यंजन अनुसार सारांश' : 'Dish-wise Consumption Summary'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                      {filteredItemsList.length} unique dish{filteredItemsList.length > 1 ? 'es' : ''}
+                    </span>
+                  </div>
+
+                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                    <table className={styles.passbookItemTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 36 }}>#</th>
+                          <th>Dish Name</th>
+                          <th style={{ textAlign: 'center' }}>Total Consumed</th>
+                          <th style={{ textAlign: 'right' }}>Unit Price</th>
+                          <th style={{ textAlign: 'right' }}>Total Spent</th>
+                          <th style={{ textAlign: 'center' }}>Orders</th>
+                          <th>Last Ordered</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredItemsList.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>
+                              {q ? 'No matching dishes found' : 'No dish data available'}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredItemsList.map((item, idx) => (
+                            <tr key={item.name}>
+                              <td style={{ color: '#94a3b8', fontWeight: 600, fontSize: '11px' }}>{idx + 1}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{
+                                    width: 7, height: 7, borderRadius: '50%',
+                                    background: item.isVeg === false ? '#ef4444' : '#22c55e',
+                                    display: 'inline-block', flexShrink: 0
+                                  }} />
+                                  <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '12.5px' }}>{item.name}</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span style={{
+                                  background: 'rgba(59,130,246,0.15)',
+                                  color: '#3b82f6',
+                                  fontWeight: 800,
+                                  fontSize: '12px',
+                                  padding: '2px 10px',
+                                  borderRadius: 10
+                                }}>
+                                  ×{item.quantity}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
+                                ₹{item.unitPrice.toLocaleString('en-IN')}
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '12.5px' }}>
+                                  ₹{item.totalAmount.toLocaleString('en-IN')}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'center', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
+                                {item.ordersCount}×
+                              </td>
+                              <td style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                                {new Date(item.lastOrdered).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                      {filteredItemsList.length > 0 && (
+                        <tfoot>
+                          <tr className={styles.passbookSummaryFooter}>
+                            <td></td>
+                            <td style={{ fontWeight: 800, color: '#1e293b' }}>Total ({totalUniqueDishes} dishes)</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', fontWeight: 800, fontSize: '12px', padding: '2px 10px', borderRadius: 10 }}>
+                                ×{totalItemsQty}
+                              </span>
+                            </td>
+                            <td></td>
+                            <td style={{ textAlign: 'right' }}>
+                              <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '13px' }}>
+                                ₹{totalItemsValue.toLocaleString('en-IN')}
+                              </span>
+                            </td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* Footer print stamp */}
-              <div style={{ marginTop: 14, textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
-                {tenantInfo?.name || 'Cafe Application'} • Customer Khata Ledger Statement • Generated on {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              <div style={{ marginTop: 14, textAlign: 'center', fontSize: '11px', color: '#94a3b8', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                <span>{tenantInfo?.name || 'Cafe Application'}</span>
+                <span>•</span>
+                <span>Customer Khata Ledger Statement</span>
+                <span>•</span>
+                <span style={{ color: '#2563eb', fontWeight: 700 }}>Powered by DineviQ OS</span>
               </div>
             </div>
           </div>
