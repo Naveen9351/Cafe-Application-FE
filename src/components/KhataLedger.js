@@ -3370,15 +3370,14 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         const totalItemsQty = allItemsList.reduce((sum, it) => sum + it.quantity, 0);
         const totalItemsValue = allItemsList.reduce((sum, it) => sum + it.totalAmount, 0);
 
-        // Professional, branded printing handler
-        // Thermal Receipt Print Handler (Authentic 80mm POS receipt format)
+        // Professional Thermal Receipt Slip Printing Handler (Modern Typography & Crisp Spacing)
         const handlePrintReceipt = () => {
           const restaurantName = tenantInfo?.name || 'Cafe & Restaurant';
           const restaurantPhone = tenantInfo?.phone || tenantInfo?.settings?.phone || '';
           const restaurantAddress = tenantInfo?.address || tenantInfo?.settings?.address || '';
           const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-          const printWin = window.open('', '_blank', 'width=440,height=780');
+          const printWin = window.open('', '_blank', 'width=440,height=820');
           if (!printWin) {
             window.print();
             return;
@@ -3389,25 +3388,25 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             const due = Number(rec.borrowAmount !== undefined ? rec.borrowAmount : (rec.remainingAmount || 0));
             const recDate = new Date(rec.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
             const itemText = rec.items && rec.items.length > 0
-              ? rec.items.map(it => it.name + ' x' + (it.quantity || 1)).join(', ')
+              ? rec.items.map(it => it.name + ' ×' + (it.quantity || 1)).join(', ')
               : (rec.notes || 'Order purchase');
 
             return (
-              '<div style="display: flex; justify-content: space-between; font-size: 11px; margin: 3px 0;">' +
-                '<span style="color: #475569; min-width: 48px;">' + recDate + '</span>' +
-                '<span style="flex: 1; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + itemText + '</span>' +
-                '<span style="min-width: 44px; text-align: right; font-weight: 700;">₹' + (Number(rec.totalBill) || 0) + '</span>' +
-                '<span style="min-width: 48px; text-align: right; color: ' + (due > 0 ? '#dc2626' : '#16a34a') + '; font-weight: 700;">' + (due > 0 ? '₹' + due : 'PAID') + '</span>' +
+              '<div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 11px; padding: 3px 0; border-bottom: 1px dotted #e5e7eb;">' +
+                '<span style="color: #6b7280; min-width: 44px; font-variant-numeric: tabular-nums;">' + recDate + '</span>' +
+                '<span style="flex: 1; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937;">' + itemText + '</span>' +
+                '<span style="min-width: 44px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">₹' + (Number(rec.totalBill) || 0) + '</span>' +
+                '<span style="min-width: 50px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: ' + (due > 0 ? '#dc2626' : '#16a34a') + ';">' + (due > 0 ? '₹' + due : 'PAID') + '</span>' +
               '</div>'
             );
           }).join('');
 
           // Build item consumption breakdown
           const dishRows = allItemsList.slice(0, 15).map(it => (
-            '<div style="display: flex; justify-content: space-between; font-size: 11px; margin: 2px 0;">' +
-              '<span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">• ' + it.name + '</span>' +
-              '<span style="min-width: 36px; text-align: center; color: #2563eb; font-weight: 700;">x' + it.quantity + '</span>' +
-              '<span style="min-width: 50px; text-align: right; font-weight: 700;">₹' + it.totalAmount + '</span>' +
+            '<div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 2.5px 0;">' +
+              '<span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937;">• ' + it.name + '</span>' +
+              '<span style="min-width: 36px; text-align: center; color: #2563eb; font-weight: 700; font-variant-numeric: tabular-nums;">×' + it.quantity + '</span>' +
+              '<span style="min-width: 50px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums;">₹' + it.totalAmount.toLocaleString('en-IN') + '</span>' +
             '</div>'
           )).join('');
 
@@ -3424,24 +3423,25 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   }
                   * { box-sizing: border-box; }
                   body {
-                    font-family: 'Courier New', Courier, monospace, -apple-system, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                     width: 76mm;
                     max-width: 100%;
                     margin: 0 auto;
-                    padding: 6mm 4mm;
-                    color: #000000;
+                    padding: 8mm 4mm;
+                    color: #111827;
                     background: #ffffff;
                     font-size: 11px;
-                    line-height: 1.35;
+                    line-height: 1.4;
+                    font-variant-numeric: tabular-nums;
                   }
                   .text-center { text-align: center; }
                   .text-right { text-align: right; }
-                  .divider { border-top: 1px dashed #000000; margin: 6px 0; }
-                  .double-divider { border-top: 1.5px solid #000000; margin: 6px 0; }
+                  .divider { border-top: 1px dashed #6b7280; margin: 8px 0; }
+                  .double-divider { border-top: 1.5px solid #111827; margin: 8px 0; }
                   .bold { font-weight: 700; }
-                  .flex-between { display: flex; justify-content: space-between; }
+                  .flex-between { display: flex; justify-content: space-between; align-items: center; }
                   @media print {
-                    body { padding: 4mm 2mm; width: 74mm; }
+                    body { padding: 5mm 3mm; width: 74mm; }
                     .no-print { display: none; }
                   }
                 </style>
@@ -3449,45 +3449,55 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <body>
                 <!-- Header -->
                 <div class="text-center">
-                  <div style="font-size: 15px; font-weight: 900; letter-spacing: -0.01em; text-transform: uppercase;">
+                  <div style="font-size: 16px; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; color: #0f172a;">
                     ${restaurantName}
                   </div>
-                  ${restaurantAddress ? '<div style="font-size: 10px; color: #333;">' + restaurantAddress + '</div>' : ''}
-                  ${restaurantPhone ? '<div style="font-size: 10px; color: #333;">Tel: ' + restaurantPhone + '</div>' : ''}
-                  <div class="double-divider"></div>
-                  <div style="font-size: 12px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
-                    CUSTOMER KHATA STATEMENT
+                  ${restaurantAddress ? '<div style="font-size: 10px; color: #4b5563; margin-top: 1px;">' + restaurantAddress + '</div>' : ''}
+                  ${restaurantPhone ? '<div style="font-size: 10px; color: #4b5563;">Tel: ' + restaurantPhone + '</div>' : ''}
+                  
+                  <div style="display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 4px; background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 9.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #334155;">
+                    CUSTOMER KHATA PASSBOOK SLIP
                   </div>
                 </div>
 
                 <div class="divider"></div>
 
                 <!-- Customer Details -->
-                <div class="flex-between">
-                  <span>Customer: <strong style="font-size: 12px;">${passbookCustomer.customerName}</strong></span>
-                  <span>${passbookCustomer.entriesCount || customerHistory.length} visits</span>
-                </div>
-                <div class="flex-between" style="font-size: 10px; color: #444;">
-                  <span>Phone: ${passbookCustomer.customerPhone}</span>
-                  <span>${dateStr}</span>
+                <div style="font-size: 11px; line-height: 1.5;">
+                  <div class="flex-between">
+                    <span style="color: #6b7280;">Customer:</span>
+                    <span class="bold" style="font-size: 12px; color: #0f172a;">${passbookCustomer.customerName}</span>
+                  </div>
+                  <div class="flex-between">
+                    <span style="color: #6b7280;">Phone:</span>
+                    <span class="bold">${passbookCustomer.customerPhone}</span>
+                  </div>
+                  <div class="flex-between">
+                    <span style="color: #6b7280;">Date:</span>
+                    <span style="color: #4b5563;">${dateStr}</span>
+                  </div>
+                  <div class="flex-between">
+                    <span style="color: #6b7280;">Recorded Visits:</span>
+                    <span style="color: #4b5563;">${passbookCustomer.entriesCount || customerHistory.length} orders</span>
+                  </div>
                 </div>
 
                 <div class="double-divider"></div>
 
                 <!-- Balance Summary Hero Box -->
-                <div style="padding: 4px 0;">
-                  <div class="flex-between" style="font-size: 11px;">
-                    <span>TOTAL BILLED:</span>
+                <div style="padding: 2px 0;">
+                  <div class="flex-between" style="font-size: 11px; margin-bottom: 2px;">
+                    <span style="color: #4b5563;">TOTAL PURCHASES:</span>
                     <span class="bold">₹${passbookCustomer.totalPurchases.toLocaleString('en-IN')}</span>
                   </div>
-                  <div class="flex-between" style="font-size: 11px;">
-                    <span>TOTAL REPAID:</span>
+                  <div class="flex-between" style="font-size: 11px; margin-bottom: 2px;">
+                    <span style="color: #15803d; font-weight: 600;">TOTAL REPAID:</span>
                     <span class="bold" style="color: #15803d;">₹${passbookCustomer.totalPaid.toLocaleString('en-IN')}</span>
                   </div>
                   <div class="divider"></div>
                   <div class="flex-between" style="font-size: 13px; font-weight: 900;">
                     <span>CURRENT DUE:</span>
-                    <span style="font-size: 14px; color: ${passbookCustomer.outstandingBalance > 0 ? '#b91c1c' : '#15803d'};">
+                    <span style="font-size: 15px; color: ${passbookCustomer.outstandingBalance > 0 ? '#dc2626' : '#15803d'};">
                       ₹${passbookCustomer.outstandingBalance.toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -3497,10 +3507,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
                 <!-- Dish Consumption Summary -->
                 ${allItemsList && allItemsList.length > 0 ? `
-                  <div class="bold text-center" style="font-size: 10.5px; text-transform: uppercase; margin-bottom: 4px;">
-                    -- DISHES CONSUMED SUMMARY --
+                  <div class="bold text-center" style="font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; color: #374151; margin-bottom: 5px;">
+                    -- DISH CONSUMPTION SUMMARY --
                   </div>
-                  <div class="flex-between bold" style="font-size: 10px; color: #444; border-bottom: 1px dotted #888; padding-bottom: 2px; margin-bottom: 3px;">
+                  <div class="flex-between bold" style="font-size: 9.5px; color: #6b7280; border-bottom: 1px dotted #9ca3af; padding-bottom: 3px; margin-bottom: 3px;">
                     <span>ITEM</span>
                     <span style="width: 36px; text-align: center;">QTY</span>
                     <span style="width: 50px; text-align: right;">SPENT</span>
@@ -3510,36 +3520,36 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 ` : ''}
 
                 <!-- Recent Transactions Ledger -->
-                <div class="bold text-center" style="font-size: 10.5px; text-transform: uppercase; margin-bottom: 4px;">
-                  -- RECENT BILL TRANSACTIONS --
+                <div class="bold text-center" style="font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; color: #374151; margin-bottom: 5px;">
+                  -- RECENT TRANSACTIONS --
                 </div>
-                <div class="flex-between bold" style="font-size: 10px; color: #444; border-bottom: 1px dotted #888; padding-bottom: 2px; margin-bottom: 3px;">
-                  <span>DATE</span>
-                  <span style="flex: 1; padding: 0 4px;">PARTICULARS</span>
+                <div class="flex-between bold" style="font-size: 9.5px; color: #6b7280; border-bottom: 1px dotted #9ca3af; padding-bottom: 3px; margin-bottom: 3px;">
+                  <span style="min-width: 44px;">DATE</span>
+                  <span style="flex: 1; padding: 0 6px;">ITEMS</span>
                   <span style="min-width: 44px; text-align: right;">BILL</span>
-                  <span style="min-width: 48px; text-align: right;">DUE</span>
+                  <span style="min-width: 50px; text-align: right;">DUE</span>
                 </div>
                 ${txRows}
 
                 <div class="double-divider"></div>
 
-                <!-- Footer Status & Brand -->
+                <!-- Footer Status & DineviQ Brand -->
                 <div class="text-center" style="padding-top: 4px;">
-                  <div class="bold" style="font-size: 11px;">
+                  <div class="bold" style="font-size: 11px; color: ${passbookCustomer.outstandingBalance > 0 ? '#b91c1c' : '#15803d'};">
                     ${passbookCustomer.outstandingBalance > 0
                       ? 'STATUS: PAYMENT PENDING (₹' + passbookCustomer.outstandingBalance.toLocaleString('en-IN') + ')'
                       : 'STATUS: ALL DUES FULLY CLEARED ✓'}
                   </div>
-                  <div style="font-size: 10px; color: #555; margin-top: 3px;">
-                    ${passbookCustomer.outstandingBalance > 0 ? 'Please clear your pending balance at earliest.' : 'Thank you for dining with us!'}
+                  <div style="font-size: 10px; color: #6b7280; margin-top: 3px;">
+                    ${passbookCustomer.outstandingBalance > 0 ? 'Please settle your pending balance at the earliest.' : 'Thank you for dining with us!'}
                   </div>
 
                   <div class="divider"></div>
 
-                  <div style="font-size: 10.5px; font-weight: 800; margin-top: 4px; letter-spacing: -0.01em;">
-                    *** Powered by DineviQ OS ***
+                  <div style="font-size: 10px; font-weight: 800; margin-top: 4px; color: #1e293b; letter-spacing: -0.01em;">
+                    Powered by <span style="color: #2563eb;">DineviQ OS</span>
                   </div>
-                  <div style="font-size: 9px; color: #666;">
+                  <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px;">
                     Autonomous Restaurant & Khata Cloud
                   </div>
                 </div>
@@ -3598,62 +3608,81 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 </div>
               </div>
 
-              {/* Ultra-Premium Passbook Customer Header Dashboard */}
-              <div style={{
-                background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                border: '1px solid #e2e8f0',
-                borderRadius: '16px',
-                padding: '18px 20px',
-                marginBottom: '16px',
-                boxShadow: '0 4px 16px -4px rgba(15, 23, 42, 0.05)'
-              }}>
+              {/* Compact Sleek Customer Header Bar (Space-saving & Modern) */}
+              <div className={styles.passbookHeaderCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {/* Left: Customer Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
-                      width: 52,
-                      height: 52,
+                      width: 44,
+                      height: 44,
                       borderRadius: '50%',
                       background: getAvatarStyle(passbookCustomer.customerName).background,
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontWeight: 900,
-                      fontSize: '22px',
-                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                      fontWeight: 800,
+                      fontSize: '18px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                       flexShrink: 0
                     }}>
                       {passbookCustomer.customerName.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: '#0f172a' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
                           {passbookCustomer.customerName}
                         </h4>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: 12,
-                          background: passbookCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
-                          color: passbookCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a',
-                          border: passbookCustomer.outstandingBalance > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0'
-                        }}>
-                          {passbookCustomer.outstandingBalance > 0 ? `₹${passbookCustomer.outstandingBalance.toLocaleString('en-IN')} Due` : 'All Clear ✓'}
+                        <span style={{ fontSize: '10.5px', background: '#eff6ff', color: '#2563eb', padding: '1px 8px', borderRadius: 10, fontWeight: 700, border: '1px solid #bfdbfe' }}>
+                          {passbookCustomer.entriesCount || customerHistory.length} visits
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                        <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: 600 }}>
-                          📞 {passbookCustomer.customerPhone}
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>•</span>
-                        <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#334155', padding: '1px 8px', borderRadius: 8, fontWeight: 700 }}>
-                          {passbookCustomer.entriesCount} visit{passbookCustomer.entriesCount > 1 ? 's' : ''}
-                        </span>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: 2 }}>
+                        📞 {passbookCustomer.customerPhone}
                       </div>
                     </div>
                   </div>
 
+                  {/* Center: 3 Compact Metric Pills */}
+                  <div className={styles.passbookPillGroup}>
+                    <div className={styles.passbookMetricPill}>
+                      <div>
+                        <div className={styles.passbookPillLabel}>{isHindi ? 'कुल खरीदारी' : 'Total Billed'}</div>
+                        <div className={styles.passbookPillValue} style={{ color: '#0f172a' }}>
+                          ₹{passbookCustomer.totalPurchases.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.passbookMetricPill} style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                      <div>
+                        <div className={styles.passbookPillLabel} style={{ color: '#15803d' }}>{isHindi ? 'कुल चुकता' : 'Total Repaid'}</div>
+                        <div className={styles.passbookPillValue} style={{ color: '#16a34a' }}>
+                          ₹{passbookCustomer.totalPaid.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={styles.passbookMetricPill}
+                      style={{
+                        background: passbookCustomer.outstandingBalance > 0 ? '#fef2f2' : '#f0fdf4',
+                        borderColor: passbookCustomer.outstandingBalance > 0 ? '#fecaca' : '#bbf7d0'
+                      }}
+                    >
+                      <div>
+                        <div className={styles.passbookPillLabel} style={{ color: passbookCustomer.outstandingBalance > 0 ? '#991b1b' : '#15803d' }}>
+                          {isHindi ? 'बकाया उधार' : 'Current Due'}
+                        </div>
+                        <div className={styles.passbookPillValue} style={{ color: passbookCustomer.outstandingBalance > 0 ? '#dc2626' : '#16a34a' }}>
+                          ₹{passbookCustomer.outstandingBalance.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Actions */}
                   <div className="noPrint" style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
@@ -3684,90 +3713,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         <span>{isHindi ? 'जमा करें' : 'Settle Due'}</span>
                       </button>
                     )}
-                  </div>
-                </div>
-
-                {/* 3 Ultra-Premium Metric Tiles */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
-                  {/* Tile 1: Purchases */}
-                  <div style={{
-                    background: '#ffffff',
-                    border: '1.5px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 3,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>
-                        {isHindi ? 'कुल खरीदारी' : 'Total Billed'}
-                      </span>
-                      <span style={{ width: 24, height: 24, borderRadius: 6, background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <ShoppingBag size={13} />
-                      </span>
-                    </div>
-                    <h5 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.3px' }}>
-                      ₹{passbookCustomer.totalPurchases.toLocaleString('en-IN')}
-                    </h5>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
-                      {customerHistory.length} transaction{customerHistory.length > 1 ? 's' : ''} recorded
-                    </span>
-                  </div>
-
-                  {/* Tile 2: Paid */}
-                  <div style={{
-                    background: '#f0fdf4',
-                    border: '1.5px solid #bbf7d0',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 3,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#15803d' }}>
-                        {isHindi ? 'कुल चुकता' : 'Total Repaid'}
-                      </span>
-                      <span style={{ width: 24, height: 24, borderRadius: 6, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <CheckCircle size={13} />
-                      </span>
-                    </div>
-                    <h5 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#15803d', letterSpacing: '-0.3px' }}>
-                      ₹{passbookCustomer.totalPaid.toLocaleString('en-IN')}
-                    </h5>
-                    <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
-                      {passbookCustomer.totalPurchases > 0 ? Math.round((passbookCustomer.totalPaid / passbookCustomer.totalPurchases) * 100) : 0}% paid back
-                    </span>
-                  </div>
-
-                  {/* Tile 3: Outstanding Due */}
-                  <div style={{
-                    background: passbookCustomer.outstandingBalance > 0 ? '#fff1f2' : '#f0fdf4',
-                    border: passbookCustomer.outstandingBalance > 0 ? '1.5px solid #fecdd3' : '1.5px solid #bbf7d0',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 3,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: passbookCustomer.outstandingBalance > 0 ? '#9f1239' : '#15803d' }}>
-                        {isHindi ? 'बकाया उधार' : 'Outstanding Due'}
-                      </span>
-                      <span style={{ width: 24, height: 24, borderRadius: 6, background: passbookCustomer.outstandingBalance > 0 ? '#ffe4e6' : '#dcfce7', color: passbookCustomer.outstandingBalance > 0 ? '#e11d48' : '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Clock size={13} />
-                      </span>
-                    </div>
-                    <h5 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: passbookCustomer.outstandingBalance > 0 ? '#be123c' : '#15803d', letterSpacing: '-0.3px' }}>
-                      ₹{passbookCustomer.outstandingBalance.toLocaleString('en-IN')}
-                    </h5>
-                    <span style={{ fontSize: '0.72rem', color: passbookCustomer.outstandingBalance > 0 ? '#e11d48' : '#15803d', fontWeight: 700 }}>
-                      {passbookCustomer.outstandingBalance > 0 ? 'Payment Pending' : 'All Clear ✓'}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -3824,16 +3769,16 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     </span>
                   </div>
 
-                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                  <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
                     <table className={styles.passbookTable}>
                       <thead>
                         <tr>
-                          <th>{isHindi ? 'दिनांक' : 'Date'}</th>
-                          <th>{isHindi ? 'विवरण / व्यंजन' : 'Particulars / Items'}</th>
-                          <th>{isHindi ? 'कुल बिल' : 'Total Bill'}</th>
-                          <th>{isHindi ? 'भुगतान' : 'Paid'}</th>
-                          <th>{isHindi ? 'उधार (बकाया)' : 'Udhar Due'}</th>
-                          <th>{isHindi ? 'स्थिति' : 'Status'}</th>
+                          <th style={{ width: 120 }}>{isHindi ? 'दिनांक' : 'Date'}</th>
+                          <th style={{ minWidth: 260 }}>{isHindi ? 'विवरण / व्यंजन' : 'Particulars / Items'}</th>
+                          <th style={{ width: 100, textAlign: 'right' }}>{isHindi ? 'कुल बिल' : 'Total Bill'}</th>
+                          <th style={{ width: 90, textAlign: 'right' }}>{isHindi ? 'भुगतान' : 'Paid'}</th>
+                          <th style={{ width: 100, textAlign: 'right' }}>{isHindi ? 'उधार (बकाया)' : 'Udhar Due'}</th>
+                          <th style={{ width: 85, textAlign: 'center' }}>{isHindi ? 'स्थिति' : 'Status'}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3850,7 +3795,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
                             return (
                               <tr key={rec._id}>
-                                <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px', color: '#64748b' }}>
+                                <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px', color: '#64748b', width: 120 }}>
                                   <div style={{ fontWeight: 700, color: '#334155' }}>
                                     {new Date(rec.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                   </div>
@@ -3859,9 +3804,9 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                   </div>
                                 </td>
 
-                                <td>
+                                <td style={{ minWidth: 260 }}>
                                   {rec.items && rec.items.length > 0 ? (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '240px' }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '280px' }}>
                                       {rec.items.map((it, idx) => (
                                         <span
                                           key={idx}
@@ -3895,25 +3840,25 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                   )}
                                 </td>
 
-                                <td>
+                                <td style={{ width: 100, textAlign: 'right' }}>
                                   <strong style={{ fontSize: '12.5px', color: '#0f172a' }}>
                                     ₹{(Number(rec.totalBill) || 0).toLocaleString('en-IN')}
                                   </strong>
                                 </td>
 
-                                <td>
+                                <td style={{ width: 90, textAlign: 'right' }}>
                                   <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '12px' }}>
                                     ₹{(Number(rec.paidAmount) || 0).toLocaleString('en-IN')}
                                   </span>
                                 </td>
 
-                                <td>
+                                <td style={{ width: 100, textAlign: 'right' }}>
                                   <span style={{ color: due > 0 ? '#dc2626' : '#16a34a', fontWeight: 800, fontSize: '12.5px' }}>
                                     ₹{due.toLocaleString('en-IN')}
                                   </span>
                                 </td>
 
-                                <td>
+                                <td style={{ width: 85, textAlign: 'center' }}>
                                   <span style={{
                                     padding: '2px 7px',
                                     borderRadius: 4,
@@ -3938,7 +3883,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
               {/* Tab Content: Item-wise Summary */}
               {passbookTab === 'items' && (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#475569' }}>
                       {isHindi ? 'व्यंजन अनुसार सारांश' : 'Dish-wise Consumption Summary'}
@@ -3948,17 +3893,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     </span>
                   </div>
 
-                  <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                  <div style={{ maxHeight: '460px', overflowY: 'auto' }}>
                     <table className={styles.passbookItemTable}>
                       <thead>
                         <tr>
-                          <th style={{ width: 36 }}>#</th>
-                          <th>Dish Name</th>
-                          <th style={{ textAlign: 'center' }}>Total Consumed</th>
-                          <th style={{ textAlign: 'right' }}>Unit Price</th>
-                          <th style={{ textAlign: 'right' }}>Total Spent</th>
-                          <th style={{ textAlign: 'center' }}>Orders</th>
-                          <th>Last Ordered</th>
+                          <th style={{ width: 44, minWidth: 44, maxWidth: 44, textAlign: 'center', padding: '10px 4px' }}>#</th>
+                          <th style={{ minWidth: 240, textAlign: 'left' }}>Dish Name</th>
+                          <th style={{ width: 120, textAlign: 'center' }}>Total Consumed</th>
+                          <th style={{ width: 100, textAlign: 'right' }}>Unit Price</th>
+                          <th style={{ width: 110, textAlign: 'right' }}>Total Spent</th>
+                          <th style={{ width: 80, textAlign: 'center' }}>Orders</th>
+                          <th style={{ width: 110 }}>Last Ordered</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3971,9 +3916,11 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         ) : (
                           filteredItemsList.map((item, idx) => (
                             <tr key={item.name}>
-                              <td style={{ color: '#94a3b8', fontWeight: 600, fontSize: '11px' }}>{idx + 1}</td>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <td style={{ width: 44, minWidth: 44, maxWidth: 44, textAlign: 'center', padding: '10px 4px', color: '#94a3b8', fontWeight: 600, fontSize: '11px' }}>
+                                {idx + 1}
+                              </td>
+                              <td style={{ minWidth: 240 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                                   <span style={{
                                     width: 7, height: 7, borderRadius: '50%',
                                     background: item.isVeg === false ? '#ef4444' : '#22c55e',
@@ -3982,10 +3929,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                   <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '12.5px' }}>{item.name}</span>
                                 </div>
                               </td>
-                              <td style={{ textAlign: 'center' }}>
+                              <td style={{ width: 120, textAlign: 'center' }}>
                                 <span style={{
-                                  background: 'rgba(59,130,246,0.15)',
-                                  color: '#3b82f6',
+                                  background: 'rgba(59,130,246,0.12)',
+                                  color: '#2563eb',
                                   fontWeight: 800,
                                   fontSize: '12px',
                                   padding: '2px 10px',
@@ -3994,47 +3941,53 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                   ×{item.quantity}
                                 </span>
                               </td>
-                              <td style={{ textAlign: 'right', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
+                              <td style={{ width: 100, textAlign: 'right', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
                                 ₹{item.unitPrice.toLocaleString('en-IN')}
                               </td>
-                              <td style={{ textAlign: 'right' }}>
+                              <td style={{ width: 110, textAlign: 'right' }}>
                                 <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '12.5px' }}>
                                   ₹{item.totalAmount.toLocaleString('en-IN')}
                                 </span>
                               </td>
-                              <td style={{ textAlign: 'center', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
+                              <td style={{ width: 80, textAlign: 'center', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
                                 {item.ordersCount}×
                               </td>
-                              <td style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                              <td style={{ width: 110, fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
                                 {new Date(item.lastOrdered).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </td>
                             </tr>
                           ))
                         )}
                       </tbody>
-                      {filteredItemsList.length > 0 && (
-                        <tfoot>
-                          <tr className={styles.passbookSummaryFooter}>
-                            <td></td>
-                            <td style={{ fontWeight: 800, color: '#1e293b' }}>Total ({totalUniqueDishes} dishes)</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', fontWeight: 800, fontSize: '12px', padding: '2px 10px', borderRadius: 10 }}>
-                                ×{totalItemsQty}
-                              </span>
-                            </td>
-                            <td></td>
-                            <td style={{ textAlign: 'right' }}>
-                              <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '13px' }}>
-                                ₹{totalItemsValue.toLocaleString('en-IN')}
-                              </span>
-                            </td>
-                            <td></td>
-                            <td></td>
-                          </tr>
-                        </tfoot>
-                      )}
                     </table>
                   </div>
+
+                  {/* Properly Placed Bottom Summary Bar (Always visible at card bottom) */}
+                  {filteredItemsList.length > 0 && (
+                    <div className={styles.passbookSummaryBar}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '12.5px' }}>
+                          Total ({filteredItemsList.length} {filteredItemsList.length > 1 ? 'dishes' : 'dish'})
+                        </span>
+                        <span style={{
+                          background: 'rgba(59,130,246,0.12)',
+                          color: '#2563eb',
+                          fontWeight: 800,
+                          fontSize: '11.5px',
+                          padding: '2px 8px',
+                          borderRadius: 12
+                        }}>
+                          ×{totalItemsQty} items consumed
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Spent:</span>
+                        <span style={{ color: '#16a34a', fontWeight: 900, fontSize: '14.5px' }}>
+                          ₹{totalItemsValue.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
