@@ -1725,7 +1725,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             className={styles.addRecordBtn}
           >
             <Plus size={16} />
-            <span>{isHindi ? '+ नया उधार जोड़ें' : '+ Add Customer Udhar'}</span>
+            <span>{isHindi ? 'नया उधार जोड़ें' : 'Add Customer Udhar'}</span>
           </button>
         </div>
       </div>
@@ -1865,7 +1865,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <table className={styles.khataTable}>
               <thead>
                 <tr>
-                  <th>{isHindi ? 'ग्राहक विवरण' : 'Customer'}</th>
+                  <th>{isHindi ? 'ग्राहक का नाम' : 'Customer Name'}</th>
+                  <th>{isHindi ? 'मोबाइल नंबर' : 'Mobile Number'}</th>
                   <th>{isHindi ? 'कुल खरीदारी' : 'Total Purchases'}</th>
                   <th>{isHindi ? 'कुल भुगतान' : 'Total Paid'}</th>
                   <th>{isHindi ? 'बकाया उधार' : 'Current Due'}</th>
@@ -1877,68 +1878,68 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <tbody>
                 {paginatedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <User size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
                       <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155', display: 'block' }}>
                         {isHindi ? 'कोई ग्राहक खाता नहीं मिला' : 'No Customer Khata Accounts Found'}
                       </span>
                       <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        {isHindi ? 'नया उधार जोड़ने के लिए ऊपर दिए गए बटन का उपयोग करें' : 'Click "+ Add Customer Udhar" to start a customer credit account'}
+                        {isHindi ? 'नया उधार जोड़ने के लिए ऊपर दिए गए बटन का उपयोग करें' : 'Click "Add Customer Udhar" to start a customer credit account'}
                       </span>
                     </td>
                   </tr>
                 ) : (
                   paginatedCustomers.map((cust) => {
                     const hasDue = cust.outstandingBalance > 0;
-                    const waLink = getWhatsAppStatementLink(cust);
-                    const avatarInfo = getAvatarStyle(cust.customerName);
                     const paidPercent = cust.totalPurchases > 0 ? Math.min(100, Math.round((cust.totalPaid / cust.totalPurchases) * 100)) : 100;
 
                     return (
                       <tr key={cust.customerPhone !== 'N/A' ? cust.customerPhone : cust.customerName}>
-                        {/* Customer Avatar & Name & Phone */}
+                        {/* Customer Name (No circular avatar) */}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                            <div style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: '50%',
-                              background: avatarInfo.bg,
-                              color: avatarInfo.text,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 900,
-                              fontSize: '14.5px',
-                              flexShrink: 0,
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
-                            }}>
-                              {cust.customerName.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px', lineHeight: 1.2 }}>
-                                {cust.customerName}
-                              </div>
-                              <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: 2 }}>
-                                📞 {cust.customerPhone}
-                              </div>
-                            </div>
-                          </div>
+                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px' }}>
+                            {cust.customerName}
+                          </span>
                         </td>
 
-                        {/* Total Purchases & Progress */}
+                        {/* Mobile Number */}
                         <td>
-                          <div>
-                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px' }}>
-                              ₹{cust.totalPurchases.toLocaleString('en-IN')}
-                            </span>
-                            <div className={styles.creditBarWrap} title={`${paidPercent}% repaid`}>
-                              <div className={styles.creditBarPaid} style={{ width: `${paidPercent}%` }} />
-                              <div className={styles.creditBarDue} style={{ width: `${100 - paidPercent}%` }} />
+                          <span style={{
+                            fontSize: '12.5px',
+                            color: cust.customerPhone && cust.customerPhone !== 'N/A' ? '#475569' : '#94a3b8',
+                            fontWeight: 600,
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            {cust.customerPhone && cust.customerPhone !== 'N/A' ? cust.customerPhone : '—'}
+                          </span>
+                        </td>
+
+                        {/* Total Purchases & Modern Progress Pill */}
+                        <td>
+                          <div style={{ minWidth: 120 }}>
+                            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
+                              <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px' }}>
+                                ₹{cust.totalPurchases.toLocaleString('en-IN')}
+                              </span>
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                color: paidPercent === 100 ? '#16a34a' : paidPercent > 0 ? '#2563eb' : '#94a3b8'
+                              }}>
+                                {paidPercent}% paid
+                              </span>
                             </div>
-                            <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', marginTop: 2 }}>
-                              {paidPercent}% settled
-                            </span>
+                            <div className={styles.creditBarWrap} title={`${paidPercent}% settled`}>
+                              <div
+                                className={styles.creditBarPaid}
+                                style={{
+                                  width: `${paidPercent}%`,
+                                  background: paidPercent === 100
+                                    ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+                                    : 'linear-gradient(90deg, #3b82f6, #10b981)'
+                                }}
+                              />
+                            </div>
                           </div>
                         </td>
 
@@ -1994,7 +1995,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           {new Date(cust.lastActivity).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                         </td>
 
-                        {/* Actions */}
+                        {/* Actions (Clean: Passbook, Add, Settle - WhatsApp removed) */}
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <button
@@ -2027,19 +2028,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                                 <Check size={13} />
                                 <span>{isHindi ? 'जमा करें' : 'Settle'}</span>
                               </button>
-                            )}
-
-                            {waLink && (
-                              <a
-                                href={waLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`${styles.actionBtn} ${styles.actionBtnWhatsapp}`}
-                                title="Share statement on WhatsApp"
-                              >
-                                <MessageCircle size={14} />
-                                <span>WhatsApp</span>
-                              </a>
                             )}
                           </div>
                         </td>
