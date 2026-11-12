@@ -22,6 +22,7 @@ import OnlineAggregators from './petpooja/OnlineAggregators';
 import RestaurantSettings from './RestaurantSettings';
 import StaffManager from './StaffManager';
 import ReportsSuite from './ReportsSuite';
+import SalesSummary from './SalesSummary';
 import KhataLedger from './KhataLedger';
 import SupportModal from './SupportModal';
 import CafeAICopilotChatbot, { KHUSHI_AVATAR_URL } from './CafeAICopilotChatbot';
@@ -274,6 +275,7 @@ export default function AdminPanel() {
     { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders' },
     { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true },
     { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports' },
+    { id: 'sales-summary', label: 'Sales Summary', icon: TrendingUp, permKey: 'access_reports' },
     { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata' },
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
   ], []);
@@ -302,7 +304,7 @@ export default function AdminPanel() {
     }
     const t = tab.toLowerCase();
     if (t === 'live-orders') return 'kds';
-    const validTabs = ['dashboard', 'pos', 'kds', 'orders', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'khata', 'settings'];
+    const validTabs = ['dashboard', 'pos', 'kds', 'orders', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'sales-summary', 'khata', 'settings'];
     return validTabs.includes(t) ? t : (isAdmin ? 'dashboard' : (allowedTabs[0]?.id || 'pos'));
   }, [tab, isAdmin, allowedTabs]);
 
@@ -506,6 +508,13 @@ export default function AdminPanel() {
       keywords: ['reports', 'reports suite', 'sales reports', 'revenue reports', 'daily sales', 'financials', 'reprot', 'audit', 'tax'],
       icon: BarChart3,
       desc: 'Financial reports, payment method breakdown & metrics'
+    },
+    {
+      id: 'sales-summary',
+      label: 'Sales Summary & Z-Report',
+      keywords: ['sales summary', 'z report', 'day close', 'category sales', 'hourly rush', 'excel export', 'daily timeline'],
+      icon: TrendingUp,
+      desc: 'Category sales, peak hours, day close Z-report & Excel export'
     },
     {
       id: 'staff',
@@ -2452,6 +2461,13 @@ export default function AdminPanel() {
               title="Reports & Analytics"
             >
               <BarChart3 size={18} /> {!sidebarCollapsed && <span>{t('nav.reports')}</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'sales-summary' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('sales-summary')}
+              title="Sales Summary & Day-End Z-Report"
+            >
+              <TrendingUp size={18} /> {!sidebarCollapsed && <span>{t('nav.salesSummary')}</span>}
             </button>
             {tenantInfo?.settings?.enableKhata && (
               <button
@@ -5400,6 +5416,21 @@ export default function AdminPanel() {
                   transition={{ duration: 0.25 }}
                 >
                   <ReportsSuite initialOrders={orders} />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 10B. SALES SUMMARY & DAY-END Z-REPORT MODULE              */}
+              {/* ========================================================= */}
+              {activeTab === 'sales-summary' && (
+                <motion.div
+                  key="sales-summary"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <SalesSummary initialOrders={orders} />
                 </motion.div>
               )}
 

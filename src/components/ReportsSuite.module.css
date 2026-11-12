@@ -9,14 +9,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: nowrap;
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
 }
 
 .titleGroup h2 {
   font-size: 1.35rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #0f172a;
   margin: 0 0 2px 0;
   display: flex;
@@ -36,16 +43,16 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .dateFilterBtn {
-  padding: 7px 11px;
+  padding: 7px 12px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   color: #475569;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -61,34 +68,17 @@
   background: #2563eb !important;
   color: #ffffff !important;
   border-color: #2563eb !important;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
-.customDateBox {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  padding: 4px 8px;
-  border-radius: 8px;
-}
-
-.customDateInput {
-  border: none;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: #0f172a;
-  outline: none;
-  background: transparent;
-}
-
-.actionBtn {
+.printBtn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
   border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
@@ -96,156 +86,64 @@
   transition: all 0.15s ease;
 }
 
-.excelBtn {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #047857;
-}
-
-.excelBtn:hover {
-  background: #d1fae5;
-  border-color: #6ee7b7;
-}
-
-.zReportBtn {
-  background: #fefce8;
-  border: 1px solid #fef08a;
-  color: #a16207;
-}
-
-.zReportBtn:hover {
-  background: #fef9c3;
-  border-color: #fde047;
-}
-
-.pdfBtn {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-}
-
-.pdfBtn:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
-}
-
-/* ── Modern Sub-Tabs Navigation Bar ── */
-.subTabsContainer {
-  display: flex;
-  gap: 6px;
-  background: #ffffff;
-  padding: 6px 8px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.subTabBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.subTabBtn:hover {
-  background: #f8fafc;
-  color: #0f172a;
-}
-
-.subTabActive {
-  background: #0f172a !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
-}
-
-.subTabBadge {
-  background: rgba(255, 255, 255, 0.2);
-  color: inherit;
-  padding: 1px 6px;
-  border-radius: 100px;
-  font-size: 0.68rem;
-}
-
-.subTabBadgeInactive {
+.printBtn:hover {
   background: #f1f5f9;
-  color: #64748b;
-  padding: 1px 6px;
-  border-radius: 100px;
-  font-size: 0.68rem;
+  border-color: #94a3b8;
 }
 
-/* ── Executive KPI Cards (6 Grid) ── */
 .kpiGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
 
 .kpiCard {
   background: #ffffff;
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.kpiCard:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .kpiTitle {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: #64748b;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   margin-bottom: 4px;
 }
 
 .kpiValue {
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 600;
   color: #0f172a;
   margin-bottom: 2px;
 }
 
 .kpiSubtitle {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: #10b981;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .kpiIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-/* ── 2-Column Responsive Grid ── */
 .chartsGrid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -258,9 +156,9 @@
 
 .chartCard {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  padding: 16px;
+  padding: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
@@ -268,40 +166,37 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .chartCardHeader h3 {
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.88rem;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .breakdownList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .breakdownItem {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .breakdownHeader {
   display: flex;
   justify-content: space-between;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .progressBarContainer {
-  height: 8px;
+  height: 7px;
   background: #f1f5f9;
   border-radius: 6px;
   overflow: hidden;
@@ -313,254 +208,6 @@
   transition: width 0.4s ease;
 }
 
-/* ── Channel & Dining Split ── */
-.channelGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 6px;
-}
-
-@media (max-width: 768px) {
-  .channelGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.channelCard {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.channelTitle {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.channelValue {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.channelMeta {
-  font-size: 0.7rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-/* ── Peak Rush Alert Banner ── */
-.peakRushBanner {
-  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  padding: 14px 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.peakRushTitle {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #1e3a8a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.peakRushSubtitle {
-  font-size: 0.78rem;
-  color: #3b82f6;
-  margin-top: 3px;
-}
-
-.peakBadge {
-  background: #2563eb;
-  color: #ffffff;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-/* ── Hourly Rush Bar Chart ── */
-.hourlyChartBox {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.hourlyBarsWrapper {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 6px;
-  height: 180px;
-  padding: 20px 4px 8px 4px;
-  border-bottom: 2px solid #e2e8f0;
-  overflow-x: auto;
-}
-
-.hourlyBarCol {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  min-width: 32px;
-  height: 100%;
-  justify-content: flex-end;
-  position: relative;
-  cursor: pointer;
-}
-
-.hourlyBarCol:hover .hourlyBarTooltip {
-  display: flex;
-}
-
-.hourlyBarTooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  background: #0f172a;
-  color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.68rem;
-  white-space: nowrap;
-  flex-direction: column;
-  align-items: center;
-  z-index: 10;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.hourlyBarFill {
-  width: 100%;
-  max-width: 24px;
-  border-radius: 6px 6px 0 0;
-  transition: height 0.3s ease, background-color 0.2s;
-  min-height: 4px;
-}
-
-.hourlyBarLabel {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #64748b;
-  margin-top: 6px;
-  white-space: nowrap;
-}
-
-/* ── Meal Sessions Grid ── */
-.sessionGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-top: 14px;
-}
-
-@media (max-width: 860px) {
-  .sessionGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.sessionCard {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.sessionCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.sessionTitle {
-  font-size: 0.74rem;
-  font-weight: 800;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.sessionTime {
-  font-size: 0.66rem;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.sessionRevenue {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.sessionMeta {
-  font-size: 0.7rem;
-  color: #64748b;
-}
-
-/* ── Category Breakdown Cards ── */
-.categoriesGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.categoryCard {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px;
-}
-
-.categoryName {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #0f172a;
-  text-transform: capitalize;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.categoryRevenue {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 4px 0 2px 0;
-}
-
-.categoryMeta {
-  font-size: 0.7rem;
-  color: #64748b;
-  margin-bottom: 8px;
-}
-
-/* ── Top Dishes Rows ── */
 .topDishesList {
   display: flex;
   flex-direction: column;
@@ -571,47 +218,46 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 8px;
   background: #f8fafc;
   border: 1px solid #f1f5f9;
 }
 
 .dishRank {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #eff6ff;
   color: #2563eb;
-  font-weight: 700;
-  font-size: 0.7rem;
+  font-weight: 600;
+  font-size: 0.68rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 10px;
+  margin-right: 8px;
   flex-shrink: 0;
 }
 
 .dishName {
-  font-weight: 700;
-  font-size: 0.8rem;
+  font-weight: 600;
+  font-size: 0.78rem;
   color: #1e293b;
 }
 
 .dishMeta {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: #64748b;
 }
 
 .dishRevenue {
-  font-weight: 800;
-  font-size: 0.85rem;
+  font-weight: 600;
+  font-size: 0.82rem;
   color: #0f172a;
   text-align: right;
   flex-shrink: 0;
 }
 
-/* ── Tables Styling ── */
 .recentOrdersTable {
   width: 100%;
   border-collapse: collapse;
@@ -619,9 +265,9 @@
 
 .recentOrdersTable th {
   background: #f8fafc;
-  padding: 10px 12px;
-  font-size: 0.7rem;
-  font-weight: 700;
+  padding: 8px 12px;
+  font-size: 0.68rem;
+  font-weight: 600;
   text-transform: uppercase;
   color: #64748b;
   border-bottom: 1px solid #e2e8f0;
@@ -629,17 +275,14 @@
 }
 
 .recentOrdersTable td {
-  padding: 10px 12px;
+  padding: 8px 12px;
   font-size: 0.78rem;
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.recentOrdersTable tr:hover {
-  background-color: #f8fafc;
-}
 
-/* ── Tablet & Surface Device Responsive Styles ── */
+/* ── Tablet & Surface Device Responsive Styles (768px - 1024px) ── */
 @media (max-width: 1024px) {
   .header {
     flex-wrap: wrap;
@@ -651,16 +294,23 @@
     gap: 6px;
   }
 
+  .dateFilterBtn, .printBtn {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+
   .kpiGrid {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .recentOrdersCard,
   .chartCard {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   .recentOrdersTable {
-    min-width: 650px;
+    min-width: 600px;
   }
 }
+

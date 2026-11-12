@@ -335,3 +335,4 @@ export const printDayCloseZReport = (reportData, format = 'thermal') => {
   printWindow.document.write(htmlContent);
   printWindow.document.close();
 };
+
