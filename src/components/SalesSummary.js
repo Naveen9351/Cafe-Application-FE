@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import {
@@ -42,6 +42,7 @@ export default function SalesSummary() {
   const [endDate, setEndDate] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusScope, setStatusScope] = useState('completed'); // 'completed' | 'all'
+  const [groupBy, setGroupBy] = useState('date'); // 'date' | 'item'
   const [sortBy, setSortBy] = useState('date_desc'); // 'date_desc' | 'qty_desc' | 'sales_desc'
 
   // Backend Pagination
@@ -76,6 +77,7 @@ export default function SalesSummary() {
         range: dateFilter,
         category: categoryFilter,
         statusScope,
+        groupBy,
         search: debouncedSearch,
         sortBy,
         page: String(page),
@@ -106,7 +108,7 @@ export default function SalesSummary() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateFilter, startDate, endDate, categoryFilter, statusScope, debouncedSearch, sortBy, page]);
+  }, [dateFilter, startDate, endDate, categoryFilter, statusScope, groupBy, debouncedSearch, sortBy, page]);
 
   useEffect(() => {
     fetchItemSummary();
@@ -136,6 +138,7 @@ export default function SalesSummary() {
         range: dateFilter,
         category: categoryFilter,
         statusScope,
+        groupBy,
         search: debouncedSearch,
         sortBy,
         exportAll: 'true'
@@ -148,19 +151,32 @@ export default function SalesSummary() {
       const res = await axios.get(`${API}/orders/item-summary?${params.toString()}`, { headers });
       const exportRows = res.data?.rows || [];
 
-      const sheetData = [
-        ['Date', 'Item / Dish Name', 'Variant', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)']
-      ];
+      const sheetData = groupBy === 'item'
+        ? [['Item / Dish Name', 'Variant', 'Category', 'Days Sold', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)']]
+        : [['Date', 'Item / Dish Name', 'Variant', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)']];
+
       exportRows.forEach(r => {
-        sheetData.push([
-          formatDisplayDate(r.dateKey),
-          r.name,
-          r.variant || '-',
-          r.category,
-          r.qty,
-          Math.round(r.unitPrice || 0),
-          Math.round(r.totalSales || 0)
-        ]);
+        if (groupBy === 'item') {
+          sheetData.push([
+            r.name,
+            r.variant || '-',
+            r.category,
+            (r.datesSold || []).length || 1,
+            r.qty,
+            Math.round(r.unitPrice || 0),
+            Math.round(r.totalSales || 0)
+          ]);
+        } else {
+          sheetData.push([
+            formatDisplayDate(r.dateKey),
+            r.name,
+            r.variant || '-',
+            r.category,
+            r.qty,
+            Math.round(r.unitPrice || 0),
+            Math.round(r.totalSales || 0)
+          ]);
+        }
       });
 
       const wb = XLSX.utils.book_new();
@@ -184,6 +200,23 @@ export default function SalesSummary() {
       year: 'numeric'
     });
   };
+
+  // Group current page rows by dateKey when in Date-Grouped mode
+  const groupedByDate = useMemo(() => {
+    if (groupBy !== 'date') return [];
+    const map = new Map();
+    rows.forEach((row) => {
+      const key = row.dateKey || 'Unknown';
+      if (!map.has(key)) {
+        map.set(key, { dateKey: key, items: [], totalQty: 0, totalSales: 0 });
+      }
+      const g = map.get(key);
+      g.items.push(row);
+      g.totalQty += row.qty || 0;
+      g.totalSales += row.totalSales || 0;
+    });
+    return Array.from(map.values());
+  }, [rows, groupBy]);
 
   return (
     <div className={styles.page} style={{ height: 'calc(100dvh - 82px)', minHeight: '420px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -286,6 +319,42 @@ export default function SalesSummary() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+
+          {/* View Grouping Toggle: Date Grouped vs Item-Wise */}
+          <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: '7px', padding: '2px', border: '1px solid #cbd5e1' }}>
+            <button
+              type="button"
+              onClick={() => { setGroupBy('date'); setPage(1); }}
+              style={{
+                border: 'none',
+                borderRadius: '5px',
+                padding: '0.3rem 0.65rem',
+                fontSize: '0.73rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: groupBy === 'date' ? '#2563eb' : 'transparent',
+                color: groupBy === 'date' ? '#ffffff' : '#475569'
+              }}
+            >
+              Date Grouped
+            </button>
+            <button
+              type="button"
+              onClick={() => { setGroupBy('item'); setPage(1); }}
+              style={{
+                border: 'none',
+                borderRadius: '5px',
+                padding: '0.3rem 0.65rem',
+                fontSize: '0.73rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: groupBy === 'item' ? '#2563eb' : 'transparent',
+                color: groupBy === 'item' ? '#ffffff' : '#475569'
+              }}
+            >
+              Item-Wise
+            </button>
+          </div>
 
           {/* Order Status Scope Filter */}
           <select
@@ -408,9 +477,9 @@ export default function SalesSummary() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th} style={{ paddingLeft: '16px' }}>Date</th>
-                <th className={styles.th}>Item / Dish Name</th>
+                <th className={styles.th} style={{ paddingLeft: '16px' }}>Item / Dish Name</th>
                 <th className={styles.th}>Category</th>
+                {groupBy === 'item' && <th className={styles.th} style={{ textAlign: 'center' }}>Days Sold</th>}
                 <th className={styles.th} style={{ textAlign: 'center' }}>Qty Sold</th>
                 <th className={styles.th} style={{ textAlign: 'right' }}>Unit Price</th>
                 <th className={styles.th} style={{ textAlign: 'right', paddingRight: '20px' }}>Total Sales</th>
@@ -420,20 +489,100 @@ export default function SalesSummary() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
-                    {isLoading ? 'Loading item sales summary...' : 'No item sales found for the selected filter.'}
+                  <td colSpan={groupBy === 'item' ? 7 : 6} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
+                    {isLoading ? 'Loading item summary...' : 'No item sales found for the selected filter.'}
                   </td>
                 </tr>
+              ) : groupBy === 'date' ? (
+                groupedByDate.map((group) => (
+                  <React.Fragment key={group.dateKey}>
+                    {/* Date Group Header Row */}
+                    <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+                      <td colSpan={6} style={{ padding: '8px 16px', fontWeight: 800, color: '#0f172a', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Calendar size={14} color="#2563eb" />
+                            {formatDisplayDate(group.dateKey)}
+                            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginLeft: '4px' }}>
+                              ({group.items.length} {group.items.length === 1 ? 'Item' : 'Items'})
+                            </span>
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
+                            <span style={{ color: '#2563eb', fontWeight: 700 }}>×{group.totalQty} Units</span>
+                            <span style={{ color: '#0f172a', fontWeight: 800 }}>{formatCurrency(Math.round(group.totalSales))}</span>
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {group.items.map((row) => (
+                      <tr key={`${row.dateKey}_${row.name}_${row.variant || ''}`} className={styles.tr}>
+                        <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b', paddingLeft: '28px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span>{row.name}</span>
+                            {row.variant && (
+                              <span style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '5px',
+                                background: '#eef2ff',
+                                color: '#4338ca'
+                              }}>
+                                {row.variant}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className={styles.td}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            background: '#f1f5f9',
+                            color: '#475569'
+                          }}>
+                            {row.category || 'General'}
+                          </span>
+                        </td>
+                        <td className={styles.td} style={{ textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 9px',
+                            borderRadius: '100px',
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            background: '#eff6ff',
+                            color: '#2563eb'
+                          }}>
+                            ×{row.qty}
+                          </span>
+                        </td>
+                        <td className={styles.td} style={{ textAlign: 'right', color: '#64748b' }}>
+                          {formatCurrency(Math.round(row.unitPrice || 0))}
+                        </td>
+                        <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', paddingRight: '20px' }}>
+                          {formatCurrency(Math.round(row.totalSales || 0))}
+                        </td>
+                        <td className={styles.td} style={{ textAlign: 'center', paddingRight: '16px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRow(row)}
+                            className={styles.btnSecondary}
+                            style={{ padding: '3px 9px', fontSize: '0.72rem', margin: '0 auto' }}
+                          >
+                            <Eye size={12} /> View ({row.orders?.length || 0})
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))
               ) : (
                 rows.map((row) => (
-                  <tr key={`${row.dateKey}_${row.name}_${row.variant || ''}`} className={styles.tr}>
-                    <td className={styles.td} style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', paddingLeft: '16px' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <Calendar size={13} color="#64748b" />
-                        {formatDisplayDate(row.dateKey)}
-                      </div>
-                    </td>
-                    <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b' }}>
+                  <tr key={`${row.name}_${row.variant || ''}`} className={styles.tr}>
+                    <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b', paddingLeft: '16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span>{row.name}</span>
                         {row.variant && (
@@ -462,6 +611,9 @@ export default function SalesSummary() {
                       }}>
                         {row.category || 'General'}
                       </span>
+                    </td>
+                    <td className={styles.td} style={{ textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>
+                      {(row.datesSold || []).length || 1} {((row.datesSold || []).length || 1) === 1 ? 'Day' : 'Days'}
                     </td>
                     <td className={styles.td} style={{ textAlign: 'center' }}>
                       <span style={{
@@ -568,7 +720,8 @@ export default function SalesSummary() {
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Clock size={16} color="#2563eb" />
-                    {selectedRow.name}{selectedRow.variant ? ` (${selectedRow.variant})` : ''} — {formatDisplayDate(selectedRow.dateKey)}
+                    {selectedRow.name}{selectedRow.variant ? ` (${selectedRow.variant})` : ''}
+                    {groupBy === 'date' && selectedRow.dateKey ? ` — ${formatDisplayDate(selectedRow.dateKey)}` : ''}
                   </h3>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
                     Total Qty: <strong>×{selectedRow.qty}</strong> • Total Sales: <strong>{formatCurrency(Math.round(selectedRow.totalSales || 0))}</strong>
@@ -599,7 +752,10 @@ export default function SalesSummary() {
                     {(selectedRow.orders || []).map((o, idx) => (
                       <tr key={idx} className={styles.tr}>
                         <td className={styles.td} style={{ fontWeight: 700, color: '#2563eb' }}>
-                          {o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                          {groupBy === 'item' && o.dateKey && (
+                            <div style={{ fontSize: '0.68rem', color: '#475569' }}>{formatDisplayDate(o.dateKey)}</div>
+                          )}
+                          <div>{o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</div>
                         </td>
                         <td className={styles.td} style={{ fontWeight: 700, color: '#4f46e5' }}>#{String(o.orderNum || '').slice(-6)}</td>
                         <td className={styles.td}>
