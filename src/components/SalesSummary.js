@@ -21,7 +21,11 @@ import {
   FileSpreadsheet,
   Coffee,
   Sun,
-  Moon
+  Moon,
+  History,
+  ListFilter,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -41,13 +45,19 @@ export default function SalesSummary({ initialOrders = [] }) {
   const [tenantInfo, setTenantInfo] = useState(null);
   const [loading, setLoading] = useState(() => !(Array.isArray(initialOrders) && initialOrders.length > 0));
 
-  // Navigation Sub-tabs: 'overview' | 'categories' | 'hourly' | 'daily' | 'orders'
+  // Navigation Sub-tabs: 'overview' | 'items' | 'categories' | 'hourly' | 'daily' | 'orders'
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Time Filter State
-  const [timeFilter, setTimeFilter] = useState('today'); // 'today' | 'yesterday' | '7d' | '30d' | 'thisMonth' | 'all' | 'custom'
+  // Time Filter State (default '7d' so date-wise item breakdown shows multi-day history immediately)
+  const [timeFilter, setTimeFilter] = useState('7d'); // 'today' | 'yesterday' | '7d' | '30d' | 'thisMonth' | 'all' | 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+
+  // Item-Wise & Date-Wise Tab State
+  const [itemViewMode, setItemViewMode] = useState('datewise'); // 'datewise' | 'leaderboard'
+  const [itemSortBy, setItemSortBy] = useState('revenue'); // 'revenue' | 'qty' | 'name'
+  const [collapsedDates, setCollapsedDates] = useState({});
+  const [selectedDishHistory, setSelectedDishHistory] = useState(null);
 
   // Search & Filter State
   const [orderSearch, setOrderSearch] = useState('');
@@ -248,7 +258,7 @@ export default function SalesSummary({ initialOrders = [] }) {
       .reduce((acc, k) => acc + (Number(k.borrowAmount || k.remainingAmount || k.totalBill) || 0), 0);
   }, [khataRecords]);
 
-  // Channel & Dining Split (Dine-in vs Takeaway vs Delivery vs POS Counter)
+  // Channel & Dining Split
   const channelBreakdown = useMemo(() => {
     const channels = {
       dineIn: { name: 'Dine-In (Tables)', count: 0, revenue: 0 },
@@ -280,7 +290,7 @@ export default function SalesSummary({ initialOrders = [] }) {
     return channels;
   }, [completedOrders]);
 
-  // Menu Categories Mapping and Aggregation
+  // Menu Categories Mapping
   const menuMap = useMemo(() => {
     const map = {};
     menuCatalog.forEach(m => {
@@ -294,38 +304,108 @@ export default function SalesSummary({ initialOrders = [] }) {
     return map;
   }, [menuCatalog]);
 
-  // Category and Dish Sales Aggregators
-  const { categorySalesList, dishSalesList, topDishes } = useMemo(() => {
+  // Category, Consolidated Dish Leaderboard, and Date-Wise Item Sales Aggregators
+  const { categorySalesList, dishSalesList, topDishes, dateWiseItemSales, totalUnitsSold } = useMemo(() => {
     const catMap = {};
     const dishMap = {};
+    const dateMap = {};
+    let unitsSum = 0;
 
-    completedOrders.forEach(ord => {
+    // Sort completedOrders newest first so history arrays are naturally newest first
+    const sortedOrders = [...completedOrders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    sortedOrders.forEach(ord => {
+      const ordDateObj = new Date(ord.createdAt);
+      const dateKey = ordDateObj.toISOString().slice(0, 10);
+      const displayDate = ordDateObj.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+      const timeStr = ordDateObj.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : 'ORD');
+      const tableLabel = ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS';
+      const custName = ord.customerName || ord.customerDetails?.name || 'Walk-in Guest';
+      const payMethod = ord.paymentMethod || 'Cash';
+
+      if (!dateMap[dateKey]) {
+        dateMap[dateKey] = {
+          dateKey,
+          displayDate,
+          orderIds: new Set(),
+          totalQty: 0,
+          totalRevenue: 0,
+          itemsMap: {}
+        };
+      }
+      dateMap[dateKey].orderIds.add(ord._id || orderNum);
+
       (ord.items || []).forEach(item => {
         const dishName = (item.name || item.item?.name || 'Unknown Item').trim();
         const qty = Number(item.quantity) || 1;
         const price = Number(item.price || item.item?.price) || 0;
         const lineTotal = qty * price;
+        unitsSum += qty;
 
         const catalogEntry = menuMap[dishName.toLowerCase()];
         const category = (item.category || item.item?.category || catalogEntry?.category || 'General').trim();
 
+        // 1. Category accumulator
         if (!catMap[category]) {
           catMap[category] = { name: category, qty: 0, revenue: 0 };
         }
         catMap[category].qty += qty;
         catMap[category].revenue += lineTotal;
 
+        // 2. Consolidated Dish accumulator (with full date/time history)
         if (!dishMap[dishName]) {
           dishMap[dishName] = {
             name: dishName,
             category,
             count: 0,
             revenue: 0,
-            price
+            price,
+            lastSoldAt: ord.createdAt,
+            history: []
           };
         }
         dishMap[dishName].count += qty;
         dishMap[dishName].revenue += lineTotal;
+        dishMap[dishName].history.push({
+          dateKey,
+          displayDate,
+          timeStr,
+          createdAt: ord.createdAt,
+          orderNum,
+          tableLabel,
+          customerName: custName,
+          qty,
+          price,
+          lineTotal,
+          payMethod
+        });
+
+        // 3. Date-wise Item accumulator
+        dateMap[dateKey].totalQty += qty;
+        dateMap[dateKey].totalRevenue += lineTotal;
+        if (!dateMap[dateKey].itemsMap[dishName]) {
+          dateMap[dateKey].itemsMap[dishName] = {
+            name: dishName,
+            category,
+            qty: 0,
+            price,
+            revenue: 0,
+            timings: []
+          };
+        }
+        dateMap[dateKey].itemsMap[dishName].qty += qty;
+        dateMap[dateKey].itemsMap[dishName].revenue += lineTotal;
+        dateMap[dateKey].itemsMap[dishName].timings.push({ timeStr, qty, orderNum });
       });
     });
 
@@ -333,12 +413,29 @@ export default function SalesSummary({ initialOrders = [] }) {
     const dishSalesList = Object.values(dishMap).sort((a, b) => b.revenue - a.revenue);
     const topDishes = dishSalesList.slice(0, 5);
 
-    return { categorySalesList, dishSalesList, topDishes };
+    const dateWiseItemSales = Object.values(dateMap)
+      .sort((a, b) => b.dateKey.localeCompare(a.dateKey))
+      .map(d => ({
+        dateKey: d.dateKey,
+        displayDate: d.displayDate,
+        ordersCount: d.orderIds.size,
+        totalQty: d.totalQty,
+        totalRevenue: d.totalRevenue,
+        items: Object.values(d.itemsMap).sort((a, b) => b.revenue - a.revenue)
+      }));
+
+    return {
+      categorySalesList,
+      dishSalesList,
+      topDishes,
+      dateWiseItemSales,
+      totalUnitsSold: unitsSum
+    };
   }, [completedOrders, menuMap]);
 
   // Hourly Sales & Peak Rush Engine (08:00 to 23:00)
   const { hourlyDistribution, peakRushHour, mealSessions } = useMemo(() => {
-    const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8 AM to 11 PM
+    const hours = Array.from({ length: 16 }, (_, i) => i + 8);
     const distMap = {};
     hours.forEach(h => {
       distMap[h] = { hour: h, count: 0, revenue: 0 };
@@ -451,7 +548,7 @@ export default function SalesSummary({ initialOrders = [] }) {
     return Math.max(...hourlyDistribution.map(h => h.revenue), 100);
   }, [hourlyDistribution]);
 
-  // Excel / CSV Export Engine (Multi-Sheet Workbook)
+  // Excel Export Engine (Multi-Sheet Workbook including Date-Wise Item Sales)
   const handleExportFullExcel = () => {
     try {
       toast.loading('Generating comprehensive Sales Excel workbook...', { id: 'excel-export' });
@@ -468,6 +565,7 @@ export default function SalesSummary({ initialOrders = [] }) {
         ['Total GST / Tax Collected', totalTaxAmount],
         ['Average Order Value (AOV)', avgTicketSize],
         ['Total Settled Orders', totalCompletedCount],
+        ['Total Units / Items Sold', totalUnitsSold],
         ['Active / In-Kitchen Orders', activeOrdersCount],
         ['Cancelled / Void Orders', cancelledOrders.length],
         ['Customer Khata Outstanding', outstandingKhata],
@@ -476,41 +574,42 @@ export default function SalesSummary({ initialOrders = [] }) {
         ['UPI / Dynamic QR', paymentBreakdown.UPI],
         ['Cash in Register', paymentBreakdown.Cash],
         ['Credit / Debit Cards', paymentBreakdown.Card],
-        ['Khata / Credit Extended', paymentBreakdown.Khata],
-        ['', ''],
-        ['CHANNEL / DINING TYPE', 'ORDERS COUNT', 'REVENUE (INR)'],
-        ['Dine-In (Tables)', channelBreakdown.dineIn.count, channelBreakdown.dineIn.revenue],
-        ['Takeaway / Parcel', channelBreakdown.takeaway.count, channelBreakdown.takeaway.revenue],
-        ['Delivery / Online', channelBreakdown.delivery.count, channelBreakdown.delivery.revenue],
-        ['Quick POS Direct', channelBreakdown.posDirect.count, channelBreakdown.posDirect.revenue]
+        ['Khata / Credit Extended', paymentBreakdown.Khata]
       ];
 
-      const ordersAoa = [
-        ['Order #', 'Table / Channel', 'Guest Name', 'Mobile Phone', 'Verified', 'Items Summary', 'Payment Mode', 'Date & Time', 'Subtotal', 'Tax', 'Final Settled Amount']
+      // Date-Wise Item Sales Sheet
+      const dateWiseItemsAoa = [
+        ['Date', 'Dish Name', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Revenue (INR)', 'Sold Timings']
       ];
+      dateWiseItemSales.forEach(dGroup => {
+        dGroup.items.forEach(it => {
+          const timingsStr = it.timings.map(t => `${t.timeStr} (x${t.qty})`).join(', ');
+          dateWiseItemsAoa.push([
+            dGroup.displayDate,
+            it.name,
+            it.category,
+            it.qty,
+            it.price,
+            it.revenue,
+            timingsStr
+          ]);
+        });
+      });
 
-      completedOrders.forEach(ord => {
-        const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : 'ORD');
-        const channelStr = ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS';
-        const guestName = ord.customerName || ord.customerDetails?.name || 'Guest Diner';
-        const phone = ord.customerPhone || ord.customerDetails?.phone || '';
-        const isVer = (ord.isPhoneVerified || ord.customerDetails?.isPhoneVerified) ? 'YES' : 'NO';
-        const itemsStr = (ord.items || []).map(i => `${i.quantity}x ${i.name || i.item?.name}`).join(', ');
-        const dateStr = new Date(ord.createdAt).toLocaleString();
-        const amt = getOrderAmount(ord);
-
-        ordersAoa.push([
-          orderNum,
-          channelStr,
-          guestName,
-          phone,
-          isVer,
-          itemsStr,
-          ord.paymentMethod || 'Cash',
-          dateStr,
-          ord.subTotal || (amt - (Number(ord.taxAmount) || 0)),
-          Number(ord.taxAmount) || 0,
-          amt
+      const dishAoa = [
+        ['Rank', 'Dish Name', 'Category', 'Total Units Sold', 'Unit Price', 'Total Sales (INR)', 'Share %', 'Last Sold']
+      ];
+      dishSalesList.forEach((d, idx) => {
+        const pct = totalGrossRevenue > 0 ? ((d.revenue / totalGrossRevenue) * 100).toFixed(1) : 0;
+        dishAoa.push([
+          idx + 1,
+          d.name,
+          d.category,
+          d.count,
+          d.price,
+          d.revenue,
+          `${pct}%`,
+          d.lastSoldAt ? new Date(d.lastSoldAt).toLocaleString('en-IN') : ''
         ]);
       });
 
@@ -522,12 +621,24 @@ export default function SalesSummary({ initialOrders = [] }) {
         categoryAoa.push([c.name, c.qty, c.revenue, `${pct}%`]);
       });
 
-      const dishAoa = [
-        ['Rank', 'Dish Name', 'Category', 'Units Sold', 'Average Price', 'Total Sales (INR)', 'Share %']
+      const ordersAoa = [
+        ['Order #', 'Table / Channel', 'Guest Name', 'Mobile Phone', 'Items Summary', 'Payment Mode', 'Date & Time', 'Subtotal', 'Tax', 'Final Settled Amount']
       ];
-      dishSalesList.forEach((d, idx) => {
-        const pct = totalGrossRevenue > 0 ? ((d.revenue / totalGrossRevenue) * 100).toFixed(1) : 0;
-        dishAoa.push([idx + 1, d.name, d.category, d.count, d.price, d.revenue, `${pct}%`]);
+      completedOrders.forEach(ord => {
+        const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : 'ORD');
+        const amt = getOrderAmount(ord);
+        ordersAoa.push([
+          orderNum,
+          ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS',
+          ord.customerName || ord.customerDetails?.name || 'Guest Diner',
+          ord.customerPhone || ord.customerDetails?.phone || '',
+          (ord.items || []).map(i => `${i.quantity}x ${i.name || i.item?.name}`).join(', '),
+          ord.paymentMethod || 'Cash',
+          new Date(ord.createdAt).toLocaleString(),
+          ord.subTotal || (amt - (Number(ord.taxAmount) || 0)),
+          Number(ord.taxAmount) || 0,
+          amt
+        ]);
       });
 
       const dailyAoa = [
@@ -539,14 +650,15 @@ export default function SalesSummary({ initialOrders = [] }) {
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryAoa), 'Executive Summary');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ordersAoa), 'Orders Ledger');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dateWiseItemsAoa), 'Date-Wise Item Sales');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dishAoa), 'Item Leaderboard');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(categoryAoa), 'Category Sales');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dishAoa), 'Dish Leaderboard');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dailyAoa), 'Daily Timeline');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ordersAoa), 'Orders Ledger');
 
       XLSX.writeFile(wb, `DineviQ_Sales_Summary_${timeFilter}_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.dismiss('excel-export');
-      toast.success('Sales summary workbook downloaded successfully!');
+      toast.success('Complete Sales & Date-Wise Item Excel downloaded!');
     } catch (err) {
       console.error('Full Excel Export Error:', err);
       toast.dismiss('excel-export');
@@ -563,7 +675,7 @@ export default function SalesSummary({ initialOrders = [] }) {
     });
   }, [dbTables, orders]);
 
-  // Filtered orders for the Orders Ledger tab
+  // Filtered orders for Orders Ledger tab
   const displayedOrders = useMemo(() => {
     const q = orderSearch.trim().toLowerCase();
     const numQ = q.replace(/\D/g, '');
@@ -592,97 +704,151 @@ export default function SalesSummary({ initialOrders = [] }) {
     });
   }, [completedOrders, orderSearch, tableFilter]);
 
-  // Filtered dishes for Category Tab
+  // Filtered & sorted dishes for Item-Wise Leaderboard
   const displayedDishes = useMemo(() => {
     const q = dishSearch.trim().toLowerCase();
-    return dishSalesList.filter(d => {
+    const filtered = dishSalesList.filter(d => {
       const matchesCat = categoryFilter === 'all' || d.category.toLowerCase() === categoryFilter.toLowerCase();
       const matchesSearch = !q || d.name.toLowerCase().includes(q);
       return matchesCat && matchesSearch;
     });
-  }, [dishSalesList, categoryFilter, dishSearch]);
+
+    if (itemSortBy === 'qty') {
+      return [...filtered].sort((a, b) => b.count - a.count);
+    }
+    if (itemSortBy === 'name') {
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return [...filtered].sort((a, b) => b.revenue - a.revenue);
+  }, [dishSalesList, categoryFilter, dishSearch, itemSortBy]);
+
+  // Filtered Date-Wise Item Groups
+  const filteredDateWiseGroups = useMemo(() => {
+    const q = dishSearch.trim().toLowerCase();
+    return dateWiseItemSales
+      .map(group => {
+        const items = group.items.filter(it => {
+          const matchesCat = categoryFilter === 'all' || it.category.toLowerCase() === categoryFilter.toLowerCase();
+          const matchesSearch = !q || it.name.toLowerCase().includes(q);
+          return matchesCat && matchesSearch;
+        });
+        if (items.length === 0) return null;
+        return {
+          ...group,
+          items,
+          filteredQty: items.reduce((s, i) => s + i.qty, 0),
+          filteredRevenue: items.reduce((s, i) => s + i.revenue, 0)
+        };
+      })
+      .filter(Boolean);
+  }, [dateWiseItemSales, categoryFilter, dishSearch]);
+
+  const toggleDateCollapse = (dateKey) => {
+    setCollapsedDates(prev => ({ ...prev, [dateKey]: !prev[dateKey] }));
+  };
+
+  const openDishHistoryByName = (dishName) => {
+    const found = dishSalesList.find(d => d.name.toLowerCase() === dishName.toLowerCase());
+    if (found) setSelectedDishHistory(found);
+  };
 
   return (
     <div className={styles.container}>
-      {/* Header with Title, Date Filters, and Action Buttons */}
+      {/* Clean 2-Row Header & Filter Toolbar */}
       <div className={styles.header}>
-        <div className={styles.titleGroup}>
-          <h2>
-            <TrendingUp size={24} color="#2563eb" />
-            Sales Summary & Financial Intelligence
-          </h2>
-          <p>
-            Comprehensive category sales, hourly peak rush trends, day close reconciliation, and accounting exports
-          </p>
+        <div className={styles.headerTopRow}>
+          <div className={styles.titleGroup}>
+            <h2>
+              <TrendingUp size={24} color="#2563eb" />
+              Sales Summary & Item-Wise Analytics
+            </h2>
+            <p>
+              Complete date-wise item sales, category insights, peak rush hours, day-end Z-report & Excel exports
+            </p>
+          </div>
+
+          <div className={styles.controlsGroup}>
+            <button
+              type="button"
+              className={`${styles.actionBtn} ${styles.excelBtn}`}
+              onClick={handleExportFullExcel}
+              title="Download multi-sheet Excel with Date-Wise Item Sales"
+            >
+              <FileSpreadsheet size={15} />
+              Export Excel
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.actionBtn} ${styles.zReportBtn}`}
+              onClick={() => setIsZReportOpen(true)}
+              title="Cash drawer shift close & 80mm thermal Z-slip"
+            >
+              <Receipt size={15} />
+              Day-End Z-Report
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.actionBtn} ${styles.pdfBtn}`}
+              onClick={() => setIsExecutiveReportOpen(true)}
+              title="Executive PDF Audit Report"
+            >
+              <Printer size={15} />
+              Executive PDF
+            </button>
+          </div>
         </div>
 
-        <div className={styles.controlsGroup}>
-          {[
-            { id: 'today', label: 'Today' },
-            { id: 'yesterday', label: 'Yesterday' },
-            { id: '7d', label: '7 Days' },
-            { id: '30d', label: '30 Days' },
-            { id: 'thisMonth', label: 'This Month' },
-            { id: 'all', label: 'All Time' },
-            { id: 'custom', label: 'Custom' }
-          ].map(tf => (
-            <button
-              key={tf.id}
-              type="button"
-              className={`${styles.dateFilterBtn} ${timeFilter === tf.id ? styles.dateFilterActive : ''}`}
-              onClick={() => setTimeFilter(tf.id)}
-            >
-              {tf.label}
-            </button>
-          ))}
+        {/* Dedicated Date Filter Toolbar */}
+        <div className={styles.filterToolbar}>
+          <div className={styles.datePresetsGroup}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+              <Calendar size={14} /> Period:
+            </span>
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'yesterday', label: 'Yesterday' },
+              { id: '7d', label: 'Last 7 Days' },
+              { id: '30d', label: 'Last 30 Days' },
+              { id: 'thisMonth', label: 'This Month' },
+              { id: 'all', label: 'All Time' },
+              { id: 'custom', label: 'Custom Range' }
+            ].map(tf => (
+              <button
+                key={tf.id}
+                type="button"
+                className={`${styles.dateFilterBtn} ${timeFilter === tf.id ? styles.dateFilterActive : ''}`}
+                onClick={() => setTimeFilter(tf.id)}
+              >
+                {tf.label}
+              </button>
+            ))}
 
-          {timeFilter === 'custom' && (
-            <div className={styles.customDateBox}>
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                className={styles.customDateInput}
-              />
-              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>to</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                className={styles.customDateInput}
-              />
-            </div>
-          )}
+            {timeFilter === 'custom' && (
+              <div className={styles.customDateBox}>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className={styles.customDateInput}
+                />
+                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>to</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className={styles.customDateInput}
+                />
+              </div>
+            )}
+          </div>
 
-          <button
-            type="button"
-            className={`${styles.actionBtn} ${styles.excelBtn}`}
-            onClick={handleExportFullExcel}
-            title="Download multi-sheet sales spreadsheet for CA and accounting"
-          >
-            <FileSpreadsheet size={15} />
-            Export Excel
-          </button>
-
-          <button
-            type="button"
-            className={`${styles.actionBtn} ${styles.zReportBtn}`}
-            onClick={() => setIsZReportOpen(true)}
-            title="Perform cash drawer shift close and print thermal 80mm Z-slip"
-          >
-            <Receipt size={15} />
-            Day-End Z-Report
-          </button>
-
-          <button
-            type="button"
-            className={`${styles.actionBtn} ${styles.pdfBtn}`}
-            onClick={() => setIsExecutiveReportOpen(true)}
-            title="View executive PDF audit report with AI strategic directives"
-          >
-            <Printer size={15} />
-            Executive PDF
-          </button>
+          <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <span>🧾 <strong>{totalCompletedCount}</strong> Bills</span>
+            <span>🍽️ <strong>{totalUnitsSold}</strong> Items Sold</span>
+            <span style={{ color: '#2563eb' }}>💰 <strong>₹{totalGrossRevenue.toLocaleString('en-IN')}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -690,7 +856,8 @@ export default function SalesSummary({ initialOrders = [] }) {
       <div className={styles.subTabsContainer}>
         {[
           { id: 'overview', label: 'Executive Overview', icon: BarChart3, count: null },
-          { id: 'categories', label: 'Category & Menu Performance', icon: Utensils, count: categorySalesList.length },
+          { id: 'items', label: 'Item-Wise & Date-Wise Sales', icon: Utensils, count: dishSalesList.length },
+          { id: 'categories', label: 'Category Breakdown', icon: ListFilter, count: categorySalesList.length },
           { id: 'hourly', label: 'Hourly Rush & Peak Trends', icon: Clock, count: null },
           { id: 'daily', label: 'Daily Sales Timeline', icon: Calendar, count: dailyTimelineList.length },
           { id: 'orders', label: 'Order Bills Ledger', icon: Receipt, count: completedOrders.length }
@@ -752,7 +919,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                 <div className={styles.kpiTitle}>Average Order Value</div>
                 <div className={styles.kpiValue}>₹{avgTicketSize}</div>
                 <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
-                  Per settled dining ticket
+                  {totalUnitsSold} total items sold
                 </div>
               </div>
               <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#16a34a' }}>
@@ -872,10 +1039,10 @@ export default function SalesSummary({ initialOrders = [] }) {
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('categories')}
+                  onClick={() => setActiveTab('items')}
                   style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                 >
-                  View All &rarr;
+                  Item-Wise & Date-Wise &rarr;
                 </button>
               </div>
 
@@ -886,7 +1053,13 @@ export default function SalesSummary({ initialOrders = [] }) {
               ) : (
                 <div className={styles.topDishesList}>
                   {topDishes.map((dish, i) => (
-                    <div key={dish.name} className={styles.dishRow}>
+                    <div
+                      key={dish.name}
+                      className={styles.dishRow}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedDishHistory(dish)}
+                      title="Click to see exact dates & times sold"
+                    >
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <div className={styles.dishRank}>#{i + 1}</div>
                         <div>
@@ -908,38 +1081,29 @@ export default function SalesSummary({ initialOrders = [] }) {
         </div>
       )}
 
-      {/* ── TAB 2: CATEGORY & MENU ITEM PERFORMANCE ── */}
-      {activeTab === 'categories' && (
+      {/* ── TAB 2: ITEM-WISE & DATE-WISE SALES (KIS DATE KO KAUNSA ITEM KITNA BIKA) ── */}
+      {activeTab === 'items' && (
         <div>
-          <div className={styles.categoriesGrid}>
-            {categorySalesList.map(cat => {
-              const pct = totalGrossRevenue > 0 ? Math.round((cat.revenue / totalGrossRevenue) * 100) : 0;
-              return (
-                <div key={cat.name} className={styles.categoryCard}>
-                  <div className={styles.categoryName}>
-                    <span>{cat.name}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#2563eb' }}>{pct}% share</span>
-                  </div>
-                  <div className={styles.categoryRevenue}>₹{cat.revenue.toLocaleString('en-IN')}</div>
-                  <div className={styles.categoryMeta}>{cat.qty} units sold in this period</div>
-                  <div className={styles.progressBarContainer}>
-                    <div className={styles.progressBar} style={{ width: `${pct}%`, background: '#2563eb' }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className={styles.chartCard}>
-            <div className={styles.chartCardHeader} style={{ flexWrap: 'wrap', gap: '10px' }}>
-              <div>
-                <h3>
-                  <Utensils size={17} color="#2563eb" />
-                  Dish-Wise Sales & Margin Leaderboard
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  Showing {displayedDishes.length} menu dishes sold
-                </span>
+          {/* Filter & View Mode Toolbar */}
+          <div className={styles.chartCard} style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div className={styles.viewToggleGroup}>
+                <button
+                  type="button"
+                  className={`${styles.viewToggleBtn} ${itemViewMode === 'datewise' ? styles.viewToggleActive : ''}`}
+                  onClick={() => setItemViewMode('datewise')}
+                >
+                  <Calendar size={14} />
+                  Date-Wise Item Breakdown
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.viewToggleBtn} ${itemViewMode === 'leaderboard' ? styles.viewToggleActive : ''}`}
+                  onClick={() => setItemViewMode('leaderboard')}
+                >
+                  <Award size={14} />
+                  Item-Wise Leaderboard
+                </button>
               </div>
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -947,7 +1111,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                   <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                   <input
                     type="text"
-                    placeholder="Search dish..."
+                    placeholder="Search item name..."
                     value={dishSearch}
                     onChange={(e) => setDishSearch(e.target.value)}
                     style={{
@@ -956,7 +1120,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                       border: '1px solid #cbd5e1',
                       fontSize: '0.8rem',
                       outline: 'none',
-                      width: '180px'
+                      width: '190px'
                     }}
                   />
                   {dishSearch && (
@@ -988,85 +1152,296 @@ export default function SalesSummary({ initialOrders = [] }) {
                     <option key={c.name} value={c.name}>{c.name}</option>
                   ))}
                 </select>
+
+                {itemViewMode === 'leaderboard' && (
+                  <select
+                    value={itemSortBy}
+                    onChange={(e) => setItemSortBy(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.8rem',
+                      backgroundColor: '#ffffff',
+                      outline: 'none',
+                      fontWeight: 600
+                    }}
+                  >
+                    <option value="revenue">Sort: Highest Revenue</option>
+                    <option value="qty">Sort: Most Qty Sold</option>
+                    <option value="name">Sort: Name (A-Z)</option>
+                  </select>
+                )}
               </div>
             </div>
+          </div>
 
-            <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
-              <table className={styles.recentOrdersTable}>
-                <thead>
-                  <tr>
-                    <th style={{ width: '50px' }}>Rank</th>
-                    <th>Dish / Item Name</th>
-                    <th>Category</th>
-                    <th style={{ textAlign: 'center' }}>Units Sold</th>
-                    <th style={{ textAlign: 'right' }}>Base Price</th>
-                    <th style={{ textAlign: 'right' }}>Total Revenue</th>
-                    <th style={{ textAlign: 'right' }}>Share %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedDishes.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
-                        No menu items found matching the selected criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    displayedDishes.map((dish, idx) => {
-                      const sharePct = totalGrossRevenue > 0 ? ((dish.revenue / totalGrossRevenue) * 100).toFixed(1) : 0;
-                      return (
-                        <tr key={dish.name}>
-                          <td style={{ fontWeight: 800, color: idx < 3 ? '#2563eb' : '#64748b' }}>
-                            #{idx + 1}
-                          </td>
-                          <td style={{ fontWeight: 700, color: '#0f172a' }}>
-                            {dish.name}
-                          </td>
-                          <td>
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              background: '#f1f5f9',
-                              color: '#334155'
-                            }}>
-                              {dish.category}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center', fontWeight: 800 }}>
-                            <span style={{
-                              background: '#eff6ff',
-                              color: '#2563eb',
-                              padding: '2px 8px',
-                              borderRadius: '100px',
-                              fontSize: '0.74rem'
-                            }}>
-                              {dish.count} sold
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'right', color: '#64748b' }}>
-                            ₹{dish.price}
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                            ₹{dish.revenue.toLocaleString('en-IN')}
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
-                            {sharePct}%
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+          {/* VIEW A: DATE-WISE ITEM BREAKDOWN */}
+          {itemViewMode === 'datewise' && (
+            <div className={styles.dateGroupList}>
+              {filteredDateWiseGroups.length === 0 ? (
+                <div className={styles.chartCard} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                  No item sales found for the selected date range or search filter.
+                </div>
+              ) : (
+                filteredDateWiseGroups.map(group => {
+                  const isCollapsed = Boolean(collapsedDates[group.dateKey]);
+                  return (
+                    <div key={group.dateKey} className={styles.dateGroupCard}>
+                      <div className={styles.dateGroupHeader} onClick={() => toggleDateCollapse(group.dateKey)}>
+                        <div className={styles.dateGroupTitle}>
+                          <Calendar size={17} color="#2563eb" />
+                          <span>{group.displayDate}</span>
+                          {isCollapsed ? <ChevronDown size={16} color="#64748b" /> : <ChevronUp size={16} color="#64748b" />}
+                        </div>
+                        <div className={styles.dateGroupStats}>
+                          <span className={styles.statPill}>{group.ordersCount} Bills</span>
+                          <span className={styles.statPill}>{group.items.length} Unique Dishes</span>
+                          <span className={styles.statPill}>{group.filteredQty} Units Sold</span>
+                          <span className={`${styles.statPill} ${styles.statPillPrimary}`}>
+                            ₹{group.filteredRevenue.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {!isCollapsed && (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className={styles.recentOrdersTable}>
+                            <thead>
+                              <tr>
+                                <th style={{ width: '44px' }}>#</th>
+                                <th>Item / Dish Name</th>
+                                <th>Category</th>
+                                <th style={{ textAlign: 'center' }}>Qty Sold</th>
+                                <th style={{ textAlign: 'right' }}>Unit Price</th>
+                                <th style={{ textAlign: 'right' }}>Day Revenue</th>
+                                <th>Sold Timings (Kab Bika)</th>
+                                <th style={{ textAlign: 'center' }}>History</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.items.map((it, idx) => (
+                                <tr key={it.name}>
+                                  <td style={{ fontWeight: 700, color: '#64748b' }}>{idx + 1}</td>
+                                  <td style={{ fontWeight: 700, color: '#0f172a' }}>{it.name}</td>
+                                  <td>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 600,
+                                      background: '#f1f5f9',
+                                      color: '#334155'
+                                    }}>
+                                      {it.category}
+                                    </span>
+                                  </td>
+                                  <td style={{ textAlign: 'center', fontWeight: 800 }}>
+                                    <span style={{
+                                      background: '#eff6ff',
+                                      color: '#2563eb',
+                                      padding: '2px 9px',
+                                      borderRadius: '100px',
+                                      fontSize: '0.74rem'
+                                    }}>
+                                      ×{it.qty}
+                                    </span>
+                                  </td>
+                                  <td style={{ textAlign: 'right', color: '#64748b' }}>₹{it.price}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                                    ₹{it.revenue.toLocaleString('en-IN')}
+                                  </td>
+                                  <td style={{ maxWidth: '280px' }}>
+                                    {it.timings.slice(0, 4).map((tm, ti) => (
+                                      <span key={ti} className={styles.timeChip}>
+                                        {tm.timeStr} (×{tm.qty})
+                                      </span>
+                                    ))}
+                                    {it.timings.length > 4 && (
+                                      <span className={styles.timeChip} style={{ background: '#eff6ff', color: '#2563eb' }}>
+                                        +{it.timings.length - 4} more
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDishHistoryByName(it.name)}
+                                      style={{
+                                        padding: '4px 8px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #cbd5e1',
+                                        background: '#f8fafc',
+                                        color: '#334155',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <History size={12} /> Timeline
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
+          )}
+
+          {/* VIEW B: CONSOLIDATED ITEM-WISE LEADERBOARD */}
+          {itemViewMode === 'leaderboard' && (
+            <div className={styles.chartCard}>
+              <div className={styles.chartCardHeader}>
+                <div>
+                  <h3>
+                    <Utensils size={17} color="#2563eb" />
+                    Consolidated Item-Wise Sales Leaderboard
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Click &ldquo;Timeline&rdquo; on any item to see exact dates, times, and bills when it was sold
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto', marginTop: '0.75rem' }}>
+                <table className={styles.recentOrdersTable}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '50px' }}>Rank</th>
+                      <th>Dish / Item Name</th>
+                      <th>Category</th>
+                      <th style={{ textAlign: 'center' }}>Total Qty Sold</th>
+                      <th style={{ textAlign: 'right' }}>Unit Price</th>
+                      <th style={{ textAlign: 'right' }}>Total Revenue</th>
+                      <th style={{ textAlign: 'right' }}>Share %</th>
+                      <th>Last Sold</th>
+                      <th style={{ textAlign: 'center' }}>Date/Time Log</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedDishes.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                          No menu items found matching the selected criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedDishes.map((dish, idx) => {
+                        const sharePct = totalGrossRevenue > 0 ? ((dish.revenue / totalGrossRevenue) * 100).toFixed(1) : 0;
+                        return (
+                          <tr key={dish.name}>
+                            <td style={{ fontWeight: 800, color: idx < 3 ? '#2563eb' : '#64748b' }}>
+                              #{idx + 1}
+                            </td>
+                            <td style={{ fontWeight: 700, color: '#0f172a' }}>{dish.name}</td>
+                            <td>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                                background: '#f1f5f9',
+                                color: '#334155'
+                              }}>
+                                {dish.category}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', fontWeight: 800 }}>
+                              <span style={{
+                                background: '#eff6ff',
+                                color: '#2563eb',
+                                padding: '2px 9px',
+                                borderRadius: '100px',
+                                fontSize: '0.74rem'
+                              }}>
+                                {dish.count} sold
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', color: '#64748b' }}>₹{dish.price}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                              ₹{dish.revenue.toLocaleString('en-IN')}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
+                              {sharePct}%
+                            </td>
+                            <td style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                              {dish.lastSoldAt ? new Date(dish.lastSoldAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDishHistory(dish)}
+                                style={{
+                                  padding: '4px 9px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #bfdbfe',
+                                  background: '#eff6ff',
+                                  color: '#1d4ed8',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <History size={12} /> {dish.history.length} Sales
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB 3: CATEGORY BREAKDOWN ── */}
+      {activeTab === 'categories' && (
+        <div>
+          <div className={styles.categoriesGrid}>
+            {categorySalesList.length === 0 ? (
+              <div className={styles.chartCard} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                No category sales data available for this period.
+              </div>
+            ) : (
+              categorySalesList.map(cat => {
+                const pct = totalGrossRevenue > 0 ? Math.round((cat.revenue / totalGrossRevenue) * 100) : 0;
+                return (
+                  <div key={cat.name} className={styles.categoryCard}>
+                    <div className={styles.categoryName}>
+                      <span>{cat.name}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#2563eb' }}>{pct}% share</span>
+                    </div>
+                    <div className={styles.categoryRevenue}>₹{cat.revenue.toLocaleString('en-IN')}</div>
+                    <div className={styles.categoryMeta}>{cat.qty} units sold in this period</div>
+                    <div className={styles.progressBarContainer}>
+                      <div className={styles.progressBar} style={{ width: `${pct}%`, background: '#2563eb' }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
 
-      {/* ── TAB 3: HOURLY RUSH & PEAK TRENDS ── */}
+      {/* ── TAB 4: HOURLY RUSH & PEAK TRENDS ── */}
       {activeTab === 'hourly' && (
         <div>
           <div className={styles.peakRushBanner}>
@@ -1137,7 +1512,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                   </div>
                   <div className={styles.sessionRevenue}>₹{sess.revenue.toLocaleString('en-IN')}</div>
                   <div className={styles.sessionMeta}>
-                    {sess.count} orders • AOV ₹{aov} • <strong>{pct}% of day</strong>
+                    {sess.count} orders • AOV ₹{aov} • <strong>{pct}% of period</strong>
                   </div>
                   <div className={styles.progressBarContainer} style={{ marginTop: '8px' }}>
                     <div className={styles.progressBar} style={{ width: `${pct}%`, background: '#2563eb' }} />
@@ -1149,7 +1524,7 @@ export default function SalesSummary({ initialOrders = [] }) {
         </div>
       )}
 
-      {/* ── TAB 4: DAILY SALES TIMELINE ── */}
+      {/* ── TAB 5: DAILY SALES TIMELINE ── */}
       {activeTab === 'daily' && (
         <div className={styles.chartCard}>
           <div className={styles.chartCardHeader}>
@@ -1226,7 +1601,7 @@ export default function SalesSummary({ initialOrders = [] }) {
         </div>
       )}
 
-      {/* ── TAB 5: ORDER BILLS LEDGER ── */}
+      {/* ── TAB 6: ORDER BILLS LEDGER ── */}
       {activeTab === 'orders' && (
         <div className={styles.chartCard}>
           <div className={styles.chartCardHeader} style={{ flexWrap: 'wrap', gap: '10px' }}>
@@ -1437,6 +1812,105 @@ export default function SalesSummary({ initialOrders = [] }) {
           )}
         </div>
       )}
+
+      {/* Item Sales Date/Time Drill-Down Modal */}
+      <AnimatePresence>
+        {selectedDishHistory && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '1rem'
+          }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                maxWidth: '680px',
+                width: '100%',
+                maxHeight: '88vh',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: '0 25px 50px rgba(0,0,0,0.25)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <History size={18} color="#2563eb" />
+                    {selectedDishHistory.name} — Date & Time Sales Log
+                  </h3>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
+                    Category: <strong>{selectedDishHistory.category}</strong> • Total Sold: <strong>{selectedDishHistory.count} units</strong> • Total Revenue: <strong>₹{selectedDishHistory.revenue.toLocaleString('en-IN')}</strong>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDishHistory(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
+                <table className={styles.recentOrdersTable}>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Order #</th>
+                      <th>Table / Guest</th>
+                      <th style={{ textAlign: 'center' }}>Qty</th>
+                      <th>Payment</th>
+                      <th style={{ textAlign: 'right' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedDishHistory.history.map((h, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 700, color: '#0f172a' }}>{h.displayDate}</td>
+                        <td style={{ color: '#2563eb', fontWeight: 700 }}>{h.timeStr}</td>
+                        <td style={{ fontWeight: 700, color: '#4f46e5' }}>#{h.orderNum}</td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{h.tableLabel}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{h.customerName}</div>
+                        </td>
+                        <td style={{ textAlign: 'center', fontWeight: 800 }}>×{h.qty}</td>
+                        <td>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            background: h.payMethod === 'Cash' ? '#ecfdf5' : '#eff6ff',
+                            color: h.payMethod === 'Cash' ? '#059669' : '#2563eb'
+                          }}>
+                            {h.payMethod}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                          ₹{h.lineTotal.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Order Details & Bill Reprint Modal */}
       <AnimatePresence>
