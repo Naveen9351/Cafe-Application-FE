@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import {
@@ -21,260 +21,175 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './petpooja/OrdersManagement.module.css';
 import { API_URL as API } from '../config/api';
 
-export default function SalesSummary({ initialOrders = [] }) {
-  const [orders, setOrders] = useState(() => (Array.isArray(initialOrders) && initialOrders.length > 0 ? initialOrders : []));
-  const [menuCatalog, setMenuCatalog] = useState([]);
+export default function SalesSummary() {
+  const [rows, setRows] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [kpi, setKpi] = useState({
+    totalRevenue: 0,
+    totalBills: 0,
+    aov: 0,
+    totalUnits: 0,
+    uniqueDishes: 0,
+    topDish: null
+  });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Simple, clean filters
+  // Filters
   const [search, setSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState('all'); // 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'custom'
-  const [customDate, setCustomDate] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('all'); // 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'this_month' | 'custom'
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc'); // 'date_desc' | 'qty_desc' | 'sales_desc'
 
-  // Pagination (20 rows per page, matching OrdersManagement)
+  // Backend Pagination
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const [totalRows, setTotalRows] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Detail Modal for seeing exact orders/timings of an item on a date
+  // Detail Modal for seeing exact bills of an item on a date
   const [selectedRow, setSelectedRow] = useState(null);
 
+  // Debounce search input
   useEffect(() => {
-    if (Array.isArray(initialOrders) && initialOrders.length > 0) {
-      setOrders(initialOrders);
-    }
-  }, [initialOrders]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const fetchData = useCallback(async () => {
+  const fetchItemSummary = useCallback(async () => {
+    if (dateFilter === 'custom' && !startDate && !endDate) {
+      return;
+    }
+
     setIsLoading(true);
     const token = localStorage.getItem('token');
-    const tid = localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
     const headers = token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {};
 
     try {
-      const [ordersRes, menuRes] = await Promise.allSettled([
-        axios.get(`${API}/orders`, { headers }),
-        axios.get(`${API}/menu?tenantId=${tid || ''}&includeUnavailable=true&includePosOnly=true`, { headers })
-      ]);
+      const params = new URLSearchParams({
+        range: dateFilter,
+        category: categoryFilter,
+        search: debouncedSearch,
+        sortBy,
+        page: String(page),
+        limit: String(pageSize)
+      });
 
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.data) {
-        const data = Array.isArray(ordersRes.value.data)
-          ? ordersRes.value.data
-          : (ordersRes.value.data.orders || []);
-        setOrders(data);
+      if (dateFilter === 'custom') {
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
       }
-      if (menuRes.status === 'fulfilled' && Array.isArray(menuRes.value.data)) {
-        setMenuCatalog(menuRes.value.data);
+
+      const res = await axios.get(`${API}/orders/item-summary?${params.toString()}`, { headers });
+
+      if (res.data) {
+        setRows(res.data.rows || []);
+        setTotalRows(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+        if (Array.isArray(res.data.categories) && res.data.categories.length > 0) {
+          setCategories(prev => {
+            const merged = new Set([...prev, ...res.data.categories]);
+            return Array.from(merged).sort();
+          });
+        }
+        if (res.data.kpi) {
+          setKpi(res.data.kpi);
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch sales summary data:', err);
+      console.error('Failed to fetch item summary:', err);
+      toast.error(err.response?.data?.error || 'Failed to load sales summary');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dateFilter, startDate, endDate, categoryFilter, debouncedSearch, sortBy, page]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchItemSummary();
+  }, [fetchItemSummary]);
 
-  useEffect(() => {
+  const handleDateFilterChange = (val) => {
+    setDateFilter(val);
     setPage(1);
-  }, [search, dateFilter, customDate, categoryFilter, sortBy]);
-
-  const getOrderAmount = (ord) => {
-    if (!ord) return 0;
-    const val = Number(ord.settledAmount || ord.finalAmount || ord.total || ord.totalAmount || ord.subTotal);
-    if (!isNaN(val) && val > 0) return val;
-    if (Array.isArray(ord.items) && ord.items.length > 0) {
-      return ord.items.reduce((s, it) => s + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
+    if (val !== 'custom') {
+      setStartDate('');
+      setEndDate('');
+    } else if (!startDate && !endDate) {
+      const today = new Date().toISOString().slice(0, 10);
+      setStartDate(today);
+      setEndDate(today);
     }
-    return 0;
   };
 
-  // Menu category lookup
-  const menuMap = useMemo(() => {
-    const map = {};
-    menuCatalog.forEach(m => {
-      if (m && m.name) {
-        map[m.name.trim().toLowerCase()] = m.category || m.categoryId || 'General';
-      }
-    });
-    return map;
-  }, [menuCatalog]);
+  // Export ALL matching records from backend
+  const handleExportExcel = async () => {
+    const toastId = toast.loading('Preparing Excel...');
+    const token = localStorage.getItem('token');
+    const headers = token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {};
 
-  // Filter completed/valid orders by date filter (exclude cancelled)
-  const filteredOrders = useMemo(() => {
-    const now = new Date();
-    return orders.filter(ord => {
-      if (!ord.createdAt || ord.status === 'cancelled') return false;
-      const ordDate = new Date(ord.createdAt);
-
-      if (dateFilter === 'today') {
-        return ordDate.toDateString() === now.toDateString();
-      }
-      if (dateFilter === 'yesterday') {
-        const yest = new Date();
-        yest.setDate(now.getDate() - 1);
-        return ordDate.toDateString() === yest.toDateString();
-      }
-      if (dateFilter === '7d') {
-        const start = new Date();
-        start.setDate(now.getDate() - 7);
-        start.setHours(0, 0, 0, 0);
-        return ordDate >= start;
-      }
-      if (dateFilter === '30d') {
-        const start = new Date();
-        start.setDate(now.getDate() - 30);
-        start.setHours(0, 0, 0, 0);
-        return ordDate >= start;
-      }
-      if (dateFilter === 'custom' && customDate) {
-        return ordDate.toISOString().slice(0, 10) === customDate;
-      }
-      return true;
-    });
-  }, [orders, dateFilter, customDate]);
-
-  // Build Date-Wise + Item-Wise flat rows (1 row = 1 Item on 1 Date)
-  const { dateItemRows, categories, kpiMetrics } = useMemo(() => {
-    const rowMap = {};
-    const catSet = new Set();
-    const dishTotals = {};
-    let totalRevenue = 0;
-    let totalUnits = 0;
-
-    // Sort newest orders first
-    const sorted = [...filteredOrders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    sorted.forEach(ord => {
-      totalRevenue += getOrderAmount(ord);
-      const dObj = new Date(ord.createdAt);
-      const dateKey = dObj.toISOString().slice(0, 10);
-      const displayDate = dObj.toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-      const timeStr = dObj.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-      const orderNum = ord.orderNumber || (ord._id ? ord._id.slice(-6).toUpperCase() : 'ORD');
-      const tableLabel = ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS';
-      const guestName = ord.customerName || ord.customerDetails?.name || 'Walk-in Guest';
-      const payMethod = ord.paymentMethod || 'Cash';
-
-      (ord.items || []).forEach(it => {
-        const name = (it.name || it.item?.name || 'Unknown Item').trim();
-        const qty = Number(it.quantity) || 1;
-        const price = Number(it.price || it.item?.price) || 0;
-        const lineTotal = qty * price;
-        const category = (it.category || it.item?.category || menuMap[name.toLowerCase()] || 'General').trim();
-
-        catSet.add(category);
-        totalUnits += qty;
-
-        // Track overall top dish
-        if (!dishTotals[name]) dishTotals[name] = { name, qty: 0, sales: 0 };
-        dishTotals[name].qty += qty;
-        dishTotals[name].sales += lineTotal;
-
-        const key = `${dateKey}__${name.toLowerCase()}`;
-        if (!rowMap[key]) {
-          rowMap[key] = {
-            id: key,
-            dateKey,
-            displayDate,
-            name,
-            category,
-            qty: 0,
-            price,
-            totalSales: 0,
-            orders: []
-          };
-        }
-        rowMap[key].qty += qty;
-        rowMap[key].totalSales += lineTotal;
-        rowMap[key].orders.push({
-          orderNum,
-          timeStr,
-          tableLabel,
-          guestName,
-          qty,
-          price,
-          lineTotal,
-          payMethod
-        });
-      });
-    });
-
-    const topDish = Object.values(dishTotals).sort((a, b) => b.qty - a.qty)[0] || null;
-    const totalBills = filteredOrders.length;
-    const aov = totalBills > 0 ? Math.round(totalRevenue / totalBills) : 0;
-
-    return {
-      dateItemRows: Object.values(rowMap),
-      categories: Array.from(catSet).sort(),
-      kpiMetrics: {
-        totalRevenue,
-        totalUnits,
-        uniqueDishes: Object.keys(dishTotals).length,
-        totalBills,
-        aov,
-        topDish
-      }
-    };
-  }, [filteredOrders, menuMap]);
-
-  // Apply search, category, and sorting
-  const displayedRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const filtered = dateItemRows.filter(r => {
-      const matchesSearch = !q || r.name.toLowerCase().includes(q) || r.displayDate.toLowerCase().includes(q) || r.category.toLowerCase().includes(q);
-      const matchesCat = categoryFilter === 'all' || r.category.toLowerCase() === categoryFilter.toLowerCase();
-      return matchesSearch && matchesCat;
-    });
-
-    return filtered.sort((a, b) => {
-      if (sortBy === 'qty_desc') return b.qty - a.qty || b.dateKey.localeCompare(a.dateKey);
-      if (sortBy === 'sales_desc') return b.totalSales - a.totalSales || b.dateKey.localeCompare(a.dateKey);
-      return b.dateKey.localeCompare(a.dateKey) || b.totalSales - a.totalSales;
-    });
-  }, [dateItemRows, search, categoryFilter, sortBy]);
-
-  const totalPages = Math.max(1, Math.ceil(displayedRows.length / pageSize));
-  const paginatedRows = displayedRows.slice((page - 1) * pageSize, page * pageSize);
-
-  // Download Excel
-  const handleExportExcel = () => {
     try {
-      const rows = [
-        ['Date', 'Item / Dish Name', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)', 'Sold Timings']
-      ];
-      displayedRows.forEach(r => {
-        const timings = r.orders.map(o => `${o.timeStr} (x${o.qty})`).join(', ');
-        rows.push([r.displayDate, r.name, r.category, r.qty, r.price, r.totalSales, timings]);
+      const params = new URLSearchParams({
+        range: dateFilter,
+        category: categoryFilter,
+        search: debouncedSearch,
+        sortBy,
+        exportAll: 'true'
       });
+      if (dateFilter === 'custom') {
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+      }
+
+      const res = await axios.get(`${API}/orders/item-summary?${params.toString()}`, { headers });
+      const exportRows = res.data?.rows || [];
+
+      const sheetData = [
+        ['Date', 'Item / Dish Name', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)']
+      ];
+      exportRows.forEach(r => {
+        sheetData.push([
+          formatDisplayDate(r.dateKey),
+          r.name,
+          r.category,
+          r.qty,
+          Math.round(r.unitPrice || 0),
+          Math.round(r.totalSales || 0)
+        ]);
+      });
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Item Sales Summary');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), 'Item Sales Summary');
       XLSX.writeFile(wb, `Item_Sales_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      toast.success('Excel downloaded!');
+      toast.success('Excel downloaded!', { id: toastId });
     } catch (err) {
-      toast.error('Failed to export Excel');
+      toast.error('Failed to export Excel', { id: toastId });
     }
   };
 
   const formatCurrency = (val) => `₹${Number(val || 0).toLocaleString('en-IN')}`;
 
+  const formatDisplayDate = (dateKey) => {
+    if (!dateKey) return '-';
+    const d = new Date(`${dateKey}T00:00:00`);
+    if (isNaN(d.getTime())) return dateKey;
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={{ height: 'calc(100vh - 86px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
 
-      {/* ── Top Header Row (Matching OrdersManagement) ── */}
-      <div className={styles.headerRow}>
+      {/* ── Top Header Row ── */}
+      <div className={styles.headerRow} style={{ flexWrap: 'wrap', rowGap: '8px' }}>
         <div className={styles.titleArea}>
           <div className={styles.brandIconWrap} style={{ background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.25)' }}>
             <TrendingUp size={18} />
@@ -282,7 +197,7 @@ export default function SalesSummary({ initialOrders = [] }) {
           <h2 className={styles.title}>Item & Sales Summary</h2>
         </div>
 
-        <div className={styles.headerActions}>
+        <div className={styles.headerActions} style={{ flexWrap: 'wrap' }}>
           {/* Search Input */}
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
@@ -292,7 +207,7 @@ export default function SalesSummary({ initialOrders = [] }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                padding: '0.4rem 0.7rem 0.4rem 1.8rem',
+                padding: '0.4rem 1.6rem 0.4rem 1.8rem',
                 borderRadius: '7px',
                 border: '1px solid #cbd5e1',
                 fontSize: '0.76rem',
@@ -312,10 +227,10 @@ export default function SalesSummary({ initialOrders = [] }) {
             )}
           </div>
 
-          {/* Date Filter */}
+          {/* Date Preset Filter */}
           <select
             value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+            onChange={(e) => handleDateFilterChange(e.target.value)}
             className={styles.btnSecondary}
             style={{ outline: 'none' }}
           >
@@ -324,23 +239,44 @@ export default function SalesSummary({ initialOrders = [] }) {
             <option value="yesterday">Yesterday</option>
             <option value="7d">Last 7 Days</option>
             <option value="30d">Last 30 Days</option>
-            <option value="custom">Pick Date</option>
+            <option value="this_month">This Month</option>
+            <option value="custom">Custom Range</option>
           </select>
 
+          {/* Clean Custom Date Range Pickers */}
           {dateFilter === 'custom' && (
-            <input
-              type="date"
-              value={customDate}
-              onChange={(e) => setCustomDate(e.target.value)}
-              className={styles.btnSecondary}
-              style={{ outline: 'none' }}
-            />
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '7px', padding: '0.26rem 0.55rem' }}>
+              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>From</span>
+              <input
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                style={{ border: 'none', fontSize: '0.74rem', fontWeight: 600, color: '#0f172a', outline: 'none', background: 'transparent' }}
+              />
+              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>To</span>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                style={{ border: 'none', fontSize: '0.74rem', fontWeight: 600, color: '#0f172a', outline: 'none', background: 'transparent' }}
+              />
+              <button
+                type="button"
+                onClick={() => handleDateFilterChange('all')}
+                title="Clear custom range"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+              >
+                <X size={13} />
+              </button>
+            </div>
           )}
 
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
             className={styles.btnSecondary}
             style={{ outline: 'none' }}
           >
@@ -353,7 +289,7 @@ export default function SalesSummary({ initialOrders = [] }) {
           {/* Sort Filter */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
             className={styles.btnSecondary}
             style={{ outline: 'none' }}
           >
@@ -375,7 +311,7 @@ export default function SalesSummary({ initialOrders = [] }) {
           <button
             type="button"
             className={styles.btnSecondary}
-            onClick={fetchData}
+            onClick={fetchItemSummary}
             title="Refresh"
           >
             <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
@@ -383,14 +319,14 @@ export default function SalesSummary({ initialOrders = [] }) {
         </div>
       </div>
 
-      {/* ── Top KPI Ribbon Cards (Matching OrdersManagement) ── */}
-      <div className={styles.compactKpiRibbon}>
+      {/* ── Top KPI Ribbon Cards ── */}
+      <div className={styles.compactKpiRibbon} style={{ flexShrink: 0 }}>
         <div className={styles.miniKpiCard}>
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Total Sales</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{formatCurrency(kpiMetrics.totalRevenue)}</span>
-              <span className={styles.miniKpiSub}>({kpiMetrics.totalBills} Bills)</span>
+              <span className={styles.miniKpiVal}>{formatCurrency(kpi.totalRevenue)}</span>
+              <span className={styles.miniKpiSub}>({kpi.totalBills} Bills)</span>
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconIndigo}`}>
@@ -402,7 +338,7 @@ export default function SalesSummary({ initialOrders = [] }) {
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Total Items Sold</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{kpiMetrics.totalUnits}</span>
+              <span className={styles.miniKpiVal}>{kpi.totalUnits}</span>
               <span className={styles.miniKpiSub}>Units</span>
             </div>
           </div>
@@ -415,7 +351,7 @@ export default function SalesSummary({ initialOrders = [] }) {
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Unique Dishes</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{kpiMetrics.uniqueDishes}</span>
+              <span className={styles.miniKpiVal}>{kpi.uniqueDishes}</span>
               <span className={styles.miniKpiSub}>Menu Items</span>
             </div>
           </div>
@@ -428,7 +364,7 @@ export default function SalesSummary({ initialOrders = [] }) {
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Average Order Value</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{formatCurrency(kpiMetrics.aov)}</span>
+              <span className={styles.miniKpiVal}>{formatCurrency(kpi.aov)}</span>
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconRose}`}>
@@ -441,10 +377,10 @@ export default function SalesSummary({ initialOrders = [] }) {
             <span className={styles.miniKpiLabel}>Top Selling Item</span>
             <div className={styles.miniKpiValueRow}>
               <span className={styles.miniKpiVal} style={{ fontSize: '0.88rem', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {kpiMetrics.topDish ? kpiMetrics.topDish.name : '—'}
+                {kpi.topDish ? kpi.topDish.name : '—'}
               </span>
-              {kpiMetrics.topDish && (
-                <span className={styles.miniKpiSub}>(×{kpiMetrics.topDish.qty})</span>
+              {kpi.topDish && (
+                <span className={styles.miniKpiSub}>(×{kpi.topDish.qty})</span>
               )}
             </div>
           </div>
@@ -454,9 +390,9 @@ export default function SalesSummary({ initialOrders = [] }) {
         </div>
       </div>
 
-      {/* ── Full-Width Maximized Table Card ── */}
-      <div className={styles.fullWidthCard} style={{ minHeight: '420px' }}>
-        <div className={styles.tableWrapper}>
+      {/* ── Full-Width Table Card (Only List Scrolls Internally) ── */}
+      <div className={styles.fullWidthCard} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div className={styles.tableWrapper} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -465,25 +401,24 @@ export default function SalesSummary({ initialOrders = [] }) {
                 <th className={styles.th}>Category</th>
                 <th className={styles.th} style={{ textAlign: 'center' }}>Qty Sold</th>
                 <th className={styles.th} style={{ textAlign: 'right' }}>Unit Price</th>
-                <th className={styles.th} style={{ textAlign: 'right', paddingRight: '24px' }}>Total Sales</th>
-                <th className={styles.th}>Sold Timings</th>
+                <th className={styles.th} style={{ textAlign: 'right', paddingRight: '20px' }}>Total Sales</th>
                 <th className={styles.th} style={{ textAlign: 'center', paddingRight: '16px' }}>Details</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedRows.length === 0 ? (
+              {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
+                  <td colSpan={7} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
                     {isLoading ? 'Loading item sales summary...' : 'No item sales found for the selected filter.'}
                   </td>
                 </tr>
               ) : (
-                paginatedRows.map((row) => (
-                  <tr key={row.id} className={styles.tr}>
+                rows.map((row) => (
+                  <tr key={`${row.dateKey}_${row.name}`} className={styles.tr}>
                     <td className={styles.td} style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', paddingLeft: '16px' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Calendar size={13} color="#64748b" />
-                        {row.displayDate}
+                        {formatDisplayDate(row.dateKey)}
                       </div>
                     </td>
                     <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b' }}>
@@ -499,7 +434,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                         background: '#f1f5f9',
                         color: '#475569'
                       }}>
-                        {row.category}
+                        {row.category || 'General'}
                       </span>
                     </td>
                     <td className={styles.td} style={{ textAlign: 'center' }}>
@@ -516,24 +451,10 @@ export default function SalesSummary({ initialOrders = [] }) {
                       </span>
                     </td>
                     <td className={styles.td} style={{ textAlign: 'right', color: '#64748b' }}>
-                      {formatCurrency(row.price)}
+                      {formatCurrency(Math.round(row.unitPrice || 0))}
                     </td>
-                    <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', paddingRight: '24px' }}>
-                      {formatCurrency(row.totalSales)}
-                    </td>
-                    <td className={styles.td} style={{ fontSize: '0.73rem', color: '#475569', maxWidth: '260px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {row.orders.slice(0, 3).map((o, idx) => (
-                          <span key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1px 6px', borderRadius: '5px', whiteSpace: 'nowrap' }}>
-                            {o.timeStr} (×{o.qty})
-                          </span>
-                        ))}
-                        {row.orders.length > 3 && (
-                          <span style={{ background: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: '5px', fontWeight: 700 }}>
-                            +{row.orders.length - 3} more
-                          </span>
-                        )}
-                      </div>
+                    <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', paddingRight: '20px' }}>
+                      {formatCurrency(Math.round(row.totalSales || 0))}
                     </td>
                     <td className={styles.td} style={{ textAlign: 'center', paddingRight: '16px' }}>
                       <button
@@ -542,7 +463,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                         className={styles.btnSecondary}
                         style={{ padding: '3px 9px', fontSize: '0.72rem', margin: '0 auto' }}
                       >
-                        <Eye size={12} /> View
+                        <Eye size={12} /> View ({row.orders?.length || 0})
                       </button>
                     </td>
                   </tr>
@@ -552,42 +473,42 @@ export default function SalesSummary({ initialOrders = [] }) {
           </table>
         </div>
 
-        {/* Clean Pagination Footer */}
-        {displayedRows.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '0.75rem', color: '#64748b' }}>
-            <span>
-              Showing {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, displayedRows.length)} of {displayedRows.length} entries
-            </span>
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  disabled={page === 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  className={styles.btnSecondary}
-                  style={{ padding: '4px 10px', opacity: page === 1 ? 0.5 : 1 }}
-                >
-                  Prev
-                </button>
-                <span style={{ padding: '4px 8px', fontWeight: 700, color: '#0f172a' }}>
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={page === totalPages}
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  className={styles.btnSecondary}
-                  style={{ padding: '4px 10px', opacity: page === totalPages ? 0.5 : 1 }}
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Fixed Pagination Footer */}
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '0.75rem', color: '#64748b' }}>
+          <span>
+            {totalRows > 0
+              ? `Showing ${((page - 1) * pageSize) + 1} - ${Math.min(page * pageSize, totalRows)} of ${totalRows} entries`
+              : '0 entries'}
+          </span>
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                type="button"
+                disabled={page === 1 || isLoading}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className={styles.btnSecondary}
+                style={{ padding: '4px 10px', opacity: page === 1 ? 0.5 : 1 }}
+              >
+                Prev
+              </button>
+              <span style={{ padding: '4px 8px', fontWeight: 700, color: '#0f172a' }}>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page === totalPages || isLoading}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className={styles.btnSecondary}
+                style={{ padding: '4px 10px', opacity: page === totalPages ? 0.5 : 1 }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Simple Item Sale Details Modal */}
+      {/* Item Sale Bills Modal */}
       <AnimatePresence>
         {selectedRow && (
           <div style={{
@@ -608,7 +529,7 @@ export default function SalesSummary({ initialOrders = [] }) {
               style={{
                 background: '#ffffff',
                 borderRadius: '14px',
-                maxWidth: '580px',
+                maxWidth: '600px',
                 width: '100%',
                 maxHeight: '85vh',
                 display: 'flex',
@@ -621,10 +542,10 @@ export default function SalesSummary({ initialOrders = [] }) {
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Clock size={16} color="#2563eb" />
-                    {selectedRow.name} — {selectedRow.displayDate}
+                    {selectedRow.name} — {formatDisplayDate(selectedRow.dateKey)}
                   </h3>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
-                    Total Qty: <strong>×{selectedRow.qty}</strong> • Total Sales: <strong>{formatCurrency(selectedRow.totalSales)}</strong>
+                    Total Qty: <strong>×{selectedRow.qty}</strong> • Total Sales: <strong>{formatCurrency(Math.round(selectedRow.totalSales || 0))}</strong>
                   </div>
                 </div>
                 <button
@@ -649,16 +570,18 @@ export default function SalesSummary({ initialOrders = [] }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedRow.orders.map((o, idx) => (
+                    {(selectedRow.orders || []).map((o, idx) => (
                       <tr key={idx} className={styles.tr}>
-                        <td className={styles.td} style={{ fontWeight: 700, color: '#2563eb' }}>{o.timeStr}</td>
-                        <td className={styles.td} style={{ fontWeight: 700, color: '#4f46e5' }}>#{o.orderNum}</td>
+                        <td className={styles.td} style={{ fontWeight: 700, color: '#2563eb' }}>
+                          {o.createdAt ? new Date(o.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                        </td>
+                        <td className={styles.td} style={{ fontWeight: 700, color: '#4f46e5' }}>#{String(o.orderNum || '').slice(-6)}</td>
                         <td className={styles.td}>
-                          <div style={{ fontWeight: 600 }}>{o.tableLabel}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{o.guestName}</div>
+                          <div style={{ fontWeight: 600 }}>{o.tableNumber ? `Table ${o.tableNumber}` : 'Takeaway / POS'}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{o.customerName || 'Walk-in Guest'}</div>
                         </td>
                         <td className={styles.td} style={{ textAlign: 'center', fontWeight: 800 }}>×{o.qty}</td>
-                        <td className={styles.td}>{o.payMethod}</td>
+                        <td className={styles.td}>{o.paymentMethod || 'Cash'}</td>
                         <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800 }}>{formatCurrency(o.lineTotal)}</td>
                       </tr>
                     ))}
