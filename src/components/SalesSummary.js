@@ -50,11 +50,11 @@ export default function SalesSummary({ initialOrders = [] }) {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     const tid = localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
-    const headers = token ? { 'x-auth-token': token } : {};
+    const headers = token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {};
 
     try {
       const [ordersRes, menuRes] = await Promise.allSettled([
-        axios.get(`${API}/orders?range=all&limit=all`, { headers }),
+        axios.get(`${API}/orders`, { headers }),
         axios.get(`${API}/menu?tenantId=${tid || ''}&includeUnavailable=true&includePosOnly=true`, { headers })
       ]);
 
@@ -63,8 +63,6 @@ export default function SalesSummary({ initialOrders = [] }) {
           ? ordersRes.value.data
           : (ordersRes.value.data.orders || []);
         setOrders(data);
-      } else if (ordersRes.status === 'rejected') {
-        console.error('Orders fetch failed:', ordersRes.reason?.message || ordersRes.reason);
       }
       if (menuRes.status === 'fulfilled' && Array.isArray(menuRes.value.data)) {
         setMenuCatalog(menuRes.value.data);
@@ -457,41 +455,41 @@ export default function SalesSummary({ initialOrders = [] }) {
       </div>
 
       {/* ── Full-Width Maximized Table Card ── */}
-      <div className={styles.fullWidthCard} style={{ padding: 0, overflow: 'hidden' }}>
-        <div className={styles.tableWrapper} style={{ overflowX: 'auto' }}>
-          <table className={styles.table} style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className={styles.fullWidthCard} style={{ minHeight: '420px' }}>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Date</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Item / Dish Name</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Category</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Qty Sold</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Unit Price</th>
-                <th style={{ padding: '12px 20px 12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Total Sales</th>
-                <th style={{ padding: '12px 16px 12px 20px', textAlign: 'left', whiteSpace: 'nowrap' }}>Sold Timings (Kab Bika)</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Details</th>
+              <tr>
+                <th className={styles.th} style={{ paddingLeft: '16px' }}>Date</th>
+                <th className={styles.th}>Item / Dish Name</th>
+                <th className={styles.th}>Category</th>
+                <th className={styles.th} style={{ textAlign: 'center' }}>Qty Sold</th>
+                <th className={styles.th} style={{ textAlign: 'right' }}>Unit Price</th>
+                <th className={styles.th} style={{ textAlign: 'right', paddingRight: '24px' }}>Total Sales</th>
+                <th className={styles.th}>Sold Timings</th>
+                <th className={styles.th} style={{ textAlign: 'center', paddingRight: '16px' }}>Details</th>
               </tr>
             </thead>
             <tbody>
               {paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <td colSpan={8} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
                     {isLoading ? 'Loading item sales summary...' : 'No item sales found for the selected filter.'}
                   </td>
                 </tr>
               ) : (
                 paginatedRows.map((row) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '11px 16px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                  <tr key={row.id} className={styles.tr}>
+                    <td className={styles.td} style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', paddingLeft: '16px' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Calendar size={13} color="#64748b" />
                         {row.displayDate}
                       </div>
                     </td>
-                    <td style={{ padding: '11px 16px', fontWeight: 700, color: '#1e293b' }}>
+                    <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b' }}>
                       {row.name}
                     </td>
-                    <td style={{ padding: '11px 16px' }}>
+                    <td className={styles.td}>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 8px',
@@ -504,7 +502,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                         {row.category}
                       </span>
                     </td>
-                    <td style={{ padding: '11px 16px', textAlign: 'center' }}>
+                    <td className={styles.td} style={{ textAlign: 'center' }}>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 9px',
@@ -517,32 +515,32 @@ export default function SalesSummary({ initialOrders = [] }) {
                         ×{row.qty}
                       </span>
                     </td>
-                    <td style={{ padding: '11px 16px', textAlign: 'right', color: '#64748b', whiteSpace: 'nowrap' }}>
+                    <td className={styles.td} style={{ textAlign: 'right', color: '#64748b' }}>
                       {formatCurrency(row.price)}
                     </td>
-                    <td style={{ padding: '11px 20px 11px 16px', textAlign: 'right', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                    <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', paddingRight: '24px' }}>
                       {formatCurrency(row.totalSales)}
                     </td>
-                    <td style={{ padding: '11px 16px 11px 20px', fontSize: '0.73rem', color: '#475569', maxWidth: '280px' }}>
+                    <td className={styles.td} style={{ fontSize: '0.73rem', color: '#475569', maxWidth: '260px' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {row.orders.slice(0, 3).map((o, idx) => (
-                          <span key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '2px 7px', borderRadius: '5px', whiteSpace: 'nowrap' }}>
+                          <span key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1px 6px', borderRadius: '5px', whiteSpace: 'nowrap' }}>
                             {o.timeStr} (×{o.qty})
                           </span>
                         ))}
                         {row.orders.length > 3 && (
-                          <span style={{ background: '#eff6ff', color: '#2563eb', padding: '2px 7px', borderRadius: '5px', fontWeight: 700 }}>
+                          <span style={{ background: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: '5px', fontWeight: 700 }}>
                             +{row.orders.length - 3} more
                           </span>
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '11px 16px', textAlign: 'center' }}>
+                    <td className={styles.td} style={{ textAlign: 'center', paddingRight: '16px' }}>
                       <button
                         type="button"
                         onClick={() => setSelectedRow(row)}
                         className={styles.btnSecondary}
-                        style={{ padding: '4px 10px', fontSize: '0.72rem', margin: '0 auto' }}
+                        style={{ padding: '3px 9px', fontSize: '0.72rem', margin: '0 auto' }}
                       >
                         <Eye size={12} /> View
                       </button>
@@ -642,26 +640,26 @@ export default function SalesSummary({ initialOrders = [] }) {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Time</th>
-                      <th>Order #</th>
-                      <th>Table / Guest</th>
-                      <th style={{ textAlign: 'center' }}>Qty</th>
-                      <th>Payment</th>
-                      <th style={{ textAlign: 'right' }}>Amount</th>
+                      <th className={styles.th}>Time</th>
+                      <th className={styles.th}>Order #</th>
+                      <th className={styles.th}>Table / Guest</th>
+                      <th className={styles.th} style={{ textAlign: 'center' }}>Qty</th>
+                      <th className={styles.th}>Payment</th>
+                      <th className={styles.th} style={{ textAlign: 'right' }}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedRow.orders.map((o, idx) => (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: 700, color: '#2563eb' }}>{o.timeStr}</td>
-                        <td style={{ fontWeight: 700, color: '#4f46e5' }}>#{o.orderNum}</td>
-                        <td>
+                      <tr key={idx} className={styles.tr}>
+                        <td className={styles.td} style={{ fontWeight: 700, color: '#2563eb' }}>{o.timeStr}</td>
+                        <td className={styles.td} style={{ fontWeight: 700, color: '#4f46e5' }}>#{o.orderNum}</td>
+                        <td className={styles.td}>
                           <div style={{ fontWeight: 600 }}>{o.tableLabel}</div>
                           <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{o.guestName}</div>
                         </td>
-                        <td style={{ textAlign: 'center', fontWeight: 800 }}>×{o.qty}</td>
-                        <td>{o.payMethod}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 800 }}>{formatCurrency(o.lineTotal)}</td>
+                        <td className={styles.td} style={{ textAlign: 'center', fontWeight: 800 }}>×{o.qty}</td>
+                        <td className={styles.td}>{o.payMethod}</td>
+                        <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800 }}>{formatCurrency(o.lineTotal)}</td>
                       </tr>
                     ))}
                   </tbody>
