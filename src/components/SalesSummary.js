@@ -50,11 +50,11 @@ export default function SalesSummary({ initialOrders = [] }) {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     const tid = localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
-    const headers = token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {};
+    const headers = token ? { 'x-auth-token': token } : {};
 
     try {
       const [ordersRes, menuRes] = await Promise.allSettled([
-        axios.get(`${API}/orders`, { headers }),
+        axios.get(`${API}/orders?range=all&limit=all`, { headers }),
         axios.get(`${API}/menu?tenantId=${tid || ''}&includeUnavailable=true&includePosOnly=true`, { headers })
       ]);
 
@@ -63,6 +63,8 @@ export default function SalesSummary({ initialOrders = [] }) {
           ? ordersRes.value.data
           : (ordersRes.value.data.orders || []);
         setOrders(data);
+      } else if (ordersRes.status === 'rejected') {
+        console.error('Orders fetch failed:', ordersRes.reason?.message || ordersRes.reason);
       }
       if (menuRes.status === 'fulfilled' && Array.isArray(menuRes.value.data)) {
         setMenuCatalog(menuRes.value.data);
@@ -455,19 +457,19 @@ export default function SalesSummary({ initialOrders = [] }) {
       </div>
 
       {/* ── Full-Width Maximized Table Card ── */}
-      <div className={styles.fullWidthCard}>
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
+      <div className={styles.fullWidthCard} style={{ padding: 0, overflow: 'hidden' }}>
+        <div className={styles.tableWrapper} style={{ overflowX: 'auto' }}>
+          <table className={styles.table} style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>
-                <th>Date</th>
-                <th>Item / Dish Name</th>
-                <th>Category</th>
-                <th style={{ textAlign: 'center' }}>Qty Sold</th>
-                <th style={{ textAlign: 'right' }}>Unit Price</th>
-                <th style={{ textAlign: 'right' }}>Total Sales</th>
-                <th>Sold Timings (Kab Bika)</th>
-                <th style={{ textAlign: 'center' }}>Details</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Date</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Item / Dish Name</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', whiteSpace: 'nowrap' }}>Category</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Qty Sold</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Unit Price</th>
+                <th style={{ padding: '12px 20px 12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Total Sales</th>
+                <th style={{ padding: '12px 16px 12px 20px', textAlign: 'left', whiteSpace: 'nowrap' }}>Sold Timings (Kab Bika)</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>Details</th>
               </tr>
             </thead>
             <tbody>
@@ -479,17 +481,17 @@ export default function SalesSummary({ initialOrders = [] }) {
                 </tr>
               ) : (
                 paginatedRows.map((row) => (
-                  <tr key={row.id}>
-                    <td style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                  <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '11px 16px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Calendar size={13} color="#64748b" />
                         {row.displayDate}
                       </div>
                     </td>
-                    <td style={{ fontWeight: 700, color: '#1e293b' }}>
+                    <td style={{ padding: '11px 16px', fontWeight: 700, color: '#1e293b' }}>
                       {row.name}
                     </td>
-                    <td>
+                    <td style={{ padding: '11px 16px' }}>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 8px',
@@ -502,7 +504,7 @@ export default function SalesSummary({ initialOrders = [] }) {
                         {row.category}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ padding: '11px 16px', textAlign: 'center' }}>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 9px',
@@ -515,32 +517,32 @@ export default function SalesSummary({ initialOrders = [] }) {
                         ×{row.qty}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right', color: '#64748b' }}>
+                    <td style={{ padding: '11px 16px', textAlign: 'right', color: '#64748b', whiteSpace: 'nowrap' }}>
                       {formatCurrency(row.price)}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                    <td style={{ padding: '11px 20px 11px 16px', textAlign: 'right', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {formatCurrency(row.totalSales)}
                     </td>
-                    <td style={{ fontSize: '0.73rem', color: '#475569', maxWidth: '260px' }}>
+                    <td style={{ padding: '11px 16px 11px 20px', fontSize: '0.73rem', color: '#475569', maxWidth: '280px' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {row.orders.slice(0, 3).map((o, idx) => (
-                          <span key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '1px 6px', borderRadius: '5px', whiteSpace: 'nowrap' }}>
+                          <span key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '2px 7px', borderRadius: '5px', whiteSpace: 'nowrap' }}>
                             {o.timeStr} (×{o.qty})
                           </span>
                         ))}
                         {row.orders.length > 3 && (
-                          <span style={{ background: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: '5px', fontWeight: 700 }}>
+                          <span style={{ background: '#eff6ff', color: '#2563eb', padding: '2px 7px', borderRadius: '5px', fontWeight: 700 }}>
                             +{row.orders.length - 3} more
                           </span>
                         )}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ padding: '11px 16px', textAlign: 'center' }}>
                       <button
                         type="button"
                         onClick={() => setSelectedRow(row)}
                         className={styles.btnSecondary}
-                        style={{ padding: '3px 9px', fontSize: '0.72rem', margin: '0 auto' }}
+                        style={{ padding: '4px 10px', fontSize: '0.72rem', margin: '0 auto' }}
                       >
                         <Eye size={12} /> View
                       </button>
