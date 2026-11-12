@@ -15,7 +15,7 @@ export const DICTIONARY = {
     'nav.crm': 'Customer CRM',
     'nav.staff': 'Staff Management',
     'nav.reports': 'Reports Suite',
-    'nav.salesSummary': 'Sales Summary',
+    'nav.salesSummary': 'Item Summary',
     'nav.khata': 'Khata Ledger',
     'nav.settings': 'Settings',
 
@@ -123,7 +123,7 @@ export const DICTIONARY = {
     'nav.crm': 'ग्राहक CRM',
     'nav.staff': 'स्टाफ प्रबंधन',
     'nav.reports': 'रिपोर्ट्स एवं लाभ',
-    'nav.salesSummary': 'सेल्स समरी',
+    'nav.salesSummary': 'आइटम समरी',
     'nav.khata': 'खाता लेजर (उधारी)',
     'nav.settings': 'सेटिंग्स',
 

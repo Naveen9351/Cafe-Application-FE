@@ -41,6 +41,7 @@ export default function SalesSummary() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusScope, setStatusScope] = useState('completed'); // 'completed' | 'all'
   const [sortBy, setSortBy] = useState('date_desc'); // 'date_desc' | 'qty_desc' | 'sales_desc'
 
   // Backend Pagination
@@ -74,6 +75,7 @@ export default function SalesSummary() {
       const params = new URLSearchParams({
         range: dateFilter,
         category: categoryFilter,
+        statusScope,
         search: debouncedSearch,
         sortBy,
         page: String(page),
@@ -91,11 +93,8 @@ export default function SalesSummary() {
         setRows(res.data.rows || []);
         setTotalRows(res.data.total || 0);
         setTotalPages(res.data.totalPages || 1);
-        if (Array.isArray(res.data.categories) && res.data.categories.length > 0) {
-          setCategories(prev => {
-            const merged = new Set([...prev, ...res.data.categories]);
-            return Array.from(merged).sort();
-          });
+        if (Array.isArray(res.data.categories)) {
+          setCategories(res.data.categories);
         }
         if (res.data.kpi) {
           setKpi(res.data.kpi);
@@ -103,11 +102,11 @@ export default function SalesSummary() {
       }
     } catch (err) {
       console.error('Failed to fetch item summary:', err);
-      toast.error(err.response?.data?.error || 'Failed to load sales summary');
+      toast.error(err.response?.data?.error || 'Failed to load item summary');
     } finally {
       setIsLoading(false);
     }
-  }, [dateFilter, startDate, endDate, categoryFilter, debouncedSearch, sortBy, page]);
+  }, [dateFilter, startDate, endDate, categoryFilter, statusScope, debouncedSearch, sortBy, page]);
 
   useEffect(() => {
     fetchItemSummary();
@@ -136,6 +135,7 @@ export default function SalesSummary() {
       const params = new URLSearchParams({
         range: dateFilter,
         category: categoryFilter,
+        statusScope,
         search: debouncedSearch,
         sortBy,
         exportAll: 'true'
@@ -149,12 +149,13 @@ export default function SalesSummary() {
       const exportRows = res.data?.rows || [];
 
       const sheetData = [
-        ['Date', 'Item / Dish Name', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)']
+        ['Date', 'Item / Dish Name', 'Variant', 'Category', 'Qty Sold', 'Unit Price (INR)', 'Total Sales (INR)']
       ];
       exportRows.forEach(r => {
         sheetData.push([
           formatDisplayDate(r.dateKey),
           r.name,
+          r.variant || '-',
           r.category,
           r.qty,
           Math.round(r.unitPrice || 0),
@@ -163,8 +164,8 @@ export default function SalesSummary() {
       });
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), 'Item Sales Summary');
-      XLSX.writeFile(wb, `Item_Sales_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), 'Item Summary');
+      XLSX.writeFile(wb, `Item_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.success('Excel downloaded!', { id: toastId });
     } catch (err) {
       toast.error('Failed to export Excel', { id: toastId });
@@ -185,16 +186,16 @@ export default function SalesSummary() {
   };
 
   return (
-    <div className={styles.page} style={{ height: 'calc(100vh - 86px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div className={styles.page} style={{ height: 'calc(100dvh - 82px)', minHeight: '420px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
 
       {/* ── Top Header Row ── */}
-      <div className={styles.headerRow} style={{ flexWrap: 'wrap', rowGap: '8px' }}>
+      <div className={styles.headerRow} style={{ flexShrink: 0, flexWrap: 'wrap', rowGap: '8px' }}>
         <div className={styles.titleArea}>
           <div className={styles.brandIconWrap} style={{ background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.25)' }}>
             <TrendingUp size={18} />
           </div>
-          <h2 className={styles.title}>Item & Sales Summary</h2>
+          <h2 className={styles.title}>Item Summary</h2>
         </div>
 
         <div className={styles.headerActions} style={{ flexWrap: 'wrap' }}>
@@ -284,6 +285,17 @@ export default function SalesSummary() {
             {categories.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
+          </select>
+
+          {/* Order Status Scope Filter */}
+          <select
+            value={statusScope}
+            onChange={(e) => { setStatusScope(e.target.value); setPage(1); }}
+            className={styles.btnSecondary}
+            style={{ outline: 'none' }}
+          >
+            <option value="completed">Completed Bills</option>
+            <option value="all">All Active + Completed</option>
           </select>
 
           {/* Sort Filter */}
@@ -414,7 +426,7 @@ export default function SalesSummary() {
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={`${row.dateKey}_${row.name}`} className={styles.tr}>
+                  <tr key={`${row.dateKey}_${row.name}_${row.variant || ''}`} className={styles.tr}>
                     <td className={styles.td} style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', paddingLeft: '16px' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Calendar size={13} color="#64748b" />
@@ -422,7 +434,21 @@ export default function SalesSummary() {
                       </div>
                     </td>
                     <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b' }}>
-                      {row.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span>{row.name}</span>
+                        {row.variant && (
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '5px',
+                            background: '#eef2ff',
+                            color: '#4338ca'
+                          }}>
+                            {row.variant}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className={styles.td}>
                       <span style={{
@@ -542,7 +568,7 @@ export default function SalesSummary() {
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Clock size={16} color="#2563eb" />
-                    {selectedRow.name} — {formatDisplayDate(selectedRow.dateKey)}
+                    {selectedRow.name}{selectedRow.variant ? ` (${selectedRow.variant})` : ''} — {formatDisplayDate(selectedRow.dateKey)}
                   </h3>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
                     Total Qty: <strong>×{selectedRow.qty}</strong> • Total Sales: <strong>{formatCurrency(Math.round(selectedRow.totalSales || 0))}</strong>
@@ -581,7 +607,19 @@ export default function SalesSummary() {
                           <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{o.customerName || 'Walk-in Guest'}</div>
                         </td>
                         <td className={styles.td} style={{ textAlign: 'center', fontWeight: 800 }}>×{o.qty}</td>
-                        <td className={styles.td}>{o.paymentMethod || 'Cash'}</td>
+                        <td className={styles.td}>
+                          <div>{o.paymentMethod || 'Cash'}</div>
+                          {o.orderStatus && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              textTransform: 'capitalize',
+                              color: o.orderStatus === 'completed' ? '#16a34a' : '#d97706'
+                            }}>
+                              {o.orderStatus}
+                            </span>
+                          )}
+                        </td>
                         <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800 }}>{formatCurrency(o.lineTotal)}</td>
                       </tr>
                     ))}

@@ -275,7 +275,7 @@ export default function AdminPanel() {
     { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders' },
     { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true },
     { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports' },
-    { id: 'sales-summary', label: 'Sales Summary', icon: TrendingUp, permKey: 'access_reports' },
+    { id: 'sales-summary', label: 'Item Summary', icon: TrendingUp, permKey: 'access_reports' },
     { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata' },
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
   ], []);
@@ -511,10 +511,10 @@ export default function AdminPanel() {
     },
     {
       id: 'sales-summary',
-      label: 'Sales Summary & Z-Report',
-      keywords: ['sales summary', 'z report', 'day close', 'category sales', 'hourly rush', 'excel export', 'daily timeline'],
+      label: 'Item Summary',
+      keywords: ['item summary', 'sales summary', 'dish sales', 'category sales', 'excel export', 'daily item sales'],
       icon: TrendingUp,
-      desc: 'Category sales, peak hours, day close Z-report & Excel export'
+      desc: 'Date-wise & item-wise sales breakdown, variants & Excel export'
     },
     {
       id: 'staff',
@@ -2465,7 +2465,7 @@ export default function AdminPanel() {
             <button
               className={`${styles.navLink} ${activeTab === 'sales-summary' ? styles.activeNavLink : ''}`}
               onClick={() => handleTabChange('sales-summary')}
-              title="Sales Summary & Day-End Z-Report"
+              title="Item Summary"
             >
               <TrendingUp size={18} /> {!sidebarCollapsed && <span>{t('nav.salesSummary')}</span>}
             </button>
