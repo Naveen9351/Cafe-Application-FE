@@ -3,7 +3,7 @@ import {
   BookOpen, Search, CheckCircle, AlertCircle, Check, X, Phone, User, Plus,
   RefreshCw, Calendar, ArrowUpRight, ArrowDownRight, MessageCircle, Trash2, ShoppingBag, CreditCard,
   ChevronRight, ChevronLeft, Utensils, Minus, Printer, QrCode, Smartphone, Banknote,
-  FileText, Clock, Sparkles, ArrowLeft
+  FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
@@ -210,6 +210,13 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const [settleMethod, setSettleMethod] = useState('Cash');
   const [settleNotes, setSettleNotes] = useState('');
   const [isSettling, setIsSettling] = useState(false);
+
+  // Add Customer Udhar Dialog State (Asks to create new customer or select existing, then proceeds to POS)
+  const [showAddUdharModal, setShowAddUdharModal] = useState(false);
+  const [addUdharTab, setAddUdharTab] = useState('new'); // 'new' or 'existing'
+  const [newUdharName, setNewUdharName] = useState('');
+  const [newUdharPhone, setNewUdharPhone] = useState('');
+  const [selectedExistingPhone, setSelectedExistingPhone] = useState('');
 
   // New Khata Entry Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -556,6 +563,54 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     setEntryDate(new Date().toISOString().slice(0, 16));
     setEntryOrderNumber('');
     setKhataMode('pos_menu');
+  };
+
+  // Open Add Customer Udhar Modal (asks to create new customer or select existing, then proceeds to POS)
+  const handleOpenAddUdharModal = () => {
+    setNewUdharName('');
+    setNewUdharPhone('');
+    setAddUdharTab('new');
+    if (customerAccounts.length > 0) {
+      const firstPhone = customerAccounts[0].customerPhone !== 'N/A'
+        ? customerAccounts[0].customerPhone
+        : customerAccounts[0].customerName;
+      setSelectedExistingPhone(firstPhone);
+    } else {
+      setSelectedExistingPhone('');
+    }
+    setShowAddUdharModal(true);
+  };
+
+  const handleProceedToPosFromModal = () => {
+    if (addUdharTab === 'new') {
+      const trimmedName = newUdharName.trim();
+      if (!trimmedName) {
+        toast.error(isHindi ? 'कृपया ग्राहक का नाम दर्ज करें' : 'Please enter customer name');
+        return;
+      }
+      const cleanPhone = newUdharPhone.replace(/[^0-9]/g, '');
+      const newCust = {
+        customerName: trimmedName,
+        customerPhone: cleanPhone.length >= 5 ? cleanPhone : (newUdharPhone.trim() || 'N/A'),
+        outstandingBalance: 0,
+        isNew: true
+      };
+      setShowAddUdharModal(false);
+      handleAddUdharForCustomer(newCust);
+      setIsNewCustomerInline(true);
+    } else {
+      const found = customerAccounts.find(c =>
+        (c.customerPhone !== 'N/A' && c.customerPhone === selectedExistingPhone) ||
+        c.customerName === selectedExistingPhone
+      );
+      if (!found) {
+        toast.error(isHindi ? 'कृपया एक ग्राहक चुनें' : 'Please select a customer');
+        return;
+      }
+      setShowAddUdharModal(false);
+      handleAddUdharForCustomer(found);
+      setIsNewCustomerInline(false);
+    }
   };
 
   // Confirm and Record POS Visual Menu Order directly to Khata
@@ -1707,15 +1762,39 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           <h2>
             <BookOpen size={22} color="#2563eb" />
             {isHindi ? 'ग्राहक खाता बही (उधारी लेजर)' : 'Customer Khata & Credit Ledger'}
-            <span className={styles.liveSyncBadge}>
-              <span className={styles.liveSyncDot} />
-              {isHindi ? 'लाइव सिंक' : 'Live Ledger'}
-            </span>
           </h2>
-          <p>{isHindi ? 'ग्राहकों की उधारी, खरीदारी एवं भुगतान का व्यक्तिगत हिसाब-किताब' : 'Person-specific running credit, dish purchases, and balance settlements'}</p>
         </div>
 
         <div className={styles.headerActions}>
+          {/* Status Filters (All / Pending Dues / Fully Settled) moved up to top bar */}
+          <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 9, border: '1px solid #e2e8f0' }}>
+            {[
+              { key: 'all', label: isHindi ? 'सभी' : 'All' },
+              { key: 'pending', label: isHindi ? 'बकाया उधारी' : 'Pending Dues' },
+              { key: 'settled', label: isHindi ? 'पूर्ण चुकता' : 'Fully Settled' }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                style={{
+                  padding: '6px 13px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: statusFilter === tab.key ? '#ffffff' : 'transparent',
+                  color: statusFilter === tab.key ? '#2563eb' : '#64748b',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: statusFilter === tab.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <div className={styles.searchWrap}>
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
             <input
@@ -1738,36 +1817,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
           <button
             type="button"
-            onClick={() => {
-              setSelectedCustomerChoice('NEW');
-              setCustomerMode('existing');
-              setNewCustomerName('');
-              setNewCustomerPhone('');
-              setLineItems([]);
-              setNewPaidAmount('0');
-              setManualTotalBill('');
-              setUseManualTotal(false);
-              setNewNotes('');
-              setShowAddModal(true);
-            }}
-            className={styles.refreshBtn}
-            style={{ padding: '0 12px', width: 'auto', gap: 6, fontSize: '12px', fontWeight: 700 }}
-            title="Open Quick Entry Modal"
-          >
-            <Plus size={14} />
-            <span>{isHindi ? 'त्वरित प्रविष्टि' : 'Quick Form'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (customerAccounts.length > 0) {
-                handleAddUdharForCustomer(customerAccounts[0]);
-              } else {
-                handleAddUdharForCustomer({ customerName: '', customerPhone: '', outstandingBalance: 0, isNew: true });
-                setIsNewCustomerInline(true);
-              }
-            }}
+            onClick={handleOpenAddUdharModal}
             className={styles.addRecordBtn}
           >
             <Plus size={16} />
@@ -1819,91 +1869,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         </div>
       </div>
 
-      {/* View Switcher & Status Filter Ribbon */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        {/* View Mode Toggle: Customer Accounts vs Transaction Logs */}
-        <div style={{ display: 'flex', background: '#e2e8f0', padding: 3, borderRadius: 9 }}>
-          <button
-            type="button"
-            onClick={() => setViewMode('customers')}
-            style={{
-              padding: '7px 16px',
-              borderRadius: 7,
-              border: 'none',
-              background: viewMode === 'customers' ? '#ffffff' : 'transparent',
-              color: viewMode === 'customers' ? '#0f172a' : '#64748b',
-              fontWeight: 800,
-              fontSize: '12.5px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              boxShadow: viewMode === 'customers' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <User size={14} />
-            <span>{isHindi ? 'ग्राहक खाते (Accounts)' : 'Customer Accounts'}</span>
-            <span style={{ fontSize: '11px', background: '#f1f5f9', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>
-              {customerAccounts.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setViewMode('transactions')}
-            style={{
-              padding: '7px 16px',
-              borderRadius: 7,
-              border: 'none',
-              background: viewMode === 'transactions' ? '#ffffff' : 'transparent',
-              color: viewMode === 'transactions' ? '#0f172a' : '#64748b',
-              fontWeight: 800,
-              fontSize: '12.5px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              boxShadow: viewMode === 'transactions' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Calendar size={14} />
-            <span>{isHindi ? 'सभी प्रविष्टियां (History)' : 'All Transactions'}</span>
-            <span style={{ fontSize: '11px', background: '#f1f5f9', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>
-              {records.length}
-            </span>
-          </button>
-        </div>
-
-        {/* Status Filters */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[
-            { key: 'all', label: isHindi ? 'सभी' : 'All' },
-            { key: 'pending', label: isHindi ? 'बकाया उधारी' : 'Pending Dues' },
-            { key: 'settled', label: isHindi ? 'पूर्ण चुकता' : 'Fully Settled' }
-          ].map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setStatusFilter(tab.key)}
-              style={{
-                padding: '6px 13px',
-                borderRadius: 8,
-                border: statusFilter === tab.key ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
-                background: statusFilter === tab.key ? '#eff6ff' : '#ffffff',
-                color: statusFilter === tab.key ? '#1d4ed8' : '#475569',
-                fontWeight: 700,
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* VIEW 1: CUSTOMER ACCOUNTS TABLE */}
       {viewMode === 'customers' && (
         <div className={styles.tableCard}>
@@ -1915,7 +1880,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   <th>{isHindi ? 'मोबाइल नंबर' : 'Mobile Number'}</th>
                   <th>{isHindi ? 'कुल खरीदारी' : 'Total Purchases'}</th>
                   <th>{isHindi ? 'कुल भुगतान' : 'Total Paid'}</th>
-                  <th>{isHindi ? 'बकाया उधार' : 'Current Due'}</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>{isHindi ? 'बकाया उधार' : 'Current Due'}</th>
                   <th>{isHindi ? 'ऑर्डर विज़िट्स' : 'Visits'}</th>
                   <th>{isHindi ? 'अंतिम सक्रियता' : 'Last Active'}</th>
                   <th style={{ textAlign: 'right' }}>{isHindi ? 'कार्रवाई' : 'Actions'}</th>
@@ -2005,7 +1970,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         </td>
 
                         {/* Outstanding Due */}
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -2014,6 +1979,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             borderRadius: 6,
                             fontSize: '12.5px',
                             fontWeight: 800,
+                            whiteSpace: 'nowrap',
                             background: hasDue ? '#fef2f2' : '#f0fdf4',
                             color: hasDue ? '#dc2626' : '#16a34a',
                             border: hasDue ? '1px solid #fecaca' : '1px solid #bbf7d0'
@@ -2333,6 +2299,309 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL: ADD CUSTOMER UDHAR - CHOOSE / CREATE CUSTOMER & PROCEED TO POS */}
+      {showAddUdharModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAddUdharModal(false);
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '460px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '18px 22px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                    {isHindi ? 'नया उधार जोड़ें' : 'Add Customer Udhar'}
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b', fontWeight: 500 }}>
+                    {isHindi ? 'ग्राहक चुनें / बनाएं और POS स्क्रीन पर जाएं' : 'Select or create customer to proceed to POS Menu'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddUdharModal(false)}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Mode Tabs: New Customer vs Existing Customer */}
+            <div style={{ padding: '16px 22px 0 22px' }}>
+              <div style={{
+                display: 'flex',
+                background: '#f1f5f9',
+                padding: 4,
+                borderRadius: 10,
+                gap: 4
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setAddUdharTab('new')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: addUdharTab === 'new' ? '#ffffff' : 'transparent',
+                    color: addUdharTab === 'new' ? '#2563eb' : '#64748b',
+                    fontWeight: 700,
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    boxShadow: addUdharTab === 'new' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>{isHindi ? 'नया ग्राहक (New)' : 'New Customer'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAddUdharTab('existing')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: addUdharTab === 'existing' ? '#ffffff' : 'transparent',
+                    color: addUdharTab === 'existing' ? '#2563eb' : '#64748b',
+                    fontWeight: 700,
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    boxShadow: addUdharTab === 'existing' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <User size={14} />
+                  <span>{isHindi ? 'मौजूदा ग्राहक' : 'Existing Customer'}</span>
+                  {customerAccounts.length > 0 && (
+                    <span style={{
+                      background: addUdharTab === 'existing' ? '#eff6ff' : '#e2e8f0',
+                      color: addUdharTab === 'existing' ? '#2563eb' : '#64748b',
+                      fontSize: '10.5px',
+                      padding: '1px 6px',
+                      borderRadius: 10,
+                      fontWeight: 700
+                    }}>
+                      {customerAccounts.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '18px 22px 22px 22px' }}>
+              {addUdharTab === 'new' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                      {isHindi ? 'ग्राहक का नाम *' : 'Customer Name *'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={isHindi ? "जैसे: रमेश कुमार" : "e.g. Ramesh Kumar"}
+                      value={newUdharName}
+                      onChange={(e) => setNewUdharName(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleProceedToPosFromModal();
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '13.5px',
+                        fontWeight: 600,
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                      {isHindi ? 'मोबाइल नंबर (वैकल्पिक)' : 'Mobile Number (Optional)'}
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder={isHindi ? "10 अंकों का मोबाइल नंबर" : "10-digit mobile number"}
+                      value={newUdharPhone}
+                      maxLength={10}
+                      onChange={(e) => setNewUdharPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleProceedToPosFromModal();
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '13.5px',
+                        fontWeight: 600,
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    {isHindi ? 'ग्राहक चुनें *' : 'Select Customer *'}
+                  </label>
+                  {customerAccounts.length === 0 ? (
+                    <div style={{
+                      padding: '16px',
+                      background: '#f8fafc',
+                      borderRadius: 8,
+                      border: '1px dashed #cbd5e1',
+                      textAlign: 'center',
+                      fontSize: '12.5px',
+                      color: '#64748b'
+                    }}>
+                      {isHindi ? 'कोई मौजूदा खाता नहीं मिला। कृपया "नया ग्राहक" चुनें।' : 'No existing customer accounts found. Please use "New Customer".'}
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedExistingPhone}
+                      onChange={(e) => setSelectedExistingPhone(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '13.5px',
+                        fontWeight: 600,
+                        outline: 'none',
+                        background: '#ffffff',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      {customerAccounts.map(c => {
+                        const val = c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName;
+                        return (
+                          <option key={val} value={val}>
+                            {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — Due: ₹{c.outstandingBalance.toLocaleString('en-IN')}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddUdharModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    borderRadius: 8,
+                    border: '1.5px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#64748b',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isHindi ? 'रद्द करें' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleProceedToPosFromModal}
+                  style={{
+                    flex: 2,
+                    padding: '11px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)'
+                  }}
+                >
+                  <span>{isHindi ? 'POS मेनू पर जाएं' : 'Proceed to POS'}</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
