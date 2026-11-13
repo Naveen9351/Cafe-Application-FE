@@ -5,8 +5,9 @@ import {
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
   Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter,
-  User, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet
+  User, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent
 } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getValidFoodImage, getCustomerFirstName } from '../AdminPanel';
@@ -96,6 +97,10 @@ export default function POSTerminal({
   const [mergedTables, setMergedTables] = useState([]);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [actualAmountReceived, setActualAmountReceived] = useState('');
+  const [settlementDiscount, setSettlementDiscount] = useState('');
+  const [settlementDiscountReason, setSettlementDiscountReason] = useState('Customer Concession / Round Off');
+  const [settlementSubMethod, setSettlementSubMethod] = useState('Cash');
+  const [cashTenderGiven, setCashTenderGiven] = useState('');
   const [isMuted, setIsMuted] = useState(() => isAudioMuted());
 
   // 4-Button System: Item selection & payment states
@@ -789,8 +794,8 @@ export default function POSTerminal({
     }
   };
 
-  // Button 3: Paid Order (Mark selected items or all unpaid items as paid)
-  const handleConfirmPayItems = async () => {
+  // Button 3: Paid Order (Mark selected items or all unpaid items as paid, with settlement concession support)
+  const handleConfirmPayItems = async (customPayable = null, customDiscount = 0, customMethod = null) => {
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
@@ -801,28 +806,78 @@ export default function POSTerminal({
         itemIndex: it.itemIndex
       }));
 
-      const receivedNum = actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : null;
+      const isFullTable = itemsToPay.length === 0 || selectedItemsSummary.count === 0 || selectedItemsSummary.count === currentTableOrders.flatMap(o => (o.items || []).filter(it => !it.isPaid)).length;
+      const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
 
-      const res = await axios.put(
-        `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/pay-items`,
-        {
-          paymentMethod: payItemsMethod,
-          itemsToPay,
-          payAll: itemsToPay.length === 0,
-          actualAmount: receivedNum,
-          settledAmount: receivedNum,
-          tenantId: effectiveTenantId
-        },
-        { headers: token ? { 'x-auth-token': token } : {} }
-      );
+      const tenderAmount = selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue;
+      const effectiveMethod = customMethod || (payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod);
+      const finalPaid = customPayable !== null ? Number(customPayable) : (actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : tenderAmount);
+      const finalDiscount = customDiscount > 0 ? Number(customDiscount) : Math.max(0, tenderAmount - finalPaid);
 
-      const paidDisplay = receivedNum !== null ? receivedNum : (selectedItemsSummary.count > 0 ? selectedItemsSummary.total : res.data.totalNewlyPaid);
-      toast.success(`✓ Marked items as paid (₹${formatAmount(paidDisplay)}) via ${payItemsMethod}!`);
-      setShowPayItemsModal(false);
-      setSelectedItemKeys(new Set());
+      if (isFullTable && tableNumber !== 'Walk-in') {
+        // Full table settlement: settle orders, record concession discount, free table
+        await axios.put(
+          `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
+          {
+            paymentMethod: effectiveMethod,
+            paymentStatus: 'paid',
+            tenantId: effectiveTenantId,
+            mergedTables: allSettleTables,
+            settledAmount: finalPaid,
+            discountAmount: finalDiscount,
+            discountReason: settlementDiscountReason || 'Settlement Concession / Round Off',
+            originalTotal: grandTotal
+          },
+          { headers: token ? { 'x-auth-token': token } : {} }
+        );
 
-      if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
-      if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
+        const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount applied)` : '';
+        toast.success(`✓ Table ${tableNumber} settled for ₹${formatAmount(finalPaid)}${discountMsg}! Table is now free.`);
+        setCart([]);
+        setCustomerName('');
+        setCustomerPhone('');
+        setMergedTables([]);
+        setActualAmountReceived('');
+        setSettlementDiscount('');
+        setCashTenderGiven('');
+        setSelectedItemKeys(new Set());
+        setShowPayItemsModal(false);
+
+        allSettleTables.forEach(tNum => {
+          if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+          if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+          if (onSettleTable) onSettleTable(tNum);
+        });
+
+        setViewMode('tables');
+      } else {
+        // Partial items pay
+        const res = await axios.put(
+          `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/pay-items`,
+          {
+            paymentMethod: effectiveMethod,
+            itemsToPay,
+            payAll: isFullTable,
+            actualAmount: finalPaid,
+            settledAmount: finalPaid,
+            discountAmount: finalDiscount,
+            discountReason: settlementDiscountReason || 'Settlement Concession / Round Off',
+            tenantId: effectiveTenantId
+          },
+          { headers: token ? { 'x-auth-token': token } : {} }
+        );
+
+        const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount)` : '';
+        toast.success(`✓ Marked items as paid (₹${formatAmount(finalPaid)})${discountMsg} via ${effectiveMethod}!`);
+        setShowPayItemsModal(false);
+        setSelectedItemKeys(new Set());
+        setActualAmountReceived('');
+        setSettlementDiscount('');
+        setCashTenderGiven('');
+
+        if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
+        if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
+      }
     } catch (err) {
       console.error('Pay items error:', err);
       toast.error('Payment error: ' + (err.response?.data?.error || err.message));
@@ -2007,6 +2062,11 @@ export default function POSTerminal({
                                   await handleDirectOrder();
                                   setKhataPaidAmount('0');
                                   setKhataBorrowAmount(0);
+                                  setActualAmountReceived('');
+                                  setSettlementDiscount('');
+                                  setCashTenderGiven('');
+                                  setSettlementDiscountReason('Customer Concession / Round Off');
+                                  setSettlementSubMethod('Cash');
                                   setShowPayItemsModal(true);
                                   return;
                                 }
@@ -2016,6 +2076,11 @@ export default function POSTerminal({
                                 }
                                 setKhataPaidAmount('0');
                                 setKhataBorrowAmount(0);
+                                setActualAmountReceived('');
+                                setSettlementDiscount('');
+                                setCashTenderGiven('');
+                                setSettlementDiscountReason('Customer Concession / Round Off');
+                                setSettlementSubMethod('Cash');
                                 setShowPayItemsModal(true);
                               }}
                               disabled={isSubmittingItemPay || isSubmittingDirect || (!hasDraftItems && selectedItemsSummary.count === 0 && balanceDue <= 0)}
@@ -2052,7 +2117,7 @@ export default function POSTerminal({
 
                           {/* Quick Thermal Print Bill & WhatsApp E-Bill */}
                           {hasActiveOrders && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', width: '100%', marginTop: '6px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', marginTop: '8px' }}>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2073,22 +2138,27 @@ export default function POSTerminal({
                                   printOrderBill(billOrder, tenantInfo?.name);
                                 }}
                                 style={{
-                                  padding: '7px 8px',
-                                  borderRadius: '8px',
-                                  border: '1px solid #cbd5e1',
+                                  padding: '8px 10px',
+                                  borderRadius: '9px',
+                                  border: '1.5px solid #cbd5e1',
                                   background: '#ffffff',
-                                  color: '#334155',
-                                  fontSize: '0.72rem',
+                                  color: '#1e293b',
+                                  fontSize: '0.78rem',
                                   fontWeight: 700,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: '4px'
+                                  gap: '6px',
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                  transition: 'all 0.15s ease'
                                 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
                                 title="Print 80mm Thermal Receipt"
                               >
-                                <Printer size={13} />
+                                <Printer size={15} color="#475569" />
                                 <span>Print Bill</span>
                               </button>
 
@@ -2113,22 +2183,27 @@ export default function POSTerminal({
                                   toast.success('WhatsApp E-Bill opened!');
                                 }}
                                 style={{
-                                  padding: '7px 8px',
-                                  borderRadius: '8px',
-                                  border: '1px solid #bbf7d0',
-                                  background: '#f0fdf4',
-                                  color: '#15803d',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 700,
+                                  padding: '8px 10px',
+                                  borderRadius: '9px',
+                                  border: 'none',
+                                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                  color: '#ffffff',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 800,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: '4px'
+                                  gap: '6px',
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                                  transition: 'all 0.15s ease'
                                 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
                                 title="Send WhatsApp Digital E-Bill"
                               >
-                                <Smartphone size={13} />
+                                <FaWhatsapp size={16} />
                                 <span>WhatsApp E-Bill</span>
                               </button>
                             </div>
@@ -2147,19 +2222,30 @@ export default function POSTerminal({
       )}
 
       {/* ========================================================= */}
-      {/* 2.1 PAY ITEMS / PARTIAL ORDER MODAL                       */}
+      {/* 2.1 PAY ITEMS / TABLE SETTLEMENT & CONCESSION MODAL       */}
       {/* ========================================================= */}
       {showPayItemsModal && (() => {
         const tenderAmount = selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue;
+        
+        // Calculate settlement discount and payable amount
+        const discountVal = Math.max(0, Number(settlementDiscount) || 0);
+        const finalPayable = Math.max(0, tenderAmount - discountVal);
+
         const availableTenders = [
           { id: 'Cash', label: 'Cash', icon: Banknote },
           { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
           { id: 'Card', label: 'Card', icon: CreditCard },
-          ...(tenantInfo?.settings?.enableKhata !== false ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
+          ...(tenantInfo?.settings?.enableKhata !== false ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : []),
+          { id: 'Settlement', label: 'Settlement', icon: Percent }
         ];
+
         const rawPaidNow = Number(khataPaidAmount) || 0;
-        const paidNowNum = Math.min(tenderAmount, Math.max(0, rawPaidNow));
-        const borrowDueNum = Math.max(0, tenderAmount - paidNowNum);
+        const paidNowNum = Math.min(finalPayable, Math.max(0, rawPaidNow));
+        const borrowDueNum = Math.max(0, finalPayable - paidNowNum);
+
+        // Cash tender change calculation
+        const tenderGivenNum = Number(cashTenderGiven) || 0;
+        const changeDue = Math.max(0, tenderGivenNum - finalPayable);
 
         const handleModalConfirm = async () => {
           if (payItemsMethod === 'Khata / Borrow') {
@@ -2175,7 +2261,7 @@ export default function POSTerminal({
               const allUnpaidItems = currentTableOrders.flatMap(o => (o.items || []).filter(it => !it.isPaid));
               const isPartialKhata = selectedItemsSummary.count > 0 && selectedItemsSummary.count < allUnpaidItems.length;
 
-              // Extract items to record in Khata (only selected items if selection exists, otherwise all unpaid)
+              // Extract items to record in Khata
               const khataItems = selectedItemsSummary.count > 0
                 ? selectedItemsSummary.itemsList.map(it => ({
                     name: it.name || 'Dish',
@@ -2188,15 +2274,15 @@ export default function POSTerminal({
                     price: Number(it.price || it.item?.price) || 0
                   }));
 
-              // 1. Record directly in Khata / Customer Credit Ledger
+              // 1. Record directly in Khata / Customer Credit Ledger (with final discounted amount)
               await axios.post(`${API}/khata`, {
                 tenantId: effectiveTenantId,
                 customerName: effName,
                 customerPhone: effPhone,
-                totalBill: tenderAmount,
+                totalBill: finalPayable,
                 paidAmount: paidNowNum,
                 borrowAmount: borrowDueNum,
-                notes: khataNotes || (isPartialKhata ? `Table ${tableNumber} partial dishes (${selectedItemsSummary.count})` : `Table ${tableNumber} order`),
+                notes: khataNotes || (isPartialKhata ? `Table ${tableNumber} partial dishes (${selectedItemsSummary.count})` : `Table ${tableNumber} order${discountVal > 0 ? ` [Discount: ₹${discountVal}]` : ''}`),
                 items: khataItems
               }, {
                 headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
@@ -2217,17 +2303,22 @@ export default function POSTerminal({
                     payAll: false,
                     actualAmount: paidNowNum,
                     settledAmount: paidNowNum,
+                    discountAmount: discountVal,
+                    discountReason: settlementDiscountReason || 'Settlement Concession / Round Off',
                     tenantId: effectiveTenantId
                   },
                   { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
                 );
 
-                toast.success(`✓ Recorded ₹${tenderAmount} in Khata (${effName})! ${allUnpaidItems.length - selectedItemsSummary.count} unpaid item(s) remain on Table ${tableNumber}.`);
+                toast.success(`✓ Recorded ₹${finalPayable} in Khata (${effName})! ${allUnpaidItems.length - selectedItemsSummary.count} unpaid item(s) remain on Table ${tableNumber}.`);
                 setShowPayItemsModal(false);
                 setSelectedItemKeys(new Set());
                 setKhataPaidAmount('0');
                 setKhataBorrowAmount(0);
                 setKhataNotes('');
+                setActualAmountReceived('');
+                setSettlementDiscount('');
+                setCashTenderGiven('');
 
                 if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
                 if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
@@ -2243,7 +2334,10 @@ export default function POSTerminal({
                       tenantId: effectiveTenantId,
                       mergedTables: allSettleTables,
                       actualAmount: paidNowNum,
-                      settledAmount: paidNowNum
+                      settledAmount: paidNowNum,
+                      discountAmount: discountVal,
+                      discountReason: settlementDiscountReason || 'Settlement Concession / Round Off',
+                      originalTotal: grandTotal
                     },
                     { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
                   );
@@ -2254,6 +2348,8 @@ export default function POSTerminal({
                 setCustomerName('');
                 setCustomerPhone('');
                 setActualAmountReceived('');
+                setSettlementDiscount('');
+                setCashTenderGiven('');
                 setKhataPaidAmount('0');
                 setKhataBorrowAmount(0);
                 setKhataNotes('');
@@ -2279,8 +2375,9 @@ export default function POSTerminal({
             return;
           }
 
-          // For standard Cash / UPI / Card payment
-          handleConfirmPayItems();
+          // For standard Cash / UPI / Card / Settlement payment
+          const effectiveMethod = payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod;
+          handleConfirmPayItems(finalPayable, discountVal, effectiveMethod);
         };
 
         return (
@@ -2292,39 +2389,45 @@ export default function POSTerminal({
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className={styles.splitModalContent}
               style={{
-                maxWidth: '460px',
-                width: '94%',
-                padding: '16px 20px',
-                borderRadius: '14px',
+                maxWidth: '490px',
+                width: '95%',
+                padding: '18px 22px',
+                borderRadius: '16px',
                 background: '#ffffff',
                 boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
-                maxHeight: '90vh',
+                maxHeight: '92vh',
                 overflowY: 'auto'
               }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header with Icon Pill */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: payItemsMethod === 'Khata / Borrow' ? '#fef3c7' : '#f5f3ff',
-                    color: payItemsMethod === 'Khata / Borrow' ? '#d97706' : '#7c3aed',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '11px',
+                    background: payItemsMethod === 'Settlement'
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                      : (payItemsMethod === 'Khata / Borrow'
+                          ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                          : 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'),
+                    color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)'
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.12)'
                   }}>
-                    {payItemsMethod === 'Khata / Borrow' ? <BookOpen size={20} /> : <Wallet size={20} />}
+                    {payItemsMethod === 'Settlement' ? <Percent size={20} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={20} /> : <Wallet size={20} />)}
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>
                       {selectedItemsSummary.count > 0 ? `Pay Selected (${selectedItemsSummary.count} items)` : `Table ${tableNumber} Settlement`}
                     </h3>
                     <p style={{ margin: 0, fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
-                      {payItemsMethod === 'Khata / Borrow' ? 'Customer Udhar Ledger & Table Release' : 'Choose payment method to complete order'}
+                      {payItemsMethod === 'Settlement'
+                        ? 'Custom Settlement & Customer Concession Discount'
+                        : (payItemsMethod === 'Khata / Borrow' ? 'Customer Udhar Ledger & Table Release' : 'Choose payment method or apply concession')}
                     </p>
                   </div>
                 </div>
@@ -2350,54 +2453,90 @@ export default function POSTerminal({
                 </button>
               </div>
 
-              {/* Sleek Bill Hero Banner */}
+              {/* Sleek Bill Hero Banner with Discount Impact */}
               <div style={{
-                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
+                background: discountVal > 0 ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                border: discountVal > 0 ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                borderRadius: '13px',
                 padding: '12px 16px',
-                marginBottom: '1.1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
+                marginBottom: '1rem',
+                transition: 'all 0.2s ease'
               }}>
-                <div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {selectedItemsSummary.count > 0 ? 'Selected Items Total' : 'Total Amount Due'}
-                  </span>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px', marginTop: '1px' }}>
-                    ₹{formatAmount(tenderAmount)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: discountVal > 0 ? '#15803d' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {discountVal > 0 ? 'Final Payable (After Concession)' : (selectedItemsSummary.count > 0 ? 'Selected Items Total' : 'Total Amount Due')}
+                    </span>
+                    <div style={{ fontSize: '1.65rem', fontWeight: 900, color: discountVal > 0 ? '#15803d' : '#0f172a', letterSpacing: '-0.5px', marginTop: '1px' }}>
+                      ₹{formatAmount(finalPayable)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 9px',
+                      borderRadius: '20px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      border: '1px solid #cbd5e1',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                    }}>
+                      Table {tableNumber}
+                    </span>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '3px', fontWeight: 600 }}>
+                      {selectedItemsSummary.count > 0 ? `${selectedItemsSummary.count} item(s)` : 'Full Order'}
+                    </div>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '3px 9px',
-                    borderRadius: '20px',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    background: '#ecfdf5',
-                    color: '#15803d',
-                    border: '1px solid #bbf7d0'
+
+                {/* Live Discount Impact Breakdown */}
+                {discountVal > 0 && (
+                  <div style={{
+                    marginTop: '8px',
+                    paddingTop: '8px',
+                    borderTop: '1px dashed #86efac',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.75rem'
                   }}>
-                    Table {tableNumber}
-                  </span>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '3px', fontWeight: 600 }}>
-                    {selectedItemsSummary.count > 0 ? `${selectedItemsSummary.count} item(s)` : 'Full Order'}
+                    <span style={{ color: '#475569' }}>
+                      Original Bill: <strike>₹{formatAmount(tenderAmount)}</strike>
+                    </span>
+                    <span style={{ fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '5px' }}>
+                      Concession / Discount: -₹{formatAmount(discountVal)}
+                    </span>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Segmented Payment Tender Selection */}
-              <div style={{ marginBottom: '1.1rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Payment Method
+                  Payment Method & Mode
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: availableTenders.length === 4 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '7px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${availableTenders.length}, 1fr)`, gap: '6px' }}>
                   {availableTenders.map(t => {
                     const IconComp = t.icon;
                     const isSelected = payItemsMethod === t.id;
                     const isKhata = t.id === 'Khata / Borrow';
+                    const isSettlement = t.id === 'Settlement';
+
+                    let activeBorder = '2px solid #7c3aed';
+                    let activeBg = '#f5f3ff';
+                    let activeColor = '#7c3aed';
+
+                    if (isKhata) {
+                      activeBorder = '2px solid #d97706';
+                      activeBg = '#fffbeb';
+                      activeColor = '#92400e';
+                    } else if (isSettlement) {
+                      activeBorder = '2px solid #10b981';
+                      activeBg = '#ecfdf5';
+                      activeColor = '#047857';
+                    }
 
                     return (
                       <button
@@ -2405,36 +2544,536 @@ export default function POSTerminal({
                         type="button"
                         onClick={() => setPayItemsMethod(t.id)}
                         style={{
-                          padding: '9px 4px',
+                          padding: '8px 2px',
                           borderRadius: '10px',
-                          border: isSelected
-                            ? (isKhata ? '2px solid #d97706' : '2px solid #7c3aed')
-                            : '1.5px solid #e2e8f0',
-                          background: isSelected
-                            ? (isKhata ? '#fffbeb' : '#f5f3ff')
-                            : '#ffffff',
-                          color: isSelected
-                            ? (isKhata ? '#92400e' : '#7c3aed')
-                            : '#475569',
+                          border: isSelected ? activeBorder : '1.5px solid #e2e8f0',
+                          background: isSelected ? activeBg : '#ffffff',
+                          color: isSelected ? activeColor : '#475569',
                           fontWeight: isSelected ? 800 : 600,
-                          fontSize: '0.74rem',
+                          fontSize: '0.72rem',
                           cursor: 'pointer',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '5px',
+                          gap: '4px',
                           boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
                           transition: 'all 0.15s ease'
                         }}
                       >
-                        <IconComp size={16} color={isSelected ? (isKhata ? '#d97706' : '#7c3aed') : '#64748b'} />
-                        <span style={{ lineHeight: '1.1' }}>{t.label}</span>
+                        <IconComp size={16} color={isSelected ? activeColor : '#64748b'} />
+                        <span style={{ lineHeight: '1.1', whiteSpace: 'nowrap' }}>{t.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
+
+              {/* SETTLEMENT & CONCESSION DISCOUNT SUITE */}
+              {payItemsMethod === 'Settlement' && (
+                <div style={{
+                  background: '#f0fdf4',
+                  border: '1.5px solid #86efac',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  marginBottom: '0.85rem'
+                }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Percent size={14} color="#059669" />
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        Settlement & Concession
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#047857', background: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                      Customer Discount
+                    </span>
+                  </div>
+
+                  {/* Dual Synchronized Inputs: Customer Pays vs Discount Concession */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#065f46', marginBottom: '3px' }}>
+                        Customer Pays (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={tenderAmount}
+                        placeholder={String(tenderAmount)}
+                        value={discountVal > 0 ? (tenderAmount - discountVal) : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setSettlementDiscount('');
+                          } else {
+                            const pays = Math.max(0, Math.min(tenderAmount, Number(raw) || 0));
+                            const disc = Math.max(0, tenderAmount - pays);
+                            setSettlementDiscount(disc > 0 ? String(disc) : '');
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '7px 9px',
+                          borderRadius: '7px',
+                          border: '1.5px solid #86efac',
+                          background: '#ffffff',
+                          fontSize: '0.9rem',
+                          fontWeight: 800,
+                          color: '#065f46',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 600 }}>Amount collected</span>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', marginBottom: '3px' }}>
+                        Discount / Concession (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={tenderAmount}
+                        placeholder="0"
+                        value={settlementDiscount}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setSettlementDiscount('');
+                          } else {
+                            const disc = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
+                            setSettlementDiscount(String(disc));
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '7px 9px',
+                          borderRadius: '7px',
+                          border: '1.5px solid #fca5a5',
+                          background: '#ffffff',
+                          fontSize: '0.9rem',
+                          fontWeight: 800,
+                          color: '#dc2626',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.62rem', color: '#b91c1c', fontWeight: 600 }}>Recorded as concession</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Round-off & Discount Shortcut Chips */}
+                  <div style={{ marginBottom: '10px' }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                      Quick Round-Off & Shortcuts:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSettlementDiscount('')}
+                        style={{
+                          padding: '3px 7px',
+                          borderRadius: '6px',
+                          border: discountVal === 0 ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+                          background: discountVal === 0 ? '#dcfce7' : '#ffffff',
+                          color: discountVal === 0 ? '#065f46' : '#475569',
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Exact ₹{tenderAmount}
+                      </button>
+
+                      {/* Dynamic: If 349 -> Round to 300 (-49) */}
+                      {tenderAmount > 50 && (tenderAmount % 50 !== 0) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target = Math.floor(tenderAmount / 50) * 50;
+                            const diff = tenderAmount - target;
+                            setSettlementDiscount(String(diff));
+                          }}
+                          style={{
+                            padding: '3px 7px',
+                            borderRadius: '6px',
+                            border: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+                            background: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '#dcfce7' : '#ffffff',
+                            color: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '#065f46' : '#475569',
+                            fontSize: '0.66rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Round to ₹{Math.floor(tenderAmount / 50) * 50} (-₹{tenderAmount - Math.floor(tenderAmount / 50) * 50})
+                        </button>
+                      )}
+
+                      {/* Dynamic: If 349 -> Round to 340 (-9) */}
+                      {tenderAmount > 10 && (tenderAmount % 10 !== 0) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target = Math.floor(tenderAmount / 10) * 10;
+                            const diff = tenderAmount - target;
+                            setSettlementDiscount(String(diff));
+                          }}
+                          style={{
+                            padding: '3px 7px',
+                            borderRadius: '6px',
+                            border: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+                            background: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '#dcfce7' : '#ffffff',
+                            color: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '#065f46' : '#475569',
+                            fontSize: '0.66rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Round to ₹{Math.floor(tenderAmount / 10) * 10} (-₹{tenderAmount - Math.floor(tenderAmount / 10) * 10})
+                        </button>
+                      )}
+
+                      {/* Direct Discounts -10, -20, -50 */}
+                      {[10, 20, 50].map(amt => {
+                        if (tenderAmount <= amt) return null;
+                        const isChosen = discountVal === amt;
+                        return (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setSettlementDiscount(String(amt))}
+                            style={{
+                              padding: '3px 7px',
+                              borderRadius: '6px',
+                              border: isChosen ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+                              background: isChosen ? '#dcfce7' : '#ffffff',
+                              color: isChosen ? '#065f46' : '#475569',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            -₹{amt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Concession Reason Selection */}
+                  <div style={{ marginBottom: '10px' }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                      Settlement Reason:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '5px' }}>
+                      {['Customer Request', 'Bill Round-Off', 'Owner Concession', 'Regular Guest'].map(r => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setSettlementDiscountReason(r)}
+                          style={{
+                            padding: '2px 7px',
+                            borderRadius: '5px',
+                            border: settlementDiscountReason === r ? '1px solid #059669' : '1px solid #cbd5e1',
+                            background: settlementDiscountReason === r ? '#d1fae5' : '#ffffff',
+                            color: settlementDiscountReason === r ? '#065f46' : '#64748b',
+                            fontSize: '0.64rem',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Or type custom reason..."
+                      value={settlementDiscountReason}
+                      onChange={(e) => setSettlementDiscountReason(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '0.72rem',
+                        color: '#0f172a',
+                        boxSizing: 'border-box',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  {/* Payment Tender Sub-mode for collecting the settled amount */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#065f46', marginBottom: '4px' }}>
+                      Collect Settled ₹{finalPayable} via:
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
+                      {[
+                        { id: 'Cash', label: 'Cash', icon: Banknote },
+                        { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
+                        { id: 'Card', label: 'Card', icon: CreditCard }
+                      ].map(sm => {
+                        const Icon = sm.icon;
+                        const isSubSelected = (settlementSubMethod || 'Cash') === sm.id;
+                        return (
+                          <button
+                            key={sm.id}
+                            type="button"
+                            onClick={() => setSettlementSubMethod(sm.id)}
+                            style={{
+                              padding: '6px 4px',
+                              borderRadius: '7px',
+                              border: isSubSelected ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                              background: isSubSelected ? '#d1fae5' : '#ffffff',
+                              color: isSubSelected ? '#065f46' : '#475569',
+                              fontWeight: 700,
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Icon size={13} color={isSubSelected ? '#059669' : '#64748b'} />
+                            <span>{sm.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* If Cash sub-method, show cash tender calculator */}
+                    {(settlementSubMethod || 'Cash') === 'Cash' && (
+                      <div style={{ background: '#ffffff', border: '1px solid #bbf7d0', borderRadius: '7px', padding: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: 'block', fontSize: '0.64rem', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
+                              Cash Received (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder={String(finalPayable)}
+                              value={cashTenderGiven}
+                              onChange={(e) => setCashTenderGiven(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '5px 7px',
+                                borderRadius: '5px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                color: '#0f172a',
+                                boxSizing: 'border-box',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#64748b' }}>Change to Return</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 900, color: tenderGivenNum >= finalPayable ? '#16a34a' : '#64748b' }}>
+                              ₹{formatAmount(changeDue)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* CASH PAYMENT & CHANGE CALCULATOR */}
+              {payItemsMethod === 'Cash' && (
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '11px 13px',
+                  marginBottom: '0.85rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Banknote size={14} color="#16a34a" />
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        Cash Tender & Change
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPayItemsMethod('Settlement')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        color: '#059669',
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Give Concession / Settlement?
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#475569', marginBottom: '3px' }}>
+                        Cash Received from Customer (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder={String(finalPayable)}
+                        value={cashTenderGiven}
+                        onChange={(e) => setCashTenderGiven(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '0.86rem',
+                          fontWeight: 700,
+                          color: '#0f172a',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.66rem', fontWeight: 700, color: '#64748b', marginBottom: '3px' }}>
+                        Change to Return
+                      </div>
+                      <div style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: tenderGivenNum > finalPayable ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                        background: tenderGivenNum > finalPayable ? '#f0fdf4' : '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 900, color: tenderGivenNum > finalPayable ? '#15803d' : '#64748b' }}>
+                          ₹{formatAmount(changeDue)}
+                        </span>
+                        {tenderGivenNum > finalPayable && (
+                          <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '1px 5px', borderRadius: '3px' }}>
+                            RETURN
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Cash Suggestions */}
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {[
+                      { label: `Exact (₹${finalPayable})`, val: finalPayable },
+                      ...(finalPayable < 500 ? [{ label: '₹500', val: 500 }] : []),
+                      ...(finalPayable < 1000 ? [{ label: '₹1000', val: 1000 }] : []),
+                      ...(finalPayable % 100 !== 0 ? [{ label: `₹${Math.ceil(finalPayable / 100) * 100}`, val: Math.ceil(finalPayable / 100) * 100 }] : [])
+                    ].filter((c, idx, arr) => arr.findIndex(x => x.val === c.val) === idx).map((chip, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCashTenderGiven(String(chip.val))}
+                        style={{
+                          flex: 1,
+                          padding: '4px 6px',
+                          borderRadius: '5px',
+                          border: tenderGivenNum === chip.val ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                          background: tenderGivenNum === chip.val ? '#dcfce7' : '#ffffff',
+                          color: tenderGivenNum === chip.val ? '#15803d' : '#475569',
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* UPI / GPAY PAYMENT HELPER */}
+              {payItemsMethod === 'UPI / GPay' && (
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: '#eff6ff',
+                    color: '#2563eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Smartphone size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
+                      Collect ₹{formatAmount(finalPayable)} via Store UPI QR
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px' }}>
+                      Prompt customer to scan counter QR / GPay / PhonePe / Paytm and verify soundbox audio before confirming.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CARD PAYMENT HELPER */}
+              {payItemsMethod === 'Card' && (
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: '#fdf4ff',
+                    color: '#9333ea',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <CreditCard size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
+                      Swipe / Tap Card for ₹{formatAmount(finalPayable)}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px' }}>
+                      Enter amount on the POS EDC Card Terminal. Click confirm once payment slip prints successfully.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* INLINE KHATA / BORROW MODERN SUITE */}
               {payItemsMethod === 'Khata / Borrow' && (
@@ -2762,9 +3401,11 @@ export default function POSTerminal({
                     height: '42px',
                     borderRadius: '10px',
                     border: 'none',
-                    background: payItemsMethod === 'Khata / Borrow'
-                      ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
-                      : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                    background: payItemsMethod === 'Settlement'
+                      ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                      : (payItemsMethod === 'Khata / Borrow'
+                          ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
+                          : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)'),
                     color: '#ffffff',
                     fontWeight: 800,
                     fontSize: '0.84rem',
@@ -2773,21 +3414,25 @@ export default function POSTerminal({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    boxShadow: payItemsMethod === 'Khata / Borrow'
-                      ? '0 4px 12px rgba(217, 119, 6, 0.3)'
-                      : '0 4px 12px rgba(124, 58, 237, 0.3)',
+                    boxShadow: payItemsMethod === 'Settlement'
+                      ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+                      : (payItemsMethod === 'Khata / Borrow'
+                          ? '0 4px 12px rgba(217, 119, 6, 0.3)'
+                          : '0 4px 12px rgba(124, 58, 237, 0.3)'),
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  {payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <CheckCircle2 size={16} />}
+                  {payItemsMethod === 'Settlement' ? <Percent size={16} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <CheckCircle2 size={16} />)}
                   <span>
                     {isSubmittingItemPay || isSubmittingKhata
                       ? 'Processing...'
-                      : (payItemsMethod === 'Khata / Borrow'
-                        ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
-                        : (actualAmountReceived !== '' && Number(actualAmountReceived) < tenderAmount
-                            ? `Confirm & Pay ₹${formatAmount(Number(actualAmountReceived))} (₹${formatAmount(tenderAmount - Number(actualAmountReceived))} Due)`
-                            : `Confirm & Pay ₹${formatAmount(tenderAmount)}`))}
+                      : (payItemsMethod === 'Settlement'
+                          ? `Confirm & Settle ₹${formatAmount(finalPayable)}${discountVal > 0 ? ` (₹${formatAmount(discountVal)} Discount)` : ''}`
+                          : (payItemsMethod === 'Khata / Borrow'
+                              ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
+                              : (discountVal > 0
+                                  ? `Confirm & Pay ₹${formatAmount(finalPayable)} (-₹${formatAmount(discountVal)})`
+                                  : `Confirm & Pay ₹${formatAmount(finalPayable)}`)))}
                   </span>
                 </button>
               </div>
