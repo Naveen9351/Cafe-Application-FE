@@ -2383,60 +2383,55 @@ export default function POSTerminal({
         return (
           <div className={styles.splitModalOverlay} onClick={() => setShowPayItemsModal(false)}>
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
               className={styles.splitModalContent}
               style={{
-                maxWidth: '490px',
-                width: '95%',
-                padding: '18px 22px',
-                borderRadius: '16px',
+                maxWidth: '430px',
+                width: '94%',
+                padding: '16px 18px',
+                borderRadius: '14px',
                 background: '#ffffff',
-                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
-                maxHeight: '92vh',
-                overflowY: 'auto'
+                boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(0,0,0,0.06)',
+                overflow: 'hidden',
+                boxSizing: 'border-box'
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header with Icon Pill */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* Compact Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '11px',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '8px',
                     background: payItemsMethod === 'Settlement'
-                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                      : (payItemsMethod === 'Khata / Borrow'
-                          ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                          : 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'),
-                    color: '#ffffff',
+                      ? '#ecfdf5'
+                      : (payItemsMethod === 'Khata / Borrow' ? '#fffbeb' : '#f5f3ff'),
+                    color: payItemsMethod === 'Settlement'
+                      ? '#059669'
+                      : (payItemsMethod === 'Khata / Borrow' ? '#d97706' : '#7c3aed'),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 3px 10px rgba(0,0,0,0.12)'
+                    flexShrink: 0
                   }}>
-                    {payItemsMethod === 'Settlement' ? <Percent size={20} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={20} /> : <Wallet size={20} />)}
+                    {payItemsMethod === 'Settlement' ? <Percent size={16} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <Wallet size={16} />)}
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>
-                      {selectedItemsSummary.count > 0 ? `Pay Selected (${selectedItemsSummary.count} items)` : `Table ${tableNumber} Settlement`}
+                    <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#0f172a' }}>
+                      {selectedItemsSummary.count > 0 ? `Pay (${selectedItemsSummary.count} items)` : `Table ${tableNumber} Settlement`}
                     </h3>
-                    <p style={{ margin: 0, fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
-                      {payItemsMethod === 'Settlement'
-                        ? 'Custom Settlement & Customer Concession Discount'
-                        : (payItemsMethod === 'Khata / Borrow' ? 'Customer Udhar Ledger & Table Release' : 'Choose payment method or apply concession')}
-                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowPayItemsModal(false)}
                   style={{
-                    width: '32px',
-                    height: '32px',
+                    width: '28px',
+                    height: '28px',
                     borderRadius: '50%',
                     background: '#f8fafc',
                     border: '1px solid #e2e8f0',
@@ -2444,157 +2439,109 @@ export default function POSTerminal({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#64748b',
-                    transition: 'all 0.15s ease'
+                    color: '#64748b'
                   }}
                   title="Close"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               </div>
 
-              {/* Sleek Bill Hero Banner with Discount Impact */}
+              {/* Clean Compact Bill Bar */}
               <div style={{
-                background: discountVal > 0 ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                border: discountVal > 0 ? '1.5px solid #86efac' : '1px solid #e2e8f0',
-                borderRadius: '13px',
-                padding: '12px 16px',
-                marginBottom: '1rem',
-                transition: 'all 0.2s ease'
+                background: discountVal > 0 ? '#f0fdf4' : '#f8fafc',
+                border: discountVal > 0 ? '1px solid #86efac' : '1px solid #e2e8f0',
+                borderRadius: '9px',
+                padding: '8px 12px',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: discountVal > 0 ? '#15803d' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      {discountVal > 0 ? 'Final Payable (After Concession)' : (selectedItemsSummary.count > 0 ? 'Selected Items Total' : 'Total Amount Due')}
-                    </span>
-                    <div style={{ fontSize: '1.65rem', fontWeight: 900, color: discountVal > 0 ? '#15803d' : '#0f172a', letterSpacing: '-0.5px', marginTop: '1px' }}>
-                      ₹{formatAmount(finalPayable)}
-                    </div>
+                <div>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 800, color: discountVal > 0 ? '#15803d' : '#64748b', textTransform: 'uppercase' }}>
+                    {discountVal > 0 ? 'Final Net Payable' : 'Total Bill Due'}
+                  </span>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: discountVal > 0 ? '#15803d' : '#0f172a', lineHeight: 1.1 }}>
+                    ₹{formatAmount(finalPayable)}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '3px 9px',
-                      borderRadius: '20px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      background: '#ffffff',
-                      color: '#0f172a',
-                      border: '1px solid #cbd5e1',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                    }}>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {discountVal > 0 ? (
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 7px', borderRadius: '5px' }}>
+                      Original ₹{tenderAmount} (-₹{discountVal})
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', background: '#ffffff', border: '1px solid #e2e8f0', padding: '2px 7px', borderRadius: '5px' }}>
                       Table {tableNumber}
                     </span>
-                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '3px', fontWeight: 600 }}>
-                      {selectedItemsSummary.count > 0 ? `${selectedItemsSummary.count} item(s)` : 'Full Order'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Live Discount Impact Breakdown */}
-                {discountVal > 0 && (
-                  <div style={{
-                    marginTop: '8px',
-                    paddingTop: '8px',
-                    borderTop: '1px dashed #86efac',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '0.75rem'
-                  }}>
-                    <span style={{ color: '#475569' }}>
-                      Original Bill: <strike>₹{formatAmount(tenderAmount)}</strike>
-                    </span>
-                    <span style={{ fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '5px' }}>
-                      Concession / Discount: -₹{formatAmount(discountVal)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Segmented Payment Tender Selection */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Payment Method & Mode
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${availableTenders.length}, 1fr)`, gap: '6px' }}>
-                  {availableTenders.map(t => {
-                    const IconComp = t.icon;
-                    const isSelected = payItemsMethod === t.id;
-                    const isKhata = t.id === 'Khata / Borrow';
-                    const isSettlement = t.id === 'Settlement';
-
-                    let activeBorder = '2px solid #7c3aed';
-                    let activeBg = '#f5f3ff';
-                    let activeColor = '#7c3aed';
-
-                    if (isKhata) {
-                      activeBorder = '2px solid #d97706';
-                      activeBg = '#fffbeb';
-                      activeColor = '#92400e';
-                    } else if (isSettlement) {
-                      activeBorder = '2px solid #10b981';
-                      activeBg = '#ecfdf5';
-                      activeColor = '#047857';
-                    }
-
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setPayItemsMethod(t.id)}
-                        style={{
-                          padding: '8px 2px',
-                          borderRadius: '10px',
-                          border: isSelected ? activeBorder : '1.5px solid #e2e8f0',
-                          background: isSelected ? activeBg : '#ffffff',
-                          color: isSelected ? activeColor : '#475569',
-                          fontWeight: isSelected ? 800 : 600,
-                          fontSize: '0.72rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px',
-                          boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <IconComp size={16} color={isSelected ? activeColor : '#64748b'} />
-                        <span style={{ lineHeight: '1.1', whiteSpace: 'nowrap' }}>{t.label}</span>
-                      </button>
-                    );
-                  })}
+                  )}
                 </div>
               </div>
 
-              {/* SETTLEMENT & CONCESSION DISCOUNT SUITE */}
+              {/* 5 Segmented Payment Tenders in a single neat row */}
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${availableTenders.length}, 1fr)`, gap: '5px', marginBottom: '10px' }}>
+                {availableTenders.map(t => {
+                  const IconComp = t.icon;
+                  const isSelected = payItemsMethod === t.id;
+                  const isKhata = t.id === 'Khata / Borrow';
+                  const isSettlement = t.id === 'Settlement';
+
+                  let activeBorder = '2px solid #7c3aed';
+                  let activeBg = '#f5f3ff';
+                  let activeColor = '#7c3aed';
+
+                  if (isKhata) {
+                    activeBorder = '2px solid #d97706';
+                    activeBg = '#fffbeb';
+                    activeColor = '#92400e';
+                  } else if (isSettlement) {
+                    activeBorder = '2px solid #10b981';
+                    activeBg = '#ecfdf5';
+                    activeColor = '#047857';
+                  }
+
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setPayItemsMethod(t.id)}
+                      style={{
+                        padding: '6px 2px',
+                        borderRadius: '8px',
+                        border: isSelected ? activeBorder : '1px solid #e2e8f0',
+                        background: isSelected ? activeBg : '#ffffff',
+                        color: isSelected ? activeColor : '#64748b',
+                        fontWeight: isSelected ? 800 : 600,
+                        fontSize: '0.7rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '3px'
+                      }}
+                    >
+                      <IconComp size={15} color={isSelected ? activeColor : '#64748b'} />
+                      <span style={{ whiteSpace: 'nowrap' }}>{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 1. SIMPLE & CLEAN SETTLEMENT MODE */}
               {payItemsMethod === 'Settlement' && (
                 <div style={{
                   background: '#f0fdf4',
-                  border: '1.5px solid #86efac',
-                  borderRadius: '12px',
-                  padding: '12px 14px',
-                  marginBottom: '0.85rem'
+                  border: '1px solid #86efac',
+                  borderRadius: '10px',
+                  padding: '9px 11px',
+                  marginBottom: '10px'
                 }}>
-                  {/* Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Percent size={14} color="#059669" />
-                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                        Settlement & Concession
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#047857', background: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
-                      Customer Discount
-                    </span>
-                  </div>
-
-                  {/* Dual Synchronized Inputs: Customer Pays vs Discount Concession */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                  {/* Linked Inputs: Customer Pays vs Concession Discount */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '7px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#065f46', marginBottom: '3px' }}>
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#065f46', marginBottom: '2px' }}>
                         Customer Pays (₹)
                       </label>
                       <input
@@ -2615,23 +2562,21 @@ export default function POSTerminal({
                         }}
                         style={{
                           width: '100%',
-                          padding: '7px 9px',
-                          borderRadius: '7px',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
                           border: '1.5px solid #86efac',
                           background: '#ffffff',
-                          fontSize: '0.9rem',
+                          fontSize: '0.88rem',
                           fontWeight: 800,
                           color: '#065f46',
                           boxSizing: 'border-box',
                           outline: 'none'
                         }}
                       />
-                      <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 600 }}>Amount collected</span>
                     </div>
-
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', marginBottom: '3px' }}>
-                        Discount / Concession (₹)
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#dc2626', marginBottom: '2px' }}>
+                        Discount (₹)
                       </label>
                       <input
                         type="number"
@@ -2650,282 +2595,132 @@ export default function POSTerminal({
                         }}
                         style={{
                           width: '100%',
-                          padding: '7px 9px',
-                          borderRadius: '7px',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
                           border: '1.5px solid #fca5a5',
                           background: '#ffffff',
-                          fontSize: '0.9rem',
+                          fontSize: '0.88rem',
                           fontWeight: 800,
                           color: '#dc2626',
                           boxSizing: 'border-box',
                           outline: 'none'
                         }}
                       />
-                      <span style={{ fontSize: '0.62rem', color: '#b91c1c', fontWeight: 600 }}>Recorded as concession</span>
                     </div>
                   </div>
 
-                  {/* Quick Round-off & Discount Shortcut Chips */}
-                  <div style={{ marginBottom: '10px' }}>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                      Quick Round-Off & Shortcuts:
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {/* Quick Round-off Chips */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '7px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSettlementDiscount('')}
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '5px',
+                        border: discountVal === 0 ? '1px solid #10b981' : '1px solid #cbd5e1',
+                        background: discountVal === 0 ? '#dcfce7' : '#ffffff',
+                        color: discountVal === 0 ? '#065f46' : '#475569',
+                        fontSize: '0.64rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Exact ₹{tenderAmount}
+                    </button>
+
+                    {tenderAmount > 50 && (tenderAmount % 50 !== 0) && (
                       <button
                         type="button"
-                        onClick={() => setSettlementDiscount('')}
+                        onClick={() => {
+                          const target = Math.floor(tenderAmount / 50) * 50;
+                          setSettlementDiscount(String(tenderAmount - target));
+                        }}
                         style={{
-                          padding: '3px 7px',
-                          borderRadius: '6px',
-                          border: discountVal === 0 ? '1.5px solid #10b981' : '1px solid #cbd5e1',
-                          background: discountVal === 0 ? '#dcfce7' : '#ffffff',
-                          color: discountVal === 0 ? '#065f46' : '#475569',
-                          fontSize: '0.66rem',
+                          padding: '2px 6px',
+                          borderRadius: '5px',
+                          border: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '1px solid #10b981' : '1px solid #cbd5e1',
+                          background: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '#dcfce7' : '#ffffff',
+                          color: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '#065f46' : '#475569',
+                          fontSize: '0.64rem',
                           fontWeight: 700,
                           cursor: 'pointer'
                         }}
                       >
-                        Exact ₹{tenderAmount}
+                        Round to ₹{Math.floor(tenderAmount / 50) * 50} (-₹{tenderAmount - Math.floor(tenderAmount / 50) * 50})
                       </button>
+                    )}
 
-                      {/* Dynamic: If 349 -> Round to 300 (-49) */}
-                      {tenderAmount > 50 && (tenderAmount % 50 !== 0) && (
+                    {[10, 20, 50].map(amt => {
+                      if (tenderAmount <= amt) return null;
+                      const isChosen = discountVal === amt;
+                      return (
                         <button
+                          key={amt}
                           type="button"
-                          onClick={() => {
-                            const target = Math.floor(tenderAmount / 50) * 50;
-                            const diff = tenderAmount - target;
-                            setSettlementDiscount(String(diff));
-                          }}
+                          onClick={() => setSettlementDiscount(String(amt))}
                           style={{
-                            padding: '3px 7px',
-                            borderRadius: '6px',
-                            border: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '1.5px solid #10b981' : '1px solid #cbd5e1',
-                            background: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '#dcfce7' : '#ffffff',
-                            color: discountVal === (tenderAmount - Math.floor(tenderAmount / 50) * 50) ? '#065f46' : '#475569',
-                            fontSize: '0.66rem',
+                            padding: '2px 6px',
+                            borderRadius: '5px',
+                            border: isChosen ? '1px solid #10b981' : '1px solid #cbd5e1',
+                            background: isChosen ? '#dcfce7' : '#ffffff',
+                            color: isChosen ? '#065f46' : '#475569',
+                            fontSize: '0.64rem',
                             fontWeight: 700,
                             cursor: 'pointer'
                           }}
                         >
-                          Round to ₹{Math.floor(tenderAmount / 50) * 50} (-₹{tenderAmount - Math.floor(tenderAmount / 50) * 50})
+                          -₹{amt}
                         </button>
-                      )}
+                      );
+                    })}
+                  </div>
 
-                      {/* Dynamic: If 349 -> Round to 340 (-9) */}
-                      {tenderAmount > 10 && (tenderAmount % 10 !== 0) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const target = Math.floor(tenderAmount / 10) * 10;
-                            const diff = tenderAmount - target;
-                            setSettlementDiscount(String(diff));
-                          }}
-                          style={{
-                            padding: '3px 7px',
-                            borderRadius: '6px',
-                            border: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '1.5px solid #10b981' : '1px solid #cbd5e1',
-                            background: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '#dcfce7' : '#ffffff',
-                            color: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '#065f46' : '#475569',
-                            fontSize: '0.66rem',
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Round to ₹{Math.floor(tenderAmount / 10) * 10} (-₹{tenderAmount - Math.floor(tenderAmount / 10) * 10})
-                        </button>
-                      )}
-
-                      {/* Direct Discounts -10, -20, -50 */}
-                      {[10, 20, 50].map(amt => {
-                        if (tenderAmount <= amt) return null;
-                        const isChosen = discountVal === amt;
+                  {/* Tender Sub-Method Selection */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#065f46', whiteSpace: 'nowrap' }}>
+                      Collect ₹{finalPayable} via:
+                    </span>
+                    <div style={{ display: 'flex', gap: '4px', flex: 1, justifyContent: 'flex-end' }}>
+                      {['Cash', 'UPI / GPay', 'Card'].map(m => {
+                        const isSub = (settlementSubMethod || 'Cash') === m;
                         return (
                           <button
-                            key={amt}
+                            key={m}
                             type="button"
-                            onClick={() => setSettlementDiscount(String(amt))}
+                            onClick={() => setSettlementSubMethod(m)}
                             style={{
                               padding: '3px 7px',
-                              borderRadius: '6px',
-                              border: isChosen ? '1.5px solid #10b981' : '1px solid #cbd5e1',
-                              background: isChosen ? '#dcfce7' : '#ffffff',
-                              color: isChosen ? '#065f46' : '#475569',
-                              fontSize: '0.66rem',
+                              borderRadius: '5px',
+                              border: isSub ? '1px solid #059669' : '1px solid #cbd5e1',
+                              background: isSub ? '#d1fae5' : '#ffffff',
+                              color: isSub ? '#065f46' : '#64748b',
+                              fontSize: '0.65rem',
                               fontWeight: 700,
                               cursor: 'pointer'
                             }}
                           >
-                            -₹{amt}
+                            {m}
                           </button>
                         );
                       })}
                     </div>
-                  </div>
-
-                  {/* Concession Reason Selection */}
-                  <div style={{ marginBottom: '10px' }}>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                      Settlement Reason:
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '5px' }}>
-                      {['Customer Request', 'Bill Round-Off', 'Owner Concession', 'Regular Guest'].map(r => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setSettlementDiscountReason(r)}
-                          style={{
-                            padding: '2px 7px',
-                            borderRadius: '5px',
-                            border: settlementDiscountReason === r ? '1px solid #059669' : '1px solid #cbd5e1',
-                            background: settlementDiscountReason === r ? '#d1fae5' : '#ffffff',
-                            color: settlementDiscountReason === r ? '#065f46' : '#64748b',
-                            fontSize: '0.64rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Or type custom reason..."
-                      value={settlementDiscountReason}
-                      onChange={(e) => setSettlementDiscountReason(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        fontSize: '0.72rem',
-                        color: '#0f172a',
-                        boxSizing: 'border-box',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-
-                  {/* Payment Tender Sub-mode for collecting the settled amount */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#065f46', marginBottom: '4px' }}>
-                      Collect Settled ₹{finalPayable} via:
-                    </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '8px' }}>
-                      {[
-                        { id: 'Cash', label: 'Cash', icon: Banknote },
-                        { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
-                        { id: 'Card', label: 'Card', icon: CreditCard }
-                      ].map(sm => {
-                        const Icon = sm.icon;
-                        const isSubSelected = (settlementSubMethod || 'Cash') === sm.id;
-                        return (
-                          <button
-                            key={sm.id}
-                            type="button"
-                            onClick={() => setSettlementSubMethod(sm.id)}
-                            style={{
-                              padding: '6px 4px',
-                              borderRadius: '7px',
-                              border: isSubSelected ? '1.5px solid #059669' : '1px solid #cbd5e1',
-                              background: isSubSelected ? '#d1fae5' : '#ffffff',
-                              color: isSubSelected ? '#065f46' : '#475569',
-                              fontWeight: 700,
-                              fontSize: '0.7rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Icon size={13} color={isSubSelected ? '#059669' : '#64748b'} />
-                            <span>{sm.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* If Cash sub-method, show cash tender calculator */}
-                    {(settlementSubMethod || 'Cash') === 'Cash' && (
-                      <div style={{ background: '#ffffff', border: '1px solid #bbf7d0', borderRadius: '7px', padding: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                          <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.64rem', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
-                              Cash Received (₹)
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder={String(finalPayable)}
-                              value={cashTenderGiven}
-                              onChange={(e) => setCashTenderGiven(e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '5px 7px',
-                                borderRadius: '5px',
-                                border: '1px solid #cbd5e1',
-                                fontSize: '0.82rem',
-                                fontWeight: 700,
-                                color: '#0f172a',
-                                boxSizing: 'border-box',
-                                outline: 'none'
-                              }}
-                            />
-                          </div>
-                          <div style={{ flex: 1, textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#64748b' }}>Change to Return</div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 900, color: tenderGivenNum >= finalPayable ? '#16a34a' : '#64748b' }}>
-                              ₹{formatAmount(changeDue)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
 
-              {/* CASH PAYMENT & CHANGE CALCULATOR */}
+              {/* 2. SIMPLE CASH TENDER */}
               {payItemsMethod === 'Cash' && (
                 <div style={{
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
                   borderRadius: '10px',
-                  padding: '11px 13px',
-                  marginBottom: '0.85rem'
+                  padding: '9px 11px',
+                  marginBottom: '10px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Banknote size={14} color="#16a34a" />
-                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                        Cash Tender & Change
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setPayItemsMethod('Settlement')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        fontSize: '0.66rem',
-                        fontWeight: 700,
-                        color: '#059669',
-                        cursor: 'pointer',
-                        textDecoration: 'underline'
-                      }}
-                    >
-                      Give Concession / Settlement?
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '7px', alignItems: 'center', marginBottom: '6px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#475569', marginBottom: '3px' }}>
-                        Cash Received from Customer (₹)
+                      <label style={{ display: 'block', fontSize: '0.64rem', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
+                        Cash Given (₹)
                       </label>
                       <input
                         type="number"
@@ -2935,11 +2730,11 @@ export default function POSTerminal({
                         onChange={(e) => setCashTenderGiven(e.target.value)}
                         style={{
                           width: '100%',
-                          padding: '7px 9px',
-                          borderRadius: '6px',
+                          padding: '5px 7px',
+                          borderRadius: '5px',
                           border: '1px solid #cbd5e1',
                           background: '#ffffff',
-                          fontSize: '0.86rem',
+                          fontSize: '0.84rem',
                           fontWeight: 700,
                           color: '#0f172a',
                           boxSizing: 'border-box',
@@ -2948,23 +2743,23 @@ export default function POSTerminal({
                       />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.66rem', fontWeight: 700, color: '#64748b', marginBottom: '3px' }}>
+                      <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#64748b', marginBottom: '2px' }}>
                         Change to Return
                       </div>
                       <div style={{
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        border: tenderGivenNum > finalPayable ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                        padding: '5px 7px',
+                        borderRadius: '5px',
+                        border: tenderGivenNum > finalPayable ? '1px solid #86efac' : '1px solid #e2e8f0',
                         background: tenderGivenNum > finalPayable ? '#f0fdf4' : '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between'
                       }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 900, color: tenderGivenNum > finalPayable ? '#15803d' : '#64748b' }}>
+                        <span style={{ fontSize: '0.86rem', fontWeight: 900, color: tenderGivenNum > finalPayable ? '#15803d' : '#64748b' }}>
                           ₹{formatAmount(changeDue)}
                         </span>
                         {tenderGivenNum > finalPayable && (
-                          <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '1px 5px', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '1px 4px', borderRadius: '3px' }}>
                             RETURN
                           </span>
                         )}
@@ -2972,13 +2767,12 @@ export default function POSTerminal({
                     </div>
                   </div>
 
-                  {/* Quick Cash Suggestions */}
-                  <div style={{ display: 'flex', gap: '5px' }}>
+                  {/* Quick Cash Chips */}
+                  <div style={{ display: 'flex', gap: '4px' }}>
                     {[
-                      { label: `Exact (₹${finalPayable})`, val: finalPayable },
+                      { label: `Exact ₹${finalPayable}`, val: finalPayable },
                       ...(finalPayable < 500 ? [{ label: '₹500', val: 500 }] : []),
-                      ...(finalPayable < 1000 ? [{ label: '₹1000', val: 1000 }] : []),
-                      ...(finalPayable % 100 !== 0 ? [{ label: `₹${Math.ceil(finalPayable / 100) * 100}`, val: Math.ceil(finalPayable / 100) * 100 }] : [])
+                      ...(finalPayable < 1000 ? [{ label: '₹1000', val: 1000 }] : [])
                     ].filter((c, idx, arr) => arr.findIndex(x => x.val === c.val) === idx).map((chip, idx) => (
                       <button
                         key={idx}
@@ -2986,12 +2780,12 @@ export default function POSTerminal({
                         onClick={() => setCashTenderGiven(String(chip.val))}
                         style={{
                           flex: 1,
-                          padding: '4px 6px',
+                          padding: '3px 5px',
                           borderRadius: '5px',
-                          border: tenderGivenNum === chip.val ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                          border: tenderGivenNum === chip.val ? '1px solid #16a34a' : '1px solid #cbd5e1',
                           background: tenderGivenNum === chip.val ? '#dcfce7' : '#ffffff',
                           color: tenderGivenNum === chip.val ? '#15803d' : '#475569',
-                          fontSize: '0.66rem',
+                          fontSize: '0.64rem',
                           fontWeight: 700,
                           cursor: 'pointer'
                         }}
@@ -3003,105 +2797,54 @@ export default function POSTerminal({
                 </div>
               )}
 
-              {/* UPI / GPAY PAYMENT HELPER */}
+              {/* 3. SIMPLE UPI */}
               {payItemsMethod === 'UPI / GPay' && (
                 <div style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
                   borderRadius: '10px',
-                  padding: '12px 14px',
-                  marginBottom: '0.85rem',
+                  padding: '9px 12px',
+                  marginBottom: '10px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px'
+                  gap: '8px'
                 }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: '#eff6ff',
-                    color: '#2563eb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    <Smartphone size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
-                      Collect ₹{formatAmount(finalPayable)} via Store UPI QR
-                    </div>
-                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px' }}>
-                      Prompt customer to scan counter QR / GPay / PhonePe / Paytm and verify soundbox audio before confirming.
-                    </div>
-                  </div>
+                  <Smartphone size={18} color="#2563eb" />
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#1e40af' }}>
+                    Collect ₹{formatAmount(finalPayable)} via Store QR / UPI Soundbox
+                  </span>
                 </div>
               )}
 
-              {/* CARD PAYMENT HELPER */}
+              {/* 4. SIMPLE CARD */}
               {payItemsMethod === 'Card' && (
                 <div style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  background: '#fdf4ff',
+                  border: '1px solid #f5d0fe',
                   borderRadius: '10px',
-                  padding: '12px 14px',
-                  marginBottom: '0.85rem',
+                  padding: '9px 12px',
+                  marginBottom: '10px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px'
+                  gap: '8px'
                 }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: '#fdf4ff',
-                    color: '#9333ea',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    <CreditCard size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
-                      Swipe / Tap Card for ₹{formatAmount(finalPayable)}
-                    </div>
-                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px' }}>
-                      Enter amount on the POS EDC Card Terminal. Click confirm once payment slip prints successfully.
-                    </div>
-                  </div>
+                  <CreditCard size={18} color="#9333ea" />
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#86198f' }}>
+                    Swipe / Tap Card for ₹{formatAmount(finalPayable)} on POS Terminal
+                  </span>
                 </div>
               )}
 
-              {/* INLINE KHATA / BORROW MODERN SUITE */}
+              {/* 5. KHATA / BORROW */}
               {payItemsMethod === 'Khata / Borrow' && (
                 <div style={{
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
                   borderRadius: '10px',
-                  padding: '11px 13px',
-                  marginBottom: '0.85rem'
+                  padding: '9px 11px',
+                  marginBottom: '10px'
                 }}>
-                  {/* Subtle Accent Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <BookOpen size={13} color="#2563eb" />
-                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                        Customer Udhar Account
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
-                      Khata Ledger
-                    </span>
-                  </div>
-
-                  {/* Customer Dropdown (Select Existing or Create New) */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#475569', marginBottom: '3px' }}>
-                      Select Customer Account
-                    </label>
+                  <div style={{ marginBottom: '6px' }}>
                     <select
                       value={selectedKhataCustomerChoice}
                       onChange={(e) => {
@@ -3120,11 +2863,11 @@ export default function POSTerminal({
                       }}
                       style={{
                         width: '100%',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
+                        padding: '5px 7px',
+                        borderRadius: '5px',
                         border: '1px solid #cbd5e1',
                         background: '#ffffff',
-                        fontSize: '0.75rem',
+                        fontSize: '0.72rem',
                         fontWeight: 600,
                         color: '#0f172a',
                         outline: 'none',
@@ -3140,157 +2883,43 @@ export default function POSTerminal({
                     </select>
                   </div>
 
-                  {/* Customer Info Inputs (Both Optional) */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 600, color: '#64748b', marginBottom: '3px' }}>
-                        Customer Name (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Rahul"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '6px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          background: '#ffffff',
-                          fontSize: '0.76rem',
-                          color: '#0f172a',
-                          boxSizing: 'border-box',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 600, color: '#64748b', marginBottom: '3px' }}>
-                        Mobile Number (Optional)
-                      </label>
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        placeholder="e.g. 9876543210"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        style={{
-                          width: '100%',
-                          padding: '6px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          background: '#ffffff',
-                          fontSize: '0.76rem',
-                          color: '#0f172a',
-                          boxSizing: 'border-box',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                    <input
+                      type="text"
+                      placeholder="Name (Optional)"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '5px 7px',
+                        borderRadius: '5px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.72rem',
+                        boxSizing: 'border-box',
+                        outline: 'none'
+                      }}
+                    />
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="Mobile (Optional)"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      style={{
+                        width: '100%',
+                        padding: '5px 7px',
+                        borderRadius: '5px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.72rem',
+                        boxSizing: 'border-box',
+                        outline: 'none'
+                      }}
+                    />
                   </div>
 
-                  {(() => {
-                    const matchedCustomer = khataCustomerList.find(c =>
-                      (selectedKhataCustomerChoice !== 'NEW' && (c.customerPhone === selectedKhataCustomerChoice || c.customerName === selectedKhataCustomerChoice)) ||
-                      (customerPhone && customerPhone.length >= 7 && c.customerPhone === customerPhone)
-                    );
-                    const prevDue = matchedCustomer ? Number(matchedCustomer.outstandingBalance || 0) : 0;
-                    const combinedDue = prevDue + borrowDueNum;
-
-                    return (
-                      <>
-                        {/* Quick Pay / Udhar Split Buttons */}
-                        <div style={{ display: 'flex', gap: '5px', marginBottom: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => setKhataPaidAmount('0')}
-                            style={{
-                              flex: 1,
-                              padding: '5px 6px',
-                              borderRadius: '6px',
-                              border: khataPaidAmount === '0' || khataPaidAmount === '' ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
-                              background: khataPaidAmount === '0' || khataPaidAmount === '' ? '#fef2f2' : '#ffffff',
-                              color: khataPaidAmount === '0' || khataPaidAmount === '' ? '#dc2626' : '#475569',
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              transition: 'all 0.12s ease'
-                            }}
-                          >
-                            100% Udhar (₹0 Paid)
-                          </button>
-                          {tenderAmount >= 100 && (
-                            <button
-                              type="button"
-                              onClick={() => setKhataPaidAmount(String(Math.round(tenderAmount / 2)))}
-                              style={{
-                                flex: 1,
-                                padding: '5px 6px',
-                                borderRadius: '6px',
-                                border: Number(khataPaidAmount) === Math.round(tenderAmount / 2) ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
-                                background: Number(khataPaidAmount) === Math.round(tenderAmount / 2) ? '#eff6ff' : '#ffffff',
-                                color: Number(khataPaidAmount) === Math.round(tenderAmount / 2) ? '#1d4ed8' : '#475569',
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                transition: 'all 0.12s ease'
-                              }}
-                            >
-                              50% Paid (₹{Math.round(tenderAmount / 2)})
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setKhataPaidAmount(String(tenderAmount))}
-                            style={{
-                              flex: 1,
-                              padding: '5px 6px',
-                              borderRadius: '6px',
-                              border: Number(khataPaidAmount) === tenderAmount ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-                              background: Number(khataPaidAmount) === tenderAmount ? '#f0fdf4' : '#ffffff',
-                              color: Number(khataPaidAmount) === tenderAmount ? '#16a34a' : '#475569',
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              transition: 'all 0.12s ease'
-                            }}
-                          >
-                            Fully Paid (₹{tenderAmount})
-                          </button>
-                        </div>
-
-                        {/* Customer Ledger Balance Impact Banner */}
-                        {prevDue > 0 && (
-                          <div style={{
-                            background: '#fffbeb',
-                            border: '1px solid #fde68a',
-                            borderRadius: '6px',
-                            padding: '6px 8px',
-                            marginBottom: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            fontSize: '0.68rem'
-                          }}>
-                            <div>
-                              <span style={{ color: '#92400e', fontWeight: 600 }}>Previous Due: </span>
-                              <strong style={{ color: '#b45309' }}>₹{formatAmount(prevDue)}</strong>
-                            </div>
-                            <div>
-                              <span style={{ color: '#92400e', fontWeight: 600 }}>New Total Due: </span>
-                              <strong style={{ color: '#dc2626', fontSize: '0.74rem' }}>₹{formatAmount(combinedDue)}</strong>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-
-                  {/* Amounts: Amount Paid Now & Read-Only Borrow Due */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '8px' }}>
-                    {/* Amount Paid Now (Editable) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#16a34a', marginBottom: '3px' }}>
+                      <label style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, color: '#16a34a', marginBottom: '1px' }}>
                         Paid Now (₹)
                       </label>
                       <input
@@ -3301,20 +2930,15 @@ export default function POSTerminal({
                         value={khataPaidAmount}
                         onChange={(e) => {
                           const raw = e.target.value;
-                          if (raw === '') {
-                            setKhataPaidAmount('');
-                          } else {
-                            const num = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
-                            setKhataPaidAmount(String(num));
-                          }
+                          if (raw === '') setKhataPaidAmount('');
+                          else setKhataPaidAmount(String(Math.min(tenderAmount, Math.max(0, Number(raw) || 0))));
                         }}
                         style={{
                           width: '100%',
-                          padding: '6px 8px',
-                          borderRadius: '6px',
+                          padding: '5px 7px',
+                          borderRadius: '5px',
                           border: '1px solid #bbf7d0',
-                          background: '#ffffff',
-                          fontSize: '0.82rem',
+                          fontSize: '0.8rem',
                           fontWeight: 700,
                           color: '#16a34a',
                           boxSizing: 'border-box',
@@ -3322,72 +2946,42 @@ export default function POSTerminal({
                         }}
                       />
                     </div>
-
-                    {/* Borrow / Udhar Due (Calculated) */}
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#dc2626', marginBottom: '3px' }}>
+                      <label style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, color: '#dc2626', marginBottom: '1px' }}>
                         Udhar Due (₹)
                       </label>
                       <div style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
+                        padding: '5px 7px',
+                        borderRadius: '5px',
                         border: '1px solid #fecaca',
                         background: '#fef2f2',
-                        boxSizing: 'border-box',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        color: '#dc2626',
+                        boxSizing: 'border-box'
                       }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#dc2626' }}>
-                          ₹{formatAmount(borrowDueNum)}
-                        </span>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#991b1b', background: '#fee2e2', padding: '1px 4px', borderRadius: '3px' }}>
-                          DUE
-                        </span>
+                        ₹{formatAmount(borrowDueNum)}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Notes / Ledger Memo (Optional) */}
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Note / remark (optional)"
-                      value={khataNotes}
-                      onChange={(e) => setKhataNotes(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '5px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid #e2e8f0',
-                        background: '#ffffff',
-                        fontSize: '0.74rem',
-                        color: '#334155',
-                        boxSizing: 'border-box',
-                        outline: 'none'
-                      }}
-                    />
                   </div>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '8px' }}>
+              {/* Action Buttons: Cancel and Confirm */}
+              <div style={{ display: 'flex', gap: '7px' }}>
                 <button
                   type="button"
                   onClick={() => setShowPayItemsModal(false)}
                   style={{
                     flex: 1,
-                    height: '42px',
-                    borderRadius: '10px',
-                    border: '1.5px solid #e2e8f0',
+                    height: '38px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
                     background: '#f8fafc',
                     fontWeight: 700,
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     cursor: 'pointer',
-                    color: '#64748b',
-                    transition: 'all 0.15s ease'
+                    color: '#64748b'
                   }}
                 >
                   Cancel
@@ -3398,8 +2992,8 @@ export default function POSTerminal({
                   disabled={isSubmittingItemPay || isSubmittingKhata}
                   style={{
                     flex: 2,
-                    height: '42px',
-                    borderRadius: '10px',
+                    height: '38px',
+                    borderRadius: '8px',
                     border: 'none',
                     background: payItemsMethod === 'Settlement'
                       ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
@@ -3408,26 +3002,20 @@ export default function POSTerminal({
                           : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)'),
                     color: '#ffffff',
                     fontWeight: 800,
-                    fontSize: '0.84rem',
+                    fontSize: '0.82rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '6px',
-                    boxShadow: payItemsMethod === 'Settlement'
-                      ? '0 4px 12px rgba(16, 185, 129, 0.3)'
-                      : (payItemsMethod === 'Khata / Borrow'
-                          ? '0 4px 12px rgba(217, 119, 6, 0.3)'
-                          : '0 4px 12px rgba(124, 58, 237, 0.3)'),
-                    transition: 'all 0.15s ease'
+                    gap: '5px'
                   }}
                 >
-                  {payItemsMethod === 'Settlement' ? <Percent size={16} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <CheckCircle2 size={16} />)}
+                  {payItemsMethod === 'Settlement' ? <Percent size={15} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={15} /> : <CheckCircle2 size={15} />)}
                   <span>
                     {isSubmittingItemPay || isSubmittingKhata
                       ? 'Processing...'
                       : (payItemsMethod === 'Settlement'
-                          ? `Confirm & Settle ₹${formatAmount(finalPayable)}${discountVal > 0 ? ` (₹${formatAmount(discountVal)} Discount)` : ''}`
+                          ? `Confirm & Settle ₹${formatAmount(finalPayable)}${discountVal > 0 ? ` (₹${formatAmount(discountVal)} Off)` : ''}`
                           : (payItemsMethod === 'Khata / Borrow'
                               ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
                               : (discountVal > 0
