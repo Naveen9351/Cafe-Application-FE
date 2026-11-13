@@ -1,69 +1,4 @@
-  // Determine whether Night Shift is active based on tenant timings
-  const isNightActiveNow = useMemo(() => {
-    try {
-      const enabled = Boolean(tenantInfo?.settings?.enableNightMenu ?? tenantInfo?.settings?.nightMenuEnabled);
-      if (!enabled) return false;
-      const startStr = tenantInfo?.settings?.nightMenuStart || '22:00';
-      const endStr = tenantInfo?.settings?.nightMenuEnd || '05:00';
-
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-      const [startH, startM] = startStr.split(':').map(Number);
-      const [endH, endM] = endStr.split(':').map(Number);
-
-      const startMinutes = (startH || 0) * 60 + (startM || 0);
-      const endMinutes = (endH || 0) * 60 + (endM || 0);
-
-      if (startMinutes > endMinutes) {
-        return currentMinutes >= startMinutes || currentMinutes < endMinutes;
-      } else {
-        return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-      }
-    } catch (e) {
-      return false;
-    }
-  }, [tenantInfo]);
-
-  // Helper: item effective price based on active night shift
-  const getItemEffectivePrice = useCallback((item) => {
-    if (!item) return 0;
-    if (isNightActiveNow && item.nightPrice && Number(item.nightPrice) > 0) {
-      return Math.round(Number(item.nightPrice));
-    }
-    return Math.round(Number(item.price) || 0);
-  }, [isNightActiveNow]);
-
-  // Filter items: strictly exclude Open Menu (POS only), and apply shift-based availability & Pure Veg
-  const displayItems = useMemo(() => {
-    let list = items || [];
-
-    // 1. Strictly exclude Open Menu / POS Only dishes from customer QR menu
-    list = list.filter(it => !it.isOpenMenu && !it.isPosOnly);
-
-    // 2. Shift Availability filter
-    if (isNightActiveNow) {
-      // Night Shift: Hide dishes marked day_only
-      list = list.filter(it => it.shiftAvailability !== 'day_only');
-    } else {
-      // Day Shift: Hide dishes marked night_only
-      list = list.filter(it => it.shiftAvailability !== 'night_only');
-    }
-
-    if (isVegOnly) {
-      list = list.filter(it => it.isVeg !== false);
-    }
-    const seen = new Set();
-    return list.filter(it => {
-      const idKey = String(it._id || it.id || '');
-      const nameCatKey = `${String(it.name || '').toLowerCase().trim()}__${String(it.category || '').toLowerCase().trim()}`;
-      if (idKey && seen.has(idKey)) return false;
-      if (nameCatKey && seen.has(nameCatKey)) return false;
-      if (idKey) seen.add(idKey);
-      if (nameCatKey) seen.add(nameCatKey);
-      return true;
-    });
-  }, [items, isVegOnly, isNightActiveNow]);import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useCartContext } from "../context/CartContext";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -775,9 +710,58 @@ export default function Menu() {
     }
   };
 
-  // Filter items by Pure Veg preference and eliminate any duplicate dishes
+  // Determine whether Night Shift is active based on tenant timings
+  const isNightActiveNow = useMemo(() => {
+    try {
+      const enabled = Boolean(tenantInfo?.settings?.enableNightMenu ?? tenantInfo?.settings?.nightMenuEnabled);
+      if (!enabled) return false;
+      const startStr = tenantInfo?.settings?.nightMenuStart || '22:00';
+      const endStr = tenantInfo?.settings?.nightMenuEnd || '05:00';
+
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const [startH, startM] = startStr.split(':').map(Number);
+      const [endH, endM] = endStr.split(':').map(Number);
+
+      const startMinutes = (startH || 0) * 60 + (startM || 0);
+      const endMinutes = (endH || 0) * 60 + (endM || 0);
+
+      if (startMinutes > endMinutes) {
+        return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+      } else {
+        return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      }
+    } catch (e) {
+      return false;
+    }
+  }, [tenantInfo]);
+
+  // Helper: item effective price based on active night shift
+  const getItemEffectivePrice = useCallback((item) => {
+    if (!item) return 0;
+    if (isNightActiveNow && item.nightPrice && Number(item.nightPrice) > 0) {
+      return Math.round(Number(item.nightPrice));
+    }
+    return Math.round(Number(item.price) || 0);
+  }, [isNightActiveNow]);
+
+  // Filter items: strictly exclude Open Menu (POS only), and apply shift-based availability & Pure Veg
   const displayItems = useMemo(() => {
-    let list = items;
+    let list = items || [];
+
+    // 1. Strictly exclude Open Menu / POS Only dishes from customer QR menu
+    list = list.filter(it => !it.isOpenMenu && !it.isPosOnly);
+
+    // 2. Shift Availability filter
+    if (isNightActiveNow) {
+      // Night Shift: Hide dishes marked day_only
+      list = list.filter(it => it.shiftAvailability !== 'day_only');
+    } else {
+      // Day Shift: Hide dishes marked night_only
+      list = list.filter(it => it.shiftAvailability !== 'night_only');
+    }
+
     if (isVegOnly) {
       list = list.filter(it => it.isVeg !== false);
     }
@@ -791,7 +775,7 @@ export default function Menu() {
       if (nameCatKey) seen.add(nameCatKey);
       return true;
     });
-  }, [items, isVegOnly]);
+  }, [items, isVegOnly, isNightActiveNow]);
 
   const allCategories = useMemo(() => {
     const map = new Map();
