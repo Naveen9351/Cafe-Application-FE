@@ -5,7 +5,7 @@ import {
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
   Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter,
-  User, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent
+  User, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
@@ -484,25 +484,16 @@ export default function POSTerminal({
     return Number(item.salePrice || item.price) || 0;
   };
 
-  // Categories list for POS Menu (separating Open Menu and Night Menu)
+  // Categories list for POS Menu (food categories only - Open Menu and Night Menu moved to top bar)
   const categories = useMemo(() => {
     const cats = ['all'];
-
-    // 1. Open Menu pill (Cigarettes, off-menu counter items - Owner/POS only)
-    const hasOpenMenu = menuItems.some(i => i.isOpenMenu || i.isPosOnly);
-    if (hasOpenMenu) {
-      cats.push('⚡ Open Menu');
-    }
-
-    // 2. Night Menu pill (Night shift dishes & dishes with night pricing)
-    const hasNight = Boolean(tenantInfo?.settings?.enableNightMenu || menuItems.some(i => i.isNightMenu || i.shiftAvailability === 'night_only' || (i.nightPrice && Number(i.nightPrice) > 0)));
-    if (hasNight) {
-      cats.push('🌙 Night Menu');
-    }
-
-    const regularCats = [...new Set(menuItems.filter(i => !i.isOpenMenu && !i.isPosOnly).map(item => item.category || 'main-courses'))];
+    const regularCats = [...new Set(
+      menuItems
+        .filter(i => !i.isOpenMenu && !i.isPosOnly)
+        .map(item => item.category || 'main-courses')
+    )];
     return [...cats, ...regularCats];
-  }, [menuItems, tenantInfo?.settings?.enableNightMenu]);
+  }, [menuItems]);
 
   const filteredMenuItems = useMemo(() => {
     return menuItems.filter(item => {
@@ -1502,6 +1493,29 @@ export default function POSTerminal({
                       <X size={12} />
                     </button>
                   )}
+                </div>
+
+                {/* Special Filter Buttons: Open Menu & Night Menu (Moved up from categories) */}
+                <div className={styles.specialFilterGroup}>
+                  <button
+                    type="button"
+                    className={`${styles.specialFilterBtn} ${selectedCategory === '⚡ Open Menu' ? styles.specialFilterBtnActiveOpen : ''}`}
+                    onClick={() => setSelectedCategory(prev => prev === '⚡ Open Menu' ? 'all' : '⚡ Open Menu')}
+                    title="View Open Menu (Owner/POS Only items like cigarettes, off-menu counter items)"
+                  >
+                    <Zap size={13} className={styles.specialFilterIcon} />
+                    <span>Open Menu</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`${styles.specialFilterBtn} ${selectedCategory === '🌙 Night Menu' ? styles.specialFilterBtnActiveNight : ''}`}
+                    onClick={() => setSelectedCategory(prev => prev === '🌙 Night Menu' ? 'all' : '🌙 Night Menu')}
+                    title="View Night Menu (Night pricing and dishes)"
+                  >
+                    <Moon size={13} className={styles.specialFilterIcon} />
+                    <span>Night Menu</span>
+                  </button>
                 </div>
 
                 {isNightActiveNow && (
