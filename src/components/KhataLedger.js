@@ -3,7 +3,7 @@ import {
   BookOpen, Search, CheckCircle, AlertCircle, Check, X, Phone, User, Plus,
   RefreshCw, Calendar, ArrowUpRight, ArrowDownRight, MessageCircle, Trash2, ShoppingBag, CreditCard,
   ChevronRight, ChevronLeft, Utensils, Minus, Printer, QrCode, Smartphone, Banknote,
-  FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight
+  FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight, Zap
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
@@ -142,31 +142,14 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     return availableMenu;
   }, [menuItems, availableMenu]);
 
-  // Categories list for POS Menu (preserving exact POS Terminal order)
+  // Categories list for POS Menu (pure categories only)
   const posCategories = useMemo(() => {
     const cats = ['all'];
-
-    const hasOpenMenu = effectiveMenu.some(i => i.isOpenMenu || i.isPosOnly);
-    if (hasOpenMenu) {
-      cats.push('⚡ Open Menu');
-    }
-
-    // Always include 🌙 Night Menu pill so user can browse night items anytime (exact same as POS Terminal)
-    cats.push('🌙 Night Menu');
-
-    // Regular categories in their natural order from effectiveMenu (no artificial .sort())
     const regularCats = [...new Set(
       effectiveMenu
-        .filter(i =>
-          !i.isOpenMenu &&
-          !i.isPosOnly &&
-          !i.isNightMenu &&
-          i.shiftAvailability !== 'night_only' &&
-          !(i.category && i.category.toLowerCase().includes('night'))
-        )
+        .filter(i => !i.isOpenMenu && !i.isPosOnly)
         .map(item => item.category || 'main-courses')
     )];
-
     return [...cats, ...regularCats];
   }, [effectiveMenu]);
 
@@ -176,8 +159,9 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       let matchesCat = false;
       if (posSelectedCategory === 'all') {
         matchesCat = true;
-      } else if (posSelectedCategory === '⚡ Open Menu') {
+      } else if (posSelectedCategory === '⚡ Open Item' || posSelectedCategory === '⚡ Open Menu') {
         matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
+      /* Night Menu Commented out as requested
       } else if (posSelectedCategory === '🌙 Night Menu') {
         matchesCat = Boolean(
           item.shiftAvailability === 'night_only' ||
@@ -185,6 +169,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           (item.nightPrice && Number(item.nightPrice) > 0) ||
           (item.category && item.category.toLowerCase().includes('night'))
         );
+      */
       } else {
         matchesCat = (item.category || 'main-courses') === posSelectedCategory;
       }
@@ -1081,25 +1066,55 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 )}
 
                 {/* Search Box expands cleanly across left row */}
-                <div className={styles.posSearchWrap}>
-                  <Search size={14} color="#64748b" />
-                  <input
-                    type="text"
-                    placeholder={isHindi ? "मेनू में खोजें..." : "Search menu dishes..."}
-                    value={posDishSearch}
-                    onChange={(e) => setPosDishSearch(e.target.value)}
-                    className={styles.posSearchInput}
-                  />
-                  {posDishSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setPosDishSearch('')}
-                      className={styles.posClearSearchBtn}
-                      title="Clear search"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                  <div className={styles.posSearchWrap} style={{ flex: 1 }}>
+                    <Search size={14} color="#64748b" />
+                    <input
+                      type="text"
+                      placeholder={isHindi ? "मेनू में खोजें..." : "Search menu dishes..."}
+                      value={posDishSearch}
+                      onChange={(e) => setPosDishSearch(e.target.value)}
+                      className={styles.posSearchInput}
+                    />
+                    {posDishSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setPosDishSearch('')}
+                        className={styles.posClearSearchBtn}
+                        title="Clear search"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Open Item Filter Button (Owner/POS only counter items) */}
+                  <button
+                    type="button"
+                    onClick={() => setPosSelectedCategory(prev => (prev === '⚡ Open Item' || prev === '⚡ Open Menu') ? 'all' : '⚡ Open Item')}
+                    style={{
+                      height: 34,
+                      padding: '0 12px',
+                      borderRadius: 8,
+                      border: (posSelectedCategory === '⚡ Open Item' || posSelectedCategory === '⚡ Open Menu') ? '1.5px solid #2563eb' : '1.5px solid #cbd5e1',
+                      background: (posSelectedCategory === '⚡ Open Item' || posSelectedCategory === '⚡ Open Menu') ? '#2563eb' : '#ffffff',
+                      color: (posSelectedCategory === '⚡ Open Item' || posSelectedCategory === '⚡ Open Menu') ? '#ffffff' : '#334155',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      boxShadow: (posSelectedCategory === '⚡ Open Item' || posSelectedCategory === '⚡ Open Menu') ? '0 2px 8px rgba(37, 99, 235, 0.25)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Filter Open Items (Owner / POS Only)"
+                  >
+                    <Zap size={13} />
+                    <span>Open Item</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1124,9 +1139,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   >
                     {cat === 'all'
                       ? 'All Dishes'
-                      : cat === '⚡ Open Menu' || cat === '🌙 Night Menu'
-                        ? cat
-                        : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                      : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
                   </button>
                 ))}
               </div>
@@ -1174,9 +1187,10 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             backdropFilter: 'blur(4px)',
                             zIndex: 2
                           }}>
-                            ⚡ Open Menu
+                            ⚡ Open Item
                           </div>
                         )}
+                        {/* NIGHT MENU BADGE COMMENTED OUT AS PER REQUEST
                         {!(item.isOpenMenu || item.isPosOnly) && (item.shiftAvailability === 'night_only' || item.isNightMenu) && (
                           <div style={{
                             position: 'absolute',
@@ -1195,6 +1209,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             🌙 Night Menu
                           </div>
                         )}
+                        */}
                       </div>
 
                       <div className={styles.posDishInfo}>

@@ -5152,9 +5152,10 @@ export default function AdminPanel() {
                             <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                               {(item.isOpenMenu || item.isPosOnly) && (
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: '#86198f', background: '#fae8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f0abfc' }}>
-                                  ⚡ Open Menu (POS Only)
+                                  ⚡ Open Item (POS Only)
                                 </span>
                               )}
+                              {/* NIGHT MENU BADGES COMMENTED OUT AS REQUESTED:
                               {item.shiftAvailability === 'night_only' && (
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #d8b4fe' }}>
                                   🌙 Night Only
@@ -5170,6 +5171,7 @@ export default function AdminPanel() {
                                   🌙 ₹{item.nightPrice} Night
                                 </span>
                               )}
+                              */}
                               {item.category === 'uncategorized' && (
                                 <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
                                   ⚠️ Uncategorized
@@ -5894,10 +5896,10 @@ export default function AdminPanel() {
                     </div>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: drawerForm.isOpenMenu ? '#86198f' : '#1e293b' }}>
-                        Open Menu (Owner / POS Only)
+                        Open Item (Owner / POS Only)
                       </div>
                       <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px', lineHeight: 1.3 }}>
-                        Hidden from customer QR code menu. Visible only to cashier/owner on POS terminal (e.g. cigarettes, off-menu items).
+                        Hidden from customer QR code menu. Visible only to cashier/owner on POS terminal (e.g. cigarettes, off-menu counter items).
                       </div>
                     </div>
                   </div>
@@ -5931,7 +5933,7 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              {/* B. NIGHT MENU & SHIFT AVAILABILITY */}
+              {/* B. NIGHT MENU & SHIFT AVAILABILITY COMMENTED OUT AS REQUESTED: DO NOT SHOW ON UI
               <div style={{
                 padding: '14px',
                 background: drawerForm.shiftAvailability !== 'all_day' || drawerForm.nightPrice ? '#f5f3ff' : '#f8fafc',
@@ -5952,7 +5954,6 @@ export default function AdminPanel() {
                   </div>
                 </div>
 
-                {/* Shift Selector Buttons */}
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 5 }}>
                     Available In Shift
@@ -5992,7 +5993,6 @@ export default function AdminPanel() {
                   </div>
                 </div>
 
-                {/* Night Price Override (for All Day & Night Only dishes) */}
                 {drawerForm.shiftAvailability !== 'day_only' && (
                   <div style={{ paddingTop: '8px', borderTop: '1px solid #ddd6fe' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -6030,6 +6030,7 @@ export default function AdminPanel() {
                   </div>
                 )}
               </div>
+              */}
 
               {/* Availability Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>

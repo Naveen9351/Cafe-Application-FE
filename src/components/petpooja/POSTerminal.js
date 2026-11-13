@@ -500,10 +500,12 @@ export default function POSTerminal({
       let matchesCat = false;
       if (selectedCategory === 'all') {
         matchesCat = true;
-      } else if (selectedCategory === '⚡ Open Menu') {
+      } else if (selectedCategory === '⚡ Open Item' || selectedCategory === '⚡ Open Menu') {
         matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
+      /* Night Menu Commented out as per request
       } else if (selectedCategory === '🌙 Night Menu') {
         matchesCat = Boolean(item.shiftAvailability === 'night_only' || item.isNightMenu || (item.nightPrice && Number(item.nightPrice) > 0));
+      */
       } else {
         matchesCat = item.category === selectedCategory;
       }
@@ -1495,18 +1497,19 @@ export default function POSTerminal({
                   )}
                 </div>
 
-                {/* Special Filter Buttons: Open Menu & Night Menu (Moved up from categories) */}
+                {/* Special Filter Button: Open Item (Owner/POS Only) */}
                 <div className={styles.specialFilterGroup}>
                   <button
                     type="button"
-                    className={`${styles.specialFilterBtn} ${selectedCategory === '⚡ Open Menu' ? styles.specialFilterBtnActiveOpen : ''}`}
-                    onClick={() => setSelectedCategory(prev => prev === '⚡ Open Menu' ? 'all' : '⚡ Open Menu')}
-                    title="View Open Menu (Owner/POS Only items like cigarettes, off-menu counter items)"
+                    className={`${styles.specialFilterBtn} ${(selectedCategory === '⚡ Open Item' || selectedCategory === '⚡ Open Menu') ? styles.specialFilterBtnActiveOpen : ''}`}
+                    onClick={() => setSelectedCategory(prev => (prev === '⚡ Open Item' || prev === '⚡ Open Menu') ? 'all' : '⚡ Open Item')}
+                    title="View Open Items (Owner/POS Only items like cigarettes, off-menu counter items)"
                   >
                     <Zap size={13} className={styles.specialFilterIcon} />
-                    <span>Open Menu</span>
+                    <span>Open Item</span>
                   </button>
 
+                  {/* NIGHT MENU BUTTON COMMENTED OUT AS PER REQUEST - DO NOT SHOW ON UI
                   <button
                     type="button"
                     className={`${styles.specialFilterBtn} ${selectedCategory === '🌙 Night Menu' ? styles.specialFilterBtnActiveNight : ''}`}
@@ -1516,8 +1519,10 @@ export default function POSTerminal({
                     <Moon size={13} className={styles.specialFilterIcon} />
                     <span>Night Menu</span>
                   </button>
+                  */}
                 </div>
 
+                {/* NIGHT MENU STATUS BANNER COMMENTED OUT AS PER REQUEST
                 {isNightActiveNow && (
                   <div style={{
                     display: 'inline-flex',
@@ -1537,6 +1542,7 @@ export default function POSTerminal({
                     <span>Night Pricing Active ({tenantInfo?.settings?.nightMenuStart || '22:00'} - {tenantInfo?.settings?.nightMenuEnd || '05:00'})</span>
                   </div>
                 )}
+                */}
               </div>
 
               {/* Horizontally scrollable Category Pills row below search */}
@@ -1603,9 +1609,10 @@ export default function POSTerminal({
                             backdropFilter: 'blur(4px)',
                             zIndex: 2
                           }}>
-                            ⚡ Open Menu
+                            ⚡ Open Item
                           </div>
                         )}
+                        {/* NIGHT MENU BADGE COMMENTED OUT AS PER REQUEST
                         {!(item.isOpenMenu || item.isPosOnly) && (item.shiftAvailability === 'night_only' || item.isNightMenu) && (
                           <div style={{
                             position: 'absolute',
@@ -1624,6 +1631,7 @@ export default function POSTerminal({
                             🌙 Night Menu
                           </div>
                         )}
+                        */}
                       </div>
 
                       <div className={styles.dishInfo}>
