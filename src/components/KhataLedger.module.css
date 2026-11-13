@@ -1,142 +1,201 @@
 .container {
   padding: 0px;
-  background-color: #f8fafc;
-  min-height: calc(100vh - 80px);
+  background-color: transparent;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 .titleGroup h2 {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.45rem;
+  font-weight: 800;
   color: #0f172a;
-  margin: 0 0 2px 0;
+  margin: 0 0 4px 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: -0.4px;
 }
 
 .titleGroup p {
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   margin: 0;
+  font-weight: 500;
+}
+
+.liveSyncBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  borderRadius: 20px;
+}
+
+.liveSyncDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .searchBar {
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 9px 12px 9px 34px;
+  border-radius: 10px;
   border: 1px solid #cbd5e1;
   width: 100%;
-  min-width: 200px;
-  max-width: 270px;
-  font-size: 0.82rem;
+  min-width: 210px;
+  max-width: 280px;
+  font-size: 0.84rem;
   outline: none;
   background: #ffffff;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: all 0.15s ease;
 }
 
 .searchBar:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .refreshBtn {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 9px 12px;
   cursor: pointer;
-  color: #64748b;
+  color: #475569;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: all 0.15s ease;
 }
 
 .refreshBtn:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
+  border-color: #94a3b8;
   color: #0f172a;
 }
 
 .addRecordBtn {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 15px;
-  font-size: 0.82rem;
-  font-weight: 700;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 0.84rem;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
-  transition: all 0.15s ease;
+  gap: 7px;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+  transition: all 0.18s ease;
 }
 
 .addRecordBtn:hover {
-  background: #1d4ed8;
   transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.35);
 }
 
+/* ── Modern Fintech KPI Ribbon ── */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .statCard {
   background: #ffffff;
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 16px 18px;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
 }
 
 .statIcon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
+.statInfo {
+  display: flex;
+  flex-direction: column;
+}
+
 .statInfo h4 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #0f172a;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
 }
 
 .statInfo span {
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   color: #64748b;
   font-weight: 600;
+  margin-top: 2px;
 }
 
-/* ── Modern High-End Table Styles ── */
+/* ── Table Container ── */
 .tableCard {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .tableWrap {
@@ -160,9 +219,9 @@
   background: #f8fafc;
   padding: 13px 18px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: #475569;
   border-bottom: 1.5px solid #e2e8f0;
   white-space: nowrap;
@@ -179,7 +238,7 @@
 
 .khataTable td {
   padding: 13px 18px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: #1e293b;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
@@ -189,26 +248,27 @@
   border-bottom: none;
 }
 
+/* ── Pagination ── */
 .paginationFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
+  padding: 13px 20px;
   border-top: 1px solid #f1f5f9;
-  background: #fafafa;
+  background: #fafbfc;
   font-size: 12.5px;
   color: #64748b;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .paginationBtn {
-  padding: 5px 10px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #334155;
   cursor: pointer;
   display: inline-flex;
@@ -229,11 +289,11 @@
 }
 
 .pageNumberBtn {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  font-size: 11.5px;
-  font-weight: 700;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -241,26 +301,88 @@
   transition: all 0.12s ease;
 }
 
-/* Modal Overlay & Card */
+/* ── Modals & Overlays ── */
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
-  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
+  z-index: 999999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modalContent {
   background: #ffffff;
   width: 100%;
   max-width: 520px;
-  border-radius: 14px;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
-  padding: 22px;
+  border-radius: 18px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  padding: 24px;
+  animation: slideUp 0.18s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── Micro-Action Buttons ── */
+.actionBtn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.12s ease;
+  border: 1px solid transparent;
+}
+
+.actionBtnSecondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.actionBtnSecondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.actionBtnSuccess {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.actionBtnSuccess:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.actionBtnWhatsapp {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+  padding: 6px 10px;
+}
+
+.actionBtnWhatsapp:hover {
+  background: #25d366;
+  border-color: #25d366;
+  color: #ffffff;
 }
 
 .spin {
@@ -272,10 +394,579 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Segmented Mode Tabs ── */
+.segmentTabs {
+  display: flex;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.segmentTab {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none !important;
+  outline: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.segmentTab:hover {
+  color: #0f172a;
+}
+
+.segmentTabActive {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* ── Wide Modal 2-Column Grid ── */
+.wideModal {
+  max-width: 840px !important;
+  width: 95% !important;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 18px;
+  padding: 22px 24px;
+}
+
+.modalBodyTwoCol {
+  display: grid;
+  grid-template-columns: 1.18fr 0.92fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.rightColumnCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.billHeroBox {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 820px) {
+  .modalBodyTwoCol {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+/* ── Selected Customer Profile Card ── */
+.custCardSelected {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── Items Cart Container ── */
+.itemsCartBox {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.cartEmpty {
+  padding: 22px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.cartRow {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.12s ease;
+}
+
+.cartRow:last-child {
+  border-bottom: none;
+}
+
+.cartRow:hover {
+  background-color: #fafbfc;
+}
+
+/* ── Balance Impact Card ── */
+.balanceImpactCard {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+/* ── Quick Amount Chips ── */
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.chipBtn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.chipBtn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.chipBtnActive {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+/* ── Payment Method Toggle Cards ── */
+.methodCard {
+  flex: 1;
+  padding: 9px 8px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.methodCard:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.methodCardActive {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.12);
+}
+
+/* ── UPI Interactive QR Box ── */
+.upiBox {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px dashed #86efac;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.qrContainer {
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  display: inline-flex;
+  margin-bottom: 8px;
+}
+
+/* ── Dual Progress Bar for Credit Health (Modern & Premium) ── */
+.creditBarWrap {
+  width: 100%;
+  max-width: 120px;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 5px;
+  display: flex;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.creditBarPaid {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.creditBarDue {
+  height: 100%;
+  background: transparent;
+}
+
+/* ── Passbook Full Modal (Upgraded Wide & Clean Executive UI) ── */
+.passbookModal {
+  max-width: 1060px;
+  width: 96%;
+  max-height: 94vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35);
+  border: 1px solid #e2e8f0;
+}
+
+.passbookHeaderCard {
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+}
+
+.passbookPillGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.passbookMetricPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 6px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.passbookPillLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+}
+
+.passbookPillValue {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.passbookSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.passbookSummaryTile {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.passbookSummaryTile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.passbookTileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+}
+
+.passbookTileIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.passbookSummaryTile h5 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+}
+
+.passbookTileSub {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* ── Passbook Tabs & Search Bar ── */
+.passbookTabsBar {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.passbookTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.passbookTabBtn:hover {
+  color: #0f172a;
+}
+
+.passbookTabBtnActive {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.passbookTabCount {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.passbookTabBtn:not(.passbookTabBtnActive) .passbookTabCount {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.passbookSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 5px 10px;
+  width: 220px;
+}
+
+.passbookSearchInput {
+  border: none;
+  outline: none;
+  font-size: 0.78rem;
+  color: #0f172a;
+  width: 100%;
+  background: transparent;
+}
+
+/* ── Item Chips in Bill-wise view ── */
+.passbookItemChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.passbookItemQtyBadge {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+}
+
+/* ── Timeline / Passbook Table ── */
+.passbookTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.passbookTable th {
+  background: #f8fafc;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.passbookTable td {
+  padding: 11px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.passbookTable tr:hover td {
+  background-color: #fafbfc;
+}
+
+/* ── Item-wise Aggregated Table ── */
+.passbookItemTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.passbookItemTable th {
+  background: #f8fafc;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.passbookItemTable td {
+  padding: 11px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.passbookItemTable tr:hover td {
+  background-color: #fafbfc;
+}
+
+.passbookSummaryBar {
+  background: #f8fafc;
+  border-top: 1.5px solid #e2e8f0;
+  padding: 10px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.passbookSummaryFooter {
+  background: #f8fafc;
+  border-top: 1.5px solid #e2e8f0;
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  :global(.printablePassbook),
+  :global(.printablePassbook) * {
+    visibility: visible !important;
+  }
+  :global(.printablePassbook) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 16px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  :global(.noPrint) {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .header {
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .headerActions {
+    width: 100%;
   }
 
   .searchBar {
@@ -289,6 +980,1057 @@
   }
 
   .khataTable {
-    min-width: 700px;
+    min-width: 720px;
   }
 }
+
+/* ==========================================================================
+   Khata In-Screen POS Visual Menu View (Enhanced High-End UI)
+   ========================================================================== */
+
+.posScreen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 0.65rem;
+  height: calc(100vh - 105px);
+  max-height: calc(100vh - 105px);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.posLeftSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* 1. Header Bar */
+.posHeader {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.35rem 0.65rem;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  flex-shrink: 0;
+}
+
+.posHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.posBackIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.posBackIconBtn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Consolidated Customer Card (Clean Pill without Avatar) */
+.posCustomerCard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.posCustomerInfo {
+  display: flex;
+  align-items: center;
+}
+
+.posCustomerNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.posCustomerName {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.posDueBadge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 0 5px;
+  border-radius: 5px;
+}
+
+.posCustomerPhone {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Sleek integrated Switch ▾ button */
+.posSwitchBtnWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.posSwitchSelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.posSwitchBtnLabel {
+  display: inline-flex;
+  align-items: center;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posSwitchBtnWrap:hover .posSwitchBtnLabel {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.posNewCustomerInputs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.posInlineInput {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #0f172a;
+  width: 105px;
+  height: 26px;
+  outline: none;
+}
+
+.posInlineInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.posSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 10px;
+  flex: 1;
+  min-width: 120px;
+  height: 28px;
+  transition: all 0.15s ease;
+}
+
+.posSearchWrap:focus-within {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.posSearchInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  width: 100%;
+  color: #0f172a;
+}
+
+.posSearchInput::placeholder {
+  color: #94a3b8;
+}
+
+.posClearSearchBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  border-radius: 50%;
+}
+
+.posClearSearchBtn:hover {
+  color: #1e293b;
+}
+
+@media (max-width: 1100px) {
+  .posScreen {
+    grid-template-columns: minmax(0, 1fr) 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .posScreen {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+  }
+}
+
+/* Left: Menu Panel */
+.posMenuPanel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.posCategoryPills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 5px;
+  white-space: nowrap;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.posCategoryPills::-webkit-scrollbar {
+  display: none;
+}
+
+.posCatPill {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 6px 15px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.posCatPill:hover {
+  background: #edf2f7;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.posCatPillActive {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28) !important;
+}
+
+.posDishesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0.75rem;
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 2px 14px 2px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.posDishesGrid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.posDishesGrid::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.posDishCard {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.55rem 0.55rem 0.65rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  position: relative;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.posDishCard:hover {
+  border-color: #2563eb;
+  background: #fafcff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.posDishCardActive {
+  border-color: #2563eb !important;
+  background: #f0f7ff !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.posDishImgWrap {
+  width: 100%;
+  height: 94px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #f1f5f9;
+}
+
+.posDishImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.posDishCard:hover .posDishImg {
+  transform: scale(1.04);
+}
+
+.posVegBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 3px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.posVegDot {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #16a34a;
+  border-radius: 2px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.posVegDot::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: #16a34a;
+  border-radius: 50%;
+}
+
+.posNonVegDot {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #dc2626;
+  border-radius: 2px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.posNonVegDot::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: #dc2626;
+  border-radius: 50%;
+}
+
+.posDishInfo h4 {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.1em;
+}
+
+.posDishPriceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  margin-top: 0.1rem;
+}
+
+.posDishPrice {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.posAddBtn {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posAddBtn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.posStepper {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.posStepperBtn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.posStepperBtn:hover {
+  background: #eff6ff;
+}
+
+.posStepperQty {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+  min-width: 18px;
+  text-align: center;
+}
+
+.posNoDishes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+  gap: 0.5rem;
+}
+
+/* Right: Khata Order Slip (High-Efficiency Compact Layout) */
+.posSlipPanel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+}
+
+.posSlipHeader {
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.posSlipTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.posSlipTitle {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.posSlipItemCountBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #bfdbfe;
+  flex-shrink: 0;
+}
+
+/* Cart Items Container - Maximized Height */
+.posSlipItemsContainer {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 120px;
+  padding: 0.35rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.posSlipItemsContainer::-webkit-scrollbar {
+  width: 4px;
+}
+
+.posSlipItemsContainer::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.posSlipEmpty {
+  height: 100%;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.posEmptyIconCircle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #eff6ff;
+  border: 1.5px solid #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.35rem;
+}
+
+.posSlipEmpty h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 2px 0;
+}
+
+.posSlipEmpty p {
+  font-size: 0.73rem;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.posSlipItemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.posSlipItemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 5px 8px;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
+}
+
+.posSlipItemRow:hover {
+  border-color: #e2e8f0;
+  background: #fafcff;
+}
+
+.posSlipItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.posSlipItemDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.posSlipItemName {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.posSlipItemRate {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.posSlipItemRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.posSlipItemTotal {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #0f172a;
+  min-width: 40px;
+  text-align: right;
+}
+
+.posSlipTrashBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.posSlipTrashBtn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Off-menu dish button */
+.posAddCustomRow {
+  padding: 3px 0;
+  flex-shrink: 0;
+}
+
+.posAddCustomBtn {
+  background: #fafbfc;
+  border: 1px dashed #cbd5e1;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posAddCustomBtn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+/* Slip Footer: Compact Settlement */
+.posSlipFooter {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.posCompactTotalBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.posTotalGroup {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.posTotalLabel {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.posTotalValue {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.posPaidChips {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.posChip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.67rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posChip:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.posChipActive {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+/* Counter Pay Input & Tender Row */
+.posCounterPayRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.posPaidInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.posPaidInputLabel {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.posPaidInputWrap {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 6px;
+  height: 25px;
+  width: 95px;
+  transition: all 0.15s ease;
+}
+
+.posPaidInputWrap:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.posCurrencyPrefix {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #10b981;
+  margin-right: 3px;
+}
+
+.posPaidInput {
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #047857;
+  width: 100%;
+  outline: none;
+}
+
+.posTenderPills {
+  display: flex;
+  gap: 3px;
+}
+
+.posTenderPill {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posTenderPill:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.posTenderPillActive {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+/* Khata Balance Calculation Mathematical Strip */
+.posBalanceImpactStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fffbeb;
+  border: 1px solid #fef08a;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.posImpactCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.posImpactSub {
+  font-size: 0.62rem;
+  color: #78350f;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.posImpactVal {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #451a03;
+}
+
+.posImpactAddVal {
+  font-size: 0.76rem;
+  font-weight: 900;
+  color: #dc2626;
+}
+
+.posImpactOp {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #b45309;
+}
+
+.posImpactTotalCol {
+  background: #ffffff;
+  padding: 1px 7px;
+  border-radius: 6px;
+  border: 1px solid #fde047;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.posImpactSubTotal {
+  font-size: 0.62rem;
+  color: #b45309;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.posImpactFinalVal {
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #dc2626;
+}
+
+/* Notes Input */
+.posNotesWrap {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0 8px;
+  height: 25px;
+  transition: all 0.15s ease;
+}
+
+.posNotesWrap:focus-within {
+  background: #ffffff;
+  border-color: #2563eb;
+}
+
+.posNotesInput {
+  border: none;
+  background: transparent;
+  font-size: 0.72rem;
+  color: #1e293b;
+  width: 100%;
+  outline: none;
+}
+
+/* Actions Row */
+.posActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.1rem;
+}
+
+.posCancelBtn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.posCancelBtn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.posConfirmBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: none;
+  color: #ffffff;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+  transition: all 0.15s ease;
+}
+
+.posConfirmBtn:hover:not(:disabled) {
+  opacity: 0.96;
+  transform: translateY(-1px);
+}
+
+.posConfirmBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ========================================================= */
+/* Centered Customization Modal Overlay (Exact match to POS) */
+/* ========================================================= */
+.posModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 1.25rem;
+}
+
+.posModalContent {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 1.5rem;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  border: 1px solid #e2e8f0;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+

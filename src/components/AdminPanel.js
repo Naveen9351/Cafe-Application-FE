@@ -22,6 +22,7 @@ import OnlineAggregators from './petpooja/OnlineAggregators';
 import RestaurantSettings from './RestaurantSettings';
 import StaffManager from './StaffManager';
 import ReportsSuite from './ReportsSuite';
+import SalesSummary from './SalesSummary';
 import KhataLedger from './KhataLedger';
 import SupportModal from './SupportModal';
 import CafeAICopilotChatbot, { KHUSHI_AVATAR_URL } from './CafeAICopilotChatbot';
@@ -275,6 +276,7 @@ export default function AdminPanel() {
     { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders' },
     { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true },
     { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports' },
+    { id: 'sales-summary', label: 'Item Summary', icon: TrendingUp, permKey: 'access_reports' },
     { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata' },
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
   ], []);
@@ -303,7 +305,7 @@ export default function AdminPanel() {
     }
     const t = tab.toLowerCase();
     if (t === 'live-orders') return 'kds';
-    const validTabs = ['dashboard', 'pos', 'kds', 'orders', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'khata', 'settings'];
+    const validTabs = ['dashboard', 'pos', 'kds', 'orders', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'sales-summary', 'khata', 'settings'];
     return validTabs.includes(t) ? t : (isAdmin ? 'dashboard' : (allowedTabs[0]?.id || 'pos'));
   }, [tab, isAdmin, allowedTabs]);
 
@@ -363,14 +365,43 @@ export default function AdminPanel() {
   });
 
   // Alphabetically sorted categories with "All Dishes" always first (A-Z)
+  // Smartly auto-discovers and includes any categories that dishes are tagged with
   const sortedCategories = useMemo(() => {
     if (!categories || !categories.length) return [];
     const allCat = categories.find(c => c.id === 'all') || { id: 'all', name: 'All Dishes' };
-    const others = categories
-      .filter(c => c.id !== 'all')
+    const knownIds = new Set(categories.map(c => (c.id || '').toLowerCase()));
+    const knownNames = new Set(categories.map(c => (c.name || '').toLowerCase()));
+
+    // Auto-discover any categories currently assigned to dishes so dishes never become hidden
+    const autoDiscovered = [];
+    if (Array.isArray(items)) {
+      items.forEach(it => {
+        if (it.category) {
+          const cleanCat = String(it.category).trim();
+          const catId = cleanCat.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          if (catId && !knownIds.has(catId) && !knownNames.has(cleanCat.toLowerCase()) && catId !== 'all') {
+            knownIds.add(catId);
+            knownNames.add(cleanCat.toLowerCase());
+            const displayName = cleanCat.charAt(0).toUpperCase() + cleanCat.slice(1);
+            const selectedIconComp = CATEGORY_ICON_MAP['UtensilsCrossed'] || UtensilsCrossed;
+            autoDiscovered.push({
+              id: catId,
+              name: displayName,
+              icon: 'UtensilsCrossed',
+              Component: selectedIconComp,
+              aliases: [catId, cleanCat.toLowerCase()],
+              isCustom: true
+            });
+          }
+        }
+      });
+    }
+
+    const combined = [...categories.filter(c => c.id !== 'all'), ...autoDiscovered];
+    const others = combined
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
     return [allCat, ...others];
-  }, [categories]);
+  }, [categories, items]);
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState('add'); // 'add' or 'edit'
@@ -478,6 +509,13 @@ export default function AdminPanel() {
       keywords: ['reports', 'reports suite', 'sales reports', 'revenue reports', 'daily sales', 'financials', 'reprot', 'audit', 'tax'],
       icon: BarChart3,
       desc: 'Financial reports, payment method breakdown & metrics'
+    },
+    {
+      id: 'sales-summary',
+      label: 'Item Summary',
+      keywords: ['item summary', 'sales summary', 'dish sales', 'category sales', 'excel export', 'daily item sales'],
+      icon: TrendingUp,
+      desc: 'Date-wise & item-wise sales breakdown, variants & Excel export'
     },
     {
       id: 'staff',
@@ -876,8 +914,24 @@ export default function AdminPanel() {
             });
             if (fetchedLogo) localStorage.setItem('restaurant_logo', fetchedLogo);
             if (res.data.settings?.categories && Array.isArray(res.data.settings.categories) && res.data.settings.categories.length > 0) {
-              setCategories(res.data.settings.categories);
-              localStorage.setItem('serviq_custom_categories', JSON.stringify(res.data.settings.categories));
+              const serverCats = res.data.settings.categories;
+              const localCatsStr = localStorage.getItem('serviq_custom_categories');
+              let merged = serverCats;
+              if (localCatsStr) {
+                try {
+                  const localCats = JSON.parse(localCatsStr);
+                  if (Array.isArray(localCats)) {
+                    const serverIds = new Set(serverCats.map(c => (c.id || '').toLowerCase()));
+                    const missingLocal = localCats.filter(c => c && c.id && !serverIds.has(c.id.toLowerCase()));
+                    if (missingLocal.length > 0) {
+                      merged = [...serverCats, ...missingLocal];
+                      persistCategories(merged);
+                    }
+                  }
+                } catch (err) {}
+              }
+              setCategories(merged);
+              localStorage.setItem('serviq_custom_categories', JSON.stringify(merged));
             }
           }
         })
@@ -1548,6 +1602,7 @@ export default function AdminPanel() {
 
     setIsSavingDish(true);
     const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || user?.tenantId || tenantInfo?._id || '';
 
     try {
       const formData = new FormData();
@@ -1560,6 +1615,9 @@ export default function AdminPanel() {
       formData.append('isAvailable', drawerForm.available);
       formData.append('discount', JSON.stringify(discountPayload));
       formData.append('variants', JSON.stringify(validVariants));
+      if (effectiveTenantId) {
+        formData.append('tenantId', effectiveTenantId);
+      }
       formData.append('isNightMenu', drawerForm.isNightMenu ? 'true' : 'false');
       if (drawerForm.nightPrice) {
         formData.append('nightPrice', drawerForm.nightPrice);
@@ -1572,22 +1630,22 @@ export default function AdminPanel() {
         formData.append('image', drawerForm.image);
       }
 
+      const requestHeaders = {
+        'x-auth-token': token,
+        'Content-Type': 'multipart/form-data',
+        ...(effectiveTenantId ? { 'x-tenant-id': effectiveTenantId } : {})
+      };
+
       if (editingItem && editingItem._id && !editingItem._id.startsWith('dish_')) {
         // Edit existing in backend
-        const res = await axios.put(`${API}/menu/${editingItem._id}`, formData, {
-          headers: {
-            'x-auth-token': token,
-            'Content-Type': 'multipart/form-data'
-          }
+        await axios.put(`${API}/menu/${editingItem._id}`, formData, {
+          headers: requestHeaders
         });
         toast.success(`Updated "${drawerForm.name}"`);
       } else {
         // Add new in backend
-        const res = await axios.post(`${API}/menu`, formData, {
-          headers: {
-            'x-auth-token': token,
-            'Content-Type': 'multipart/form-data'
-          }
+        await axios.post(`${API}/menu`, formData, {
+          headers: requestHeaders
         });
         toast.success(`Added "${drawerForm.name}" to menu!`);
       }
@@ -1596,30 +1654,8 @@ export default function AdminPanel() {
       setIsDrawerOpen(false);
     } catch (err) {
       console.error('Save menu item error:', err);
-      // Local fallback if API fails
-      const fallbackItem = {
-        _id: editingItem ? editingItem._id : `dish_${Date.now()}`,
-        name: drawerForm.name.trim(),
-        description: drawerForm.description.trim(),
-        price: numPrice,
-        category: drawerForm.category,
-        categoryId: drawerForm.category,
-        isVeg: drawerForm.isVeg,
-        available: drawerForm.available,
-        discount: discountPayload,
-        variants: validVariants,
-        isNightMenu: drawerForm.isNightMenu,
-        nightPrice: drawerForm.nightPrice ? Number(drawerForm.nightPrice) : null,
-        isPosOnly: drawerForm.isPosOnly || drawerForm.isNightMenu,
-        image: drawerForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600'
-      };
-      if (editingItem) {
-        setItems(prev => prev.map(it => it._id === editingItem._id ? fallbackItem : it));
-      } else {
-        setItems(prev => [fallbackItem, ...prev]);
-      }
-      toast.success(`Saved "${drawerForm.name}"`);
-      setIsDrawerOpen(false);
+      const errMsg = err.response?.data?.errors?.[0]?.msg || err.response?.data?.error || err.message || 'Failed to save dish to server';
+      toast.error(`Could not save dish: ${errMsg}`);
     } finally {
       setIsSavingDish(false);
     }
@@ -1867,15 +1903,17 @@ export default function AdminPanel() {
       const tid = tenantId || user?.tenantId || tenantInfo?._id;
       const serializableCats = updated.map(({ Component, ...rest }) => rest);
       if (token) {
-        await axios.put(`${API}/tenants/settings`, { categories: serializableCats }, {
-          headers: { 'x-auth-token': token }
-        }).catch(() => { });
+        const headers = {
+          'x-auth-token': token,
+          ...(tid ? { 'x-tenant-id': tid } : {})
+        };
+        await axios.put(`${API}/tenants/settings`, { categories: serializableCats, tenantId: tid }, { headers })
+          .catch((err) => { console.warn('PUT /tenants/settings warning:', err.message); });
         if (tid) {
           await axios.put(`${API}/tenants/${tid}`, {
+            categories: serializableCats,
             settings: { ...tenantInfo?.settings, categories: serializableCats }
-          }, {
-            headers: { 'x-auth-token': token }
-          }).catch(() => { });
+          }, { headers }).catch((err) => { console.warn('PUT /tenants/:id warning:', err.message); });
         }
       }
     } catch (e) {
@@ -2430,6 +2468,13 @@ export default function AdminPanel() {
               title="Reports & Analytics"
             >
               <BarChart3 size={18} /> {!sidebarCollapsed && <span>{t('nav.reports')}</span>}
+            </button>
+            <button
+              className={`${styles.navLink} ${activeTab === 'sales-summary' ? styles.activeNavLink : ''}`}
+              onClick={() => handleTabChange('sales-summary')}
+              title="Item Summary"
+            >
+              <TrendingUp size={18} /> {!sidebarCollapsed && <span>{t('nav.salesSummary')}</span>}
             </button>
             {tenantInfo?.settings?.enableKhata && (
               <button
@@ -5378,6 +5423,21 @@ export default function AdminPanel() {
                   transition={{ duration: 0.25 }}
                 >
                   <ReportsSuite initialOrders={orders} tenantInfo={tenantInfo} menuItems={items} />
+                </motion.div>
+              )}
+
+              {/* ========================================================= */}
+              {/* 10B. SALES SUMMARY & DAY-END Z-REPORT MODULE              */}
+              {/* ========================================================= */}
+              {activeTab === 'sales-summary' && (
+                <motion.div
+                  key="sales-summary"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <SalesSummary initialOrders={orders} />
                 </motion.div>
               )}
 
