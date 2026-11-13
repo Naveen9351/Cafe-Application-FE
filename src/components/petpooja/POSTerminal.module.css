@@ -8,7 +8,8 @@
   min-height: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .terminalWrapper::-webkit-scrollbar {
@@ -47,7 +48,9 @@
   flex-direction: column;
   gap: 1.25rem;
   margin-bottom: 2.5rem;
-  padding-bottom: 2rem;
+  padding-bottom: 2.5rem;
+  flex: 1;
+  min-height: min-content;
 }
 
 /* Floor Top Control Bar (Clean Single Row) */

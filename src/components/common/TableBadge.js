@@ -20,6 +20,19 @@ export function TableIcon({ size = 16, color = "currentColor", strokeWidth = 2.2
   );
 }
 
+// Smart table name formatter:
+// Converts "1" -> "T 1", "Table 1" -> "T 1", "T1" -> "T 1", "Ground" -> "T Ground", matching QR Code screens
+export const formatTableBadge = (tableNum) => {
+  if (tableNum === null || tableNum === undefined || tableNum === '') return 'T 1';
+  let str = String(tableNum).trim();
+  if (str.toLowerCase() === 'walk-in' || str.toLowerCase() === 'counter walk-in' || str.toLowerCase() === 'takeaway') return 'Walk-in';
+  // Strip any leading "Table", "Table-", "T ", "T-", or "T" before digits/names
+  str = str.replace(/^(table|t)[\s-_]*/i, '').trim();
+  return `T ${str}`;
+};
+
+export const formatTableName = formatTableBadge;
+
 export default function TableBadge({
   tableNumber,
   isDarkMode = false,

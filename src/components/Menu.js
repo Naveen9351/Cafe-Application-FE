@@ -1,8 +1,8 @@
   // Determine whether Night Shift is active based on tenant timings
   const isNightActiveNow = useMemo(() => {
     try {
-      const enabled = tenantInfo?.settings?.nightMenuEnabled;
-      if (enabled === false) return false;
+      const enabled = Boolean(tenantInfo?.settings?.enableNightMenu ?? tenantInfo?.settings?.nightMenuEnabled);
+      if (!enabled) return false;
       const startStr = tenantInfo?.settings?.nightMenuStart || '22:00';
       const endStr = tenantInfo?.settings?.nightMenuEnd || '05:00';
 

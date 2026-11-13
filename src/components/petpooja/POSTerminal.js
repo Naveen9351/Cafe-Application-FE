@@ -13,18 +13,26 @@ import { getValidFoodImage, getCustomerFirstName } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
 import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioChime';
+import { printOrderBill } from '../../utils/billPrinter';
+import { openWhatsappBill } from '../../utils/whatsappBillSender';
 
 // Smart table name formatter:
-// 1. Pure numbers ("1", "12") -> "Table 1", "Table 12"
-// 2. Already starts with "Table" -> keeps as is
-// 3. Custom names/identifiers ("abc", "M1", "Ground", "Patio 2") -> shows exact name without prepending "Table"!
+// Converts "1" -> "T 1", "Table 1" -> "T 1", "Ground" -> "T Ground", matching QR Code screens
 export const formatTableName = (num) => {
-  if (num === null || num === undefined || num === '') return 'Table';
+  if (num === null || num === undefined || num === '') return 'T 1';
   const str = String(num).trim();
   if (str.toLowerCase() === 'walk-in') return 'Walk-in';
-  if (/^\d+$/.test(str)) return `Table ${str}`;
-  if (/^table[\s-_]*/i.test(str)) return str;
-  return str;
+  const clean = str.replace(/^(table|t)[\s-_]*/i, '').trim();
+  return `T ${clean}`;
+};
+
+// Clean table number formatter (removes 'Table' label so it displays clean '1', '2', 'Ground', 'M1'):
+export const formatTableOnlyNumber = (num) => {
+  if (num === null || num === undefined || num === '') return '1';
+  const str = String(num).trim();
+  if (str.toLowerCase() === 'walk-in') return 'Walk-in';
+  const clean = str.replace(/^(table|t)[\s-_]*/i, '').trim();
+  return clean || str;
 };
 
 export default function POSTerminal({
@@ -740,14 +748,39 @@ export default function POSTerminal({
     };
 
     try {
-      const res = await axios.post(`${API}/orders`, orderPayload, {
-        headers: token ? { 'x-auth-token': token } : {}
-      });
+      if (currentTableOrders.length > 0) {
+        const lastOrder = currentTableOrders[currentTableOrders.length - 1];
+        const itemsToAppend = cart.map(it => ({
+          id: it.id,
+          itemId: it.id,
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          variant: it.variant ? it.variant : null,
+          addons: (it.addons || []),
+          isDirect: true,
+          itemStatus: 'served',
+          isPaid: false
+        }));
 
-      toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
-      setCart([]);
-      if (onOrderPlaced) onOrderPlaced(res.data);
-      if (onOrderCreated) onOrderCreated(res.data);
+        const res = await axios.post(`${API}/orders/${lastOrder._id}/append-items`, { items: itemsToAppend }, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+
+        toast.success(`⚡ Direct items added to Round ${lastOrder.roundNumber || 1} & served!`);
+        setCart([]);
+        if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
+        if (onOrderCreated) onOrderCreated(res.data.order || res.data);
+      } else {
+        const res = await axios.post(`${API}/orders`, orderPayload, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+
+        toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
+        setCart([]);
+        if (onOrderPlaced) onOrderPlaced(res.data);
+        if (onOrderCreated) onOrderCreated(res.data);
+      }
     } catch (err) {
       console.error('Direct order error:', err);
       toast.error('Failed to submit direct order: ' + (err.response?.data?.error || err.message));
@@ -1220,10 +1253,10 @@ export default function POSTerminal({
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tileFree}`}
                             onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`${formatTableName(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
+                            title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
                           >
                             <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                            <span className={styles.tileName}>{formatTableName(tbl.tableNumber)}</span>
+                            <span className={styles.tileName}>{formatTableOnlyNumber(tbl.tableNumber)}</span>
                             <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
                           </div>
                         );
@@ -1239,17 +1272,17 @@ export default function POSTerminal({
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tilePaid}`}
                             onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`${formatTableName(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
+                            title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
                           >
                             <div className={styles.tileTopMeta}>
                               <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
                             </div>
                             <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                              {custName || formatTableName(tbl.tableNumber)}
+                              {custName || formatTableOnlyNumber(tbl.tableNumber)}
                             </span>
                             {custName && (
                               <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
-                                Table {tbl.tableNumber}
+                                {formatTableOnlyNumber(tbl.tableNumber)}
                               </span>
                             )}
                             <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
@@ -1274,7 +1307,7 @@ export default function POSTerminal({
                                 gap: '4px',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                               }}
-                              title={`Click to clear and free Table ${tbl.tableNumber}`}
+                              title={`Click to clear and free Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
                             >
                               <CheckCircle2 size={12} /> Clear Table
                             </button>
@@ -1288,17 +1321,17 @@ export default function POSTerminal({
                           key={tbl._id || tbl.tableNumber}
                           className={`${styles.tableTile} ${styles.tileOccupied}`}
                           onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                          title={`${formatTableName(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
+                          title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
                         >
                           <div className={styles.tileTopMeta}>
                             <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
                           </div>
                           <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                            {custName || `Table ${tbl.tableNumber}`}
+                            {custName || formatTableOnlyNumber(tbl.tableNumber)}
                           </span>
                           {custName && (
                             <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
-                              Table {tbl.tableNumber}
+                              {formatTableOnlyNumber(tbl.tableNumber)}
                             </span>
                           )}
                           <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
@@ -1576,7 +1609,7 @@ export default function POSTerminal({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <h4 className={styles.drawerTitle} style={{ margin: 0 }}>
-                        {tableNumber === 'Walk-in' ? 'Walk-in Order Slip' : `${formatTableName(tableNumber)} Order Slip`}
+                        {tableNumber === 'Walk-in' ? 'Walk-in' : `Table ${formatTableOnlyNumber(tableNumber)}`}
                       </h4>
                       {mergedTables.map(mTable => (
                         <span
@@ -1594,7 +1627,7 @@ export default function POSTerminal({
                             fontWeight: '800'
                           }}
                         >
-                          + Table {mTable}
+                          + Table {formatTableOnlyNumber(mTable)}
                           <button
                             type="button"
                             onClick={() => setMergedTables(prev => prev.filter(t => t !== mTable))}
@@ -1626,11 +1659,6 @@ export default function POSTerminal({
                           <Plus size={11} /> Merge
                         </button>
                       )}
-                      {runningOrdersTotal > 0 && (
-                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                          ● Active (₹{formatAmount(runningOrdersTotal)})
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1650,7 +1678,7 @@ export default function POSTerminal({
                 <div className={styles.customerInputs}>
                   <input
                     type="text"
-                    placeholder="Guest Name (Optional)"
+                    placeholder="Guest Name"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className={styles.inputField}
@@ -1659,7 +1687,7 @@ export default function POSTerminal({
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    placeholder="Phone Number (Optional)"
+                    placeholder="Phone Number"
                     value={customerPhone}
                     onKeyDown={(e) => {
                       if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
@@ -1874,7 +1902,7 @@ export default function POSTerminal({
                 {cart.length > 0 ? (
                   <div style={{ marginTop: currentTableOrders.length > 0 ? '10px' : '0' }}>
                     <div className={styles.draftSectionHeader}>
-                      <span>NEW ORDER (DRAFT) ({cart.length})</span>
+                      <span>{currentTableOrders.length > 0 ? `ROUND ${currentTableOrders.length + 1} (DRAFT)` : 'NEW ORDER (DRAFT)'} ({cart.length})</span>
                       <span>₹{formatAmount(draftCartTotal)}</span>
                     </div>
 
@@ -1898,32 +1926,13 @@ export default function POSTerminal({
                       ))}
                     </div>
                   </div>
-                ) : currentTableOrders.length > 0 ? (
-                  <div style={{
-                    marginTop: '8px',
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    border: '1.5px dashed #cbd5e1',
-                    background: '#f8fafc',
-                    textAlign: 'center',
-                    color: '#64748b',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}>
-                    <Plus size={13} color="#2563eb" />
-                    <span>Click dishes on left to add next round</span>
-                  </div>
-                ) : (
+                ) : currentTableOrders.length === 0 ? (
                   <div className={styles.emptyCartPlaceholder}>
                     <ShoppingCart size={24} style={{ color: '#cbd5e1', marginBottom: 6 }} />
                     <p style={{ margin: 0, fontWeight: 700, color: '#475569' }}>Order Slip is Empty</p>
                     <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>Click dishes on the menu to take order</span>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Bottom Block: Payment Mode, Total & Action Buttons (Pinned Bottom) */}
@@ -1987,12 +1996,20 @@ export default function POSTerminal({
                             </button>
                           )}
 
-                          {/* 3. Pay Order: Shown ONLY AFTER order is sent to kitchen or served from counter */}
-                          {hasActiveOrders && (
+                          {/* 3. Pay Order: Available whenever active orders exist OR draft items exist */}
+                          {(hasActiveOrders || hasDraftItems) && (
                             <button
                               type="button"
                               className={styles.paidOrderBtn}
-                              onClick={() => {
+                              onClick={async () => {
+                                if (!hasActiveOrders && hasDraftItems) {
+                                  // Auto-serve draft items and open payment dialog
+                                  await handleDirectOrder();
+                                  setKhataPaidAmount('0');
+                                  setKhataBorrowAmount(0);
+                                  setShowPayItemsModal(true);
+                                  return;
+                                }
                                 if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
                                   toast.error('All active items on this table are already paid!');
                                   return;
@@ -2001,14 +2018,16 @@ export default function POSTerminal({
                                 setKhataBorrowAmount(0);
                                 setShowPayItemsModal(true);
                               }}
-                              disabled={isSubmittingItemPay || (selectedItemsSummary.count === 0 && balanceDue <= 0)}
+                              disabled={isSubmittingItemPay || isSubmittingDirect || (!hasDraftItems && selectedItemsSummary.count === 0 && balanceDue <= 0)}
                               title="Mark selected items (or all unpaid items) as Paid"
                             >
                               <CreditCard size={14} />
                               <span>
                                 {selectedItemsSummary.count > 0
                                   ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
-                                  : (balanceDue > 0 ? `Pay (₹${formatAmount(balanceDue)})` : 'Paid Order')}
+                                  : (balanceDue > 0
+                                      ? `Pay (₹${formatAmount(balanceDue)})`
+                                      : (hasDraftItems ? `Quick Pay (₹${formatAmount(draftCartTotal)})` : 'Paid Order'))}
                               </span>
                             </button>
                           )}
@@ -2029,6 +2048,90 @@ export default function POSTerminal({
                                   : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
                               </span>
                             </button>
+                          )}
+
+                          {/* Quick Thermal Print Bill & WhatsApp E-Bill */}
+                          {hasActiveOrders && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', width: '100%', marginTop: '6px' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const billOrder = {
+                                    orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+                                    tableNumber,
+                                    customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
+                                    customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+                                    items: [
+                                      ...currentTableOrders.flatMap(o => o.items || []),
+                                      ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+                                    ],
+                                    subTotal: grandTotal,
+                                    totalAmount: grandTotal,
+                                    paymentMethod: paymentMethod || 'Cash',
+                                    paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
+                                  };
+                                  printOrderBill(billOrder, tenantInfo?.name);
+                                }}
+                                style={{
+                                  padding: '7px 8px',
+                                  borderRadius: '8px',
+                                  border: '1px solid #cbd5e1',
+                                  background: '#ffffff',
+                                  color: '#334155',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Print 80mm Thermal Receipt"
+                              >
+                                <Printer size={13} />
+                                <span>Print Bill</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const billOrder = {
+                                    orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+                                    tableNumber,
+                                    customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
+                                    customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+                                    items: [
+                                      ...currentTableOrders.flatMap(o => o.items || []),
+                                      ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+                                    ],
+                                    subTotal: grandTotal,
+                                    totalAmount: grandTotal,
+                                    paymentMethod: paymentMethod || 'Cash',
+                                    paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
+                                  };
+                                  openWhatsappBill(billOrder, tenantInfo, customerPhone);
+                                  toast.success('WhatsApp E-Bill opened!');
+                                }}
+                                style={{
+                                  padding: '7px 8px',
+                                  borderRadius: '8px',
+                                  border: '1px solid #bbf7d0',
+                                  background: '#f0fdf4',
+                                  color: '#15803d',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Send WhatsApp Digital E-Bill"
+                              >
+                                <Smartphone size={13} />
+                                <span>WhatsApp E-Bill</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -2068,12 +2171,22 @@ export default function POSTerminal({
             const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
             try {
-              // Extract items from table orders to record in Khata
-              const khataItems = currentTableOrders.flatMap(o => (o.items || []).map(it => ({
-                name: it.name || it.item?.name || 'Dish',
-                quantity: it.quantity || 1,
-                price: Number(it.price || it.item?.price) || 0
-              })));
+              // Check how many unpaid items exist on table
+              const allUnpaidItems = currentTableOrders.flatMap(o => (o.items || []).filter(it => !it.isPaid));
+              const isPartialKhata = selectedItemsSummary.count > 0 && selectedItemsSummary.count < allUnpaidItems.length;
+
+              // Extract items to record in Khata (only selected items if selection exists, otherwise all unpaid)
+              const khataItems = selectedItemsSummary.count > 0
+                ? selectedItemsSummary.itemsList.map(it => ({
+                    name: it.name || 'Dish',
+                    quantity: it.quantity || 1,
+                    price: Number(it.price) || 0
+                  }))
+                : allUnpaidItems.map(it => ({
+                    name: it.name || it.item?.name || 'Dish',
+                    quantity: it.quantity || 1,
+                    price: Number(it.price || it.item?.price) || 0
+                  }));
 
               // 1. Record directly in Khata / Customer Credit Ledger
               await axios.post(`${API}/khata`, {
@@ -2083,49 +2196,80 @@ export default function POSTerminal({
                 totalBill: tenderAmount,
                 paidAmount: paidNowNum,
                 borrowAmount: borrowDueNum,
-                notes: khataNotes || `Table ${tableNumber} order`,
+                notes: khataNotes || (isPartialKhata ? `Table ${tableNumber} partial dishes (${selectedItemsSummary.count})` : `Table ${tableNumber} order`),
                 items: khataItems
               }, {
                 headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
               });
 
-              // 2. Settle orders on this table & free table
-              const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
-              if (tableNumber !== 'Walk-in') {
+              if (isPartialKhata) {
+                // PARTIAL ITEM SETTLEMENT: Only mark selected items as paid/khata, DO NOT CLEAR OR FREE TABLE
+                const itemsToPay = selectedItemsSummary.itemsList.map(it => ({
+                  orderId: it.orderId,
+                  itemIndex: it.itemIndex
+                }));
+
                 await axios.put(
-                  `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
+                  `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/pay-items`,
                   {
                     paymentMethod: 'Khata / Borrow',
-                    paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'),
-                    tenantId: effectiveTenantId,
-                    mergedTables: allSettleTables,
+                    itemsToPay,
+                    payAll: false,
                     actualAmount: paidNowNum,
-                    settledAmount: paidNowNum
+                    settledAmount: paidNowNum,
+                    tenantId: effectiveTenantId
                   },
                   { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
                 );
+
+                toast.success(`✓ Recorded ₹${tenderAmount} in Khata (${effName})! ${allUnpaidItems.length - selectedItemsSummary.count} unpaid item(s) remain on Table ${tableNumber}.`);
+                setShowPayItemsModal(false);
+                setSelectedItemKeys(new Set());
+                setKhataPaidAmount('0');
+                setKhataBorrowAmount(0);
+                setKhataNotes('');
+
+                if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
+                if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
+              } else {
+                // FULL TABLE SETTLEMENT: All items are covered, settle orders on this table & free table
+                const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
+                if (tableNumber !== 'Walk-in') {
+                  await axios.put(
+                    `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
+                    {
+                      paymentMethod: 'Khata / Borrow',
+                      paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'),
+                      tenantId: effectiveTenantId,
+                      mergedTables: allSettleTables,
+                      actualAmount: paidNowNum,
+                      settledAmount: paidNowNum
+                    },
+                    { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
+                  );
+                }
+
+                toast.success(`✓ Khata recorded for ${effName} (Paid: ₹${paidNowNum}, Borrow: ₹${borrowDueNum}). Table ${tableNumber} cleared!`);
+                setCart([]);
+                setCustomerName('');
+                setCustomerPhone('');
+                setActualAmountReceived('');
+                setKhataPaidAmount('0');
+                setKhataBorrowAmount(0);
+                setKhataNotes('');
+                setSelectedItemKeys(new Set());
+                setMergedTables([]);
+                setShowPayItemsModal(false);
+
+                allSettleTables.forEach(tNum => {
+                  if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+                  if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+                  if (onSettleTable) onSettleTable(tNum);
+                });
+
+                // Return to table matrix view - table is completely clear
+                setViewMode('tables');
               }
-
-              toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNowNum}, Borrow: ₹${borrowDueNum}). Table ${tableNumber} cleared!`);
-              setCart([]);
-              setCustomerName('');
-              setCustomerPhone('');
-              setActualAmountReceived('');
-              setKhataPaidAmount('0');
-              setKhataBorrowAmount(0);
-              setKhataNotes('');
-              setSelectedItemKeys(new Set());
-              setMergedTables([]);
-              setShowPayItemsModal(false);
-
-              allSettleTables.forEach(tNum => {
-                if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
-                if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
-                if (onSettleTable) onSettleTable(tNum);
-              });
-
-              // Return to table matrix view - table is completely clear
-              setViewMode('tables');
             } catch (err) {
               console.error('Khata settlement error:', err);
               toast.error('Failed to record Khata: ' + (err.response?.data?.error || err.message));

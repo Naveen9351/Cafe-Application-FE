@@ -15,6 +15,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CRMLoyalty.module.css';
 import { API_URL as API } from '../../config/api';
+import { formatTableBadge } from '../common/TableBadge';
 
 export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [customers, setCustomers] = useState([]);
@@ -66,6 +67,28 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   // Notes State per customer
   const [customerNotes, setCustomerNotes] = useState({});
   const [activeNoteText, setActiveNoteText] = useState('');
+
+  // Multi-select & WhatsApp Offer / Festival Campaign State
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [selectedCampaignTemplate, setSelectedCampaignTemplate] = useState('diwali');
+  const [customCampaignMessage, setCustomCampaignMessage] = useState('');
+  const [broadcastQueueIndex, setBroadcastQueueIndex] = useState(0);
+  const [sentBroadcastIds, setSentBroadcastIds] = useState(new Set());
+  const [tenantDetails, setTenantDetails] = useState(null);
+
+  useEffect(() => {
+    const fetchTenant = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_URL}/tenants/me`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.data) setTenantDetails(res.data);
+      } catch {}
+    };
+    fetchTenant();
+  }, []);
 
   useEffect(() => {
     fetchCustomers();
@@ -653,6 +676,95 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     toast.success("Customer CRM directory downloaded as Excel (.xlsx)!");
   };
 
+  // WhatsApp Festival & Offer Campaign Templates
+  const CAMPAIGN_TEMPLATES = [
+    {
+      id: 'diwali',
+      title: '🪔 Diwali Special',
+      icon: '✨',
+      message: '✨ *Happy Diwali from {cafe}!* 🪔\n\nCelebrate the festival of lights with your friends & family! Enjoy flat *20% OFF* on all meals, beverages & platters.\n\nUse Code: *DIWALI20*\n📍 Visit us today or order at our cafe counter! ☕🍕'
+    },
+    {
+      id: 'holi',
+      title: '🎨 Holi Dhamaka',
+      icon: '🌈',
+      message: '🎨 *Happy Holi from {cafe}!* 🌈\n\nSplash into celebration with delightful treats! Enjoy a *Complimentary Thandai / Dessert* on every bill above ₹299.\n\nUse Code: *HOLIJOY*\nValid this entire festive week! See you soon. 🧁'
+    },
+    {
+      id: 'newyear',
+      title: '🎉 New Year & Festive',
+      icon: '🎆',
+      message: '🎉 *Celebrate the New Season with {cafe}!* 🎆\n\nRing in the celebrations with mouth-watering food & drinks. Get *Flat 15% OFF* on your celebration table!\n\nUse Code: *CELEBRATE15*\nBook your table or dine with us now!'
+    },
+    {
+      id: 'weekend',
+      title: '☕ Weekend BOGO',
+      icon: '🥪',
+      message: '☕ *Weekend Delight at {cafe}!* 🥪\n\nBuy 1 Get 1 FREE on all Artisan Coffees and Hot Snacks this Saturday & Sunday!\n\nTreat yourself and a friend! Show this message at counter.'
+    },
+    {
+      id: 'vip',
+      title: '👑 VIP Loyalty Perk',
+      icon: '⭐',
+      message: '👑 *Hello {name}!* ✨\n\nAs one of our most valued VIP diners at {cafe}, here is an exclusive *15% VIP Reward* on your next visit!\n\nUse Code: *VIP15*\nWe look forward to serving you again!'
+    },
+    {
+      id: 'miss_you',
+      title: '💖 We Miss You',
+      icon: '🍰',
+      message: '🌟 *Hey {name}!* We miss having you around at {cafe}!\n\nDrop by this week and get a *Free Chef\'s Special Beverage / Snack* with your meal!\n\nShow this code at counter: *MISSU*'
+    },
+    {
+      id: 'custom',
+      title: '✍️ Custom Offer',
+      icon: '💬',
+      message: '✨ *Special Exclusive Offer from {cafe} for {name}!* ✨\n\nEnjoy fresh delicious bites and warm hospitality today at our cafe. We look forward to welcoming you!'
+    }
+  ];
+
+  const cafeBrandName = tenantDetails?.name || 'Dineviq Cafe';
+
+  const getFormattedCampaignMessage = (templateId, cust) => {
+    const tmpl = CAMPAIGN_TEMPLATES.find(t => t.id === templateId) || CAMPAIGN_TEMPLATES[0];
+    const templateText = templateId === 'custom' && customCampaignMessage.trim() ? customCampaignMessage : tmpl.message;
+    const name = cust?.name || 'Valued Guest';
+    return templateText
+      .replace(/{name}/g, name)
+      .replace(/{customer_name}/g, name)
+      .replace(/{cafe}/g, cafeBrandName)
+      .replace(/{cafe_name}/g, cafeBrandName);
+  };
+
+  const getCustomerWhatsappUrl = (cust, templateId = selectedCampaignTemplate) => {
+    if (!cust?.phone || cust.phone === 'Not Provided') return '#';
+    const cleanPhone = cust.phone.replace(/\D/g, '');
+    if (!cleanPhone) return '#';
+    const msg = getFormattedCampaignMessage(templateId, cust);
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`;
+  };
+
+  const toggleCustomerSelection = (cust) => {
+    const id = cust._id || cust.phone;
+    if (!id) return;
+    setSelectedCustomerIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const allFilteredIds = filteredCustomers.map(c => c._id || c.phone).filter(Boolean);
+    if (selectedCustomerIds.length === allFilteredIds.length) {
+      setSelectedCustomerIds([]);
+    } else {
+      setSelectedCustomerIds(allFilteredIds);
+    }
+  };
+
+  const selectedCustomersList = useMemo(() => {
+    return customers.filter(c => selectedCustomerIds.includes(c._id || c.phone));
+  }, [customers, selectedCustomerIds]);
+
   // WhatsApp Promo Link Generator
   const getWhatsAppPromoUrl = (phone, promoType = 'vip10') => {
     if (!phone || phone === 'Not Provided') return '#';
@@ -661,11 +773,11 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
     let message = '';
     if (promoType === 'vip10') {
-      message = `Hello ${name}! ✨ As a valued VIP guest at our cafe, here's an exclusive 10% discount on your next dine-in visit! Use code: *VIP10*. See you soon! ☕🍕`;
+      message = `Hello ${name}! ✨ As a valued VIP guest at ${cafeBrandName}, here's an exclusive 10% discount on your next dine-in visit! Use code: *VIP10*. See you soon! ☕🍕`;
     } else if (promoType === 'feedback') {
-      message = `Hello ${name}! 🌟 Thank you for dining with us. We hope you loved the food! We would love to hear your feedback on your experience. 💬`;
+      message = `Hello ${name}! 🌟 Thank you for dining with us at ${cafeBrandName}. We hope you loved the food! We would love to hear your feedback on your experience. 💬`;
     } else if (promoType === 'miss_you') {
-      message = `Hey ${name}! 🎁 We miss having you around! Visit us this week and get a complimentary dessert/beverage on your order! ☕🍰`;
+      message = `Hey ${name}! 🎁 We miss having you around at ${cafeBrandName}! Visit us this week and get a complimentary dessert/beverage on your order! ☕🍰`;
     }
 
     return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
@@ -731,10 +843,15 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         const bAov = Number(b.averageOrderValue || b.aov || (bSpend / bVisits));
 
         if (sortBy === 'highest_spend') return bSpend - aSpend;
+        if (sortBy === 'lowest_spend') return aSpend - bSpend;
         if (sortBy === 'highest_aov') return bAov - aAov;
+        if (sortBy === 'lowest_aov') return aAov - bAov;
         if (sortBy === 'recent_visit') return new Date(b.lastVisit || 0) - new Date(a.lastVisit || 0);
+        if (sortBy === 'oldest_visit') return new Date(a.lastVisit || 0) - new Date(b.lastVisit || 0);
         if (sortBy === 'total_visits') return bVisits - aVisits;
+        if (sortBy === 'least_visits') return aVisits - bVisits;
         if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+        if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '');
         return 0;
       });
   }, [customers, activeTab, searchQuery, verificationFilter, sortBy]);
@@ -765,6 +882,20 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     setSearchQuery('');
     setVerificationFilter('all');
     setSortBy('highest_spend');
+  };
+
+  const handleHeaderSort = (col) => {
+    if (col === 'customer') {
+      setSortBy(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc');
+    } else if (col === 'lastVisit') {
+      setSortBy(prev => prev === 'recent_visit' ? 'oldest_visit' : 'recent_visit');
+    } else if (col === 'visits') {
+      setSortBy(prev => prev === 'total_visits' ? 'least_visits' : 'total_visits');
+    } else if (col === 'spend') {
+      setSortBy(prev => prev === 'highest_spend' ? 'lowest_spend' : 'highest_spend');
+    } else if (col === 'aov') {
+      setSortBy(prev => prev === 'highest_aov' ? 'lowest_aov' : 'highest_aov');
+    }
   };
 
   // Ellipsis Pagination Generator Helper
@@ -945,13 +1076,57 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th className={styles.th}>Customer</th>
+                    <th className={styles.th} style={{ width: '40px', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={filteredCustomers.length > 0 && selectedCustomerIds.length === filteredCustomers.length}
+                        onChange={toggleSelectAll}
+                        title="Select All Filtered Customers"
+                        style={{ cursor: 'pointer', transform: 'scale(1.15)' }}
+                      />
+                    </th>
+                    <th
+                      className={styles.th}
+                      onClick={() => handleHeaderSort('customer')}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      title="Click to sort alphabetically by customer name"
+                    >
+                      Customer {sortBy === 'name_asc' ? '▲' : sortBy === 'name_desc' ? '▼' : ''}
+                    </th>
                     <th className={styles.th}>Mobile Number</th>
                     <th className={styles.th}>Status</th>
-                    <th className={styles.th}>Last Visit</th>
-                    <th className={styles.th} style={{ textAlign: 'center' }}>Visits</th>
-                    <th className={styles.th}>Lifetime Spend</th>
-                    <th className={styles.th}>AOV</th>
+                    <th
+                      className={styles.th}
+                      onClick={() => handleHeaderSort('lastVisit')}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      title="Click to sort by date of last visit"
+                    >
+                      Last Visit {sortBy === 'recent_visit' ? '▼' : sortBy === 'oldest_visit' ? '▲' : ''}
+                    </th>
+                    <th
+                      className={styles.th}
+                      onClick={() => handleHeaderSort('visits')}
+                      style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      title="Click to sort by total visits"
+                    >
+                      Visits {sortBy === 'total_visits' ? '▼' : sortBy === 'least_visits' ? '▲' : ''}
+                    </th>
+                    <th
+                      className={styles.th}
+                      onClick={() => handleHeaderSort('spend')}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      title="Click to sort by lifetime revenue spend"
+                    >
+                      Lifetime Spend {sortBy === 'highest_spend' ? '▼' : sortBy === 'lowest_spend' ? '▲' : ''}
+                    </th>
+                    <th
+                      className={styles.th}
+                      onClick={() => handleHeaderSort('aov')}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      title="Click to sort by Average Order Value"
+                    >
+                      AOV {sortBy === 'highest_aov' ? '▼' : sortBy === 'lowest_aov' ? '▲' : ''}
+                    </th>
                     <th className={styles.th} style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -959,6 +1134,9 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   {isLoading ? (
                     Array.from({ length: 7 }).map((_, sIdx) => (
                       <tr key={sIdx} className={styles.skeletonRow}>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonLine} style={{ width: '16px', height: '16px', margin: '0 auto', borderRadius: '4px' }} />
+                        </td>
                         <td className={styles.skeletonCell}>
                           <div className={styles.skeletonLine} style={{ width: '85px', height: '13px' }} />
                         </td>
@@ -987,7 +1165,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                     ))
                   ) : filteredCustomers.length === 0 ? (
                     <tr>
-                      <td colSpan={8}>
+                      <td colSpan={9}>
                         <div className={styles.emptyState}>
                           <Users size={34} strokeWidth={1.5} />
                           <p style={{ margin: 0, fontWeight: '400', color: '#64748b' }}>
@@ -1012,6 +1190,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                         : (Number(cust.totalVisits) || 1);
                       const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
                       const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
+                      const isChecked = selectedCustomerIds.includes(cust._id || cust.phone);
 
                       return (
                         <motion.tr
@@ -1019,6 +1198,16 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                           className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
                           onClick={() => setSelectedCustomer(cust)}
                         >
+                          {/* Selection Checkbox */}
+                          <td className={styles.td} style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleCustomerSelection(cust)}
+                              style={{ cursor: 'pointer', transform: 'scale(1.15)' }}
+                            />
+                          </td>
+
                           {/* Customer Identity */}
                           <td className={styles.td}>
                             <div className={styles.nameRow}>
@@ -1653,6 +1842,41 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       );
                     })()}
 
+                    {/* 🎁 Instant WhatsApp Festival & Offer Section */}
+                    <div style={{ margin: '14px 0', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Sparkles size={14} color="#16a34a" /> Instant WhatsApp Offer & Festival Send
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        {CAMPAIGN_TEMPLATES.slice(0, 6).map(t => (
+                          <a
+                            key={t.id}
+                            href={getCustomerWhatsappUrl(selectedCustomer, t.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              background: '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: '#334155',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <span>{t.icon}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* 📅 Date-Grouped Order History Timeline */}
                     <div className={styles.timelineSection}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1700,7 +1924,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                                           Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
                                         </span>
                                         <span className={styles.tableTag}>
-                                          {ord.tableNumber ? `Table ${ord.tableNumber}` : (ord.orderType || 'Dine-In')}
+                                          {ord.tableNumber ? formatTableBadge(ord.tableNumber) : (ord.orderType || 'Dine-In')}
                                         </span>
                                       </div>
                                       <span
@@ -1881,6 +2105,233 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                     >
                       Done
                     </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* 📢 Floating Bulk Action Bar */}
+          {selectedCustomerIds.length > 0 && (
+            <div className={styles.floatingActionBar}>
+              <span>📢 <strong>{selectedCustomerIds.length}</strong> customer{selectedCustomerIds.length > 1 ? 's' : ''} selected</span>
+              <button
+                type="button"
+                className={styles.floatingActionBtn}
+                onClick={() => {
+                  setBroadcastQueueIndex(0);
+                  setIsCampaignModalOpen(true);
+                }}
+              >
+                <Send size={14} /> Send WhatsApp Offer / Festival
+              </button>
+              <button
+                type="button"
+                className={styles.floatingClearBtn}
+                onClick={() => setSelectedCustomerIds([])}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {/* 🪔 WhatsApp Offer & Festival Campaign Modal */}
+          <AnimatePresence>
+            {isCampaignModalOpen && (
+              <div className={styles.modalOverlay} onClick={() => setIsCampaignModalOpen(false)}>
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                  className={styles.campaignModal}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Modal Header */}
+                  <div className={styles.modalHeader}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Sparkles size={18} color="#16a34a" />
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                        WhatsApp Festival & Offer Campaign
+                      </h3>
+                    </div>
+                    <button onClick={() => setIsCampaignModalOpen(false)} className={styles.closeBtn}>
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div style={{ padding: '20px', overflowY: 'auto' }}>
+                    {/* Target Audience Pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 600 }}>Target Audience:</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '2px 10px', borderRadius: '20px' }}>
+                        {selectedCustomersList.length} Selected Customer{selectedCustomersList.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    {/* Template Selector */}
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>
+                        Select Festival / Offer Template:
+                      </label>
+                      <div className={styles.templatePillGrid}>
+                        {CAMPAIGN_TEMPLATES.map(t => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={`${styles.templatePill} ${selectedCampaignTemplate === t.id ? styles.templatePillActive : ''}`}
+                            onClick={() => setSelectedCampaignTemplate(t.id)}
+                          >
+                            <span>{t.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Message Editor if Custom Template */}
+                    {selectedCampaignTemplate === 'custom' && (
+                      <div style={{ marginBottom: 14 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                          Custom Message (Use placeholders: {'{name}'}, {'{cafe}'}):
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={customCampaignMessage}
+                          onChange={(e) => setCustomCampaignMessage(e.target.value)}
+                          placeholder="Write your custom festival greetings or promotional discount..."
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '0.82rem',
+                            outline: 'none',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Live WhatsApp Preview */}
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>
+                      WhatsApp Message Preview:
+                    </label>
+                    <div className={styles.whatsappPreviewBox}>
+                      <div className={styles.whatsappBubble}>
+                        {getFormattedCampaignMessage(
+                          selectedCampaignTemplate,
+                          selectedCustomersList[broadcastQueueIndex] || selectedCustomersList[0] || { name: 'Rahul' }
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'right', marginTop: 4 }}>
+                        12:30 PM • WhatsApp Preview
+                      </div>
+                    </div>
+
+                    {/* Broadcast Queue & Send Controls */}
+                    {selectedCustomersList.length > 0 && (
+                      <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: '0.8rem' }}>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                            Customer Queue ({broadcastQueueIndex + 1} of {selectedCustomersList.length}):
+                          </span>
+                          <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                            {sentBroadcastIds.size} Sent
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className={styles.queueProgressBar}>
+                          <div
+                            className={styles.queueProgressFill}
+                            style={{ width: `${Math.round(((broadcastQueueIndex) / selectedCustomersList.length) * 100)}%` }}
+                          />
+                        </div>
+
+                        {(() => {
+                          const currentCust = selectedCustomersList[broadcastQueueIndex] || selectedCustomersList[0];
+                          const hasPhone = currentCust?.phone && currentCust.phone !== 'Not Provided';
+                          const isSent = currentCust ? sentBroadcastIds.has(currentCust._id || currentCust.phone) : false;
+
+                          return (
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <div>
+                                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                                    {currentCust?.name || 'Guest Diner'}
+                                  </div>
+                                  <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                    📞 {currentCust?.phone || 'No phone number'}
+                                  </div>
+                                </div>
+                                {isSent && (
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '12px' }}>
+                                    ✅ Sent
+                                  </span>
+                                )}
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  disabled={!hasPhone}
+                                  onClick={() => {
+                                    const url = getCustomerWhatsappUrl(currentCust, selectedCampaignTemplate);
+                                    if (url && url !== '#') {
+                                      window.open(url, '_blank', 'noopener,noreferrer');
+                                      setSentBroadcastIds(prev => new Set([...prev, currentCust._id || currentCust.phone]));
+                                      toast.success(`WhatsApp opened for ${currentCust.name || 'guest'}!`);
+                                      if (broadcastQueueIndex < selectedCustomersList.length - 1) {
+                                        setBroadcastQueueIndex(i => i + 1);
+                                      }
+                                    }
+                                  }}
+                                  style={{
+                                    flex: 2,
+                                    padding: '10px 14px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: '#16a34a',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    fontSize: '0.85rem',
+                                    cursor: hasPhone ? 'pointer' : 'not-allowed',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px'
+                                  }}
+                                >
+                                  <MessageSquare size={16} />
+                                  {selectedCustomersList.length > 1
+                                    ? `Send to ${currentCust?.name?.split(' ')[0] || 'Guest'} & Next ➡️`
+                                    : `Send on WhatsApp 💬`}
+                                </button>
+
+                                {selectedCustomersList.length > 1 && broadcastQueueIndex < selectedCustomersList.length - 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setBroadcastQueueIndex(i => i + 1)}
+                                    style={{
+                                      flex: 1,
+                                      padding: '10px 12px',
+                                      borderRadius: '8px',
+                                      border: '1px solid #cbd5e1',
+                                      background: '#ffffff',
+                                      color: '#475569',
+                                      fontWeight: 700,
+                                      fontSize: '0.82rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Skip ⏩
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>

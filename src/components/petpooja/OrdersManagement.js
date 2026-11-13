@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersManagement.module.css';
 import { API_URL as API } from '../../config/api';
 import { printOrderBill } from '../../utils/billPrinter';
+import { getWhatsappBillUrl as generateWhatsappBillUrl } from '../../utils/whatsappBillSender';
 
 export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus, onNavigateTab }) {
   const [localOrders, setLocalOrders] = useState([]);
@@ -233,18 +234,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
   // WhatsApp Bill Message Generator
   const getWhatsAppBillUrl = (order) => {
-    const phone = order.customerPhone || order.customerDetails?.phone;
-    if (!phone) return '#';
-    const cleanPhone = String(phone).replace(/\D/g, '');
-    const name = order.customerName || order.customerDetails?.name || 'Valued Guest';
-    const orderNum = order.orderNumber || order._id?.slice(-5);
-    const total = formatCurrency(order.totalAmount || order.finalAmount || order.total || 0);
-
-    const itemsSummary = (order.items || []).map(it => `• ${it.quantity || 1}x ${it.name || it.item?.name || 'Item'} (₹${it.price || 0})`).join('\n');
-
-    const message = `Hello ${name}! ✨\n\nThank you for dining with us! Here is your bill receipt for Order *#${orderNum}*:\n\n${itemsSummary}\n\n*Grand Total: ${total}*\nPayment Status: *${(order.paymentStatus || 'Paid').toUpperCase()}*\n\nHave a wonderful day! ☕🍕`;
-
-    return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
+    return generateWhatsappBillUrl(order);
   };
 
   // Computed Metrics (Harmonized with DB across all pagination pages)

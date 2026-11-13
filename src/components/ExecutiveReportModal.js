@@ -20,6 +20,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
 import styles from './ExecutiveReportModal.module.css';
+import { formatTableBadge } from './common/TableBadge';
 
 // Client-side dynamic AI Strategic Insights Generator
 const generateClientSideAiInsights = (metrics, businessName, timeFilter) => {
@@ -571,7 +572,7 @@ export default function ExecutiveReportModal({ isOpen, onClose, timeFilter = 'al
                     return (
                       <tr key={ord._id || idx}>
                         <td style={{ fontWeight: 600, color: '#4f46e5' }}>#{orderNum}</td>
-                        <td style={{ fontWeight: 500 }}>{ord.tableNumber ? `Table ${ord.tableNumber}` : 'Takeaway / POS'}</td>
+                        <td style={{ fontWeight: 500 }}>{ord.tableNumber ? formatTableBadge(ord.tableNumber) : 'Takeaway / POS'}</td>
                         <td style={{ color: '#475569' }}>{ord.customerName || ord.customerDetails?.name || 'Walk-in Guest'}</td>
                         <td>
                           <span style={{ fontSize: '0.72rem', fontWeight: 600, color: ord.paymentMethod === 'Cash' ? '#16a34a' : '#2563eb' }}>

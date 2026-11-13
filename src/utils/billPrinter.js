@@ -8,7 +8,10 @@ export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
   if (!order) return;
 
   const orderNum = order.orderNumber || order._id?.slice(-5) || 'ORD';
-  const table = order.tableNumber || order.table || 'Counter Walk-in';
+  const rawTable = order.tableNumber || order.table || 'Counter Walk-in';
+  const table = (!rawTable || rawTable === 'Counter Walk-in' || String(rawTable).toLowerCase() === 'walk-in')
+    ? 'Counter Walk-in'
+    : `T ${String(rawTable).replace(/^table[\s-_]*/i, '').replace(/^t\s+/i, '').trim()}`;
   const channel = (order.orderType || order.channel || 'dine-in').toUpperCase();
   const dateStr = order.createdAt 
     ? new Date(order.createdAt).toLocaleString('en-IN', {

@@ -84,6 +84,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     return groups;
   }, [availableMenu]);
 
+  // Fast dish search in modal
+  const [dishSearchQuery, setDishSearchQuery] = useState('');
+  const filteredSearchDishes = useMemo(() => {
+    if (!dishSearchQuery || !dishSearchQuery.trim()) return [];
+    const q = dishSearchQuery.toLowerCase().trim();
+    return availableMenu.filter(m =>
+      (m.name && m.name.toLowerCase().includes(q)) ||
+      (m.category && m.category.toLowerCase().includes(q))
+    ).slice(0, 10);
+  }, [availableMenu, dishSearchQuery]);
+
   // Pagination states
   const [customerPage, setCustomerPage] = useState(1);
   const CUSTOMERS_PER_PAGE = 8;
@@ -274,6 +285,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     setManualTotalBill('');
     setUseManualTotal(false);
     setNewNotes('');
+    setDishSearchQuery('');
     setShowAddModal(true);
   };
 
@@ -337,9 +349,21 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const handleCreateKhata = async (e) => {
     e.preventDefault();
 
-    const effName = newCustomerName.trim() || 'Walk-in Guest';
+    const isCustomerSelected = selectedCustomerChoice && selectedCustomerChoice !== 'NEW';
+    const hasName = Boolean(newCustomerName && newCustomerName.trim());
+    const hasPhone = Boolean(newCustomerPhone && newCustomerPhone.trim());
+
+    // Validation: Either select an existing customer OR provide customer name OR provide customer phone
+    if (!isCustomerSelected && !hasName && !hasPhone) {
+      alert(isHindi
+        ? 'कृपया मौजूदा ग्राहक चुनें या ग्राहक का नाम / फ़ोन नंबर दर्ज करें (इनमें से एक अनिवार्य है)।'
+        : 'Please select an existing customer or enter customer name / phone number (one of them is mandatory).');
+      return;
+    }
+
     const cleanPhone = newCustomerPhone.replace(/[^0-9]/g, '');
     const effPhone = cleanPhone && cleanPhone.length >= 5 ? cleanPhone : (newCustomerPhone.trim() || 'N/A');
+    const effName = newCustomerName.trim() || (effPhone !== 'N/A' ? `Customer (${effPhone})` : 'Khata Customer');
 
     if (effectiveTotalBill <= 0) {
       alert('Please add at least one item or enter a total purchase amount greater than 0.');
@@ -374,6 +398,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       setNewCustomerName('');
       setNewCustomerPhone('');
       setSelectedCustomerChoice('NEW');
+      setDishSearchQuery('');
       setLineItems([{ name: '', quantity: 1, price: '' }]);
       setManualTotalBill('');
       setUseManualTotal(false);
@@ -528,6 +553,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               setManualTotalBill('');
               setUseManualTotal(false);
               setNewNotes('');
+              setDishSearchQuery('');
               setShowAddModal(true);
             }}
             className={styles.addRecordBtn}
@@ -673,7 +699,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <table className={styles.khataTable}>
               <thead>
                 <tr>
-                  <th>{isHindi ? 'ग्राहक विवरण' : 'Customer'}</th>
+                  <th>{isHindi ? 'ग्राहक का नाम' : 'Customer Name'}</th>
+                  <th>{isHindi ? 'मोबाइल नंबर' : 'Mobile Number'}</th>
                   <th>{isHindi ? 'कुल खरीदारी' : 'Total Purchases'}</th>
                   <th>{isHindi ? 'कुल भुगतान' : 'Total Paid'}</th>
                   <th>{isHindi ? 'बकाया उधार' : 'Current Due'}</th>
@@ -685,7 +712,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <tbody>
                 {paginatedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <User size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
                       <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155', display: 'block' }}>
                         {isHindi ? 'कोई ग्राहक खाता नहीं मिला' : 'No Customer Khata Accounts Found'}
@@ -699,15 +726,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   paginatedCustomers.map((cust) => {
                     const hasDue = cust.outstandingBalance > 0;
                     const waLink = getWhatsAppStatementLink(cust);
+                    const cleanPhone = (cust.customerPhone && cust.customerPhone !== 'N/A' && cust.customerPhone !== 'null') ? cust.customerPhone : '';
+                    const cleanName = (cust.customerName && cust.customerName !== 'N/A' && !cust.customerName.startsWith('Customer (')) ? cust.customerName : (cust.customerName || '');
 
                     return (
                       <tr key={cust.customerPhone !== 'N/A' ? cust.customerPhone : cust.customerName}>
-                        {/* Customer Avatar & Name & Phone */}
+                        {/* Customer Name */}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{
-                              width: 36,
-                              height: 36,
+                              width: 32,
+                              height: 32,
                               borderRadius: '50%',
                               background: hasDue ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
                               color: hasDue ? '#dc2626' : '#334155',
@@ -716,21 +745,22 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontWeight: 900,
-                              fontSize: '14px',
-                              flexShrink: 0,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                              fontSize: '13px',
+                              flexShrink: 0
                             }}>
-                              {cust.customerName.charAt(0).toUpperCase()}
+                              {(cleanName || 'G').charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px', lineHeight: 1.2 }}>
-                                {cust.customerName}
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#64748b', marginTop: 2 }}>
-                                📞 {cust.customerPhone}
-                              </div>
-                            </div>
+                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>
+                              {cleanName || '—'}
+                            </span>
                           </div>
+                        </td>
+
+                        {/* Mobile Number */}
+                        <td>
+                          <span style={{ fontSize: '12.5px', color: cleanPhone ? '#334155' : '#94a3b8', fontWeight: 600 }}>
+                            {cleanPhone ? `📞 ${cleanPhone}` : '—'}
+                          </span>
                         </td>
 
                         {/* Total Purchases */}
@@ -921,7 +951,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <table className={styles.khataTable}>
               <thead>
                 <tr>
-                  <th>{isHindi ? 'ग्राहक विवरण' : 'Customer'}</th>
+                  <th>{isHindi ? 'ग्राहक का नाम' : 'Customer Name'}</th>
+                  <th>{isHindi ? 'मोबाइल नंबर' : 'Mobile Number'}</th>
                   <th>{isHindi ? 'व्यंजन / सामान' : 'Items Taken'}</th>
                   <th>{isHindi ? 'कुल बिल' : 'Total Bill'}</th>
                   <th>{isHindi ? 'भुगतान' : 'Paid Now'}</th>
@@ -934,7 +965,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               <tbody>
                 {paginatedTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <Calendar size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
                       <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155', display: 'block' }}>
                         {isHindi ? 'कोई लेन-देन नहीं मिला' : 'No Transactions Recorded'}
@@ -945,15 +976,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   paginatedTransactions.map(rec => {
                     const due = Number(rec.borrowAmount !== undefined ? rec.borrowAmount : (rec.remainingAmount || 0));
                     const isSettled = rec.status === 'settled' || due <= 0;
+                    const cleanPhone = (rec.customerPhone && rec.customerPhone !== 'N/A' && rec.customerPhone !== 'null') ? rec.customerPhone : '';
+                    const cleanName = (rec.customerName && rec.customerName !== 'N/A' && !rec.customerName.startsWith('Customer (')) ? rec.customerName : (rec.customerName || '');
 
                     return (
                       <tr key={rec._id}>
-                        {/* Customer */}
+                        {/* Customer Name */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                             <div style={{
-                              width: 32,
-                              height: 32,
+                              width: 30,
+                              height: 30,
                               borderRadius: '50%',
                               background: '#f1f5f9',
                               color: '#334155',
@@ -964,13 +997,19 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                               fontSize: '12px',
                               flexShrink: 0
                             }}>
-                              {(rec.customerName || 'G').charAt(0).toUpperCase()}
+                              {(cleanName || 'G').charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <strong style={{ display: 'block', color: '#0f172a', fontSize: '13px' }}>{rec.customerName}</strong>
-                              <span style={{ fontSize: '11.5px', color: '#64748b' }}>📞 {rec.customerPhone}</span>
-                            </div>
+                            <strong style={{ display: 'block', color: '#0f172a', fontSize: '13px' }}>
+                              {cleanName || '—'}
+                            </strong>
                           </div>
+                        </td>
+
+                        {/* Mobile Number */}
+                        <td>
+                          <span style={{ fontSize: '12px', color: cleanPhone ? '#334155' : '#94a3b8', fontWeight: 600 }}>
+                            {cleanPhone ? `📞 ${cleanPhone}` : '—'}
+                          </span>
                         </td>
 
                         {/* Items Taken */}
@@ -1159,9 +1198,20 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <form onSubmit={handleCreateKhata}>
               {/* Customer Account Selector Dropdown */}
               <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: 3 }}>
-                  {isHindi ? 'ग्राहक खाता चुनें या नया बनाएं' : 'Select Customer Account or Create New'}
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
+                    {isHindi ? 'ग्राहक चुनें या नया बनाएं' : 'Select Customer or Create New'} <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <span style={{
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    color: (selectedCustomerChoice !== 'NEW' || newCustomerName.trim() || newCustomerPhone.trim()) ? '#16a34a' : '#d97706'
+                  }}>
+                    {(selectedCustomerChoice !== 'NEW' || newCustomerName.trim() || newCustomerPhone.trim())
+                      ? (isHindi ? '✓ ग्राहक मान्य' : '✓ Customer Validated')
+                      : (isHindi ? '⚠️ ग्राहक चुनें या नीचे नाम/फ़ोन लिखें' : '⚠️ Pick customer OR enter Name/Phone below')}
+                  </span>
+                </div>
                 <select
                   value={selectedCustomerChoice}
                   onChange={(e) => {
@@ -1182,14 +1232,14 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: 7,
-                    border: '1px solid #cbd5e1',
+                    border: '1.5px solid #cbd5e1',
                     fontSize: '12.5px',
                     background: '#ffffff',
                     color: '#0f172a',
                     boxSizing: 'border-box'
                   }}
                 >
-                  <option value="NEW">➕ {isHindi ? 'नया ग्राहक बनाएं' : 'Create New Customer'}</option>
+                  <option value="NEW">➕ {isHindi ? 'नया ग्राहक बनाएं (या नीचे नाम / फ़ोन भरें)' : 'Create New Customer (or type Name / Phone below)'}</option>
                   {customerAccounts.map((c, i) => (
                     <option key={i} value={c.customerPhone !== 'N/A' ? c.customerPhone : c.customerName}>
                       {c.customerName} {c.customerPhone !== 'N/A' ? `(${c.customerPhone})` : ''} — {c.outstandingBalance > 0 ? `Due: ₹${c.outstandingBalance}` : 'Settled'}
@@ -1198,11 +1248,11 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 </select>
               </div>
 
-              {/* Customer Phone & Name (Both Optional) */}
+              {/* Customer Phone & Name (Either one or Dropdown is sufficient) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: 3 }}>
-                    {isHindi ? 'फ़ोन नंबर (वैकल्पिक)' : 'Customer Phone (Optional)'}
+                    {isHindi ? 'फ़ोन नंबर (या नाम भरें)' : 'Customer Phone (or enter Name)'}
                   </label>
                   <input
                     type="tel"
@@ -1223,7 +1273,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: 3 }}>
-                    {isHindi ? 'ग्राहक का नाम (वैकल्पिक)' : 'Customer Name (Optional)'}
+                    {isHindi ? 'ग्राहक का नाम (या फ़ोन भरें)' : 'Customer Name (or enter Phone)'}
                   </label>
                   <input
                     type="text"
@@ -1276,6 +1326,99 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
                 {!useManualTotal ? (
                   <div>
+                    {/* FAST DISH SEARCH BAR WITH LIVE RESULTS */}
+                    <div style={{ position: 'relative', marginBottom: 8 }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        background: '#ffffff',
+                        border: '1.5px solid #3b82f6',
+                        borderRadius: 7,
+                        padding: '6px 10px',
+                        boxShadow: '0 1px 3px rgba(59, 130, 246, 0.08)'
+                      }}>
+                        <Search size={14} color="#3b82f6" style={{ marginRight: 6, flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          placeholder={isHindi ? "व्यंजन तुरंत खोजें (उदा. चाय, पिज़्ज़ा, डोसा, कॉफ़ी)..." : "Quick Search menu item (e.g. Chai, Pizza, Burger, Coffee)..."}
+                          value={dishSearchQuery}
+                          onChange={(e) => setDishSearchQuery(e.target.value)}
+                          style={{
+                            flex: 1,
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: '12px',
+                            color: '#0f172a',
+                            background: 'transparent'
+                          }}
+                        />
+                        {dishSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setDishSearchQuery('')}
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: '0 2px' }}
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Instant live search results dropdown */}
+                      {dishSearchQuery.trim().length > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: 8,
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+                          maxHeight: '190px',
+                          overflowY: 'auto',
+                          zIndex: 60,
+                          marginTop: 3
+                        }}>
+                          {filteredSearchDishes.length === 0 ? (
+                            <div style={{ padding: '9px 12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                              {isHindi ? 'कोई व्यंजन नहीं मिला' : 'No matching dishes found in menu'}
+                            </div>
+                          ) : (
+                            filteredSearchDishes.map((dish) => (
+                              <div
+                                key={dish._id || dish.id}
+                                onClick={() => {
+                                  handleQuickAddDish(dish._id || dish.id);
+                                  setDishSearchQuery('');
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid #f1f5f9'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+                              >
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: '12.5px', color: '#0f172a' }}>{dish.name}</div>
+                                  <div style={{ fontSize: '10.5px', color: '#64748b' }}>{dish.category || 'General'}</div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontWeight: 800, fontSize: '12.5px', color: '#16a34a' }}>₹{dish.price}</span>
+                                  <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+                                    + Add
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Category-Grouped Full Cafe Menu Quick Picker (All 196 Dishes) */}
                     <div style={{ marginBottom: 8 }}>
                       <select
@@ -1298,7 +1441,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         defaultValue=""
                       >
                         <option value="" disabled>
-                          ➕ {isHindi ? 'मेन्यू से व्यंजन चुनें...' : `Select any dish from Cafe Menu (${availableMenu.length} dishes available)...`}
+                          ➕ {isHindi ? 'या मेन्यू ड्रॉपडाउन से व्यंजन चुनें...' : `Or select from dropdown (${availableMenu.length} dishes available)...`}
                         </option>
                         {Object.entries(groupedMenu).map(([categoryName, dishes]) => (
                           <optgroup key={categoryName} label={`📂 ${categoryName}`}>
@@ -1437,10 +1580,17 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                   <input
                     type="number"
                     min="0"
-                    max={effectiveTotalBill}
                     placeholder="0"
                     value={newPaidAmount}
-                    onChange={(e) => setNewPaidAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setNewPaidAmount('');
+                        return;
+                      }
+                      const num = Math.max(0, Number(val));
+                      setNewPaidAmount(String(num));
+                    }}
                     style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 700, boxSizing: 'border-box' }}
                   />
                 </div>

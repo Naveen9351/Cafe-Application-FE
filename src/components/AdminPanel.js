@@ -35,6 +35,7 @@ import PWAInstallModal from './pwa/PWAInstallModal';
 import { API_URL as API } from '../config/api';
 import { useTranslation } from '../utils/translations';
 import { playOrderChime, getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
+import { formatTableBadge } from './common/TableBadge';
 
 // Standard Categories with Icons
 const standardCategories = [
@@ -986,6 +987,12 @@ export default function AdminPanel() {
     return (orders || []).filter(o => o.status !== 'completed' && o.status !== 'cancelled');
   }, [orders]);
   const liveActiveOrdersCount = liveActiveOrders.length;
+
+  // Real-time NEW orders count for Live Orders badge (only pending/confirmed/new orders)
+  const liveNewOrders = useMemo(() => {
+    return (orders || []).filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'new');
+  }, [orders]);
+  const liveNewOrdersCount = liveNewOrders.length;
 
   // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
@@ -2380,7 +2387,7 @@ export default function AdminPanel() {
               title="Live Orders & KDS"
             >
               <ChefHat size={18} /> {!sidebarCollapsed && <span>{t('nav.kds')}</span>}
-              {!sidebarCollapsed && <span className={styles.navPill}>{liveActiveOrdersCount}</span>}
+              {!sidebarCollapsed && liveNewOrdersCount > 0 && <span className={styles.navPill}>{liveNewOrdersCount}</span>}
             </button>
             <button
               className={`${styles.navLink} ${activeTab === 'orders' ? styles.activeNavLink : ''}`}
@@ -2690,8 +2697,8 @@ export default function AdminPanel() {
                   >
                     <IconComponent size={15} />
                     <span>{t.label}</span>
-                    {t.badge && liveActiveOrdersCount > 0 && (
-                      <span className={styles.staffTabBadge}>{liveActiveOrdersCount}</span>
+                    {t.badge && liveNewOrdersCount > 0 && (
+                      <span className={styles.staffTabBadge}>{liveNewOrdersCount}</span>
                     )}
                   </button>
                 );
@@ -3022,8 +3029,8 @@ export default function AdminPanel() {
                     >
                       <IconComp size={18} />
                       <span style={{ flex: 1 }}>{t.label}</span>
-                      {t.badge && liveActiveOrdersCount > 0 && (
-                        <span className={styles.staffTabBadge}>{liveActiveOrdersCount}</span>
+                      {t.badge && liveNewOrdersCount > 0 && (
+                        <span className={styles.staffTabBadge}>{liveNewOrdersCount}</span>
                       )}
                     </button>
                   );
@@ -4054,7 +4061,7 @@ export default function AdminPanel() {
                           const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-5) || 'ORD'}`;
                           const totalAmt = Number(order.total || order.totalAmount) || 0;
                           const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
-                          const tableText = order.tableNumber ? `Table ${order.tableNumber}` : 'Counter Walk-in';
+                          const tableText = order.tableNumber ? formatTableBadge(order.tableNumber) : 'Counter Walk-in';
 
                           return (
                             <div key={order._id} className={styles.liveTicketCard}>
@@ -4070,7 +4077,7 @@ export default function AdminPanel() {
                                 </span>
                               </div>
                               <div className={styles.ticketBody}>
-                                <span>{order.tableNumber ? (isHindi ? `टेबल ${order.tableNumber}` : `Table ${order.tableNumber}`) : (isHindi ? 'काउंटर वॉक-इन' : 'Counter Walk-in')}</span>
+                                <span>{order.tableNumber ? formatTableBadge(order.tableNumber) : (isHindi ? 'काउंटर वॉक-इन' : 'Counter Walk-in')}</span>
                               </div>
                             </div>
                           );
@@ -4271,11 +4278,11 @@ export default function AdminPanel() {
                                       textAlign: 'center',
                                       transition: 'all 0.15s ease'
                                     }}
-                                    title={`Table ${tbl.tableNumber} - Clean & Ready. Click to take order.`}
+                                    title={`${formatTableBadge(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
                                   >
                                     <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>{tbl.seatingCapacity || 4} Seats</span>
                                     <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', margin: '4px 0' }}>
-                                      Table {tbl.tableNumber}
+                                      {formatTableBadge(tbl.tableNumber)}
                                     </span>
                                     <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
                                   </div>
@@ -4306,17 +4313,17 @@ export default function AdminPanel() {
                                       textAlign: 'center',
                                       boxShadow: '0 2px 6px rgba(16, 185, 129, 0.12)'
                                     }}
-                                    title={`Table ${tbl.tableNumber} - All Orders Served/Paid. Click to open POS.`}
+                                    title={`${formatTableBadge(tbl.tableNumber)} - All Orders Served/Paid. Click to open POS.`}
                                   >
                                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
                                       ✓ {elapsedMins}
                                     </div>
                                     <span style={{ fontSize: '1rem', fontWeight: 600, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
+                                      {getCustomerFirstName(rawCustName, formatTableBadge(tbl.tableNumber))}
                                     </span>
                                     {getCustomerFirstName(rawCustName) && (
                                       <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
-                                        Table {tbl.tableNumber}
+                                        {formatTableBadge(tbl.tableNumber)}
                                       </span>
                                     )}
                                     <strong style={{ fontSize: '12.5px', fontWeight: 600, color: '#047857' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
@@ -4347,17 +4354,17 @@ export default function AdminPanel() {
                                     textAlign: 'center',
                                     boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
                                   }}
-                                  title={`Table ${tbl.tableNumber} - Running Order ₹${orderTotal}. Click to open POS.`}
+                                  title={`${formatTableBadge(tbl.tableNumber)} - Running Order ₹${orderTotal}. Click to open POS.`}
                                 >
                                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
                                     ⏱️ {elapsedMins}
                                   </div>
                                   <span style={{ fontSize: '1rem', fontWeight: 600, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {getCustomerFirstName(rawCustName, `Table ${tbl.tableNumber}`)}
+                                    {getCustomerFirstName(rawCustName, formatTableBadge(tbl.tableNumber))}
                                   </span>
                                   {getCustomerFirstName(rawCustName) && (
                                     <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
-                                      Table {tbl.tableNumber}
+                                      {formatTableBadge(tbl.tableNumber)}
                                     </span>
                                   )}
                                   <strong style={{ fontSize: '12.5px', fontWeight: 600, color: '#92400e' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
@@ -5370,7 +5377,7 @@ export default function AdminPanel() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <ReportsSuite initialOrders={orders} />
+                  <ReportsSuite initialOrders={orders} tenantInfo={tenantInfo} menuItems={items} />
                 </motion.div>
               )}
 

@@ -21,7 +21,7 @@
   justify-content: space-between;
   padding: 0.65rem 0.65rem 0.65rem;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   flex-shrink: 0;
@@ -48,6 +48,7 @@
   margin-bottom: 0.45rem;
   border-bottom: 1px solid #f1f5f9;
   min-height: 38px;
+  flex-shrink: 0;
 }
 
 .brandTitleWrap {
@@ -683,6 +684,19 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-right: 2px;
+}
+
+.navSection::-webkit-scrollbar {
+  width: 4px;
+}
+
+.navSection::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
 }
 
 .navLabel {
@@ -738,6 +752,7 @@
   flex-direction: column;
   padding-top: 0.45rem;
   border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
 }
 
 /* ── Khushi AI Sidebar Widget Button ── */

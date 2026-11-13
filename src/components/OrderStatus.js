@@ -16,7 +16,8 @@ import {
   AlertCircle, 
   Layers,
   Wallet,
-  Check
+  Check,
+  MessageSquare
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { encodeTableToken } from "../utils/tableToken";
@@ -25,6 +26,7 @@ import { io } from "socket.io-client";
 import RestaurantCafeLottieLoader from "./RestaurantCafeLottieLoader";
 import TableBadge from "./common/TableBadge";
 import CustomerBottomNav from "./common/CustomerBottomNav";
+import { openWhatsappBill } from "../utils/whatsappBillSender";
 
 const OrderStatus = () => {
   const { id } = useParams();
@@ -776,6 +778,32 @@ const OrderStatus = () => {
                 )}
               </span>
             </div>
+
+            {/* WhatsApp E-Bill Option */}
+            <button
+              type="button"
+              onClick={() => openWhatsappBill(order)}
+              style={{
+                width: '100%',
+                marginTop: '12px',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                border: '1.5px solid #bbf7d0',
+                background: '#f0fdf4',
+                color: '#15803d',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 2px 6px rgba(22, 163, 74, 0.08)'
+              }}
+            >
+              <MessageSquare size={16} color="#16a34a" />
+              <span>Get Digital E-Bill on WhatsApp</span>
+            </button>
           </div>
 
           {/* Primary CTA: + Add More Items */}
