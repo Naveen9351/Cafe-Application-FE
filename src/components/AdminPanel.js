@@ -1632,7 +1632,6 @@ export default function AdminPanel() {
 
       const requestHeaders = {
         'x-auth-token': token,
-        'Content-Type': 'multipart/form-data',
         ...(effectiveTenantId ? { 'x-tenant-id': effectiveTenantId } : {})
       };
 
@@ -2041,8 +2040,7 @@ export default function AdminPanel() {
 
       const response = await axios.post(`${API}/ai/extract-menu`, formData, {
         headers: {
-          'x-auth-token': token,
-          'Content-Type': 'multipart/form-data'
+          'x-auth-token': token
         },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
