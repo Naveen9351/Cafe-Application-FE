@@ -2235,9 +2235,10 @@ export default function POSTerminal({
           { id: 'Cash', label: 'Cash', icon: Banknote },
           { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
           { id: 'Card', label: 'Card', icon: CreditCard },
-          ...(tenantInfo?.settings?.enableKhata !== false ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : []),
-          { id: 'Settlement', label: 'Settlement', icon: Percent }
+          ...(tenantInfo?.settings?.enableKhata !== false ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
         ];
+
+        const currentMethod = (payItemsMethod === 'Settlement' || !payItemsMethod) ? 'Cash' : payItemsMethod;
 
         const rawPaidNow = Number(khataPaidAmount) || 0;
         const paidNowNum = Math.min(finalPayable, Math.max(0, rawPaidNow));
@@ -2375,9 +2376,8 @@ export default function POSTerminal({
             return;
           }
 
-          // For standard Cash / UPI / Card / Settlement payment
-          const effectiveMethod = payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod;
-          handleConfirmPayItems(finalPayable, discountVal, effectiveMethod);
+          // For standard Cash / UPI / Card payment
+          handleConfirmPayItems(finalPayable, discountVal, currentMethod);
         };
 
         return (
@@ -2407,18 +2407,14 @@ export default function POSTerminal({
                     width: '30px',
                     height: '30px',
                     borderRadius: '8px',
-                    background: payItemsMethod === 'Settlement'
-                      ? '#ecfdf5'
-                      : (payItemsMethod === 'Khata / Borrow' ? '#fffbeb' : '#f5f3ff'),
-                    color: payItemsMethod === 'Settlement'
-                      ? '#059669'
-                      : (payItemsMethod === 'Khata / Borrow' ? '#d97706' : '#7c3aed'),
+                    background: currentMethod === 'Khata / Borrow' ? '#fffbeb' : '#f5f3ff',
+                    color: currentMethod === 'Khata / Borrow' ? '#d97706' : '#7c3aed',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0
                   }}>
-                    {payItemsMethod === 'Settlement' ? <Percent size={16} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <Wallet size={16} />)}
+                    {currentMethod === 'Khata / Borrow' ? <BookOpen size={16} /> : <Wallet size={16} />}
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#0f172a' }}>
@@ -2479,13 +2475,12 @@ export default function POSTerminal({
                 </div>
               </div>
 
-              {/* 5 Segmented Payment Tenders in a single neat row */}
+              {/* 4 Payment Tender Tabs: Cash, UPI / GPay, Card, Udhar / Khata */}
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${availableTenders.length}, 1fr)`, gap: '5px', marginBottom: '10px' }}>
                 {availableTenders.map(t => {
                   const IconComp = t.icon;
-                  const isSelected = payItemsMethod === t.id;
+                  const isSelected = currentMethod === t.id;
                   const isKhata = t.id === 'Khata / Borrow';
-                  const isSettlement = t.id === 'Settlement';
 
                   let activeBorder = '2px solid #7c3aed';
                   let activeBg = '#f5f3ff';
@@ -2495,10 +2490,6 @@ export default function POSTerminal({
                     activeBorder = '2px solid #d97706';
                     activeBg = '#fffbeb';
                     activeColor = '#92400e';
-                  } else if (isSettlement) {
-                    activeBorder = '2px solid #10b981';
-                    activeBg = '#ecfdf5';
-                    activeColor = '#047857';
                   }
 
                   return (
@@ -2513,7 +2504,7 @@ export default function POSTerminal({
                         background: isSelected ? activeBg : '#ffffff',
                         color: isSelected ? activeColor : '#64748b',
                         fontWeight: isSelected ? 800 : 600,
-                        fontSize: '0.7rem',
+                        fontSize: '0.71rem',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
@@ -2529,27 +2520,27 @@ export default function POSTerminal({
                 })}
               </div>
 
-              {/* 1. SIMPLE & CLEAN SETTLEMENT MODE */}
-              {payItemsMethod === 'Settlement' && (
+              {/* SETTLED / FINAL AMOUNT & CONCESSION CARD (FOR CASH, UPI, CARD) */}
+              {currentMethod !== 'Khata / Borrow' && (
                 <div style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #86efac',
+                  background: '#f8fafc',
+                  border: discountVal > 0 ? '1px solid #86efac' : '1px solid #e2e8f0',
                   borderRadius: '10px',
                   padding: '9px 11px',
                   marginBottom: '10px'
                 }}>
-                  {/* Linked Inputs: Customer Pays vs Concession Discount */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '7px' }}>
+                  {/* Final Amount & Discount Input Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '7px', marginBottom: '7px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#065f46', marginBottom: '2px' }}>
-                        Customer Pays (₹)
+                      <label style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, color: '#0f172a', marginBottom: '2px' }}>
+                        Final Amount (₹)
                       </label>
                       <input
                         type="number"
                         min="0"
                         max={tenderAmount}
                         placeholder={String(tenderAmount)}
-                        value={discountVal > 0 ? (tenderAmount - discountVal) : ''}
+                        value={discountVal > 0 ? (tenderAmount - discountVal) : String(tenderAmount)}
                         onChange={(e) => {
                           const raw = e.target.value;
                           if (raw === '') {
@@ -2564,11 +2555,11 @@ export default function POSTerminal({
                           width: '100%',
                           padding: '6px 8px',
                           borderRadius: '6px',
-                          border: '1.5px solid #86efac',
+                          border: discountVal > 0 ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
                           background: '#ffffff',
-                          fontSize: '0.88rem',
+                          fontSize: '0.92rem',
                           fontWeight: 800,
-                          color: '#065f46',
+                          color: discountVal > 0 ? '#15803d' : '#0f172a',
                           boxSizing: 'border-box',
                           outline: 'none'
                         }}
@@ -2583,23 +2574,23 @@ export default function POSTerminal({
                         min="0"
                         max={tenderAmount}
                         placeholder="0"
-                        value={settlementDiscount}
+                        value={settlementDiscount || ''}
                         onChange={(e) => {
                           const raw = e.target.value;
                           if (raw === '') {
                             setSettlementDiscount('');
                           } else {
                             const disc = Math.min(tenderAmount, Math.max(0, Number(raw) || 0));
-                            setSettlementDiscount(String(disc));
+                            setSettlementDiscount(disc > 0 ? String(disc) : '');
                           }
                         }}
                         style={{
                           width: '100%',
                           padding: '6px 8px',
                           borderRadius: '6px',
-                          border: '1.5px solid #fca5a5',
+                          border: discountVal > 0 ? '1.5px solid #f87171' : '1px solid #cbd5e1',
                           background: '#ffffff',
-                          fontSize: '0.88rem',
+                          fontSize: '0.92rem',
                           fontWeight: 800,
                           color: '#dc2626',
                           boxSizing: 'border-box',
@@ -2610,7 +2601,7 @@ export default function POSTerminal({
                   </div>
 
                   {/* Quick Round-off Chips */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '7px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: currentMethod === 'Cash' ? '7px' : '0px' }}>
                     <button
                       type="button"
                       onClick={() => setSettlementDiscount('')}
@@ -2650,6 +2641,28 @@ export default function POSTerminal({
                       </button>
                     )}
 
+                    {tenderAmount > 10 && (tenderAmount % 10 !== 0) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = Math.floor(tenderAmount / 10) * 10;
+                          setSettlementDiscount(String(tenderAmount - target));
+                        }}
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '5px',
+                          border: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '1px solid #10b981' : '1px solid #cbd5e1',
+                          background: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '#dcfce7' : '#ffffff',
+                          color: discountVal === (tenderAmount - Math.floor(tenderAmount / 10) * 10) ? '#065f46' : '#475569',
+                          fontSize: '0.64rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Round to ₹{Math.floor(tenderAmount / 10) * 10} (-₹{tenderAmount - Math.floor(tenderAmount / 10) * 10})
+                      </button>
+                    )}
+
                     {[10, 20, 50].map(amt => {
                       if (tenderAmount <= amt) return null;
                       const isChosen = discountVal === amt;
@@ -2675,168 +2688,77 @@ export default function POSTerminal({
                     })}
                   </div>
 
-                  {/* Tender Sub-Method Selection */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#065f46', whiteSpace: 'nowrap' }}>
-                      Collect ₹{finalPayable} via:
-                    </span>
-                    <div style={{ display: 'flex', gap: '4px', flex: 1, justifyContent: 'flex-end' }}>
-                      {['Cash', 'UPI / GPay', 'Card'].map(m => {
-                        const isSub = (settlementSubMethod || 'Cash') === m;
-                        return (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setSettlementSubMethod(m)}
-                            style={{
-                              padding: '3px 7px',
-                              borderRadius: '5px',
-                              border: isSub ? '1px solid #059669' : '1px solid #cbd5e1',
-                              background: isSub ? '#d1fae5' : '#ffffff',
-                              color: isSub ? '#065f46' : '#64748b',
-                              fontSize: '0.65rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {m}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. SIMPLE CASH TENDER */}
-              {payItemsMethod === 'Cash' && (
-                <div style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '10px',
-                  padding: '9px 11px',
-                  marginBottom: '10px'
-                }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '7px', alignItems: 'center', marginBottom: '6px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.64rem', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
-                        Cash Given (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder={String(finalPayable)}
-                        value={cashTenderGiven}
-                        onChange={(e) => setCashTenderGiven(e.target.value)}
-                        style={{
-                          width: '100%',
+                  {/* If Cash: show Cash Tender Given & Change Return */}
+                  {currentMethod === 'Cash' && (
+                    <div style={{ marginTop: '7px', paddingTop: '7px', borderTop: '1px dashed #cbd5e1', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '7px', alignItems: 'center' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.63rem', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
+                          Cash Given (₹)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder={String(finalPayable)}
+                          value={cashTenderGiven}
+                          onChange={(e) => setCashTenderGiven(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '5px 7px',
+                            borderRadius: '5px',
+                            border: '1px solid #cbd5e1',
+                            background: '#ffffff',
+                            fontSize: '0.84rem',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            boxSizing: 'border-box',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#64748b', marginBottom: '2px' }}>
+                          Change to Return
+                        </div>
+                        <div style={{
                           padding: '5px 7px',
                           borderRadius: '5px',
-                          border: '1px solid #cbd5e1',
-                          background: '#ffffff',
-                          fontSize: '0.84rem',
-                          fontWeight: 700,
-                          color: '#0f172a',
-                          boxSizing: 'border-box',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#64748b', marginBottom: '2px' }}>
-                        Change to Return
-                      </div>
-                      <div style={{
-                        padding: '5px 7px',
-                        borderRadius: '5px',
-                        border: tenderGivenNum > finalPayable ? '1px solid #86efac' : '1px solid #e2e8f0',
-                        background: tenderGivenNum > finalPayable ? '#f0fdf4' : '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span style={{ fontSize: '0.86rem', fontWeight: 900, color: tenderGivenNum > finalPayable ? '#15803d' : '#64748b' }}>
-                          ₹{formatAmount(changeDue)}
-                        </span>
-                        {tenderGivenNum > finalPayable && (
-                          <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '1px 4px', borderRadius: '3px' }}>
-                            RETURN
+                          border: tenderGivenNum > finalPayable ? '1px solid #86efac' : '1px solid #e2e8f0',
+                          background: tenderGivenNum > finalPayable ? '#f0fdf4' : '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <span style={{ fontSize: '0.86rem', fontWeight: 900, color: tenderGivenNum > finalPayable ? '#15803d' : '#64748b' }}>
+                            ₹{formatAmount(changeDue)}
                           </span>
-                        )}
+                          {tenderGivenNum > finalPayable && (
+                            <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '1px 4px', borderRadius: '3px' }}>
+                              RETURN
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Quick Cash Chips */}
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {[
-                      { label: `Exact ₹${finalPayable}`, val: finalPayable },
-                      ...(finalPayable < 500 ? [{ label: '₹500', val: 500 }] : []),
-                      ...(finalPayable < 1000 ? [{ label: '₹1000', val: 1000 }] : [])
-                    ].filter((c, idx, arr) => arr.findIndex(x => x.val === c.val) === idx).map((chip, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setCashTenderGiven(String(chip.val))}
-                        style={{
-                          flex: 1,
-                          padding: '3px 5px',
-                          borderRadius: '5px',
-                          border: tenderGivenNum === chip.val ? '1px solid #16a34a' : '1px solid #cbd5e1',
-                          background: tenderGivenNum === chip.val ? '#dcfce7' : '#ffffff',
-                          color: tenderGivenNum === chip.val ? '#15803d' : '#475569',
-                          fontSize: '0.64rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
+                  {/* If UPI */}
+                  {currentMethod === 'UPI / GPay' && (
+                    <div style={{ marginTop: '5px', fontSize: '0.68rem', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Smartphone size={13} /> Collect ₹{formatAmount(finalPayable)} via Store QR / Soundbox
+                    </div>
+                  )}
+
+                  {/* If Card */}
+                  {currentMethod === 'Card' && (
+                    <div style={{ marginTop: '5px', fontSize: '0.68rem', fontWeight: 700, color: '#9333ea', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <CreditCard size={13} /> Swipe / Tap Card for ₹{formatAmount(finalPayable)} on POS EDC
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 3. SIMPLE UPI */}
-              {payItemsMethod === 'UPI / GPay' && (
-                <div style={{
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  borderRadius: '10px',
-                  padding: '9px 12px',
-                  marginBottom: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <Smartphone size={18} color="#2563eb" />
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#1e40af' }}>
-                    Collect ₹{formatAmount(finalPayable)} via Store QR / UPI Soundbox
-                  </span>
-                </div>
-              )}
-
-              {/* 4. SIMPLE CARD */}
-              {payItemsMethod === 'Card' && (
-                <div style={{
-                  background: '#fdf4ff',
-                  border: '1px solid #f5d0fe',
-                  borderRadius: '10px',
-                  padding: '9px 12px',
-                  marginBottom: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <CreditCard size={18} color="#9333ea" />
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#86198f' }}>
-                    Swipe / Tap Card for ₹{formatAmount(finalPayable)} on POS Terminal
-                  </span>
-                </div>
-              )}
-
-              {/* 5. KHATA / BORROW */}
-              {payItemsMethod === 'Khata / Borrow' && (
+              {/* KHATA / BORROW */}
+              {currentMethod === 'Khata / Borrow' && (
                 <div style={{
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
@@ -2995,11 +2917,9 @@ export default function POSTerminal({
                     height: '38px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: payItemsMethod === 'Settlement'
-                      ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
-                      : (payItemsMethod === 'Khata / Borrow'
-                          ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
-                          : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)'),
+                    background: currentMethod === 'Khata / Borrow'
+                      ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
+                      : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
                     color: '#ffffff',
                     fontWeight: 800,
                     fontSize: '0.82rem',
@@ -3010,17 +2930,15 @@ export default function POSTerminal({
                     gap: '5px'
                   }}
                 >
-                  {payItemsMethod === 'Settlement' ? <Percent size={15} /> : (payItemsMethod === 'Khata / Borrow' ? <BookOpen size={15} /> : <CheckCircle2 size={15} />)}
+                  {currentMethod === 'Khata / Borrow' ? <BookOpen size={15} /> : <CheckCircle2 size={15} />}
                   <span>
                     {isSubmittingItemPay || isSubmittingKhata
                       ? 'Processing...'
-                      : (payItemsMethod === 'Settlement'
-                          ? `Confirm & Settle ₹${formatAmount(finalPayable)}${discountVal > 0 ? ` (₹${formatAmount(discountVal)} Off)` : ''}`
-                          : (payItemsMethod === 'Khata / Borrow'
-                              ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
-                              : (discountVal > 0
-                                  ? `Confirm & Pay ₹${formatAmount(finalPayable)} (-₹${formatAmount(discountVal)})`
-                                  : `Confirm & Pay ₹${formatAmount(finalPayable)}`)))}
+                      : (currentMethod === 'Khata / Borrow'
+                          ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
+                          : (discountVal > 0
+                              ? `Confirm & Pay ₹${formatAmount(finalPayable)} (-₹${formatAmount(discountVal)})`
+                              : `Confirm & Pay ₹${formatAmount(finalPayable)}`))}
                   </span>
                 </button>
               </div>
