@@ -1216,7 +1216,7 @@ export default function POSTerminal({
   const handleCreateTempTable = async (openImmediately = true) => {
     const cleanName = tempCustomerName.trim();
     if (!cleanName) {
-      toast.error('Please enter customer or tab name (e.g. Lakshya)');
+      toast.error('Please enter customer or tab name (e.g. Deepak)');
       return;
     }
 
@@ -1367,7 +1367,7 @@ export default function POSTerminal({
                   boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)',
                   whiteSpace: 'nowrap'
                 }}
-                title="Create Temporary Table / Open Tab for walk-in or floating customers (e.g. Lakshya)"
+                title="Create Temporary Table / Open Tab for walk-in or floating customers (e.g. Deepak)"
               >
                 <UserPlus size={14} />
                 <span>+ Temp Table</span>
@@ -3971,7 +3971,7 @@ export default function POSTerminal({
                       Create Temporary Table
                     </h3>
                     <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#64748b' }}>
-                      For walk-in, floating guests, or running tabs (e.g. Lakshya)
+                      For walk-in, floating guests, or running tabs (e.g. Deepak)
                     </p>
                   </div>
                 </div>
@@ -4001,7 +4001,7 @@ export default function POSTerminal({
                     <User size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input
                       type="text"
-                      placeholder="e.g. Lakshya, Rohit & Friends, Day Pass"
+                      placeholder="e.g. Deepak"
                       value={tempCustomerName}
                       onChange={(e) => setTempCustomerName(e.target.value)}
                       autoFocus
@@ -4053,7 +4053,7 @@ export default function POSTerminal({
                     <StickyNote size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input
                       type="text"
-                      placeholder="e.g. Standing bar, Rooftop group, Day pass"
+                      placeholder="Optional notes or tag"
                       value={tempNotes}
                       onChange={(e) => setTempNotes(e.target.value)}
                       style={{
