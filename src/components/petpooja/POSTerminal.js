@@ -5,7 +5,7 @@ import {
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
   Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter,
-  User, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon
+  User, UserPlus, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
@@ -23,6 +23,7 @@ export const formatTableName = (num) => {
   if (num === null || num === undefined || num === '') return 'T 1';
   const str = String(num).trim();
   if (str.toLowerCase() === 'walk-in') return 'Walk-in';
+  if (/^temp/i.test(str)) return str;
   const clean = str.replace(/^(table|t)[\s-_]*/i, '').trim();
   return `T ${clean}`;
 };
@@ -32,6 +33,9 @@ export const formatTableOnlyNumber = (num) => {
   if (num === null || num === undefined || num === '') return '1';
   const str = String(num).trim();
   if (str.toLowerCase() === 'walk-in') return 'Walk-in';
+  if (/^temp/i.test(str)) {
+    return str.replace(/^temp\s*[-_:]\s*/i, '');
+  }
   const clean = str.replace(/^(table|t)[\s-_]*/i, '').trim();
   return clean || str;
 };
@@ -81,6 +85,13 @@ export default function POSTerminal({
   const [newTableNum, setNewTableNum] = useState('');
   const [newTableCap, setNewTableCap] = useState('4');
   const [newTableZone, setNewTableZone] = useState('Main Floor');
+
+  // Temporary Table (Open Tab) Modal state
+  const [showTempTableModal, setShowTempTableModal] = useState(false);
+  const [tempCustomerName, setTempCustomerName] = useState('');
+  const [tempCustomerPhone, setTempCustomerPhone] = useState('');
+  const [tempNotes, setTempNotes] = useState('');
+  const [isCreatingTempTable, setIsCreatingTempTable] = useState(false);
 
   // Customization dialog state
   const [customizingItem, setCustomizingItem] = useState(null);
@@ -222,16 +233,25 @@ export default function POSTerminal({
 
     activeTableNumbers.forEach(tNum => {
       if (!fromDb.some(t => String(t.tableNumber).replace(/^Table\s*/i, '').trim() === tNum)) {
+        const isTemp = /^temp/i.test(tNum);
         fromDb.push({
           _id: `auto_${tNum}`,
           tableNumber: tNum,
           seatingCapacity: 4,
-          zone: 'Main Floor'
+          isTemporary: isTemp,
+          customerName: isTemp ? tNum.replace(/^temp\s*[-_:]\s*/i, '') : '',
+          section: isTemp ? 'Temporary Tables' : 'Main Floor',
+          zone: isTemp ? 'Temporary Tables' : 'Main Floor'
         });
       }
     });
 
     return fromDb.sort((a, b) => {
+      // Prioritize temporary tables first in list
+      const aTemp = a.isTemporary || /^temp/i.test(String(a.tableNumber || ''));
+      const bTemp = b.isTemporary || /^temp/i.test(String(b.tableNumber || ''));
+      if (aTemp && !bTemp) return -1;
+      if (!aTemp && bTemp) return 1;
       return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
   }, [dbTables, orders, isLoadingTables]);
@@ -263,11 +283,12 @@ export default function POSTerminal({
       if (tableStatusFilter === 'occupied' && (!isOccupied || isAllPaid)) return false;
       if (tableStatusFilter === 'paid' && !isAllPaid) return false;
 
-      // Search filter
+      // Search filter (matches table number, guest name from table doc, or order customer)
       if (tableSearch.trim()) {
         const query = tableSearch.toLowerCase().trim();
-        const tNum = String(t.tableNumber).toLowerCase();
-        const hasMatch = tNum.includes(query) ||
+        const tNum = String(t.tableNumber || '').toLowerCase();
+        const cName = String(t.customerName || '').toLowerCase();
+        const hasMatch = tNum.includes(query) || cName.includes(query) ||
           tableOrders.some(o => (o.customerName || o.customerDetails?.name || '').toLowerCase().includes(query));
         if (!hasMatch) return false;
       }
@@ -276,15 +297,27 @@ export default function POSTerminal({
     });
   }, [allTablesList, getOrdersForTableObj, selectedZone, tableStatusFilter, tableSearch]);
 
-  // Grouped tables by category / section
+  // Grouped tables by category / section (with Temporary Tables placed first)
   const groupedFloorTables = useMemo(() => {
     const map = {};
     filteredFloorTables.forEach(t => {
-      const sec = (t.section || t.zone || 'Main Hall').trim();
+      const isTemp = t.isTemporary || /^temp/i.test(String(t.tableNumber || ''));
+      const sec = isTemp ? '⚡ Temporary Tables (Open Tabs)' : (t.section || t.zone || 'Main Hall').trim();
       if (!map[sec]) map[sec] = [];
       map[sec].push(t);
     });
-    return map;
+
+    // Ensure '⚡ Temporary Tables (Open Tabs)' is always the FIRST section in the returned map
+    const orderedMap = {};
+    const tempKey = '⚡ Temporary Tables (Open Tabs)';
+    if (map[tempKey]) {
+      orderedMap[tempKey] = map[tempKey];
+      delete map[tempKey];
+    }
+    Object.keys(map).forEach(k => {
+      orderedMap[k] = map[k];
+    });
+    return orderedMap;
   }, [filteredFloorTables]);
 
   // Active table stats
@@ -318,17 +351,23 @@ export default function POSTerminal({
     setTableNumber(tStr);
     setViewMode('terminal');
 
+    const tblObj = dbTables.find(t => String(t.tableNumber).trim() === tStr);
+    const isTemp = tblObj?.isTemporary || /^temp/i.test(tStr);
+
     const ordersForTable = activeOrdersByTable[tStr] || activeOrdersByTable[tStr.replace(/[^0-9]/g, '')] || [];
     if (ordersForTable.length > 0) {
       const firstOrd = ordersForTable[0];
-      setCustomerName(firstOrd.customerDetails?.name || firstOrd.customerName || 'Dine-in Guest');
-      setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || '');
+      setCustomerName(firstOrd.customerDetails?.name || firstOrd.customerName || tblObj?.customerName || (isTemp ? tStr.replace(/^temp\s*[-_:]\s*/i, '') : 'Dine-in Guest'));
+      setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || tblObj?.customerPhone || '');
       if (firstOrd.paymentMethod) setPaymentMethod(firstOrd.paymentMethod);
-      toast.success(`Opened Table ${tStr} (${ordersForTable.length} running ${ordersForTable.length === 1 ? 'round' : 'rounds'})`);
+      const displayLabel = isTemp ? `Tab: ${tStr.replace(/^temp\s*[-_:]\s*/i, '')}` : `Table ${formatTableOnlyNumber(tStr)}`;
+      toast.success(`Opened ${displayLabel} (${ordersForTable.length} running ${ordersForTable.length === 1 ? 'round' : 'rounds'})`);
     } else {
-      setCustomerName('');
-      setCustomerPhone('');
-      toast.success(`Selected Table ${tStr}`);
+      const defaultCustName = tblObj?.customerName || (isTemp ? tStr.replace(/^temp\s*[-_:]\s*/i, '') : '');
+      setCustomerName(defaultCustName);
+      setCustomerPhone(tblObj?.customerPhone || '');
+      const displayLabel = isTemp ? `Tab: ${defaultCustName || tStr}` : `Table ${formatTableOnlyNumber(tStr)}`;
+      toast.success(`Selected ${displayLabel}`);
     }
   };
 
@@ -912,6 +951,8 @@ export default function POSTerminal({
         { headers: token ? { 'x-auth-token': token } : {} }
       );
       toast.success(`Table ${tNum} cleared and is now free!`);
+      // Auto-remove any temporary table from dbTables immediately
+      setDbTables(prev => prev.filter(t => !(t.isTemporary && String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase())));
       if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
     } catch (err) {
@@ -987,6 +1028,8 @@ export default function POSTerminal({
 
       const tableLabel = allSettleTables.length > 1 ? `Tables ${allSettleTables.join(', ')}` : `Table ${tableNumber}`;
       toast.success(`✓ ${tableLabel} cleared & fully settled (₹${formatAmount(finalSettledAmount)})! Table is now free.`);
+      // Auto-remove any settled temporary table from dbTables state so it immediately vanishes
+      setDbTables(prev => prev.filter(t => !(t.isTemporary && allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase()))));
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
@@ -1169,6 +1212,97 @@ export default function POSTerminal({
     }
   };
 
+  // Create Temporary Table / Open Tab
+  const handleCreateTempTable = async (openImmediately = true) => {
+    const cleanName = tempCustomerName.trim();
+    if (!cleanName) {
+      toast.error('Please enter customer or tab name (e.g. Deepak)');
+      return;
+    }
+
+    setIsCreatingTempTable(true);
+    const token = localStorage.getItem('token');
+    const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
+
+    try {
+      const res = await axios.post(
+        `${API}/tables/temp`,
+        {
+          customerName: cleanName,
+          customerPhone: tempCustomerPhone.trim(),
+          notes: tempNotes.trim(),
+          tenantId: effectiveTenantId
+        },
+        { headers: token ? { 'x-auth-token': token } : {} }
+      );
+
+      const createdTable = res.data;
+      setDbTables(prev => {
+        const filtered = prev.filter(t => t._id !== createdTable._id && t.tableNumber !== createdTable.tableNumber);
+        return [createdTable, ...filtered];
+      });
+
+      toast.success(`Created Temporary Tab: ${cleanName}`);
+      setShowTempTableModal(false);
+      setTempCustomerName('');
+      setTempCustomerPhone('');
+      setTempNotes('');
+
+      if (openImmediately) {
+        handleOpenTableInPOS(createdTable.tableNumber);
+        if (cleanName) setCustomerName(cleanName);
+        if (tempCustomerPhone) setCustomerPhone(tempCustomerPhone.trim());
+      }
+    } catch (err) {
+      console.error('Create temp table error:', err);
+      // Fallback: If network or route issue, create locally so service is never blocked
+      const fallbackTableNum = `Temp - ${cleanName}`;
+      const localTable = {
+        _id: `temp_${Date.now()}`,
+        tableNumber: fallbackTableNum,
+        customerName: cleanName,
+        customerPhone: tempCustomerPhone.trim(),
+        section: 'Temporary Tables',
+        isTemporary: true,
+        seatingCapacity: 4,
+        status: 'available'
+      };
+      setDbTables(prev => [localTable, ...prev]);
+      toast.success(`Created Temporary Tab: ${cleanName}`);
+      setShowTempTableModal(false);
+      setTempCustomerName('');
+      setTempCustomerPhone('');
+      setTempNotes('');
+
+      if (openImmediately) {
+        handleOpenTableInPOS(fallbackTableNum);
+        if (cleanName) setCustomerName(cleanName);
+        if (tempCustomerPhone) setCustomerPhone(tempCustomerPhone.trim());
+      }
+    } finally {
+      setIsCreatingTempTable(false);
+    }
+  };
+
+  // Delete/Dismiss empty temporary table
+  const handleDeleteTempTable = async (tableObj, e) => {
+    if (e) e.stopPropagation();
+    const token = localStorage.getItem('token');
+    try {
+      if (tableObj._id && !tableObj._id.startsWith('temp_') && !tableObj._id.startsWith('auto_')) {
+        await axios.delete(`${API}/tables/${tableObj._id}`, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+      }
+      setDbTables(prev => prev.filter(t => t._id !== tableObj._id && t.tableNumber !== tableObj.tableNumber));
+      toast.success(`Removed tab "${tableObj.customerName || tableObj.tableNumber}"`);
+    } catch (err) {
+      console.error('Delete temp table error:', err);
+      setDbTables(prev => prev.filter(t => t._id !== tableObj._id && t.tableNumber !== tableObj.tableNumber));
+      toast.success(`Removed tab`);
+    }
+  };
+
   return (
     <div className={styles.terminalWrapper}>
 
@@ -1213,8 +1347,32 @@ export default function POSTerminal({
               </button>
             </div>
 
-            {/* Right: Search Box */}
-            <div className={styles.floorRightControls}>
+            {/* Right: Temp Table Button & Search Box */}
+            <div className={styles.floorRightControls} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setShowTempTableModal(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.42rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Create Temporary Table / Open Tab for walk-in or floating customers (e.g. Deepak)"
+              >
+                <UserPlus size={14} />
+                <span>+ Temp Table</span>
+              </button>
+
               <div className={styles.searchBox}>
                 <Search size={14} color="#94a3b8" />
                 <input
@@ -1294,6 +1452,11 @@ export default function POSTerminal({
                         else elapsedMin = `${Math.max(1, m)} Min`;
                       }
 
+                      const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || tbl.customerName || '';
+                      const custName = getCustomerFirstName(rawCustName);
+                      const isTemp = tbl.isTemporary || /^temp/i.test(String(tbl.tableNumber || ''));
+                      const tempCustLabel = tbl.customerName || custName || (tbl.tableNumber ? String(tbl.tableNumber).replace(/^temp\s*-\s*/i, '') : 'Tab');
+
                       // 1. FREE / EMPTY CARD
                       if (!isOccupied) {
                         return (
@@ -1301,17 +1464,35 @@ export default function POSTerminal({
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tileFree}`}
                             onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
+                            style={isTemp ? { borderColor: '#c4b5fd', background: '#faf5ff', boxShadow: '0 1px 4px rgba(124, 58, 237, 0.08)' } : {}}
+                            title={isTemp ? `Temporary Tab: ${tempCustLabel} - Clean & Ready. Click to take order.` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
                           >
-                            <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
-                            <span className={styles.tileName}>{formatTableOnlyNumber(tbl.tableNumber)}</span>
-                            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
+                            {isTemp ? (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '2px' }}>
+                                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '4px' }}>
+                                  ⚡ TEMP TAB
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteTempTable(tbl, e)}
+                                  title="Dismiss this empty temporary tab"
+                                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 2px' }}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                            )}
+                            <span className={styles.tileName} style={isTemp ? { color: '#6d28d9', fontWeight: 800 } : {}}>
+                              {isTemp ? tempCustLabel : formatTableOnlyNumber(tbl.tableNumber)}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: isTemp ? '#7c3aed' : '#10b981', fontWeight: 700 }}>
+                              + Take Order
+                            </span>
                           </div>
                         );
                       }
-
-                      const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
-                      const custName = getCustomerFirstName(rawCustName);
 
                       // 2. PAID / BILLED / SERVED CARD (Soft Green)
                       if (isAllPaid) {
@@ -1320,19 +1501,18 @@ export default function POSTerminal({
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tilePaid}`}
                             onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                            style={isTemp ? { borderColor: '#86efac', background: '#f0fdf4' } : {}}
                             title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
                           >
                             <div className={styles.tileTopMeta}>
                               <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
                             </div>
                             <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                              {custName || formatTableOnlyNumber(tbl.tableNumber)}
+                              {isTemp ? tempCustLabel : (custName || formatTableOnlyNumber(tbl.tableNumber))}
                             </span>
-                            {custName && (
-                              <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
-                                {formatTableOnlyNumber(tbl.tableNumber)}
-                              </span>
-                            )}
+                            <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
+                              {isTemp ? '⚡ Temp Tab Paid' : (custName ? formatTableOnlyNumber(tbl.tableNumber) : '')}
+                            </span>
                             <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                             <button
                               type="button"
@@ -1355,9 +1535,9 @@ export default function POSTerminal({
                                 gap: '4px',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                               }}
-                              title={`Click to clear and free Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
+                              title={isTemp ? `Click to close and remove ${tempCustLabel}'s temporary tab` : `Click to clear and free Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
                             >
-                              <CheckCircle2 size={12} /> Clear Table
+                              <CheckCircle2 size={12} /> {isTemp ? 'Close Tab' : 'Clear Table'}
                             </button>
                           </div>
                         );
@@ -1369,19 +1549,18 @@ export default function POSTerminal({
                           key={tbl._id || tbl.tableNumber}
                           className={`${styles.tableTile} ${styles.tileOccupied}`}
                           onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
+                          style={isTemp ? { borderColor: '#f59e0b', background: '#fffbeb', boxShadow: '0 2px 6px rgba(245, 158, 11, 0.15)' } : {}}
                           title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
                         >
                           <div className={styles.tileTopMeta}>
-                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : 'Active'}
+                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : (isTemp ? 'Open Tab' : 'Active')}
                           </div>
                           <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                            {custName || formatTableOnlyNumber(tbl.tableNumber)}
+                            {isTemp ? tempCustLabel : (custName || formatTableOnlyNumber(tbl.tableNumber))}
                           </span>
-                          {custName && (
-                            <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 700 }}>
-                              {formatTableOnlyNumber(tbl.tableNumber)}
-                            </span>
-                          )}
+                          <span style={{ fontSize: '0.68rem', color: isTemp ? '#b45309' : '#92400e', fontWeight: 800 }}>
+                            {isTemp ? `⚡ Running Tab (${tableOrders.length} ${tableOrders.length === 1 ? 'round' : 'rounds'})` : (custName ? formatTableOnlyNumber(tbl.tableNumber) : '')}
+                          </span>
                           <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
                         </div>
                       );
@@ -1685,8 +1864,27 @@ export default function POSTerminal({
                 <div className={styles.drawerHeader}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <h4 className={styles.drawerTitle} style={{ margin: 0 }}>
-                        {tableNumber === 'Walk-in' ? 'Walk-in' : `Table ${formatTableOnlyNumber(tableNumber)}`}
+                      <h4 className={styles.drawerTitle} style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        {tableNumber === 'Walk-in' ? (
+                          'Walk-in'
+                        ) : /^temp/i.test(tableNumber) ? (
+                          <>
+                            <span style={{
+                              background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                              color: '#ffffff',
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              letterSpacing: '0.5px'
+                            }}>
+                              ⚡ TEMP TAB
+                            </span>
+                            <span>{formatTableOnlyNumber(tableNumber)}</span>
+                          </>
+                        ) : (
+                          `Table ${formatTableOnlyNumber(tableNumber)}`
+                        )}
                       </h4>
                       {mergedTables.map(mTable => (
                         <span
@@ -3736,6 +3934,227 @@ export default function POSTerminal({
           </motion.div>
         </div>
       )}
+
+      {/* ========================================================= */}
+      {/* TEMPORARY TABLE / OPEN TAB CREATION MODAL                 */}
+      {/* ========================================================= */}
+      <AnimatePresence>
+        {showTempTableModal && (
+          <div className={styles.splitModalOverlay} onClick={() => !isCreatingTempTable && setShowTempTableModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.18 }}
+              className={styles.splitModalContent}
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '460px', width: '92%', borderRadius: '16px', padding: '1.25rem', border: '1.5px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(124, 58, 237, 0.25)' }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
+                    color: '#7c3aed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #c4b5fd'
+                  }}>
+                    <UserPlus size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                      Create Temporary Table
+                    </h3>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#64748b' }}>
+                      For walk-in, floating guests, or running tabs (e.g. Deepak)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTempTableModal(false)}
+                  disabled={isCreatingTempTable}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCreateTempTable(true);
+                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}
+              >
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                    Customer / Tab Name <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <User size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="e.g. Deepak"
+                      value={tempCustomerName}
+                      onChange={(e) => setTempCustomerName(e.target.value)}
+                      autoFocus
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.55rem 0.75rem 0.55rem 2.1rem',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                        fontWeight: 600,
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                    Phone Number <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>(Optional - for WhatsApp E-Bill)</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Phone size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="tel"
+                      placeholder="10-digit mobile number"
+                      maxLength={10}
+                      value={tempCustomerPhone}
+                      onChange={(e) => setTempCustomerPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                      style={{
+                        width: '100%',
+                        padding: '0.55rem 0.75rem 0.55rem 2.1rem',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                    Notes / Tag <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>(Optional)</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <StickyNote size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="Optional notes or tag"
+                      value={tempNotes}
+                      onChange={(e) => setTempNotes(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.55rem 0.75rem 0.55rem 2.1rem',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Helper info badge */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#f5f3ff',
+                  border: '1px solid #ddd6fe',
+                  borderRadius: '8px',
+                  padding: '7px 10px',
+                  fontSize: '0.72rem',
+                  color: '#6d28d9',
+                  fontWeight: 600
+                }}>
+                  <Zap size={13} color="#7c3aed" style={{ flexShrink: 0 }} />
+                  <span>All orders throughout the day will be tracked on this tab. Once settled & paid, it auto-removes!</span>
+                </div>
+
+                {/* Modal Buttons */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowTempTableModal(false)}
+                    disabled={isCreatingTempTable}
+                    style={{
+                      flex: 1,
+                      padding: '0.6rem 0.8rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateTempTable(false)}
+                    disabled={isCreatingTempTable}
+                    style={{
+                      flex: 1.2,
+                      padding: '0.6rem 0.8rem',
+                      borderRadius: '8px',
+                      border: '1.5px solid #c4b5fd',
+                      background: '#ffffff',
+                      color: '#6d28d9',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Create Tab Only
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingTempTable}
+                    style={{
+                      flex: 1.6,
+                      padding: '0.6rem 0.8rem',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      boxShadow: '0 2px 6px rgba(124, 58, 237, 0.3)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <UserPlus size={14} />
+                    <span>{isCreatingTempTable ? 'Creating...' : 'Create & Order'}</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

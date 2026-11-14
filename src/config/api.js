@@ -22,16 +22,13 @@ const getApiUrl = () => {
     return 'https://cafe-application-be-1.onrender.com/api';
   }
 
-  // Local development
+  // Local development / fallback
   if (envUrl) {
     return envUrl;
   }
 
-  if (typeof window !== 'undefined' && window.location.hostname) {
-    return `http://${window.location.hostname}:5000/api`;
-  }
-
-  return 'http://localhost:5000/api';
+  // Live production backend (default)
+  return 'https://cafe-application-be-1.onrender.com/api';
 };
 
 export const API_URL = getApiUrl();
