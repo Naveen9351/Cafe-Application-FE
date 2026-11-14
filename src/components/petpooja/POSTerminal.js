@@ -1452,8 +1452,10 @@ export default function POSTerminal({
                         else elapsedMin = `${Math.max(1, m)} Min`;
                       }
 
+                      const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || tbl.customerName || '';
+                      const custName = getCustomerFirstName(rawCustName);
                       const isTemp = tbl.isTemporary || /^temp/i.test(String(tbl.tableNumber || ''));
-                      const tempCustLabel = tbl.customerName || custName || formatTableOnlyNumber(tbl.tableNumber);
+                      const tempCustLabel = tbl.customerName || custName || (tbl.tableNumber ? String(tbl.tableNumber).replace(/^temp\s*-\s*/i, '') : 'Tab');
 
                       // 1. FREE / EMPTY CARD
                       if (!isOccupied) {
@@ -1491,9 +1493,6 @@ export default function POSTerminal({
                           </div>
                         );
                       }
-
-                      const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || '';
-                      const custName = getCustomerFirstName(rawCustName);
 
                       // 2. PAID / BILLED / SERVED CARD (Soft Green)
                       if (isAllPaid) {
