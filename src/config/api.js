@@ -32,7 +32,7 @@ const getApiUrl = () => {
   if (typeof window !== 'undefined' && !isLocalhost) {
     if (isDevDomain()) {
       // Connect to Dev backend on Render
-      return process.env.REACT_APP_DEV_API_URL || 'https://cafe-application-be-dev.onrender.com/api';
+      return process.env.REACT_APP_DEV_API_URL || 'https://cafe-application-be.onrender.com/api';
     }
     // Live production backend (default)
     return 'https://cafe-application-be-1.onrender.com/api';
