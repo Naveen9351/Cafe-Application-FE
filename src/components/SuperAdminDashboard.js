@@ -89,6 +89,7 @@ const SuperAdminDashboard = () => {
         email: '',
         phone: '',
         password: '',
+        operatingMode: 'dine_in',
         sendEmailNotification: false
     });
     const [showEditPassword, setShowEditPassword] = useState(false);
@@ -96,6 +97,7 @@ const SuperAdminDashboard = () => {
     const [showResetResultModal, setShowResetResultModal] = useState(false);
     const [resetResultInfo, setResetResultInfo] = useState(null);
     const [showPlanModal, setShowPlanModal] = useState(false);
+    const [selectedOperatingMode, setSelectedOperatingMode] = useState('dine_in');
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [confirmModal, setConfirmModal] = useState({
@@ -126,7 +128,8 @@ const SuperAdminDashboard = () => {
         address: '',
         logo: '',
         plan: '1_month',
-        customPrice: 999
+        customPrice: 999,
+        operatingMode: 'dine_in'
     });
     const [isOnboarding, setIsOnboarding] = useState(false);
 
@@ -442,6 +445,7 @@ const SuperAdminDashboard = () => {
             adminName: tenant.adminName || tenant.ownerName || '',
             email: tenant.adminEmail || tenant.email || '',
             phone: tenant.adminPhone || tenant.phone || '',
+            operatingMode: tenant.operatingMode || tenant.settings?.operatingMode || 'dine_in',
             password: '',
             sendEmailNotification: false
         });
@@ -472,6 +476,16 @@ const SuperAdminDashboard = () => {
                 headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
             });
             toast.success(res.data?.message || 'Cafe and user details updated successfully!');
+            const targetMode = editUserForm.operatingMode || 'dine_in';
+            setTenants(prev => prev.map(t => t._id === editingUserTenant._id ? {
+                ...t,
+                name: editUserForm.cafeName,
+                email: editUserForm.email,
+                phone: editUserForm.phone,
+                adminName: editUserForm.adminName,
+                operatingMode: targetMode,
+                settings: { ...(t.settings || {}), operatingMode: targetMode }
+            } : t));
             setShowEditUserModal(false);
             setEditingUserTenant(null);
             fetchTenantsAndLeads();
@@ -675,12 +689,23 @@ const SuperAdminDashboard = () => {
             const token = localStorage.getItem('token');
             await axios.put(`${API}/tenants/${editingTenant._id}/subscription`, {
                 plan: selectedPlan,
-                customPrice: customPriceVal
+                customPrice: customPriceVal,
+                operatingMode: selectedOperatingMode
             }, {
                 headers: { 'x-auth-token': token }
             });
 
-            toast.success(`Plan activated for ${editingTenant.name}`);
+            toast.success(`Plan & architecture updated for ${editingTenant.name}`);
+            setTenants(prev => prev.map(t => t._id === editingTenant._id ? {
+                ...t,
+                operatingMode: selectedOperatingMode,
+                settings: { ...(t.settings || {}), operatingMode: selectedOperatingMode },
+                subscription: {
+                    ...(t.subscription || {}),
+                    plan: selectedPlan,
+                    price: customPriceVal
+                }
+            } : t));
             setShowPlanModal(false);
             setEditingTenant(null);
             fetchTenantsAndLeads();
@@ -1217,12 +1242,25 @@ const SuperAdminDashboard = () => {
                                                                 <div style={{ color: '#64748b', fontSize: '11px' }}>{tenant.phone || '—'}</div>
                                                             </td>
                                                             <td>
-                                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                                                    <span className={`${styles.badge} ${styles.planBadge}`}>
-                                                                        {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
-                                                                    </span>
-                                                                    <span style={{ fontSize: '11px', fontWeight: 550, color: '#334155' }}>
-                                                                        ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                                                        <span className={`${styles.badge} ${styles.planBadge}`}>
+                                                                            {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '11px', fontWeight: 550, color: '#334155' }}>
+                                                                            ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span style={{
+                                                                        fontSize: '9.5px',
+                                                                        fontWeight: 800,
+                                                                        padding: '1px 6px',
+                                                                        borderRadius: '4px',
+                                                                        background: (tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '#ecfdf5' : '#f5f3ff',
+                                                                        color: (tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '#047857' : '#6d28d9',
+                                                                        border: (tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '1px solid #a7f3d0' : '1px solid #ddd6fe'
+                                                                    }}>
+                                                                        {(tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '⚡ Quick Billing (No QR)' : '🍽️ Full Dine-In & QR'}
                                                                     </span>
                                                                 </div>
                                                             </td>
@@ -1284,6 +1322,7 @@ const SuperAdminDashboard = () => {
                                                                             setEditingTenant(tenant);
                                                                             setSelectedPlan(sub.plan || '1_month');
                                                                             setCustomPriceVal(sub.price || 999);
+                                                                            setSelectedOperatingMode(tenant.operatingMode || tenant.settings?.operatingMode || 'dine_in');
                                                                             setShowPlanModal(true);
                                                                         }}
                                                                         title="Manage Plan & Pricing"
@@ -1307,6 +1346,7 @@ const SuperAdminDashboard = () => {
                                                                             onClick={() => {
                                                                                 setEditingTenant(tenant);
                                                                                 setSelectedPlan(sub.plan || '1_month');
+                                                                                setSelectedOperatingMode(tenant.operatingMode || tenant.settings?.operatingMode || 'dine_in');
                                                                                 setShowPlanModal(true);
                                                                             }}
                                                                             title="Activate Plan"
@@ -3067,6 +3107,7 @@ const SuperAdminDashboard = () => {
                                                     setEditingTenant(exploreCafe);
                                                     setSelectedPlan(exploreData.recommendation.recommendedPlan);
                                                     setCustomPriceVal(exploreData.recommendation.suggestedPrice);
+                                                    setSelectedOperatingMode(exploreCafe?.operatingMode || exploreCafe?.settings?.operatingMode || 'dine_in');
                                                     setShowExploreModal(false);
                                                     setShowPlanModal(true);
                                                 }}
@@ -3225,6 +3266,42 @@ const SuperAdminDashboard = () => {
                                                 style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                                                 placeholder="10-digit mobile"
                                             />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Operating Architecture Selector */}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                                        Operating Architecture (Feature Access)
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                        <div
+                                            onClick={() => setEditUserForm({ ...editUserForm, operatingMode: 'dine_in' })}
+                                            style={{
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                border: (editUserForm.operatingMode || 'dine_in') === 'dine_in' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                                                background: (editUserForm.operatingMode || 'dine_in') === 'dine_in' ? '#f5f3ff' : '#ffffff',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>🍽️ Full Dine-In & QR</div>
+                                            <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>QR Tables, KDS, CRM, Staff, POS, Menu & Reports</div>
+                                        </div>
+
+                                        <div
+                                            onClick={() => setEditUserForm({ ...editUserForm, operatingMode: 'counter_billing' })}
+                                            style={{
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                border: editUserForm.operatingMode === 'counter_billing' ? '2px solid #059669' : '1px solid #cbd5e1',
+                                                background: editUserForm.operatingMode === 'counter_billing' ? '#ecfdf5' : '#ffffff',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>⚡ Quick Billing Only</div>
+                                            <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>Only POS, Menu, Orders & Reports (No QR / Floor)</div>
                                         </div>
                                     </div>
                                 </div>
@@ -3552,6 +3629,41 @@ const SuperAdminDashboard = () => {
                                 </select>
                             </div>
 
+                            {/* Operating Architecture Selection */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                                    Business Operating Architecture
+                                </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                    <div
+                                        onClick={() => setOnboardForm({ ...onboardForm, operatingMode: 'dine_in' })}
+                                        style={{
+                                            padding: '10px 12px',
+                                            borderRadius: '8px',
+                                            border: (onboardForm.operatingMode || 'dine_in') === 'dine_in' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                                            background: (onboardForm.operatingMode || 'dine_in') === 'dine_in' ? '#f5f3ff' : '#ffffff',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>🍽️ Full Dine-In & QR</div>
+                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>QR Tables, KDS, CRM, Staff, POS, Menu & Reports</div>
+                                    </div>
+                                    <div
+                                        onClick={() => setOnboardForm({ ...onboardForm, operatingMode: 'counter_billing' })}
+                                        style={{
+                                            padding: '10px 12px',
+                                            borderRadius: '8px',
+                                            border: onboardForm.operatingMode === 'counter_billing' ? '2px solid #059669' : '1px solid #cbd5e1',
+                                            background: onboardForm.operatingMode === 'counter_billing' ? '#ecfdf5' : '#ffffff',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>⚡ Quick Billing Only</div>
+                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>Only POS, Menu, Orders & Reports (No QR / Floor)</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className={styles.modalActions} style={{ marginTop: 8 }}>
                                 <button type="button" onClick={() => setShowOnboardModal(false)} className={styles.cancelBtn}>Cancel</button>
                                 <button type="submit" disabled={isOnboarding} className={styles.saveBtn}>
@@ -3600,6 +3712,41 @@ const SuperAdminDashboard = () => {
                                     <option value="1_year">1 Year Ultimate Pro (₹10,999)</option>
                                     <option value="free_trial">14-Day Free Trial (₹0)</option>
                                 </select>
+                            </div>
+
+                            {/* Operating Architecture Selection */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                                    Business Operating Architecture
+                                </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                    <div
+                                        onClick={() => setSelectedOperatingMode('dine_in')}
+                                        style={{
+                                            padding: '10px 12px',
+                                            borderRadius: '8px',
+                                            border: selectedOperatingMode === 'dine_in' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                                            background: selectedOperatingMode === 'dine_in' ? '#f5f3ff' : '#ffffff',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>🍽️ Full Dine-In & QR</div>
+                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>QR Tables, KDS, CRM, Staff, POS, Menu & Reports</div>
+                                    </div>
+                                    <div
+                                        onClick={() => setSelectedOperatingMode('counter_billing')}
+                                        style={{
+                                            padding: '10px 12px',
+                                            borderRadius: '8px',
+                                            border: selectedOperatingMode === 'counter_billing' ? '2px solid #059669' : '1px solid #cbd5e1',
+                                            background: selectedOperatingMode === 'counter_billing' ? '#ecfdf5' : '#ffffff',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>⚡ Quick Billing Only</div>
+                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>Only POS, Menu, Orders & Reports (No QR / Floor)</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div>

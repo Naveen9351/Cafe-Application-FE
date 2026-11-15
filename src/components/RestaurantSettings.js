@@ -73,15 +73,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     onSave({ settings: { ...tenantInfo?.settings, [field]: val } });
   };
 
-  const handleOperatingModeChange = (mode) => {
-    setForm(prev => ({ ...prev, operatingMode: mode }));
-    onSave({ settings: { ...tenantInfo?.settings, operatingMode: mode } });
-    toast.success(mode === 'counter_billing'
-      ? 'Switched to Quick Billing Mode (No QR / Direct POS)'
-      : 'Switched to Full Dine-In & Table QR Mode'
-    );
-  };
-
   useEffect(() => {
     const handleAudioChange = (e) => {
       if (e.detail) {
@@ -601,78 +592,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     )}
                   </div>
                 ))}
-              </div>
-
-              {/* Business Operating Architecture (Full Dine-In QR vs Quick Counter Billing) */}
-              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0' }}>
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Receipt size={17} color="#4f46e5" />
-                    <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>Business Operating Architecture</strong>
-                    <span style={{ background: '#ede9fe', color: '#6d28d9', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '100px' }}>
-                      MODE
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '11.5px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Choose your operating model. Counter Billing streamlines the navigation to only POS, Menu & Reports without QR or table overhead.
-                  </p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-                  {/* Mode 1: Full Dine-In & QR Tables */}
-                  <div
-                    onClick={() => handleOperatingModeChange('dine_in')}
-                    style={{
-                      padding: '14px',
-                      borderRadius: '10px',
-                      border: (form.operatingMode || 'dine_in') === 'dine_in' ? '2px solid #4f46e5' : '1px solid #cbd5e1',
-                      background: (form.operatingMode || 'dine_in') === 'dine_in' ? '#f5f3ff' : '#ffffff',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      position: 'relative'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <QrCode size={18} color="#4f46e5" />
-                        <strong style={{ fontSize: '13px', color: '#1e293b' }}>Full Dine-In & QR Tables</strong>
-                      </div>
-                      {(form.operatingMode || 'dine_in') === 'dine_in' && (
-                        <CheckCircle size={16} color="#4f46e5" />
-                      )}
-                    </div>
-                    <p style={{ fontSize: '11px', color: '#64748b', margin: 0, lineHeight: 1.4 }}>
-                      Table QR Codes, Live Kitchen (KDS), Staff Roles, Waiter Calling, and Floor Management.
-                    </p>
-                  </div>
-
-                  {/* Mode 2: Quick Billing / Counter POS Only */}
-                  <div
-                    onClick={() => handleOperatingModeChange('counter_billing')}
-                    style={{
-                      padding: '14px',
-                      borderRadius: '10px',
-                      border: form.operatingMode === 'counter_billing' ? '2px solid #16a34a' : '1px solid #cbd5e1',
-                      background: form.operatingMode === 'counter_billing' ? '#f0fdf4' : '#ffffff',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      position: 'relative'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Receipt size={18} color="#16a34a" />
-                        <strong style={{ fontSize: '13px', color: '#1e293b' }}>Quick Billing Only (No QR)</strong>
-                      </div>
-                      {form.operatingMode === 'counter_billing' && (
-                        <CheckCircle size={16} color="#16a34a" />
-                      )}
-                    </div>
-                    <p style={{ fontSize: '11px', color: '#64748b', margin: 0, lineHeight: 1.4 }}>
-                      Direct Counter Billing POS, Menu Management, Orders, and Sales Reports without QR or table overhead.
-                    </p>
-                  </div>
-                </div>
               </div>
 
               {/* Kitchen Prep Time Estimation Feature Toggle */}

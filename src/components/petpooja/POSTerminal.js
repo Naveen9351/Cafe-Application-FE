@@ -50,7 +50,12 @@ export default function POSTerminal({
   onOrderPlaced,
   onSettleTable
 }) {
-  const isCounterBillingOnly = tenantInfo?.settings?.operatingMode === 'counter_billing' || tenantInfo?.settings?.businessMode === 'quick_billing';
+  const activeOperatingMode = tenantInfo?.operatingMode 
+    || tenantInfo?.settings?.operatingMode 
+    || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode) 
+    || 'dine_in';
+  const isCounterBillingOnly = activeOperatingMode === 'counter_billing' 
+    || tenantInfo?.settings?.businessMode === 'quick_billing';
 
   // View mode: 'tables' (Petpooja table matrix) or 'terminal' (POS billing)
   const [viewMode, setViewMode] = useState((initialTable || isCounterBillingOnly) ? 'terminal' : 'tables');
@@ -384,6 +389,7 @@ export default function POSTerminal({
 
   // Active orders currently belonging to the selected table + any merged tables in POS
   const currentTableOrders = useMemo(() => {
+    if (isCounterBillingOnly) return []; // Quick Counter billing handles only the current cart transaction
     if (!tableNumber) return [];
     const allTableNums = [tableNumber, ...mergedTables];
     const combinedOrders = [];
@@ -835,6 +841,80 @@ export default function POSTerminal({
 
     setIsSubmittingItemPay(true);
     try {
+      if (isCounterBillingOnly) {
+        // Quick Counter 1-Step Checkout: Create completed & paid order immediately!
+        const tenderAmount = draftCartTotal;
+        const effectiveMethod = customMethod || (payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod);
+        const finalPaid = customPayable !== null ? Number(customPayable) : (actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : tenderAmount);
+        const finalDiscount = customDiscount > 0 ? Number(customDiscount) : Math.max(0, tenderAmount - finalPaid);
+
+        const effName = customerName.trim() || 'Walk-in Guest';
+        const effPhone = customerPhone.trim();
+
+        const orderPayload = {
+          tenantId: effectiveTenantId,
+          tableNumber: 'Walk-in',
+          orderType: 'takeaway',
+          customerName: effName,
+          customerPhone: effPhone,
+          customerDetails: {
+            name: effName,
+            phone: effPhone
+          },
+          paymentMethod: effectiveMethod,
+          isDirect: true,
+          status: 'completed',
+          paymentStatus: 'paid',
+          settledAmount: finalPaid,
+          discountAmount: finalDiscount,
+          discountReason: settlementDiscountReason || 'Quick Counter Settlement',
+          items: cart.map(it => ({
+            id: it.id,
+            itemId: it.id,
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity,
+            variant: it.variant || null,
+            addons: it.addons || [],
+            isDirect: true,
+            itemStatus: 'served',
+            isPaid: true
+          })),
+          totalAmount: finalPaid
+        };
+
+        const res = await axios.post(`${API}/orders`, orderPayload, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+
+        const createdOrder = res.data?.order || res.data;
+        const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount applied)` : '';
+        toast.success(`✓ Order #${createdOrder.orderNumber || ''} paid ₹${formatAmount(finalPaid)}${discountMsg} via ${effectiveMethod}! Bill generated.`);
+
+        // Auto print bill
+        try {
+          printOrderBill({
+            ...createdOrder,
+            items: cart,
+            totalAmount: finalPaid
+          }, tenantInfo?.name);
+        } catch (printErr) {
+          console.warn('Print bill trigger:', printErr);
+        }
+
+        // Immediately reset POS for the NEXT customer!
+        setCart([]);
+        setCustomerName('');
+        setCustomerPhone('');
+        setShowPayItemsModal(false);
+        setActualAmountReceived('');
+        setSettlementDiscount('');
+        setCashTenderGiven('');
+
+        if (onOrderPlaced) onOrderPlaced(createdOrder);
+        if (onOrderCreated) onOrderCreated(createdOrder);
+        return;
+      }
       const itemsToPay = selectedItemsSummary.itemsList.map(it => ({
         orderId: it.orderId,
         itemIndex: it.itemIndex
@@ -886,7 +966,7 @@ export default function POSTerminal({
             : t
         ));
 
-        setViewMode('tables');
+        // Keep cashier in POS view for this table so they see all paid items, zero balance due, and the green 'Clear Table (Free)' button!
       } else {
         // Partial items pay
         const res = await axios.put(
@@ -1315,7 +1395,7 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 1. FLOOR & TABLES MATRIX VIEW (Petpooja Reference Style)  */}
       {/* ========================================================= */}
-      {viewMode === 'tables' && (
+      {!isCounterBillingOnly && viewMode === 'tables' && (
         <div className={styles.floorContainer}>
 
           {/* Streamlined Top Control Toolbar */}
@@ -1642,7 +1722,7 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 2. POS BILLING & ORDER VIEW (High-Speed Terminal)         */}
       {/* ========================================================= */}
-      {viewMode === 'terminal' && (
+      {(isCounterBillingOnly || viewMode === 'terminal') && (
         <div className={styles.terminalContainerWrap}>
 
           {/* POS Two-Column Grid */}
@@ -1651,15 +1731,17 @@ export default function POSTerminal({
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
               <div className={styles.menuFilterBar}>
-                {/* Inline Back Arrow Button */}
-                <button
-                  type="button"
-                  className={styles.backIconBtn}
-                  onClick={() => setViewMode('tables')}
-                  title="Back to Floor Tables"
-                >
-                  <ArrowLeft size={16} />
-                </button>
+                {/* Inline Back Arrow Button (only for Dine-in with tables) */}
+                {!isCounterBillingOnly && (
+                  <button
+                    type="button"
+                    className={styles.backIconBtn}
+                    onClick={() => setViewMode('tables')}
+                    title="Back to Floor Tables"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+                )}
 
                 {/* Dish Search input right after back button */}
                 <div className={styles.searchBox}>
@@ -2248,7 +2330,69 @@ export default function POSTerminal({
                     <>
                       {/* Dynamic Action Buttons */}
                       {(hasDraftItems || hasActiveOrders) && (
-                        <div className={styles.terminalActionBtns}>
+                        <>
+                          {isCounterBillingOnly ? (
+                            hasDraftItems && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '6px' }}>
+                                <button
+                                  type="button"
+                                  className={styles.paidOrderBtn}
+                                  onClick={() => {
+                                    setKhataPaidAmount('0');
+                                    setKhataBorrowAmount(0);
+                                    setActualAmountReceived('');
+                                    setSettlementDiscount('');
+                                    setCashTenderGiven('');
+                                    setSettlementDiscountReason('Quick Counter Concession / Round Off');
+                                    setSettlementSubMethod('Cash');
+                                    setShowPayItemsModal(true);
+                                  }}
+                                  disabled={isSubmittingItemPay || isSubmittingDirect}
+                                  style={{
+                                    width: '100%',
+                                    padding: '13px 18px',
+                                    fontSize: '1rem',
+                                    fontWeight: 800,
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    color: '#ffffff',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8
+                                  }}
+                                  title="Collect payment and generate bill"
+                                >
+                                  <CreditCard size={18} />
+                                  <span>Pay & Bill (₹{formatAmount(draftCartTotal)})</span>
+                                </button>
+                              </div>
+                            )
+                          ) : (
+                            <>
+                              {hasActiveOrders && balanceDue === 0 && tableNumber !== 'Walk-in' && (
+                                <div style={{
+                                  background: '#f0fdf4',
+                                  border: '1px solid #86efac',
+                                  borderRadius: '8px',
+                                  padding: '6px 10px',
+                                  marginBottom: '8px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700,
+                                  color: '#166534',
+                                  boxShadow: '0 1px 3px rgba(16, 185, 129, 0.1)'
+                                }}>
+                                  <CheckCircle2 size={14} color="#16a34a" />
+                                  <span>✓ Bill Paid in Full! Table stays occupied until you click <strong>Clear Table</strong>.</span>
+                                </div>
+                              )}
+                              <div className={styles.terminalActionBtns}>
                           {/* 1. Send to Kitchen: Shown whenever draft items exist */}
                           {hasDraftItems && (
                             <button
@@ -2435,10 +2579,13 @@ export default function POSTerminal({
                             </div>
                           )}
                         </div>
+                        </>
                       )}
                     </>
-                  );
-                })()}
+                  )}
+                </>
+              );
+            })()}
               </div>
 
             </div>
@@ -2451,7 +2598,9 @@ export default function POSTerminal({
       {/* 2.1 PAY ITEMS / TABLE SETTLEMENT & CONCESSION MODAL       */}
       {/* ========================================================= */}
       {showPayItemsModal && (() => {
-        const tenderAmount = selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue;
+        const tenderAmount = isCounterBillingOnly 
+          ? draftCartTotal 
+          : (selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue);
         
         // Calculate settlement discount and payable amount
         const discountVal = Math.max(0, Number(settlementDiscount) || 0);
@@ -2484,6 +2633,73 @@ export default function POSTerminal({
             const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
             try {
+              if (isCounterBillingOnly) {
+                const khataItems = cart.map(it => ({
+                  name: it.name || 'Dish',
+                  quantity: it.quantity || 1,
+                  price: Number(it.price) || 0
+                }));
+
+                await axios.post(`${API}/khata`, {
+                  tenantId: effectiveTenantId,
+                  customerName: effName,
+                  customerPhone: effPhone,
+                  totalBill: finalPayable,
+                  paidAmount: paidNowNum,
+                  borrowAmount: borrowDueNum,
+                  notes: khataNotes || `Counter Order${discountVal > 0 ? ` [Discount: ₹${discountVal}]` : ''}`,
+                  items: khataItems
+                }, {
+                  headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {}
+                });
+
+                const orderPayload = {
+                  tenantId: effectiveTenantId,
+                  tableNumber: 'Walk-in',
+                  orderType: 'takeaway',
+                  customerName: effName,
+                  customerPhone: effPhone,
+                  customerDetails: { name: effName, phone: effPhone },
+                  paymentMethod: 'Khata / Borrow',
+                  isDirect: true,
+                  status: 'completed',
+                  paymentStatus: borrowDueNum === 0 ? 'paid' : (paidNowNum > 0 ? 'partial' : 'pending'),
+                  settledAmount: paidNowNum,
+                  discountAmount: discountVal,
+                  discountReason: settlementDiscountReason || 'Quick Counter Settlement',
+                  items: cart.map(it => ({
+                    id: it.id,
+                    itemId: it.id,
+                    name: it.name,
+                    price: it.price,
+                    quantity: it.quantity,
+                    variant: it.variant || null,
+                    addons: it.addons || [],
+                    isDirect: true,
+                    itemStatus: 'served',
+                    isPaid: borrowDueNum === 0
+                  })),
+                  totalAmount: finalPayable
+                };
+
+                const res = await axios.post(`${API}/orders`, orderPayload, {
+                  headers: token ? { 'x-auth-token': token } : {}
+                });
+                const createdOrder = res.data?.order || res.data;
+
+                toast.success(`✓ Recorded in Khata: Borrow ₹${formatAmount(borrowDueNum)}${paidNowNum > 0 ? `, Paid ₹${formatAmount(paidNowNum)}` : ''}`);
+                setCart([]);
+                setCustomerName('');
+                setCustomerPhone('');
+                setShowPayItemsModal(false);
+                setActualAmountReceived('');
+                setSettlementDiscount('');
+                setCashTenderGiven('');
+                setKhataPaidAmount('0');
+                if (onOrderPlaced) onOrderPlaced(createdOrder);
+                if (onOrderCreated) onOrderCreated(createdOrder);
+                return;
+              }
               // Check how many unpaid items exist on table
               const allUnpaidItems = currentTableOrders.flatMap(o => (o.items || []).filter(it => !it.isPaid));
               const isPartialKhata = selectedItemsSummary.count > 0 && selectedItemsSummary.count < allUnpaidItems.length;

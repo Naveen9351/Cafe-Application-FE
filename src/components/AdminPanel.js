@@ -278,10 +278,16 @@ export default function AdminPanel() {
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
   ], []);
 
+  const activeOperatingMode = tenantInfo?.operatingMode 
+    || tenantInfo?.settings?.operatingMode 
+    || user?.operatingMode 
+    || user?.tenantId?.operatingMode 
+    || 'dine_in';
+  const isCounterBillingOnly = activeOperatingMode === 'counter_billing';
+
   // Compute strictly allowed tabs for current user based on permission bucket and operating mode
   const allowedTabs = useMemo(() => {
-    const isCounterBillingOnly = tenantInfo?.settings?.operatingMode === 'counter_billing' || tenantInfo?.settings?.businessMode === 'quick_billing';
-    const counterDisallowed = new Set(['qrcodes', 'kds', 'crm', 'staff', 'sales-summary']);
+    const counterDisallowed = new Set(['qrcodes', 'kds', 'crm', 'staff']);
 
     if (isAdmin) {
       return ALL_TABS_CONFIG.filter(t => {
@@ -297,7 +303,7 @@ export default function AdminPanel() {
       if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
       return Boolean(perms[t.permKey] || (t.id === 'orders' && perms['access_live_orders']));
     });
-  }, [isAdmin, user?.permissions, tenantInfo?.settings, ALL_TABS_CONFIG]);
+  }, [isAdmin, isCounterBillingOnly, user?.permissions, tenantInfo?.settings, ALL_TABS_CONFIG]);
 
   const { tab } = useParams();
   const activeTab = useMemo(() => {
@@ -311,17 +317,17 @@ export default function AdminPanel() {
     return validTabs.includes(t) ? t : (isAdmin ? 'dashboard' : (allowedTabs[0]?.id || 'pos'));
   }, [tab, isAdmin, allowedTabs]);
 
-  const hasAccessToCurrentTab = isAdmin || allowedTabs.some(t => t.id === activeTab);
+  const hasAccessToCurrentTab = allowedTabs.some(t => t.id === activeTab);
 
-  // Auto-redirect staff to their first permitted tab if navigating to an unauthorized route
+  // Auto-redirect user to their first permitted tab if navigating to an unauthorized / disallowed route
   useEffect(() => {
-    if (user && !isAdmin && allowedTabs.length > 0) {
+    if (user && allowedTabs.length > 0) {
       const hasPerm = allowedTabs.some(t => t.id === activeTab);
       if (!hasPerm) {
-        navigate(`/admin/${allowedTabs[0].id}`, { replace: true });
+        navigate(`/admin/${allowedTabs[0]?.id || 'dashboard'}`, { replace: true });
       }
     }
-  }, [user, isAdmin, allowedTabs, activeTab, navigate]);
+  }, [user, allowedTabs, activeTab, navigate]);
 
   const handleTabChange = (newTab) => {
     navigate(`/admin/${newTab}`);
@@ -1610,8 +1616,8 @@ export default function AdminPanel() {
       const effectiveCategory = drawerForm.isOpenMenu
         ? 'open_menu'
         : (drawerForm.category && drawerForm.category !== 'uncategorized'
-            ? drawerForm.category
-            : (sortedCategories.find(c => c.id !== 'all' && c.id !== 'uncategorized')?.id || 'main-courses'));
+          ? drawerForm.category
+          : (sortedCategories.find(c => c.id !== 'all' && c.id !== 'uncategorized')?.id || 'main-courses'));
 
       const formData = new FormData();
       formData.append('name', drawerForm.name.trim());
@@ -2413,81 +2419,101 @@ export default function AdminPanel() {
               </button>
             </div>
 
-            <button
-              className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('dashboard')}
-              title="Dashboard"
-            >
-              <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>{t('nav.dashboard')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
-              onClick={() => {
-                setPosSelectedTable(null);
-                handleTabChange('pos');
-              }}
-              title="POS Terminal & Tables"
-            >
-              <IndianRupee size={18} /> {!sidebarCollapsed && <span>{t('nav.pos')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('kds')}
-              title="Live Orders & KDS"
-            >
-              <ChefHat size={18} /> {!sidebarCollapsed && <span>{t('nav.kds')}</span>}
-              {!sidebarCollapsed && liveNewOrdersCount > 0 && <span className={styles.navPill}>{liveNewOrdersCount}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'orders' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('orders')}
-              title="All Orders Directory & Management"
-            >
-              <ShoppingBag size={18} /> {!sidebarCollapsed && <span>{t('nav.orders')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('menu')}
-              title="Menu Management"
-            >
-              <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>{t('nav.menu')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('qrcodes')}
-              title="Table QR Codes"
-            >
-              <QrCode size={18} /> {!sidebarCollapsed && <span>{t('nav.qrcodes')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'crm' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('crm')}
-              title="Customer Management & CRM"
-            >
-              <Users size={18} /> {!sidebarCollapsed && <span>{t('nav.crm')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'staff' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('staff')}
-              title="Staff & Role Management"
-            >
-              <Users size={18} /> {!sidebarCollapsed && <span>{t('nav.staff')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'reports' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('reports')}
-              title="Reports & Analytics"
-            >
-              <BarChart3 size={18} /> {!sidebarCollapsed && <span>{t('nav.reports')}</span>}
-            </button>
-            <button
-              className={`${styles.navLink} ${activeTab === 'sales-summary' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('sales-summary')}
-              title="Item Summary"
-            >
-              <TrendingUp size={18} /> {!sidebarCollapsed && <span>{t('nav.salesSummary')}</span>}
-            </button>
-            {tenantInfo?.settings?.enableKhata && (
+            {allowedTabs.some(t => t.id === 'dashboard') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'dashboard' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('dashboard')}
+                title="Dashboard"
+              >
+                <LayoutDashboard size={18} /> {!sidebarCollapsed && <span>{t('nav.dashboard')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'pos') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
+                onClick={() => {
+                  setPosSelectedTable(null);
+                  handleTabChange('pos');
+                }}
+                title="POS Terminal & Tables"
+              >
+                <IndianRupee size={18} /> {!sidebarCollapsed && <span>{t('nav.pos')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'kds') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'kds' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('kds')}
+                title="Live Orders & KDS"
+              >
+                <ChefHat size={18} /> {!sidebarCollapsed && <span>{t('nav.kds')}</span>}
+                {!sidebarCollapsed && liveNewOrdersCount > 0 && <span className={styles.navPill}>{liveNewOrdersCount}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'orders') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'orders' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('orders')}
+                title="All Orders Directory & Management"
+              >
+                <ShoppingBag size={18} /> {!sidebarCollapsed && <span>{t('nav.orders')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'menu') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'menu' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('menu')}
+                title="Menu Management"
+              >
+                <UtensilsCrossed size={18} /> {!sidebarCollapsed && <span>{t('nav.menu')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'qrcodes') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'qrcodes' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('qrcodes')}
+                title="Table QR Codes"
+              >
+                <QrCode size={18} /> {!sidebarCollapsed && <span>{t('nav.qrcodes')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'crm') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'crm' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('crm')}
+                title="Customer Management & CRM"
+              >
+                <Users size={18} /> {!sidebarCollapsed && <span>{t('nav.crm')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'staff') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'staff' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('staff')}
+                title="Staff & Role Management"
+              >
+                <Users size={18} /> {!sidebarCollapsed && <span>{t('nav.staff')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'reports') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'reports' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('reports')}
+                title="Reports & Analytics"
+              >
+                <BarChart3 size={18} /> {!sidebarCollapsed && <span>{t('nav.reports')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'sales-summary') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'sales-summary' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('sales-summary')}
+                title="Item Summary"
+              >
+                <TrendingUp size={18} /> {!sidebarCollapsed && <span>{t('nav.salesSummary')}</span>}
+              </button>
+            )}
+            {allowedTabs.some(t => t.id === 'khata') && (
               <button
                 className={`${styles.navLink} ${activeTab === 'khata' ? styles.activeNavLink : ''}`}
                 onClick={() => handleTabChange('khata')}
@@ -2496,13 +2522,15 @@ export default function AdminPanel() {
                 <BookOpen size={18} /> {!sidebarCollapsed && <span>{t('nav.khata')}</span>}
               </button>
             )}
-            <button
-              className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
-              onClick={() => handleTabChange('settings')}
-              title="Settings"
-            >
-              <Settings size={18} /> {!sidebarCollapsed && <span>{t('nav.settings')}</span>}
-            </button>
+            {allowedTabs.some(t => t.id === 'settings') && (
+              <button
+                className={`${styles.navLink} ${activeTab === 'settings' ? styles.activeNavLink : ''}`}
+                onClick={() => handleTabChange('settings')}
+                title="Settings"
+              >
+                <Settings size={18} /> {!sidebarCollapsed && <span>{t('nav.settings')}</span>}
+              </button>
+            )}
           </div>
 
           {/* Sidebar Footer */}
@@ -4152,8 +4180,8 @@ export default function AdminPanel() {
                     </div>
                   </div>
 
-                  {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX */}
-                  {(() => {
+                  {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX (Dine-in Only) */}
+                  {!isCounterBillingOnly && (() => {
                     const occupiedTables = tables.filter(t => getActiveOrdersForTable(t).length > 0);
                     const availableTables = tables.filter(t => getActiveOrdersForTable(t).length === 0);
                     const billReadyTables = tables.filter(t => {
@@ -4471,9 +4499,9 @@ export default function AdminPanel() {
                     );
                   })()}
 
-                  {/* REAL TABLE ORDER DETAILS & BILL SETTLE MODAL */}
+                  {/* REAL TABLE ORDER DETAILS & BILL SETTLE MODAL (Dine-in Only) */}
                   <AnimatePresence>
-                    {selectedTableModal && (
+                    {!isCounterBillingOnly && selectedTableModal && (
                       <div style={{
                         position: 'fixed',
                         inset: 0,
@@ -4758,13 +4786,7 @@ export default function AdminPanel() {
                           <Flame size={18} color="#e11d48" />
                           <h3>{isHindi ? 'सबसे लोकप्रिय व्यंजन' : 'Popular Menu Performers'}</h3>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleTabChange('menu')}
-                          style={{ background: 'transparent', border: 'none', color: '#4f46e5', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                        >
-                          Manage Menu →
-                        </button>
+
                       </div>
 
                       <div className={styles.topSellingList}>
@@ -5497,6 +5519,71 @@ export default function AdminPanel() {
             </div>
 
             <form onSubmit={handleSaveDrawerItem} className={styles.drawerForm} style={{ padding: '1.25rem' }}>
+              {/* A. OPEN MENU SETTING (Owner / POS Only) */}
+              <div style={{
+                padding: '12px 14px',
+                background: drawerForm.isOpenMenu ? '#fdf4ff' : '#f8fafc',
+                borderRadius: '10px',
+                border: drawerForm.isOpenMenu ? '1.5px solid #d946ef' : '1px solid #e2e8f0',
+                marginBottom: '1rem',
+                transition: 'all 0.2s'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: drawerForm.isOpenMenu ? '#fae8ff' : '#f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px'
+                    }}>
+                      ⚡
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: drawerForm.isOpenMenu ? '#86198f' : '#1e293b' }}>
+                        Open Item (Owner / POS Only)
+                      </div>
+
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => setDrawerForm(prev => {
+                      const next = !prev.isOpenMenu;
+                      return {
+                        ...prev,
+                        isOpenMenu: next,
+                        isPosOnly: next,
+                        category: next ? 'open_menu' : (prev.category === 'open_menu' ? 'main-courses' : prev.category)
+                      };
+                    })}
+                    style={{
+                      width: 40,
+                      height: 22,
+                      borderRadius: 100,
+                      background: drawerForm.isOpenMenu ? '#c026d3' : '#cbd5e1',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      flexShrink: 0
+                    }}
+                  >
+                    <div style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      background: '#ffffff',
+                      position: 'absolute',
+                      top: 3,
+                      left: drawerForm.isOpenMenu ? 21 : 3,
+                      transition: 'left 0.2s'
+                    }} />
+                  </div>
+                </div>
+              </div>
+
 
               {/* Dish Name */}
               <div className={styles.formGroup}>
@@ -5890,72 +5977,7 @@ export default function AdminPanel() {
                 )}
               </div>
 
-              {/* A. OPEN MENU SETTING (Owner / POS Only) */}
-              <div style={{
-                padding: '12px 14px',
-                background: drawerForm.isOpenMenu ? '#fdf4ff' : '#f8fafc',
-                borderRadius: '10px',
-                border: drawerForm.isOpenMenu ? '1.5px solid #d946ef' : '1px solid #e2e8f0',
-                marginBottom: '1rem',
-                transition: 'all 0.2s'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: drawerForm.isOpenMenu ? '#fae8ff' : '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '16px'
-                    }}>
-                      ⚡
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: drawerForm.isOpenMenu ? '#86198f' : '#1e293b' }}>
-                        Open Item (Owner / POS Only)
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px', lineHeight: 1.3 }}>
-                        Hidden from customer QR code menu. Visible only to cashier/owner on POS terminal (e.g. cigarettes, off-menu counter items).
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    onClick={() => setDrawerForm(prev => {
-                      const next = !prev.isOpenMenu;
-                      return {
-                        ...prev,
-                        isOpenMenu: next,
-                        isPosOnly: next,
-                        category: next ? 'open_menu' : (prev.category === 'open_menu' ? 'main-courses' : prev.category)
-                      };
-                    })}
-                    style={{
-                      width: 40,
-                      height: 22,
-                      borderRadius: 100,
-                      background: drawerForm.isOpenMenu ? '#c026d3' : '#cbd5e1',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      transition: 'background 0.2s',
-                      flexShrink: 0
-                    }}
-                  >
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: '50%',
-                      background: '#ffffff',
-                      position: 'absolute',
-                      top: 3,
-                      left: drawerForm.isOpenMenu ? 21 : 3,
-                      transition: 'left 0.2s'
-                    }} />
-                  </div>
-                </div>
-              </div>
+
 
               {/* B. NIGHT MENU & SHIFT AVAILABILITY COMMENTED OUT AS REQUESTED: DO NOT SHOW ON UI
               <div style={{
