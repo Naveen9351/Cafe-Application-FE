@@ -3197,7 +3197,7 @@ export default function AdminPanel() {
                   <div className={styles.dashControlBar}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>{isHindi ? 'व्यापार प्रदर्शन का अवलोकन' : 'Performance '}</h3>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>{isHindi ? 'व्यापार प्रदर्शन का अवलोकन' : 'Performance Overview'}</h3>
                         {isFilterLoading && (
                           <div style={{
                             display: 'inline-flex',
