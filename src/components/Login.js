@@ -93,11 +93,14 @@ const Login = () => {
   };
 
   const handleLogoClick = () => {
-    if (typeof window !== 'undefined' && window.location.hostname.includes('dineviq.com')) {
-      window.location.href = 'https://www.dineviq.com';
-    } else {
-      navigate('/');
+    if (typeof window !== 'undefined') {
+      const mainBase = getMainDomainBase();
+      if (mainBase && !mainBase.includes(window.location.hostname)) {
+        window.location.href = mainBase;
+        return;
+      }
     }
+    navigate('/');
   };
 
   const handleLoginSuccess = (user, token) => {

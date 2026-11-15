@@ -18,10 +18,14 @@ export const isBillingOrAdminSubdomain = () => {
 export const isMainDomain = () => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname.toLowerCase();
-  // Matches www.dineviq.com, dineviq.com, localhost (for dev)
+  // Matches www.dineviq.com, dineviq.com, dev domains, localhost (for dev)
   return (
     host === 'dineviq.com' ||
     host === 'www.dineviq.com' ||
+    host === 'dev.dineviq.com' ||
+    host === 'dev-dineviq.com' ||
+    host === 'www.dev-dineviq.com' ||
+    host.includes('dev-dineviq.com') ||
     host === 'localhost' ||
     host === '127.0.0.1'
   );
@@ -30,6 +34,9 @@ export const isMainDomain = () => {
 export const getMainDomainBase = () => {
   if (typeof window === 'undefined') return '';
   const host = window.location.hostname.toLowerCase();
+  if (host.includes('dev-dineviq.com') || host.startsWith('dev.')) {
+    return window.location.origin;
+  }
   if (host.includes('dineviq.com')) {
     return 'https://www.dineviq.com';
   }
@@ -54,9 +61,12 @@ export const buildAuthCallbackUrl = (token, user, redirectPath = '') => {
   if (typeof window === 'undefined') return '/';
   const host = window.location.hostname.toLowerCase();
 
-  const mainDomain = host.includes('dineviq.com')
-    ? 'https://www.dineviq.com'
-    : window.location.origin;
+  let mainDomain = window.location.origin;
+  if (host.includes('dev-dineviq.com') || host.startsWith('dev.')) {
+    mainDomain = window.location.origin;
+  } else if (host.includes('dineviq.com')) {
+    mainDomain = 'https://www.dineviq.com';
+  }
 
   const params = new URLSearchParams({
     token: token || '',

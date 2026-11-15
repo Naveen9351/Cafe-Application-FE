@@ -3,10 +3,18 @@
  * Handles localStorage, sessionStorage and cross-subdomain cookie synchronization.
  */
 
-// Helper to determine the top domain for cookie setting (.dineviq.com)
+// Helper to determine the top domain for cookie setting (.dineviq.com or .dev-dineviq.com)
 const getCookieDomain = () => {
   if (typeof window === 'undefined') return '';
   const host = window.location.hostname.toLowerCase();
+  // Isolate dev cookies so dev session never overrides or conflicts with production
+  if (host.includes('dev-dineviq.com')) {
+    return '; domain=.dev-dineviq.com';
+  }
+  if (host.startsWith('dev.')) {
+    // Isolate specifically to the dev subdomain
+    return `; domain=${host}`;
+  }
   if (host.includes('dineviq.com')) {
     return '; domain=.dineviq.com';
   }
@@ -122,7 +130,13 @@ export const clearSharedAuth = () => {
     document.cookie = `dineviq_token=; domain=dineviq.com; ${expired}${secure}`;
     document.cookie = `dineviq_user=; domain=dineviq.com; ${expired}${secure}`;
 
-    // 3. Clear for current host specifically
+    // 3. Clear for .dev-dineviq.com and dev-dineviq.com
+    document.cookie = `dineviq_token=; domain=.dev-dineviq.com; ${expired}${secure}`;
+    document.cookie = `dineviq_user=; domain=.dev-dineviq.com; ${expired}${secure}`;
+    document.cookie = `dineviq_token=; domain=dev-dineviq.com; ${expired}${secure}`;
+    document.cookie = `dineviq_user=; domain=dev-dineviq.com; ${expired}${secure}`;
+
+    // 4. Clear for current host specifically
     document.cookie = `dineviq_token=; ${expired}${secure}`;
     document.cookie = `dineviq_user=; ${expired}${secure}`;
   }
