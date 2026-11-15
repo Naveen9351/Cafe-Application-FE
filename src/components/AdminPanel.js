@@ -156,14 +156,11 @@ export const getOrderAmount = (ord) => {
 
 export const getValidFoodImage = (item) => {
   const img = item?.image;
-  if (img && !img.toLowerCase().includes('policy') && !img.toLowerCase().includes('document') && !img.toLowerCase().includes('reminder') &&
+  if (img && !img.toLowerCase().includes('policy') && !img.toLowerCase().includes('document') && !img.toLowerCase().includes('reminder') && !img.includes('pollinations.ai') &&
     (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/uploads') || img.startsWith('data:image'))) {
     return img;
   }
-  if (item?.name) {
-    return `https://image.pollinations.ai/prompt/delicious%20gourmet%20dish%20${encodeURIComponent(item.name)}%20restaurant%20food%20plating?width=600&height=400&nologo=true`;
-  }
-  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
+  return resolveFoodImage(item?.name || 'dish', item?.category || 'general');
 };
 
 export default function AdminPanel() {
@@ -281,10 +278,14 @@ export default function AdminPanel() {
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
   ], []);
 
-  // Compute strictly allowed tabs for current user based on permission bucket
+  // Compute strictly allowed tabs for current user based on permission bucket and operating mode
   const allowedTabs = useMemo(() => {
+    const isCounterBillingOnly = tenantInfo?.settings?.operatingMode === 'counter_billing' || tenantInfo?.settings?.businessMode === 'quick_billing';
+    const counterDisallowed = new Set(['qrcodes', 'kds', 'crm', 'staff', 'sales-summary']);
+
     if (isAdmin) {
       return ALL_TABS_CONFIG.filter(t => {
+        if (isCounterBillingOnly && counterDisallowed.has(t.id)) return false;
         if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
         return true;
       });
@@ -292,6 +293,7 @@ export default function AdminPanel() {
     const perms = user?.permissions || {};
     return ALL_TABS_CONFIG.filter(t => {
       if (t.adminOnly) return false;
+      if (isCounterBillingOnly && counterDisallowed.has(t.id)) return false;
       if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
       return Boolean(perms[t.permKey] || (t.id === 'orders' && perms['access_live_orders']));
     });
@@ -1605,12 +1607,18 @@ export default function AdminPanel() {
     const effectiveTenantId = tenantId || user?.tenantId || tenantInfo?._id || '';
 
     try {
+      const effectiveCategory = drawerForm.isOpenMenu
+        ? 'open_menu'
+        : (drawerForm.category && drawerForm.category !== 'uncategorized'
+            ? drawerForm.category
+            : (sortedCategories.find(c => c.id !== 'all' && c.id !== 'uncategorized')?.id || 'main-courses'));
+
       const formData = new FormData();
       formData.append('name', drawerForm.name.trim());
       formData.append('description', drawerForm.description.trim());
       formData.append('price', numPrice);
-      formData.append('category', drawerForm.category);
-      formData.append('categoryId', drawerForm.category);
+      formData.append('category', effectiveCategory);
+      formData.append('categoryId', effectiveCategory);
       formData.append('isVeg', drawerForm.isVeg);
       formData.append('isAvailable', drawerForm.available);
       formData.append('discount', JSON.stringify(discountPayload));
@@ -1618,16 +1626,21 @@ export default function AdminPanel() {
       if (effectiveTenantId) {
         formData.append('tenantId', effectiveTenantId);
       }
+      formData.append('isOpenMenu', drawerForm.isOpenMenu ? 'true' : 'false');
       formData.append('isNightMenu', drawerForm.isNightMenu ? 'true' : 'false');
       if (drawerForm.nightPrice) {
         formData.append('nightPrice', drawerForm.nightPrice);
       }
-      formData.append('isPosOnly', (drawerForm.isPosOnly || drawerForm.isNightMenu) ? 'true' : 'false');
+      formData.append('isPosOnly', (drawerForm.isPosOnly || drawerForm.isOpenMenu || drawerForm.isNightMenu) ? 'true' : 'false');
 
       if (drawerForm.imageFile) {
         formData.append('image', drawerForm.imageFile);
-      } else if (drawerForm.image && !drawerForm.image.startsWith('blob:')) {
+      } else if (drawerForm.image && !drawerForm.image.startsWith('blob:') && !drawerForm.image.includes('pollinations.ai')) {
         formData.append('image', drawerForm.image);
+      } else {
+        // Fast, reliable default dish image (Petpooja style)
+        const defaultDishImg = resolveFoodImage(drawerForm.name.trim(), effectiveCategory);
+        formData.append('image', defaultDishImg);
       }
 
       const requestHeaders = {
@@ -5510,8 +5523,13 @@ export default function AdminPanel() {
                 />
               </div>
 
-              {/* Price & Category */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
+              {/* Price & Category (Category is hidden when Open Menu is enabled) */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: drawerForm.isOpenMenu ? '1fr' : '1fr 1fr',
+                gap: '12px',
+                marginBottom: '1rem'
+              }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Price (₹) *</label>
                   <input
@@ -5525,46 +5543,47 @@ export default function AdminPanel() {
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                   />
                 </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Category</label>
-                    <button
-                      type="button"
-                      onClick={handleOpenAddCategoryModal}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#4f46e5',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        padding: 0,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 3
+                {!drawerForm.isOpenMenu && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Category</label>
+                      <button
+                        type="button"
+                        onClick={handleOpenAddCategoryModal}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#4f46e5',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: 0,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3
+                        }}
+                      >
+                        <Plus size={12} /> New Category
+                      </button>
+                    </div>
+                    <select
+                      value={drawerForm.category && drawerForm.category !== 'uncategorized' ? drawerForm.category : (sortedCategories.find(c => c.id !== 'all' && c.id !== 'uncategorized')?.id || 'main-courses')}
+                      onChange={(e) => {
+                        if (e.target.value === '__CREATE_NEW__') {
+                          setIsQuickAddCatOpen(true);
+                        } else {
+                          setDrawerForm({ ...drawerForm, category: e.target.value });
+                        }
                       }}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
                     >
-                      <Plus size={12} /> New Category
-                    </button>
+                      {sortedCategories.filter(c => c.id !== 'all' && c.id !== 'uncategorized').map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                      <option value="__CREATE_NEW__" style={{ color: '#ea580c', fontWeight: 700 }}>+ Create New Category...</option>
+                    </select>
                   </div>
-                  <select
-                    value={drawerForm.category || 'uncategorized'}
-                    onChange={(e) => {
-                      if (e.target.value === '__CREATE_NEW__') {
-                        setIsQuickAddCatOpen(true);
-                      } else {
-                        setDrawerForm({ ...drawerForm, category: e.target.value });
-                      }
-                    }}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
-                  >
-                    <option value="uncategorized">-- Uncategorized (Assign Later) --</option>
-                    {sortedCategories.filter(c => c.id !== 'all').map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                    <option value="__CREATE_NEW__" style={{ color: '#ea580c', fontWeight: 700 }}>+ Create New Category...</option>
-                  </select>
-                </div>
+                )}
               </div>
 
               {/* Veg / Non-Veg Toggle (Radio Controls) */}
@@ -5906,7 +5925,12 @@ export default function AdminPanel() {
                   <div
                     onClick={() => setDrawerForm(prev => {
                       const next = !prev.isOpenMenu;
-                      return { ...prev, isOpenMenu: next, isPosOnly: next };
+                      return {
+                        ...prev,
+                        isOpenMenu: next,
+                        isPosOnly: next,
+                        category: next ? 'open_menu' : (prev.category === 'open_menu' ? 'main-courses' : prev.category)
+                      };
                     })}
                     style={{
                       width: 40,

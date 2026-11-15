@@ -50,9 +50,11 @@ export default function POSTerminal({
   onOrderPlaced,
   onSettleTable
 }) {
+  const isCounterBillingOnly = tenantInfo?.settings?.operatingMode === 'counter_billing' || tenantInfo?.settings?.businessMode === 'quick_billing';
+
   // View mode: 'tables' (Petpooja table matrix) or 'terminal' (POS billing)
-  const [viewMode, setViewMode] = useState(initialTable ? 'terminal' : 'tables');
-  const [tableNumber, setTableNumber] = useState(initialTable || '1');
+  const [viewMode, setViewMode] = useState((initialTable || isCounterBillingOnly) ? 'terminal' : 'tables');
+  const [tableNumber, setTableNumber] = useState(initialTable || (isCounterBillingOnly ? 'Walk-in' : '1'));
   const [selectedZone, setSelectedZone] = useState('all');
   const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all', 'free', 'occupied', 'paid'
   const [tableSearch, setTableSearch] = useState('');
@@ -847,7 +849,7 @@ export default function POSTerminal({
       const finalDiscount = customDiscount > 0 ? Number(customDiscount) : Math.max(0, tenderAmount - finalPaid);
 
       if (isFullTable && tableNumber !== 'Walk-in') {
-        // Full table settlement: settle orders, record concession discount, free table
+        // Table payment settlement: mark orders as paid with concession discount, but DO NOT clear table yet!
         await axios.put(
           `${API}/orders/table/${encodeURIComponent(String(tableNumber).trim())}/settle`,
           {
@@ -858,17 +860,14 @@ export default function POSTerminal({
             settledAmount: finalPaid,
             discountAmount: finalDiscount,
             discountReason: settlementDiscountReason || 'Settlement Concession / Round Off',
-            originalTotal: grandTotal
+            originalTotal: grandTotal,
+            freeTable: false // DO NOT FREE TABLE ON PAYMENT
           },
           { headers: token ? { 'x-auth-token': token } : {} }
         );
 
         const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount applied)` : '';
-        toast.success(`✓ Table ${tableNumber} settled for ₹${formatAmount(finalPaid)}${discountMsg}! Table is now free.`);
-        setCart([]);
-        setCustomerName('');
-        setCustomerPhone('');
-        setMergedTables([]);
+        toast.success(`✓ Table ${tableNumber} paid for ₹${formatAmount(finalPaid)}${discountMsg}! Table is marked Paid. Click 'Clear Table' when customer vacates.`);
         setActualAmountReceived('');
         setSettlementDiscount('');
         setCashTenderGiven('');
@@ -876,10 +875,16 @@ export default function POSTerminal({
         setShowPayItemsModal(false);
 
         allSettleTables.forEach(tNum => {
-          if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
-          if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
-          if (onSettleTable) onSettleTable(tNum);
+          if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'billed', _refreshAll: true });
+          if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'billed', _refreshAll: true });
         });
+
+        // Update local table status to 'billed' so tile turns soft-green / Billed
+        setDbTables(prev => prev.map(t => 
+          allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase())
+            ? { ...t, status: 'billed' }
+            : t
+        ));
 
         setViewMode('tables');
       } else {
@@ -1020,7 +1025,8 @@ export default function POSTerminal({
             tenantId: effectiveTenantId,
             mergedTables: allSettleTables,
             settledAmount: finalSettledAmount,
-            originalTotal: grandTotal
+            originalTotal: grandTotal,
+            freeTable: true
           },
           { headers: token ? { 'x-auth-token': token } : {} }
         );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  BookOpen, Search, CheckCircle, AlertCircle, Check, X, Phone, User, Plus,
+  Loader2, BookOpen, Search, CheckCircle, AlertCircle, Check, X, Phone, User, Plus,
   RefreshCw, Calendar, ArrowUpRight, ArrowDownRight, MessageCircle, Trash2, ShoppingBag, CreditCard,
   ChevronRight, ChevronLeft, Utensils, Minus, Printer, QrCode, Smartphone, Banknote,
   FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight, Zap
@@ -1848,7 +1848,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <AlertCircle size={20} />
           </div>
           <div className={styles.statInfo}>
-            <h4>₹{totalOutstanding.toLocaleString('en-IN')}</h4>
+            <h4>{loading ? '—' : `₹${totalOutstanding.toLocaleString('en-IN')}`}</h4>
             <span>{isHindi ? 'कुल बकाया उधारी' : 'Total Outstanding Dues'}</span>
           </div>
         </div>
@@ -1858,7 +1858,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <CheckCircle size={20} />
           </div>
           <div className={styles.statInfo}>
-            <h4>₹{totalPaid.toLocaleString('en-IN')}</h4>
+            <h4>{loading ? '—' : `₹${totalPaid.toLocaleString('en-IN')}`}</h4>
             <span>{isHindi ? 'कुल वसूल/प्राप्त राशि' : 'Total Paid / Recovered'}</span>
           </div>
         </div>
@@ -1868,7 +1868,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <User size={20} />
           </div>
           <div className={styles.statInfo}>
-            <h4>{activeCustomersWithDue.length}</h4>
+            <h4>{loading ? '—' : activeCustomersWithDue.length}</h4>
             <span>{isHindi ? 'उधार वाले सक्रिय ग्राहक' : 'Customers with Active Credit'}</span>
           </div>
         </div>
@@ -1878,7 +1878,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <ShoppingBag size={20} />
           </div>
           <div className={styles.statInfo}>
-            <h4>₹{totalCreditExtended.toLocaleString('en-IN')}</h4>
+            <h4>{loading ? '—' : `₹${totalCreditExtended.toLocaleString('en-IN')}`}</h4>
             <span>{isHindi ? 'कुल उधारी पर खरीदारी' : 'Total Credit Extended'}</span>
           </div>
         </div>
@@ -1902,7 +1902,21 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 </tr>
               </thead>
               <tbody>
-                {paginatedCustomers.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                        <Loader2 size={36} className="animate-spin" style={{ color: '#4f46e5', margin: '0 auto' }} />
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>
+                          {isHindi ? 'ग्राहक खाता बही लोड हो रही है...' : 'Loading Customer Khata & Credit Ledger...'}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                          {isHindi ? 'कृपया प्रतीक्षा करें...' : 'Fetching customer balances, dues and credit statements...'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedCustomers.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <User size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
@@ -2132,7 +2146,21 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                 </tr>
               </thead>
               <tbody>
-                {paginatedTransactions.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                        <Loader2 size={36} className="animate-spin" style={{ color: '#4f46e5', margin: '0 auto' }} />
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>
+                          {isHindi ? 'लेन-देन लोड हो रहे हैं...' : 'Loading Transaction Ledger...'}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                          {isHindi ? 'कृपया प्रतीक्षा करें...' : 'Fetching recorded audit trails...'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <Calendar size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
