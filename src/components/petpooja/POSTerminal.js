@@ -3,8 +3,8 @@ import axios from 'axios';
 import {
   Grid, Plus, Minus, Search, Check, X, RefreshCw, CreditCard,
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
-  ChevronDown, ChevronUp, Tag, ArrowLeft, ShoppingCart, IndianRupee,
-  Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Tag, ArrowLeft, ShoppingCart, IndianRupee,
+  Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter, Layers,
   User, UserPlus, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -46,23 +46,28 @@ export default function POSTerminal({
   menuItems = [],
   orders = [],
   initialTable = null,
+  isMainSidebarOpen = true,
   onOrderCreated,
   onOrderPlaced,
   onSettleTable
 }) {
-  const activeOperatingMode = tenantInfo?.operatingMode 
-    || tenantInfo?.settings?.operatingMode 
-    || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode) 
+  const activeOperatingMode = tenantInfo?.operatingMode
+    || tenantInfo?.settings?.operatingMode
+    || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode)
     || 'dine_in';
-  const isCounterBillingOnly = activeOperatingMode === 'counter_billing' 
+  const isCounterBillingOnly = activeOperatingMode === 'counter_billing'
     || tenantInfo?.settings?.businessMode === 'quick_billing';
 
   // View mode: 'tables' (Petpooja table matrix) or 'terminal' (POS billing)
-  const [viewMode, setViewMode] = useState((initialTable || isCounterBillingOnly) ? 'terminal' : 'tables');
-  const [tableNumber, setTableNumber] = useState(initialTable || (isCounterBillingOnly ? 'Walk-in' : '1'));
+  const [viewMode, setViewMode] = useState(initialTable ? 'terminal' : 'tables');
+  const [tableNumber, setTableNumber] = useState(initialTable || '1');
   const [selectedZone, setSelectedZone] = useState('all');
   const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all', 'free', 'occupied', 'paid'
   const [tableSearch, setTableSearch] = useState('');
+
+  // Category sidebar collapse state
+  const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
+  const isBothSidebarsOpen = isMainSidebarOpen && isCategorySidebarOpen;
 
   // Cart & Settlement state for POS Terminal
   const [cart, setCart] = useState([]);
@@ -138,7 +143,7 @@ export default function POSTerminal({
       if (res.data?.success && Array.isArray(res.data.customers)) {
         setKhataCustomerList(res.data.customers);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, [showPayItemsModal]);
 
   const prevOrdersCountRef = useRef(orders ? orders.length : 0);
@@ -207,12 +212,20 @@ export default function POSTerminal({
       const rawTable = String(o.tableNumber || o.table || '').trim();
       const numOnly = rawTable.replace(/^Table\s*/i, '').trim();
       if (rawTable) {
-        if (!map[rawTable]) map[rawTable] = [];
-        if (!map[rawTable].some(e => e._id === o._id)) map[rawTable].push(o);
-
+        const addKey = (k) => {
+          if (!k) return;
+          if (!map[k]) map[k] = [];
+          if (!map[k].some(e => e._id === o._id)) map[k].push(o);
+        };
+        addKey(rawTable);
+        addKey(rawTable.toLowerCase());
+        addKey(rawTable.replace(/\s+/g, ''));
+        addKey(rawTable.replace(/\s+/g, '').toLowerCase());
         if (numOnly && numOnly !== rawTable) {
-          if (!map[numOnly]) map[numOnly] = [];
-          if (!map[numOnly].some(e => e._id === o._id)) map[numOnly].push(o);
+          addKey(numOnly);
+          addKey(numOnly.toLowerCase());
+          addKey(`Table ${numOnly}`);
+          addKey(`table ${numOnly.toLowerCase()}`);
         }
       }
     });
@@ -223,7 +236,13 @@ export default function POSTerminal({
   const getOrdersForTableObj = useCallback((tbl) => {
     const tStr = String(tbl.tableNumber || tbl.table || '').trim();
     const numOnly = tStr.replace(/^Table\s*/i, '').trim();
-    return activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || [];
+    return activeOrdersByTable[tStr]
+      || activeOrdersByTable[tStr.toLowerCase()]
+      || activeOrdersByTable[tStr.replace(/\s+/g, '')]
+      || activeOrdersByTable[tStr.replace(/\s+/g, '').toLowerCase()]
+      || activeOrdersByTable[numOnly]
+      || activeOrdersByTable[numOnly.toLowerCase()]
+      || [];
   }, [activeOrdersByTable]);
 
   // Unified tables list (combines DB tables and active orders)
@@ -389,14 +408,21 @@ export default function POSTerminal({
 
   // Active orders currently belonging to the selected table + any merged tables in POS
   const currentTableOrders = useMemo(() => {
-    if (isCounterBillingOnly) return []; // Quick Counter billing handles only the current cart transaction
+    if (isCounterBillingOnly && tableNumber === 'Walk-in') return []; // Quick Counter billing handles only the current cart transaction
     if (!tableNumber) return [];
     const allTableNums = [tableNumber, ...mergedTables];
     const combinedOrders = [];
     allTableNums.forEach((t) => {
       const tStr = String(t).trim();
       const numOnly = tStr.replace(/[^0-9]/g, '') || tStr;
-      const ords = activeOrdersByTable[tStr] || activeOrdersByTable[numOnly] || activeOrdersByTable[`Table ${numOnly}`] || [];
+      const ords = activeOrdersByTable[tStr]
+        || activeOrdersByTable[tStr.toLowerCase()]
+        || activeOrdersByTable[tStr.replace(/\s+/g, '')]
+        || activeOrdersByTable[tStr.replace(/\s+/g, '').toLowerCase()]
+        || activeOrdersByTable[numOnly]
+        || activeOrdersByTable[numOnly.toLowerCase()]
+        || activeOrdersByTable[`Table ${numOnly}`]
+        || [];
       ords.forEach(o => {
         if (!combinedOrders.some(existing => existing._id === o._id)) {
           combinedOrders.push(o);
@@ -404,7 +430,7 @@ export default function POSTerminal({
       });
     });
     return combinedOrders;
-  }, [tableNumber, mergedTables, activeOrdersByTable]);
+  }, [tableNumber, mergedTables, activeOrdersByTable, isCounterBillingOnly]);
 
   // Format money helper to eliminate floating point precision junk (e.g. 1739.8500000000001 -> 1,739.85)
   const formatAmount = (val) => {
@@ -542,6 +568,17 @@ export default function POSTerminal({
     return [...cats, ...regularCats];
   }, [menuItems]);
 
+  // Dish counts per category for the left category sidebar
+  const categoryDishCounts = useMemo(() => {
+    const map = { all: menuItems.filter(i => !i.isOpenMenu && !i.isPosOnly).length };
+    menuItems.forEach(item => {
+      if (item.isOpenMenu || item.isPosOnly) return;
+      const c = item.category || 'main-courses';
+      map[c] = (map[c] || 0) + 1;
+    });
+    return map;
+  }, [menuItems]);
+
   const filteredMenuItems = useMemo(() => {
     return menuItems.filter(item => {
       let matchesCat = false;
@@ -549,10 +586,10 @@ export default function POSTerminal({
         matchesCat = true;
       } else if (selectedCategory === '⚡ Open Item' || selectedCategory === '⚡ Open Menu') {
         matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
-      /* Night Menu Commented out as per request
-      } else if (selectedCategory === '🌙 Night Menu') {
-        matchesCat = Boolean(item.shiftAvailability === 'night_only' || item.isNightMenu || (item.nightPrice && Number(item.nightPrice) > 0));
-      */
+        /* Night Menu Commented out as per request
+        } else if (selectedCategory === '🌙 Night Menu') {
+          matchesCat = Boolean(item.shiftAvailability === 'night_only' || item.isNightMenu || (item.nightPrice && Number(item.nightPrice) > 0));
+        */
       } else {
         matchesCat = item.category === selectedCategory;
       }
@@ -841,7 +878,7 @@ export default function POSTerminal({
 
     setIsSubmittingItemPay(true);
     try {
-      if (isCounterBillingOnly) {
+      if (isCounterBillingOnly && tableNumber === 'Walk-in') {
         // Quick Counter 1-Step Checkout: Create completed & paid order immediately!
         const tenderAmount = draftCartTotal;
         const effectiveMethod = customMethod || (payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod);
@@ -915,6 +952,41 @@ export default function POSTerminal({
         if (onOrderCreated) onOrderCreated(createdOrder);
         return;
       }
+
+      // If draft items exist in cart on this table, persist them first so they aren't lost
+      if (cart.length > 0 && tableNumber !== 'Walk-in') {
+        const orderPayload = {
+          tenantId: effectiveTenantId,
+          tableNumber: String(tableNumber),
+          orderType: 'dine_in',
+          customerName: customerName.trim() || 'Guest',
+          customerPhone: customerPhone.trim(),
+          customerDetails: {
+            name: customerName.trim() || 'Guest',
+            phone: customerPhone.trim()
+          },
+          paymentMethod: customMethod || payItemsMethod || 'Cash',
+          paymentStatus: 'paid',
+          status: 'served',
+          items: cart.map(it => ({
+            id: it.id,
+            itemId: it.id,
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity,
+            variant: it.variant || null,
+            addons: (it.addons || []),
+            itemStatus: 'served',
+            isPaid: true
+          })),
+          totalAmount: draftCartTotal
+        };
+        await axios.post(`${API}/orders`, orderPayload, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+        setCart([]);
+      }
+
       const itemsToPay = selectedItemsSummary.itemsList.map(it => ({
         orderId: it.orderId,
         itemIndex: it.itemIndex
@@ -960,7 +1032,7 @@ export default function POSTerminal({
         });
 
         // Update local table status to 'billed' so tile turns soft-green / Billed
-        setDbTables(prev => prev.map(t => 
+        setDbTables(prev => prev.map(t =>
           allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase())
             ? { ...t, status: 'billed' }
             : t
@@ -1031,15 +1103,27 @@ export default function POSTerminal({
         {
           paymentMethod: 'Cash',
           paymentStatus: 'paid',
-          tenantId: effectiveTenantId
+          tenantId: effectiveTenantId,
+          freeTable: true
         },
         { headers: token ? { 'x-auth-token': token } : {} }
       );
       toast.success(`Table ${tNum} cleared and is now free!`);
-      // Auto-remove any temporary table from dbTables immediately
-      setDbTables(prev => prev.filter(t => !(t.isTemporary && String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase())));
+      // Auto-remove any temporary table or mark permanent table available in dbTables immediately
+      setDbTables(prev => prev
+        .filter(t => !(t.isTemporary && String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase()))
+        .map(t => String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase() ? { ...t, status: 'available' } : t)
+      );
+      if (tableNumber && String(tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase()) {
+        setCart([]);
+        setCustomerName('');
+        setCustomerPhone('');
+        setSelectedItemKeys(new Set());
+        setViewMode('tables');
+      }
       if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
+      if (onSettleTable) onSettleTable(tNum);
     } catch (err) {
       console.error('Quick settle error:', err);
       toast.error('Failed to clear table: ' + (err.response?.data?.error || err.message));
@@ -1114,8 +1198,11 @@ export default function POSTerminal({
 
       const tableLabel = allSettleTables.length > 1 ? `Tables ${allSettleTables.join(', ')}` : `Table ${tableNumber}`;
       toast.success(`✓ ${tableLabel} cleared & fully settled (₹${formatAmount(finalSettledAmount)})! Table is now free.`);
-      // Auto-remove any settled temporary table from dbTables state so it immediately vanishes
-      setDbTables(prev => prev.filter(t => !(t.isTemporary && allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase()))));
+      // Auto-remove any settled temporary table and reset permanent tables to available in dbTables state
+      setDbTables(prev => prev
+        .filter(t => !(t.isTemporary && allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase())))
+        .map(t => allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase()) ? { ...t, status: 'available' } : t)
+      );
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
@@ -1395,7 +1482,7 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 1. FLOOR & TABLES MATRIX VIEW (Petpooja Reference Style)  */}
       {/* ========================================================= */}
-      {!isCounterBillingOnly && viewMode === 'tables' && (
+      {viewMode === 'tables' && (
         <div className={styles.floorContainer}>
 
           {/* Streamlined Top Control Toolbar */}
@@ -1455,8 +1542,7 @@ export default function POSTerminal({
                 }}
                 title="Create Temporary Table / Open Tab for walk-in or floating customers (e.g. Deepak)"
               >
-                <UserPlus size={14} />
-                <span>+ Temp Table</span>
+                <span> Temp Table</span>
               </button>
 
               <div className={styles.searchBox}>
@@ -1535,7 +1621,7 @@ export default function POSTerminal({
                         const m = Math.floor((diffSec % 3600) / 60);
                         if (d > 0) elapsedMin = h > 0 ? `${d}d ${h}h` : `${d}d`;
                         else if (h > 0) elapsedMin = m > 0 ? `${h}h ${m}m` : `${h}h`;
-                        else elapsedMin = `${Math.max(1, m)} Min`;
+                        else elapsedMin = `${Math.max(1, m)}m`;
                       }
 
                       const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || tbl.customerName || '';
@@ -1591,7 +1677,7 @@ export default function POSTerminal({
                             title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
                           >
                             <div className={styles.tileTopMeta}>
-                              <Check size={12} /> {elapsedMin ? `${elapsedMin} Min` : 'Paid'}
+                              <Check size={12} /> {elapsedMin || 'Paid'}
                             </div>
                             <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                               {isTemp ? tempCustLabel : (custName || formatTableOnlyNumber(tbl.tableNumber))}
@@ -1639,7 +1725,7 @@ export default function POSTerminal({
                           title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
                         >
                           <div className={styles.tileTopMeta}>
-                            <Clock size={11} /> {elapsedMin ? `${elapsedMin} Min` : (isTemp ? 'Open Tab' : 'Active')}
+                            <Clock size={11} /> {elapsedMin || (isTemp ? 'Open Tab' : 'Active')}
                           </div>
                           <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                             {isTemp ? tempCustLabel : (custName || formatTableOnlyNumber(tbl.tableNumber))}
@@ -1648,6 +1734,31 @@ export default function POSTerminal({
                             {isTemp ? `⚡ Running Tab (${tableOrders.length} ${tableOrders.length === 1 ? 'round' : 'rounds'})` : (custName ? formatTableOnlyNumber(tbl.tableNumber) : '')}
                           </span>
                           <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickSettleTable(tbl.tableNumber);
+                            }}
+                            style={{
+                              marginTop: '6px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: '#d97706',
+                              color: '#ffffff',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                            title={isTemp ? `Click to close and remove ${tempCustLabel}'s temporary tab` : `Click to clear and free Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
+                          >
+                            <CheckCircle2 size={12} /> {isTemp ? 'Close Tab' : 'Clear Table'}
+                          </button>
                         </div>
                       );
                     })}
@@ -1722,7 +1833,7 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 2. POS BILLING & ORDER VIEW (High-Speed Terminal)         */}
       {/* ========================================================= */}
-      {(isCounterBillingOnly || viewMode === 'terminal') && (
+      {viewMode === 'terminal' && (
         <div className={styles.terminalContainerWrap}>
 
           {/* POS Two-Column Grid */}
@@ -1731,17 +1842,15 @@ export default function POSTerminal({
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
               <div className={styles.menuFilterBar}>
-                {/* Inline Back Arrow Button (only for Dine-in with tables) */}
-                {!isCounterBillingOnly && (
-                  <button
-                    type="button"
-                    className={styles.backIconBtn}
-                    onClick={() => setViewMode('tables')}
-                    title="Back to Floor Tables"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-                )}
+                {/* Inline Back Arrow Button to return to Floor Tables */}
+                <button
+                  type="button"
+                  className={styles.backIconBtn}
+                  onClick={() => setViewMode('tables')}
+                  title="Back to Floor Tables"
+                >
+                  <ArrowLeft size={16} />
+                </button>
 
                 {/* Dish Search input right after back button */}
                 <div className={styles.searchBox}>
@@ -1776,17 +1885,19 @@ export default function POSTerminal({
                     <span>Open Item</span>
                   </button>
 
-                  {/* NIGHT MENU BUTTON COMMENTED OUT AS PER REQUEST - DO NOT SHOW ON UI
-                  <button
-                    type="button"
-                    className={`${styles.specialFilterBtn} ${selectedCategory === '🌙 Night Menu' ? styles.specialFilterBtnActiveNight : ''}`}
-                    onClick={() => setSelectedCategory(prev => prev === '🌙 Night Menu' ? 'all' : '🌙 Night Menu')}
-                    title="View Night Menu (Night pricing and dishes)"
-                  >
-                    <Moon size={13} className={styles.specialFilterIcon} />
-                    <span>Night Menu</span>
-                  </button>
-                  */}
+                  {/* Quick toggle pill in filter bar if category sidebar is collapsed */}
+                  {!isCategorySidebarOpen && (
+                    <button
+                      type="button"
+                      className={styles.openCategoriesHeaderPill}
+                      onClick={() => setIsCategorySidebarOpen(true)}
+                      title="Expand Categories Sidebar"
+                    >
+                      <Layers size={13} />
+                      <span>Categories ({categories.length})</span>
+                      <ChevronRight size={13} />
+                    </button>
+                  )}
                 </div>
 
                 {/* NIGHT MENU STATUS BANNER COMMENTED OUT AS PER REQUEST
@@ -1812,29 +1923,84 @@ export default function POSTerminal({
                 */}
               </div>
 
-              {/* Horizontally scrollable Category Pills row below search */}
-              <div
-                className={styles.categoryPillsWrap}
-                onWheel={(e) => {
-                  if (e.deltaY !== 0) {
-                    e.currentTarget.scrollLeft += e.deltaY;
-                  }
-                }}
-              >
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={`${styles.catPill} ${selectedCategory === cat ? styles.catPillActive : ''}`}
-                    onClick={() => setSelectedCategory(cat)}
+              {/* Menu Content Body: Left Category List (Top to Bottom) + Right Dishes Grid */}
+              <div className={styles.menuContentBody}>
+                {/* 1. Left Side: Vertical Category List (Top to Bottom) */}
+                {!isCategorySidebarOpen ? (
+                  <div
+                    className={styles.collapsedCategoryRail}
+                    onClick={() => setIsCategorySidebarOpen(true)}
+                    title="Click to expand Categories"
                   >
-                    {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                  </button>
-                ))}
-              </div>
+                    <button
+                      type="button"
+                      className={styles.collapsedCategoryExpandBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCategorySidebarOpen(true);
+                      }}
+                      title="Expand Categories"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                    <div className={styles.collapsedCategoryIconWrap}>
+                      <Layers size={15} color="#475569" />
+                      <span className={styles.collapsedCategoryBadge}>{categories.length}</span>
+                    </div>
+                    <div className={styles.collapsedCategoryVerticalLabel}>
+                      <span>CATEGORIES</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.categorySidebar}>
+                    <div className={styles.categorySidebarHeader}>
+                      <span>Categories</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span className={styles.categorySidebarTotalCount}>{categories.length}</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsCategorySidebarOpen(false)}
+                          className={styles.catSidebarToggleBtn}
+                          title="Collapse Categories"
+                        >
+                          <ChevronLeft size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.categoryListContainer}>
+                      {categories.map(cat => {
+                        const isActive = selectedCategory === cat;
+                        const count = categoryDishCounts[cat] !== undefined ? categoryDishCounts[cat] : 0;
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            className={`${styles.categoryListItem} ${isActive ? styles.categoryListItemActive : ''}`}
+                            onClick={() => setSelectedCategory(cat)}
+                            title={cat === 'all' ? 'All Dishes' : cat}
+                          >
+                            <span className={styles.categoryItemName}>
+                              {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                            </span>
+                            <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-              {/* Dish Cards Grid */}
-              <div className={styles.dishesGrid}>
+                {/* 2. Right Side: Dish Cards Grid (3 columns when both sidebars open, 4 columns when collapsed) */}
+                <div
+                  className={`${styles.dishesGrid} ${isBothSidebarsOpen ? styles.dishesGrid3 : styles.dishesGrid4}`}
+                  style={{
+                    gridTemplateColumns: isBothSidebarsOpen
+                      ? 'repeat(3, minmax(0, 1fr))'
+                      : 'repeat(4, minmax(0, 1fr))'
+                  }}
+                >
                 {filteredMenuItems.map(item => {
                   const imgUrl = getValidFoodImage(item);
                   const price = getItemEffectivePrice(item);
@@ -1943,6 +2109,7 @@ export default function POSTerminal({
                 })}
               </div>
             </div>
+          </div>
 
             {/* Right: Order Slip & Settlement Drawer */}
             <div className={styles.orderDrawer}>
@@ -2331,7 +2498,7 @@ export default function POSTerminal({
                       {/* Dynamic Action Buttons */}
                       {(hasDraftItems || hasActiveOrders) && (
                         <>
-                          {isCounterBillingOnly ? (
+                          {(isCounterBillingOnly && tableNumber === 'Walk-in') ? (
                             hasDraftItems && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '6px' }}>
                                 <button
@@ -2393,199 +2560,199 @@ export default function POSTerminal({
                                 </div>
                               )}
                               <div className={styles.terminalActionBtns}>
-                          {/* 1. Send to Kitchen: Shown whenever draft items exist */}
-                          {hasDraftItems && (
-                            <button
-                              type="button"
-                              className={styles.sendKotBtn}
-                              onClick={handleSendKOT}
-                              disabled={isSendingKitchen}
-                              title="Send draft items to Kitchen KDS (Status: In Kitchen)"
-                            >
-                              <ChefHat size={14} />
-                              <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
-                            </button>
-                          )}
+                                {/* 1. Send to Kitchen: Shown whenever draft items exist */}
+                                {hasDraftItems && (
+                                  <button
+                                    type="button"
+                                    className={styles.sendKotBtn}
+                                    onClick={handleSendKOT}
+                                    disabled={isSendingKitchen}
+                                    title="Send draft items to Kitchen KDS (Status: In Kitchen)"
+                                  >
+                                    <ChefHat size={14} />
+                                    <span>{isSendingKitchen ? 'Sending...' : 'Send to Kitchen'}</span>
+                                  </button>
+                                )}
 
-                          {/* 2. Direct (Counter): Shown whenever draft items exist */}
-                          {hasDraftItems && (
-                            <button
-                              type="button"
-                              className={styles.directBtn}
-                              onClick={handleDirectOrder}
-                              disabled={isSubmittingDirect}
-                              title="Direct counter items - bypasses kitchen, status: Served"
-                            >
-                              <Zap size={14} />
-                              <span>{isSubmittingDirect ? 'Processing...' : 'Direct (Counter)'}</span>
-                            </button>
-                          )}
+                                {/* 2. Direct (Counter): Shown whenever draft items exist */}
+                                {hasDraftItems && (
+                                  <button
+                                    type="button"
+                                    className={styles.directBtn}
+                                    onClick={handleDirectOrder}
+                                    disabled={isSubmittingDirect}
+                                    title="Direct counter items - bypasses kitchen, status: Served"
+                                  >
+                                    <Zap size={14} />
+                                    <span>{isSubmittingDirect ? 'Processing...' : 'Direct (Counter)'}</span>
+                                  </button>
+                                )}
 
-                          {/* 3. Pay Order: Available whenever active orders exist OR draft items exist */}
-                          {(hasActiveOrders || hasDraftItems) && (
-                            <button
-                              type="button"
-                              className={styles.paidOrderBtn}
-                              onClick={async () => {
-                                if (!hasActiveOrders && hasDraftItems) {
-                                  // Auto-serve draft items and open payment dialog
-                                  await handleDirectOrder();
-                                  setKhataPaidAmount('0');
-                                  setKhataBorrowAmount(0);
-                                  setActualAmountReceived('');
-                                  setSettlementDiscount('');
-                                  setCashTenderGiven('');
-                                  setSettlementDiscountReason('Customer Concession / Round Off');
-                                  setSettlementSubMethod('Cash');
-                                  setShowPayItemsModal(true);
-                                  return;
-                                }
-                                if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
-                                  toast.error('All active items on this table are already paid!');
-                                  return;
-                                }
-                                setKhataPaidAmount('0');
-                                setKhataBorrowAmount(0);
-                                setActualAmountReceived('');
-                                setSettlementDiscount('');
-                                setCashTenderGiven('');
-                                setSettlementDiscountReason('Customer Concession / Round Off');
-                                setSettlementSubMethod('Cash');
-                                setShowPayItemsModal(true);
-                              }}
-                              disabled={isSubmittingItemPay || isSubmittingDirect || (!hasDraftItems && selectedItemsSummary.count === 0 && balanceDue <= 0)}
-                              title="Mark selected items (or all unpaid items) as Paid"
-                            >
-                              <CreditCard size={14} />
-                              <span>
-                                {selectedItemsSummary.count > 0
-                                  ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
-                                  : (balanceDue > 0
-                                      ? `Pay (₹${formatAmount(balanceDue)})`
-                                      : (hasDraftItems ? `Quick Pay (₹${formatAmount(draftCartTotal)})` : 'Paid Order'))}
-                              </span>
-                            </button>
-                          )}
+                                {/* 3. Pay Order: Available whenever active orders exist OR draft items exist */}
+                                {(hasActiveOrders || hasDraftItems) && (
+                                  <button
+                                    type="button"
+                                    className={styles.paidOrderBtn}
+                                    onClick={async () => {
+                                      if (!hasActiveOrders && hasDraftItems) {
+                                        // Auto-serve draft items and open payment dialog
+                                        await handleDirectOrder();
+                                        setKhataPaidAmount('0');
+                                        setKhataBorrowAmount(0);
+                                        setActualAmountReceived('');
+                                        setSettlementDiscount('');
+                                        setCashTenderGiven('');
+                                        setSettlementDiscountReason('Customer Concession / Round Off');
+                                        setSettlementSubMethod('Cash');
+                                        setShowPayItemsModal(true);
+                                        return;
+                                      }
+                                      if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
+                                        toast.error('All active items on this table are already paid!');
+                                        return;
+                                      }
+                                      setKhataPaidAmount('0');
+                                      setKhataBorrowAmount(0);
+                                      setActualAmountReceived('');
+                                      setSettlementDiscount('');
+                                      setCashTenderGiven('');
+                                      setSettlementDiscountReason('Customer Concession / Round Off');
+                                      setSettlementSubMethod('Cash');
+                                      setShowPayItemsModal(true);
+                                    }}
+                                    disabled={isSubmittingItemPay || isSubmittingDirect || (!hasDraftItems && selectedItemsSummary.count === 0 && balanceDue <= 0)}
+                                    title="Mark selected items (or all unpaid items) as Paid"
+                                  >
+                                    <CreditCard size={14} />
+                                    <span>
+                                      {selectedItemsSummary.count > 0
+                                        ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
+                                        : (balanceDue > 0
+                                          ? `Pay (₹${formatAmount(balanceDue)})`
+                                          : (hasDraftItems ? `Quick Pay (₹${formatAmount(draftCartTotal)})` : 'Paid Order'))}
+                                    </span>
+                                  </button>
+                                )}
 
-                          {/* 4. Clear Table: Shown ONLY AFTER order is active on the table */}
-                          {hasActiveOrders && (
-                            <button
-                              type="button"
-                              className={styles.clearTableBtn}
-                              onClick={handleClearTableClick}
-                              disabled={isSettling}
-                              title="Clear and reset table once customer finishes"
-                            >
-                              <CheckCircle2 size={14} />
-                              <span>
-                                {isSettling
-                                  ? 'Clearing...'
-                                  : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
-                              </span>
-                            </button>
-                          )}
+                                {/* 4. Clear Table: Shown ONLY AFTER order is active on the table */}
+                                {hasActiveOrders && (
+                                  <button
+                                    type="button"
+                                    className={styles.clearTableBtn}
+                                    onClick={handleClearTableClick}
+                                    disabled={isSettling}
+                                    title="Clear and reset table once customer finishes"
+                                  >
+                                    <CheckCircle2 size={14} />
+                                    <span>
+                                      {isSettling
+                                        ? 'Clearing...'
+                                        : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
+                                    </span>
+                                  </button>
+                                )}
 
-                          {/* Quick Thermal Print Bill & WhatsApp E-Bill */}
-                          {hasActiveOrders && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', marginTop: '8px' }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const billOrder = {
-                                    orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
-                                    tableNumber,
-                                    customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
-                                    customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
-                                    items: [
-                                      ...currentTableOrders.flatMap(o => o.items || []),
-                                      ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
-                                    ],
-                                    subTotal: grandTotal,
-                                    totalAmount: grandTotal,
-                                    paymentMethod: paymentMethod || 'Cash',
-                                    paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
-                                  };
-                                  printOrderBill(billOrder, tenantInfo?.name);
-                                }}
-                                style={{
-                                  padding: '8px 10px',
-                                  borderRadius: '9px',
-                                  border: '1.5px solid #cbd5e1',
-                                  background: '#ffffff',
-                                  color: '#1e293b',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '6px',
-                                  whiteSpace: 'nowrap',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#94a3b8'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-                                title="Print 80mm Thermal Receipt"
-                              >
-                                <Printer size={15} color="#475569" />
-                                <span>Print Bill</span>
-                              </button>
+                                {/* Quick Thermal Print Bill & WhatsApp E-Bill */}
+                                {hasActiveOrders && (
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', marginTop: '8px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const billOrder = {
+                                          orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+                                          tableNumber,
+                                          customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
+                                          customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+                                          items: [
+                                            ...currentTableOrders.flatMap(o => o.items || []),
+                                            ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+                                          ],
+                                          subTotal: grandTotal,
+                                          totalAmount: grandTotal,
+                                          paymentMethod: paymentMethod || 'Cash',
+                                          paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
+                                        };
+                                        printOrderBill(billOrder, tenantInfo?.name);
+                                      }}
+                                      style={{
+                                        padding: '8px 10px',
+                                        borderRadius: '9px',
+                                        border: '1.5px solid #cbd5e1',
+                                        background: '#ffffff',
+                                        color: '#1e293b',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                      onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                                      title="Print 80mm Thermal Receipt"
+                                    >
+                                      <Printer size={15} color="#475569" />
+                                      <span>Print Bill</span>
+                                    </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const billOrder = {
-                                    orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
-                                    tableNumber,
-                                    customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
-                                    customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
-                                    items: [
-                                      ...currentTableOrders.flatMap(o => o.items || []),
-                                      ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
-                                    ],
-                                    subTotal: grandTotal,
-                                    totalAmount: grandTotal,
-                                    paymentMethod: paymentMethod || 'Cash',
-                                    paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
-                                  };
-                                  openWhatsappBill(billOrder, tenantInfo, customerPhone);
-                                  toast.success('WhatsApp E-Bill opened!');
-                                }}
-                                style={{
-                                  padding: '8px 10px',
-                                  borderRadius: '9px',
-                                  border: 'none',
-                                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                                  color: '#ffffff',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 800,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '6px',
-                                  whiteSpace: 'nowrap',
-                                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
-                                title="Send WhatsApp Digital E-Bill"
-                              >
-                                <FaWhatsapp size={16} />
-                                <span>WhatsApp E-Bill</span>
-                              </button>
-                            </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const billOrder = {
+                                          orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+                                          tableNumber,
+                                          customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
+                                          customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+                                          items: [
+                                            ...currentTableOrders.flatMap(o => o.items || []),
+                                            ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+                                          ],
+                                          subTotal: grandTotal,
+                                          totalAmount: grandTotal,
+                                          paymentMethod: paymentMethod || 'Cash',
+                                          paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
+                                        };
+                                        openWhatsappBill(billOrder, tenantInfo, customerPhone);
+                                        toast.success('WhatsApp E-Bill opened!');
+                                      }}
+                                      style={{
+                                        padding: '8px 10px',
+                                        borderRadius: '9px',
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                        color: '#ffffff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                      onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
+                                      title="Send WhatsApp Digital E-Bill"
+                                    >
+                                      <FaWhatsapp size={16} />
+                                      <span>WhatsApp E-Bill</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
                           )}
-                        </div>
                         </>
                       )}
                     </>
-                  )}
-                </>
-              );
-            })()}
+                  );
+                })()}
               </div>
 
             </div>
@@ -2598,10 +2765,10 @@ export default function POSTerminal({
       {/* 2.1 PAY ITEMS / TABLE SETTLEMENT & CONCESSION MODAL       */}
       {/* ========================================================= */}
       {showPayItemsModal && (() => {
-        const tenderAmount = isCounterBillingOnly 
-          ? draftCartTotal 
+        const tenderAmount = (isCounterBillingOnly && tableNumber === 'Walk-in')
+          ? draftCartTotal
           : (selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue);
-        
+
         // Calculate settlement discount and payable amount
         const discountVal = Math.max(0, Number(settlementDiscount) || 0);
         const finalPayable = Math.max(0, tenderAmount - discountVal);
@@ -2633,7 +2800,7 @@ export default function POSTerminal({
             const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
             try {
-              if (isCounterBillingOnly) {
+              if (isCounterBillingOnly && tableNumber === 'Walk-in') {
                 const khataItems = cart.map(it => ({
                   name: it.name || 'Dish',
                   quantity: it.quantity || 1,
@@ -2707,15 +2874,15 @@ export default function POSTerminal({
               // Extract items to record in Khata
               const khataItems = selectedItemsSummary.count > 0
                 ? selectedItemsSummary.itemsList.map(it => ({
-                    name: it.name || 'Dish',
-                    quantity: it.quantity || 1,
-                    price: Number(it.price) || 0
-                  }))
+                  name: it.name || 'Dish',
+                  quantity: it.quantity || 1,
+                  price: Number(it.price) || 0
+                }))
                 : allUnpaidItems.map(it => ({
-                    name: it.name || it.item?.name || 'Dish',
-                    quantity: it.quantity || 1,
-                    price: Number(it.price || it.item?.price) || 0
-                  }));
+                  name: it.name || it.item?.name || 'Dish',
+                  quantity: it.quantity || 1,
+                  price: Number(it.price || it.item?.price) || 0
+                }));
 
               // 1. Record directly in Khata / Customer Credit Ledger (with final discounted amount)
               await axios.post(`${API}/khata`, {
@@ -3377,10 +3544,10 @@ export default function POSTerminal({
                     {isSubmittingItemPay || isSubmittingKhata
                       ? 'Processing...'
                       : (currentMethod === 'Khata / Borrow'
-                          ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
-                          : (discountVal > 0
-                              ? `Confirm & Pay ₹${formatAmount(finalPayable)} (-₹${formatAmount(discountVal)})`
-                              : `Confirm & Pay ₹${formatAmount(finalPayable)}`))}
+                        ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
+                        : (discountVal > 0
+                          ? `Confirm & Pay ₹${formatAmount(finalPayable)} (-₹${formatAmount(discountVal)})`
+                          : `Confirm & Pay ₹${formatAmount(finalPayable)}`))}
                   </span>
                 </button>
               </div>

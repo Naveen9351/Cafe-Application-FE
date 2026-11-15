@@ -38,19 +38,9 @@ import { useTranslation } from '../utils/translations';
 import { playOrderChime, getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
 import { formatTableBadge } from './common/TableBadge';
 
-// Standard Categories with Icons
+// Standard Categories (No dummy categories: only real categories added by the cafe or imported)
 const standardCategories = [
-  { id: "all", name: "All Items", icon: "UtensilsCrossed", Component: UtensilsCrossed },
-  { id: "combos", name: "Combos & Offers", aliases: ['combos', 'combo', 'offers', 'offer', 'deal', 'deals', 'special'], icon: "Sparkles", Component: Sparkles },
-  { id: "main-courses", name: "Main Courses", aliases: ['main-courses', 'main_courses', 'main-course', 'main_course', 'mains', 'main', 'pasta', 'curry', 'rice', 'entree', 'food'], icon: "UtensilsCrossed", Component: UtensilsCrossed },
-  { id: "appetizers", name: "Appetizers", aliases: ['appetizer', 'appetizers', 'starter', 'starters', 'snack', 'snacks', 'salad', 'salads'], icon: "Cookie", Component: Cookie },
-  { id: "desserts", name: "Desserts", aliases: ['dessert', 'desserts', 'sweet', 'sweets', 'cake', 'ice_cream', 'pastry'], icon: "Cake", Component: Cake },
-  { id: "beverages", name: "Beverages", aliases: ['beverage', 'beverages', 'drink', 'drinks', 'mocktail', 'cocktail', 'cold drink', 'shake', 'beverage/drinks'], icon: "GlassWater", Component: GlassWater },
-  { id: "burger", name: "Burgers & Sandwiches", aliases: ['burger', 'burgers', 'sandwich', 'sandwiches', 'wrap', 'wraps'], icon: "Sandwich", Component: Sandwich },
-  { id: "pizza", name: "Artisan Pizza", aliases: ['pizza', 'pizzas'], icon: "Pizza", Component: Pizza },
-  { id: "coffee", name: "Specialty Coffee", aliases: ['coffee', 'hot coffee', 'cold brew', 'latte', 'espresso', 'cappuccino'], icon: "Coffee", Component: Coffee },
-  { id: "tea", name: "Tea & Chai", aliases: ['tea', 'chai', 'hot tea', 'green tea', 'masala chai'], icon: "Coffee", Component: Coffee },
-  { id: "ice-tea", name: "Iced Tea", aliases: ['ice-tea', 'iced-tea', 'ice tea', 'iced tea', 'lemon ice tea', 'peach ice tea'], icon: "GlassWater", Component: GlassWater },
+  { id: "all", name: "All Dishes", icon: "UtensilsCrossed", Component: UtensilsCrossed }
 ];
 
 export const AVAILABLE_CATEGORY_ICONS = [
@@ -88,6 +78,44 @@ const CATEGORY_ICON_MAP = {
   ChefHat,
   Layers,
   Star
+};
+
+export const toCategorySlug = (str = '') => {
+  const clean = String(str).trim();
+  const slug = clean.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{M}\p{N}\-_]+/gu, '');
+  return slug && slug !== '-' ? slug : `cat_${Date.now()}`;
+};
+
+export const detectCategoryIcon = (name = '') => {
+  const n = String(name).toLowerCase();
+  if (n.includes('tea') || n.includes('chai') || n.includes('चाय') || n.includes('कॉफी') || n.includes('coffee') || n.includes('latte') || n.includes('cappuccino')) return 'Coffee';
+  if (n.includes('pizza') || n.includes('पिज़्ज़ा') || n.includes('पिज्जा')) return 'Pizza';
+  if (n.includes('burger') || n.includes('बर्गर') || n.includes('sandwich') || n.includes('सैंडविच') || n.includes('रोल') || n.includes('wrap') || n.includes('roll')) return 'Sandwich';
+  if (n.includes('soup') || n.includes('सूप') || n.includes('chinese') || n.includes('चाउमीन') || n.includes('chowmein') || n.includes('noodles') || n.includes('नूडल्स')) return 'Soup';
+  if (n.includes('dessert') || n.includes('cake') || n.includes('मिठाई') || n.includes('केक') || n.includes('sweet') || n.includes('pastry')) return 'Cake';
+  if (n.includes('ice cream') || n.includes('आइसक्रीम') || n.includes('shake') || n.includes('शेक')) return 'IceCream';
+  if (n.includes('drink') || n.includes('beverage') || n.includes('शरबत') || n.includes('जूस') || n.includes('juice') || n.includes('cold drink') || n.includes('पानी')) return 'GlassWater';
+  if (n.includes('mocktail') || n.includes('cocktail') || n.includes('मॉकटेल')) return 'Martini';
+  if (n.includes('snack') || n.includes('नाश्ता') || n.includes('चाट') || n.includes('समोसा') || n.includes('कचौड़ी') || n.includes('पकौड़े')) return 'Cookie';
+  if (n.includes('spicy') || n.includes('तंदूर') || n.includes('tandoor') || n.includes('tikka') || n.includes('टिक्का')) return 'Flame';
+  if (n.includes('special') || n.includes('स्पेशल') || n.includes('combo') || n.includes('कॉम्बो')) return 'Sparkles';
+  if (n.includes('thali') || n.includes('थाली') || n.includes('chef') || n.includes('रसोई')) return 'ChefHat';
+  return 'UtensilsCrossed';
+};
+
+export const LEGACY_DUMMY_CATEGORY_KEYS = new Set([
+  'chai', 'coldcoffee', 'hotcoffee', 'burger', 'burgers', 'pizza', 'pizzas', 'chinese',
+  'sandwich', 'sandwiches', 'snacks', 'snack', 'wraps', 'wrap', 'pasta', 'colddrinks',
+  'drinks', 'drink', 'mocktails', 'mocktail', 'shakes', 'shake', 'desserts', 'dessert',
+  'combos', 'combo', 'maincourses', 'maincourse', 'mains', 'appetizers', 'appetizer',
+  'beverages', 'beverage', 'coffee', 'tea', 'icetea', 'icedtea', 'nafjkfjdkjf', 'dfdfdf'
+]);
+
+export const isLegacyDummyCategory = (cat) => {
+  if (!cat) return false;
+  const idNorm = String(cat.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
+  const nameNorm = String(cat.name || '').toLowerCase().replace(/[\s\-_]+/g, '');
+  return LEGACY_DUMMY_CATEGORY_KEYS.has(idNorm) || LEGACY_DUMMY_CATEGORY_KEYS.has(nameNorm);
 };
 
 export const getCategoryIconComponent = (cat) => {
@@ -364,12 +392,15 @@ export default function AdminPanel() {
       const saved = localStorage.getItem('serviq_custom_categories');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+          if (filtered.length > 0) return filtered;
+        }
       }
     } catch (e) {
       console.log('Error reading custom categories:', e);
     }
-    return standardCategories;
+    return [{ id: "all", name: "All Dishes", icon: "UtensilsCrossed", Component: UtensilsCrossed }];
   });
 
   // Alphabetically sorted categories with "All Dishes" always first (A-Z)
@@ -386,26 +417,32 @@ export default function AdminPanel() {
       items.forEach(it => {
         if (it.category) {
           const cleanCat = String(it.category).trim();
-          const catId = cleanCat.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          if (catId && !knownIds.has(catId) && !knownNames.has(cleanCat.toLowerCase()) && catId !== 'all') {
-            knownIds.add(catId);
+          const catId = toCategorySlug(cleanCat);
+          if (catId && !knownIds.has(catId.toLowerCase()) && !knownNames.has(cleanCat.toLowerCase()) && catId !== 'all') {
+            knownIds.add(catId.toLowerCase());
             knownNames.add(cleanCat.toLowerCase());
-            const displayName = cleanCat.charAt(0).toUpperCase() + cleanCat.slice(1);
-            const selectedIconComp = CATEGORY_ICON_MAP['UtensilsCrossed'] || UtensilsCrossed;
-            autoDiscovered.push({
+            const iconKey = detectCategoryIcon(cleanCat);
+            const selectedIconComp = CATEGORY_ICON_MAP[iconKey] || UtensilsCrossed;
+            const newAutoCat = {
               id: catId,
-              name: displayName,
-              icon: 'UtensilsCrossed',
+              name: cleanCat,
+              icon: iconKey,
               Component: selectedIconComp,
-              aliases: [catId, cleanCat.toLowerCase()],
+              aliases: [catId.toLowerCase(), cleanCat.toLowerCase()],
               isCustom: true
-            });
+            };
+            if (!isLegacyDummyCategory(newAutoCat)) {
+              autoDiscovered.push(newAutoCat);
+            }
           }
         }
       });
     }
 
-    const combined = [...categories.filter(c => c.id !== 'all'), ...autoDiscovered];
+    const combined = [
+      ...categories.filter(c => c.id !== 'all' && !isLegacyDummyCategory(c)),
+      ...autoDiscovered
+    ];
     const others = combined
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
     return [allCat, ...others];
@@ -921,30 +958,32 @@ export default function AdminPanel() {
               logo: fetchedLogo || null
             });
             if (fetchedLogo) localStorage.setItem('restaurant_logo', fetchedLogo);
-            if (res.data.settings?.categories && Array.isArray(res.data.settings.categories) && res.data.settings.categories.length > 0) {
-              const serverCats = res.data.settings.categories;
-              const localCatsStr = localStorage.getItem('serviq_custom_categories');
-              let merged = serverCats;
-              if (localCatsStr) {
-                try {
-                  const localCats = JSON.parse(localCatsStr);
-                  if (Array.isArray(localCats)) {
-                    const serverIds = new Set(serverCats.map(c => (c.id || '').toLowerCase()));
-                    const missingLocal = localCats.filter(c => c && c.id && !serverIds.has(c.id.toLowerCase()));
-                    if (missingLocal.length > 0) {
-                      merged = [...serverCats, ...missingLocal];
-                      persistCategories(merged);
-                    }
-                  }
-                } catch (err) { }
-              }
-              setCategories(merged);
-              localStorage.setItem('serviq_custom_categories', JSON.stringify(merged));
+            if (res.data.settings?.categories && Array.isArray(res.data.settings.categories)) {
+              const serverCats = res.data.settings.categories.filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+              const finalCats = serverCats.length > 0 ? serverCats : [{ id: 'all', name: 'All Dishes', icon: 'UtensilsCrossed' }];
+              setCategories(finalCats);
+              localStorage.setItem('serviq_custom_categories', JSON.stringify(finalCats));
             }
           }
         })
         .catch((err) => console.log('Tenant info fetch error:', err));
     }
+
+    // Scrub any legacy dummy categories from localStorage immediately
+    try {
+      const saved = localStorage.getItem('serviq_custom_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+          if (cleaned.length !== parsed.length) {
+            const finalClean = cleaned.length > 0 ? cleaned : [{ id: 'all', name: 'All Dishes', icon: 'UtensilsCrossed' }];
+            localStorage.setItem('serviq_custom_categories', JSON.stringify(finalClean));
+            setCategories(finalClean);
+          }
+        }
+      }
+    } catch (e) { }
 
     fetchMenu();
     fetchOrders();
@@ -1725,17 +1764,22 @@ export default function AdminPanel() {
     if (!window.confirm(`Delete ${selectedItemIds.length} selected dishes?`)) return;
 
     const token = localStorage.getItem('token');
-    for (const id of selectedItemIds) {
-      if (token && !id.startsWith('dish_')) {
-        try {
-          await axios.delete(`${API}/menu/${id}`, { headers: { 'x-auth-token': token } });
-        } catch (e) { }
+    const loadingToast = toast.loading(`Deleting ${selectedItemIds.length} dishes...`);
+    const validDbIds = selectedItemIds.filter(id => !id.startsWith('dish_'));
+    if (token && validDbIds.length > 0) {
+      const batchSize = 10;
+      for (let i = 0; i < validDbIds.length; i += batchSize) {
+        const batch = validDbIds.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map(id => axios.delete(`${API}/menu/${id}`, { headers: { 'x-auth-token': token } }))
+        );
       }
     }
 
     setItems(prev => prev.filter(it => !selectedItemIds.includes(it._id)));
     setSelectedItemIds([]);
-    toast.success('Selected dishes deleted');
+    toast.dismiss(loadingToast);
+    toast.success('Selected dishes deleted successfully');
   };
 
   const handleBulkSetAvailability = async (newAvailability) => {
@@ -1857,6 +1901,27 @@ export default function AdminPanel() {
     return filteredMenuItems.slice(startIdx, startIdx + menuPageSize);
   }, [filteredMenuItems, menuPage, menuPageSize]);
 
+  const isAllFilteredSelected = useMemo(() => {
+    if (!filteredMenuItems || filteredMenuItems.length === 0) return false;
+    return filteredMenuItems.every(item => selectedItemIds.includes(item._id));
+  }, [filteredMenuItems, selectedItemIds]);
+
+  const isSomeFilteredSelected = useMemo(() => {
+    if (!filteredMenuItems || filteredMenuItems.length === 0) return false;
+    return filteredMenuItems.some(item => selectedItemIds.includes(item._id));
+  }, [filteredMenuItems, selectedItemIds]);
+
+  const handleToggleSelectAll = () => {
+    if (!filteredMenuItems || filteredMenuItems.length === 0) return;
+    if (isAllFilteredSelected) {
+      const currentIdsSet = new Set(filteredMenuItems.map(i => i._id));
+      setSelectedItemIds(prev => prev.filter(id => !currentIdsSet.has(id)));
+    } else {
+      const currentIds = filteredMenuItems.map(i => i._id);
+      setSelectedItemIds(prev => Array.from(new Set([...prev, ...currentIds])));
+    }
+  };
+
   // Category Manager Handlers (Add, Edit, Delete)
   const handleOpenAddCategoryModal = () => {
     setCategoryModalMode('add');
@@ -1915,11 +1980,12 @@ export default function AdminPanel() {
   };
 
   const persistCategories = async (updated) => {
-    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
+    const cleanCats = (updated || []).filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+    localStorage.setItem('serviq_custom_categories', JSON.stringify(cleanCats));
     try {
       const token = localStorage.getItem('token');
       const tid = tenantId || user?.tenantId || tenantInfo?._id;
-      const serializableCats = updated.map(({ Component, ...rest }) => rest);
+      const serializableCats = cleanCats.map(({ Component, ...rest }) => rest);
       if (token) {
         const headers = {
           'x-auth-token': token,
@@ -2083,15 +2149,30 @@ export default function AdminPanel() {
       setExtractionProgress(96);
       setExtractionStageText(`Detected ${rawItems.length} dishes! Compiling review table...`);
 
-      const enriched = rawItems.map((item, idx) => ({
-        id: item.id || `dish_${Date.now()}_${idx}`,
-        name: (item.name || `Dish ${idx + 1}`).trim(),
-        price: Number(item.price) || 0,
-        type: item.type === 'non-veg' ? 'non-veg' : 'veg',
-        category: (item.category || 'snacks').toLowerCase().trim(),
-        description: item.description || `Fresh and delicious ${(item.name || '').trim()} prepared to order.`,
-        image: (item.image && !item.image.includes('pollinations.ai')) ? item.image : resolveFoodImage(item.name, item.category)
-      }));
+      const enriched = rawItems.map((item, idx) => {
+        const rawCat = (item.category || '').trim();
+        // Check if this category exists in categories (by id or by name, case-insensitive)
+        const matchedCat = categories.find(c => 
+          c.id !== 'all' && (
+            (c.id && c.id.toLowerCase() === rawCat.toLowerCase()) || 
+            (c.name && c.name.toLowerCase() === rawCat.toLowerCase()) ||
+            (c.aliases && c.aliases.some(a => String(a).toLowerCase() === rawCat.toLowerCase()))
+          )
+        );
+
+        const assignedCatName = matchedCat ? matchedCat.name : (rawCat || 'General');
+
+        return {
+          id: item.id || `dish_${Date.now()}_${idx}`,
+          name: (item.name || `Dish ${idx + 1}`).trim(),
+          price: Number(item.price) || 0,
+          type: item.type === 'non-veg' ? 'non-veg' : 'veg',
+          category: assignedCatName,
+          preparationTime: item.preparationTime || 15,
+          description: item.description || `Fresh and delicious ${(item.name || '').trim()} prepared to order.`,
+          image: (item.image && !item.image.includes('pollinations.ai')) ? item.image : resolveFoodImage(item.name, assignedCatName)
+        };
+      });
 
       // Final complete step
       setTimeout(() => {
@@ -2125,14 +2206,16 @@ export default function AdminPanel() {
   };
 
   const handleAddManualExtractedItem = () => {
+    const defaultCat = categories[1]?.name || 'General';
     const newItem = {
       id: `dish_${Date.now()}_${extractedItems.length}`,
       name: 'New Dish',
       price: 150,
       type: 'veg',
-      category: categories[1]?.id || 'snacks',
+      category: defaultCat,
+      preparationTime: 15,
       description: 'Delicious dish freshly made to order.',
-      image: resolveFoodImage('dish', categories[1]?.id || 'snacks')
+      image: resolveFoodImage('dish', defaultCat)
     };
     setExtractedItems(prev => [newItem, ...prev]);
     toast.success('Added new dish to import batch');
@@ -2149,15 +2232,21 @@ export default function AdminPanel() {
 
     try {
       const token = localStorage.getItem('token');
-      const payload = extractedItems.map(it => ({
-        name: it.name.trim(),
-        price: Number(it.price) || 0,
-        category: (it.category || 'snacks').toLowerCase().trim(),
-        type: it.type || 'veg',
-        isVeg: it.type !== 'non-veg',
-        description: it.description ? it.description.trim() : `Fresh and delicious ${it.name.trim()}`,
-        image: it.image
-      }));
+      const payload = extractedItems.map(it => {
+        const catName = (it.category || 'General').trim();
+        const catSlug = toCategorySlug(catName);
+        return {
+          name: it.name.trim(),
+          price: Number(it.price) || 0,
+          category: catName,
+          categoryId: catSlug,
+          type: it.type || 'veg',
+          isVeg: it.type !== 'non-veg',
+          preparationTime: it.preparationTime || 15,
+          description: it.description ? it.description.trim() : `Fresh and delicious ${it.name.trim()}`,
+          image: it.image
+        };
+      });
 
       const res = await axios.post(`${API}/menu/bulk`, { items: payload }, {
         headers: { 'x-auth-token': token }
@@ -2165,20 +2254,26 @@ export default function AdminPanel() {
 
       if (res.data?.success) {
         // Automatically check if any category from extracted items is new, and persist it
-        const currentCatIds = new Set(categories.map(c => c.id.toLowerCase()));
+        const currentCatKeys = new Set(
+          categories.map(c => (c.name || c.id || '').toLowerCase().trim())
+        );
         const newCatNames = [];
 
         payload.forEach(item => {
-          const catId = item.category.toLowerCase();
-          if (catId && !currentCatIds.has(catId)) {
-            currentCatIds.add(catId);
-            const displayName = catId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          const catName = item.category.trim();
+          const key = catName.toLowerCase();
+          const catId = item.categoryId;
+          if (catName && !currentCatKeys.has(key) && !currentCatKeys.has(catId.toLowerCase())) {
+            currentCatKeys.add(key);
+            currentCatKeys.add(catId.toLowerCase());
+            const iconKey = detectCategoryIcon(catName);
+            const iconComp = CATEGORY_ICON_MAP[iconKey] || UtensilsCrossed;
             newCatNames.push({
               id: catId,
-              name: displayName,
-              icon: 'UtensilsCrossed',
-              Component: UtensilsCrossed,
-              aliases: [catId, displayName.toLowerCase()],
+              name: catName,
+              icon: iconKey,
+              Component: iconComp,
+              aliases: [catId.toLowerCase(), key],
               isCustom: true
             });
           }
@@ -2188,6 +2283,7 @@ export default function AdminPanel() {
           const updatedCats = [...categories, ...newCatNames];
           setCategories(updatedCats);
           await persistCategories(updatedCats);
+          console.log(`✨ Created and persisted ${newCatNames.length} new categories from menu import:`, newCatNames.map(c => c.name));
         }
 
         await fetchMenu();
@@ -2219,7 +2315,7 @@ export default function AdminPanel() {
     const selectedIconComp = CATEGORY_ICON_MAP[newCatIcon] || UtensilsCrossed;
 
     if (categoryModalMode === 'add') {
-      const id = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const id = toCategorySlug(cleanName);
       if (categories.some(c => c.id === id || c.name.toLowerCase() === cleanName.toLowerCase())) {
         toast.error('Category with this name already exists');
         return;
@@ -2275,18 +2371,18 @@ export default function AdminPanel() {
     setNewCatName('');
   };
 
-  const handleDeleteCategory = (catId, e) => {
+  const handleDeleteCategory = async (catId, e) => {
     if (e) e.stopPropagation();
     if (catId === 'all') {
-      toast.error('Cannot delete "All Items" master catalog tab');
+      toast.error('Cannot delete "All Dishes" master catalog tab');
       return;
     }
-    const catToDelete = categories.find(c => c.id === catId);
+    const catToDelete = categories.find(c => c.id === catId || (c.name && c.name.toLowerCase() === String(catId).toLowerCase()));
     const catName = catToDelete?.name || catId;
 
     const affectedDishes = items.filter(i => itemMatchesCategory(i, catId, categories));
     const confirmMsg = affectedDishes.length > 0
-      ? `Delete category "${catName}"?\n\n${affectedDishes.length} dish(es) in this category will be preserved safely in "All Items" as Uncategorized. You can reassign them to any category anytime.`
+      ? `Delete category "${catName}"?\n\n${affectedDishes.length} dish(es) in this category will be preserved safely in "All Dishes" as Uncategorized. You can reassign them to any category anytime.`
       : `Are you sure you want to delete category "${catName}"?`;
 
     if (!window.confirm(confirmMsg)) return;
@@ -2304,13 +2400,17 @@ export default function AdminPanel() {
       return item;
     }));
 
-    const updated = categories.filter(c => c.id !== catId);
+    const updated = categories.filter(c => 
+      c.id !== catId && 
+      String(c.id).toLowerCase() !== String(catId).toLowerCase() && 
+      String(c.name || '').toLowerCase() !== String(catName).toLowerCase()
+    );
     setCategories(updated);
-    localStorage.setItem('serviq_custom_categories', JSON.stringify(updated));
     if (selectedCategory === catId) {
       setSelectedCategory('all');
     }
-    toast.success(`Category "${catName}" deleted. ${affectedDishes.length} dish(es) preserved in "All Items".`);
+    await persistCategories(updated);
+    toast.success(`Category "${catName}" deleted.`);
   };
 
   const handleSaveTenantSettings = async (updatedSettings) => {
@@ -2376,48 +2476,57 @@ export default function AdminPanel() {
       {isAdmin && (
         <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
           {/* Brand Header inside Top of Sidebar */}
-          <div className={styles.sidebarHeader}>
-            <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
-              {restaurantLogo ? (
-                <img
-                  src={restaurantLogo}
-                  alt="Restaurant Logo"
-                  className={styles.tenantLogoImg}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    const fb = e.target.parentElement?.querySelector(`.${styles.brandIconSquare}`);
-                    if (fb) fb.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div
-                className={styles.brandIconSquare}
-                style={restaurantLogo ? { display: 'none' } : {}}
+          {sidebarCollapsed ? (
+            <div className={styles.sidebarHeaderCollapsed}>
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                className={styles.sidebarHamburgerBtn}
+                title="Expand Sidebar"
               >
-                {restaurantInitials || 'DQ'}
-              </div>
-              {!sidebarCollapsed && (
+                <MenuIcon size={18} />
+              </button>
+            </div>
+          ) : (
+            <div className={styles.sidebarHeader}>
+              <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
+                {restaurantLogo ? (
+                  <img
+                    src={restaurantLogo}
+                    alt="Restaurant Logo"
+                    className={styles.tenantLogoImg}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      const fb = e.target.parentElement?.querySelector(`.${styles.brandIconSquare}`);
+                      if (fb) fb.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={styles.brandIconSquare}
+                  style={restaurantLogo ? { display: 'none' } : {}}
+                >
+                  {restaurantInitials || 'DQ'}
+                </div>
                 <div className={styles.brandTextGroup}>
                   <span className={styles.brandTitle}>{restaurantDisplayName}</span>
                   <span className={styles.brandSub}>DINEVIQ OS</span>
                 </div>
-              )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(true)}
+                className={styles.collapseToggleBtn}
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft size={14} />
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Sidebar Navigation Section */}
           <div className={styles.navSection}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
-              {!sidebarCollapsed && <span className={styles.navLabel}>MAIN MENU</span>}
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
-                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              >
-                {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-              </button>
-            </div>
 
             {allowedTabs.some(t => t.id === 'dashboard') && (
               <button
@@ -2535,12 +2644,21 @@ export default function AdminPanel() {
 
           {/* Sidebar Footer */}
           <div className={styles.sidebarFooter}>
-            {/* Khushi AI Copilot Sidebar Widget Button */}
             <button
               type="button"
-              className={`${styles.sidebarKhushiBtn} ${isKhushiOpen ? styles.sidebarKhushiBtnActive : ''} ${sidebarCollapsed ? styles.sidebarKhushiBtnCollapsed : ''}`}
+              className={styles.logoutBtn}
+              onClick={() => setShowLogoutModal(true)}
+              title="Sign Out"
+            >
+              <LogOut size={16} /> {!sidebarCollapsed && <span>{t('header.signOut')}</span>}
+            </button>
+
+            {/* Chatbot Circular Avatar Button (Placed after Log Out) */}
+            <button
+              type="button"
+              className={`${styles.chatbotCircleBtn} ${isKhushiOpen ? styles.chatbotCircleBtnActive : ''}`}
               onClick={() => setIsKhushiOpen(prev => !prev)}
-              title="DineviQ AI Bot (Store Assistant & Copilot)"
+              title="DineviQ AI Bot (Copilot)"
             >
               <div className={styles.khushiAvatarWrap}>
                 <img
@@ -2550,40 +2668,6 @@ export default function AdminPanel() {
                 />
                 <span className={styles.khushiOnlineDot} />
               </div>
-              {!sidebarCollapsed && (
-                <div className={styles.khushiTextWrap}>
-                  <div className={styles.khushiTitleRow}>
-                    <span className={styles.khushiName}>DineviQ AI Bot</span>
-                    <span className={styles.khushiBadge}>Copilot</span>
-                  </div>
-                  <span className={styles.khushiSubtext}>Store Assistant</span>
-                </div>
-              )}
-            </button>
-
-            {!isStandalone && (
-              <button
-                type="button"
-                className={styles.sidebarPwaBtn}
-                onClick={promptInstall}
-                title={isInstalled ? "SERVIQ App is Downloaded" : "Download & Install Admin App"}
-                style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d', fontWeight: 700 } : {}}
-              >
-                {isInstalled ? <CheckCircle2 size={16} style={{ color: '#16a34a' }} /> : <Smartphone size={16} />}
-                {!sidebarCollapsed && <span>{isInstalled ? 'App is Downloaded' : 'Download App'}</span>}
-              </button>
-            )}
-
-            {/* Separator Divider / Cushion */}
-            <div className={styles.sidebarDivider} />
-
-            <button
-              type="button"
-              className={styles.logoutBtn}
-              onClick={() => setShowLogoutModal(true)}
-              title="Sign Out"
-            >
-              <LogOut size={16} /> {!sidebarCollapsed && <span>{t('header.signOut')}</span>}
             </button>
           </div>
         </aside>
@@ -3027,6 +3111,18 @@ export default function AdminPanel() {
             >
               <HelpCircle size={16} /> <span>{t('header.support')}</span>
             </button>
+
+            {!isStandalone && (
+              <button
+                type="button"
+                className={styles.topDownloadIconBtn}
+                onClick={promptInstall}
+                title={isInstalled ? "App is Downloaded & Installed" : "Download App"}
+                style={isInstalled ? { borderColor: '#86efac', background: '#f0fdf4', color: '#15803d' } : {}}
+              >
+                {isInstalled ? <CheckCircle2 size={16} style={{ color: '#16a34a' }} /> : <Download size={16} />}
+              </button>
+            )}
 
             {!isAdmin && (
               <button
@@ -4960,6 +5056,41 @@ export default function AdminPanel() {
                         )}
                       </div>
 
+                      {/* Select All / Deselect All Button */}
+                      {filteredMenuItems.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleToggleSelectAll}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '7px 13px',
+                            borderRadius: '8px',
+                            border: isAllFilteredSelected ? '1px solid #4f46e5' : isSomeFilteredSelected ? '1px solid #818cf8' : '1px solid #cbd5e1',
+                            background: isAllFilteredSelected ? '#eef2ff' : isSomeFilteredSelected ? '#f5f3ff' : '#ffffff',
+                            color: isAllFilteredSelected || isSomeFilteredSelected ? '#4338ca' : '#475569',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title={isAllFilteredSelected ? 'Deselect all visible dishes' : 'Select all visible dishes'}
+                        >
+                          {isAllFilteredSelected ? (
+                            <CheckSquare size={14} color="#4f46e5" />
+                          ) : (
+                            <Square size={14} color="#64748b" />
+                          )}
+                          <span>
+                            {isAllFilteredSelected
+                              ? 'Deselect All'
+                              : `Select All (${filteredMenuItems.length})`}
+                          </span>
+                        </button>
+                      )}
+
                       {selectedItemIds.length > 0 && (
                         <button
                           type="button"
@@ -5359,9 +5490,32 @@ export default function AdminPanel() {
                     menuItems={items}
                     orders={orders}
                     initialTable={posSelectedTable}
+                    isMainSidebarOpen={!sidebarCollapsed}
                     onOrderPlaced={(newOrd) => {
-                      // For settlement (_refreshAll flag), just re-fetch to clear table
                       if (newOrd?._refreshAll) {
+                        if (newOrd.status === 'completed' && newOrd.tableNumber) {
+                          setOrders(prev => prev.map(o => {
+                            const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            const targetTbl = String(newOrd.tableNumber).replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (oTbl === targetTbl) {
+                              return { ...o, status: 'completed', paymentStatus: 'paid' };
+                            }
+                            return o;
+                          }));
+                        } else if (newOrd.status === 'billed' && newOrd.tableNumber) {
+                          setOrders(prev => prev.map(o => {
+                            const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            const targetTbl = String(newOrd.tableNumber).replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (oTbl === targetTbl) {
+                              return {
+                                ...o,
+                                paymentStatus: 'paid',
+                                items: (o.items || []).map(it => ({ ...it, isPaid: true, itemStatus: 'served' }))
+                              };
+                            }
+                            return o;
+                          }));
+                        }
                         fetchOrders();
                         return;
                       }
@@ -5375,7 +5529,16 @@ export default function AdminPanel() {
                       fetchOrders();
                     }}
                     onOrderCreated={(newOrd) => {
-                      // Always re-fetch to get latest state (new round or settlement)
+                      if (newOrd?._refreshAll && newOrd?.status === 'completed' && newOrd?.tableNumber) {
+                        setOrders(prev => prev.map(o => {
+                          const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                          const targetTbl = String(newOrd.tableNumber).replace(/^Table\s*/i, '').trim().toLowerCase();
+                          if (oTbl === targetTbl) {
+                            return { ...o, status: 'completed', paymentStatus: 'paid' };
+                          }
+                          return o;
+                        }));
+                      }
                       fetchOrders();
                     }}
                   />
@@ -7361,7 +7524,7 @@ export default function AdminPanel() {
                           </div>
 
                           {/* Category Select */}
-                          <div style={{ width: 130, flexShrink: 0 }}>
+                          <div style={{ width: 140, flexShrink: 0 }}>
                             <select
                               value={item.category}
                               onChange={(e) => handleUpdateExtractedItem(idx, 'category', e.target.value)}
@@ -7374,15 +7537,14 @@ export default function AdminPanel() {
                                 fontSize: '12px',
                                 fontWeight: 600,
                                 color: '#334155',
-                                outline: 'none',
-                                textTransform: 'capitalize'
+                                outline: 'none'
                               }}
                             >
                               {categories.filter(c => c.id !== 'all').map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
                               ))}
-                              {!categories.some(c => c.id === item.category) && (
-                                <option value={item.category}>{item.category}</option>
+                              {!categories.some(c => (c.name || '').toLowerCase() === (item.category || '').toLowerCase() || (c.id || '').toLowerCase() === (item.category || '').toLowerCase()) && (
+                                <option value={item.category}>✨ {item.category} (New)</option>
                               )}
                             </select>
                           </div>
