@@ -928,7 +928,7 @@ export default function AdminPanel() {
                       persistCategories(merged);
                     }
                   }
-                } catch (err) {}
+                } catch (err) { }
               }
               setCategories(merged);
               localStorage.setItem('serviq_custom_categories', JSON.stringify(merged));
@@ -3197,7 +3197,7 @@ export default function AdminPanel() {
                   <div className={styles.dashControlBar}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>{isHindi ? 'व्यापार प्रदर्शन का अवलोकन' : 'Performance Overview'}</h3>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>{isHindi ? 'व्यापार प्रदर्शन का अवलोकन' : 'Performance '}</h3>
                         {isFilterLoading && (
                           <div style={{
                             display: 'inline-flex',
@@ -3217,12 +3217,12 @@ export default function AdminPanel() {
                       <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '2px 0 0 0' }}>
                         {isHindi ? (
                           dateRange === 'today' ? 'आज के मुख्य व्यावसायिक आंकड़े' :
-                          dateRange === 'this_week' ? 'इस सप्ताह के व्यावसायिक आंकड़े' :
-                          dateRange === 'this_month' ? 'इस महीने के व्यावसायिक आंकड़े' :
-                          dateRange === 'all' ? 'कुल समय के व्यावसायिक आंकड़े' :
-                          appliedCustomStartDate && appliedCustomEndDate
-                            ? `कस्टम अवधि आंकड़े (${appliedCustomStartDate} से ${appliedCustomEndDate})`
-                            : 'कस्टम अवधि आंकड़े (तिथियां चुनें और फ़िल्टर लागू करें)'
+                            dateRange === 'this_week' ? 'इस सप्ताह के व्यावसायिक आंकड़े' :
+                              dateRange === 'this_month' ? 'इस महीने के व्यावसायिक आंकड़े' :
+                                dateRange === 'all' ? 'कुल समय के व्यावसायिक आंकड़े' :
+                                  appliedCustomStartDate && appliedCustomEndDate
+                                    ? `कस्टम अवधि आंकड़े (${appliedCustomStartDate} से ${appliedCustomEndDate})`
+                                    : 'कस्टम अवधि आंकड़े (तिथियां चुनें और फ़िल्टर लागू करें)'
                         ) : (
                           dateRange === 'custom'
                             ? appliedCustomStartDate && appliedCustomEndDate
@@ -3718,20 +3718,20 @@ export default function AdminPanel() {
                           <p style={{ margin: '3px 0 0 0' }}>
                             {isHindi ? (
                               dateRange === 'today' ? 'आज का प्रति घंटा लाइव विश्लेषण' :
-                              dateRange === 'this_week' ? '7-दिनों का दैनिक विश्लेषण' :
-                              dateRange === 'this_month' ? 'मासिक विश्लेषण' :
-                              dateRange === 'all' ? 'कुल समय का विश्लेषण' :
-                              appliedCustomStartDate && appliedCustomEndDate
-                                ? `कस्टम अवधि विश्लेषण (${appliedCustomStartDate} से ${appliedCustomEndDate})`
-                                : 'कस्टम अवधि विश्लेषण (तिथियां चुनें)'
+                                dateRange === 'this_week' ? '7-दिनों का दैनिक विश्लेषण' :
+                                  dateRange === 'this_month' ? 'मासिक विश्लेषण' :
+                                    dateRange === 'all' ? 'कुल समय का विश्लेषण' :
+                                      appliedCustomStartDate && appliedCustomEndDate
+                                        ? `कस्टम अवधि विश्लेषण (${appliedCustomStartDate} से ${appliedCustomEndDate})`
+                                        : 'कस्टम अवधि विश्लेषण (तिथियां चुनें)'
                             ) : (
                               dateRange === 'today' ? 'Real-time hourly telemetry for today' :
-                              dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
-                              dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
-                              dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
-                              appliedCustomStartDate && appliedCustomEndDate
-                                ? `Custom range telemetry (${appliedCustomStartDate} to ${appliedCustomEndDate})`
-                                : 'Custom range telemetry (Select dates & click Apply Filter)'
+                                dateRange === 'this_week' ? '7-day daily telemetry breakdown' :
+                                  dateRange === 'this_month' ? '4-week monthly telemetry breakdown' :
+                                    dateRange === 'all' ? 'All-time monthly telemetry breakdown' :
+                                      appliedCustomStartDate && appliedCustomEndDate
+                                        ? `Custom range telemetry (${appliedCustomStartDate} to ${appliedCustomEndDate})`
+                                        : 'Custom range telemetry (Select dates & click Apply Filter)'
                             )}
                           </p>
                         </div>
@@ -5075,87 +5075,87 @@ export default function AdminPanel() {
                   ) : filteredMenuItems.length > 0 ? (
                     <div className={styles.menuItemsGrid}>
                       {filteredMenuItems.map((item) => {
-                      const isSelected = selectedItemIds.includes(item._id);
-                      const discount = item.discount || {};
-                      const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
+                        const isSelected = selectedItemIds.includes(item._id);
+                        const discount = item.discount || {};
+                        const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
 
-                      let discountedPrice = item.price;
-                      if (hasDiscount) {
-                        if (discount.type === 'percentage') {
-                          discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
-                        } else {
-                          discountedPrice = Math.max(0, item.price - discount.value);
+                        let discountedPrice = item.price;
+                        if (hasDiscount) {
+                          if (discount.type === 'percentage') {
+                            discountedPrice = Math.max(0, Math.round(item.price * (1 - discount.value / 100)));
+                          } else {
+                            discountedPrice = Math.max(0, item.price - discount.value);
+                          }
                         }
-                      }
 
-                      return (
-                        <motion.div
-                          key={item._id}
-                          whileHover={{ y: -4 }}
-                          className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
-                        >
-                          <div className={styles.dishImageWrap}>
-                            <img
-                              src={getValidFoodImage(item)}
-                              alt={item.name}
-                              className={styles.dishImage}
-                              loading="lazy"
-                            />
-                            <div className={styles.dishImageOverlay}>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSelectItem(item._id)}
-                                className={styles.selectCheckboxBtn}
-                              >
-                                {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
-                              </button>
-                              <div className={styles.dishBadges}>
-                                <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
-                                  {item.isVeg ? '● VEG' : '▲ NON-VEG'}
-                                </span>
-                                {hasDiscount && (
-                                  <span style={{
-                                    background: '#ef4444',
-                                    color: '#ffffff',
-                                    fontSize: '10px',
-                                    fontWeight: 600,
-                                    padding: '3px 8px',
-                                    borderRadius: '100px',
-                                    letterSpacing: '0.04em'
-                                  }}>
-                                    {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                        return (
+                          <motion.div
+                            key={item._id}
+                            whileHover={{ y: -4 }}
+                            className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
+                          >
+                            <div className={styles.dishImageWrap}>
+                              <img
+                                src={getValidFoodImage(item)}
+                                alt={item.name}
+                                className={styles.dishImage}
+                                loading="lazy"
+                              />
+                              <div className={styles.dishImageOverlay}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSelectItem(item._id)}
+                                  className={styles.selectCheckboxBtn}
+                                >
+                                  {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
+                                </button>
+                                <div className={styles.dishBadges}>
+                                  <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
+                                    {item.isVeg ? '● VEG' : '▲ NON-VEG'}
+                                  </span>
+                                  {hasDiscount && (
+                                    <span style={{
+                                      background: '#ef4444',
+                                      color: '#ffffff',
+                                      fontSize: '10px',
+                                      fontWeight: 600,
+                                      padding: '3px 8px',
+                                      borderRadius: '100px',
+                                      letterSpacing: '0.04em'
+                                    }}>
+                                      {discount.type === 'percentage' ? `${discount.value}% OFF` : `₹${discount.value} OFF`}
+                                    </span>
+                                  )}
+                                  {!item.available && (
+                                    <span className={styles.soldOutPill}>OUT OF STOCK</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className={styles.dishBody}>
+                              <div className={styles.dishTitleRow}>
+                                <h4 className={styles.dishName}>{item.name}</h4>
+                                <div style={{ textAlign: 'right' }}>
+                                  {hasDiscount ? (
+                                    <div>
+                                      <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#16a34a' }}>₹{discountedPrice}</span>
+                                      <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '6px' }}>₹{item.price}</span>
+                                    </div>
+                                  ) : (
+                                    <div className={styles.dishPrice}>
+                                      {item.variants && item.variants.length > 0 ? `From ₹${Math.min(...item.variants.map(v => Number(v.price) || item.price))}` : `₹${item.price}`}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                                {(item.isOpenMenu || item.isPosOnly) && (
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#86198f', background: '#fae8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f0abfc' }}>
+                                    ⚡ Open Item (POS Only)
                                   </span>
                                 )}
-                                {!item.available && (
-                                  <span className={styles.soldOutPill}>OUT OF STOCK</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className={styles.dishBody}>
-                            <div className={styles.dishTitleRow}>
-                              <h4 className={styles.dishName}>{item.name}</h4>
-                              <div style={{ textAlign: 'right' }}>
-                                {hasDiscount ? (
-                                  <div>
-                                    <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#16a34a' }}>₹{discountedPrice}</span>
-                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '6px' }}>₹{item.price}</span>
-                                  </div>
-                                ) : (
-                                  <div className={styles.dishPrice}>
-                                    {item.variants && item.variants.length > 0 ? `From ₹${Math.min(...item.variants.map(v => Number(v.price) || item.price))}` : `₹${item.price}`}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div style={{ marginTop: '3px', marginBottom: '2px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                              {(item.isOpenMenu || item.isPosOnly) && (
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#86198f', background: '#fae8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #f0abfc' }}>
-                                  ⚡ Open Item (POS Only)
-                                </span>
-                              )}
-                              {/* NIGHT MENU BADGES COMMENTED OUT AS REQUESTED:
+                                {/* NIGHT MENU BADGES COMMENTED OUT AS REQUESTED:
                               {item.shiftAvailability === 'night_only' && (
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #d8b4fe' }}>
                                   🌙 Night Only
@@ -5172,93 +5172,93 @@ export default function AdminPanel() {
                                 </span>
                               )}
                               */}
-                              {item.category === 'uncategorized' && (
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
-                                  ⚠️ Uncategorized
-                                </span>
-                              )}
-                              {item.variants && item.variants.length > 0 && (
-                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
-                                  {item.variants.length} Sizes/Options
-                                </span>
-                              )}
-                            </div>
-                            <p className={styles.dishDescription}>{item.description}</p>
+                                {item.category === 'uncategorized' && (
+                                  <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                    ⚠️ Uncategorized
+                                  </span>
+                                )}
+                                {item.variants && item.variants.length > 0 && (
+                                  <span style={{ fontSize: '10px', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #c7d2fe' }}>
+                                    {item.variants.length} Sizes/Options
+                                  </span>
+                                )}
+                              </div>
+                              <p className={styles.dishDescription}>{item.description}</p>
 
-                            {/* Stock Toggle & Quick Actions */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
-                              <div
-                                onClick={() => handleToggleItemAvailability(item)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
-                                title={item.available ? "In Stock (Click to turn off)" : "Out of Stock (Click to turn on)"}
-                              >
-                                <div style={{
-                                  width: 28,
-                                  height: 16,
-                                  borderRadius: 100,
-                                  background: item.available ? '#10b981' : '#cbd5e1',
-                                  position: 'relative',
-                                  transition: 'background 0.2s ease'
-                                }}>
+                              {/* Stock Toggle & Quick Actions */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
+                                <div
+                                  onClick={() => handleToggleItemAvailability(item)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+                                  title={item.available ? "In Stock (Click to turn off)" : "Out of Stock (Click to turn on)"}
+                                >
                                   <div style={{
-                                    width: 12,
-                                    height: 12,
-                                    borderRadius: '50%',
-                                    background: '#ffffff',
-                                    position: 'absolute',
-                                    top: 2,
-                                    left: item.available ? 14 : 2,
-                                    transition: 'left 0.2s ease',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                                  }} />
+                                    width: 28,
+                                    height: 16,
+                                    borderRadius: 100,
+                                    background: item.available ? '#10b981' : '#cbd5e1',
+                                    position: 'relative',
+                                    transition: 'background 0.2s ease'
+                                  }}>
+                                    <div style={{
+                                      width: 12,
+                                      height: 12,
+                                      borderRadius: '50%',
+                                      background: '#ffffff',
+                                      position: 'absolute',
+                                      top: 2,
+                                      left: item.available ? 14 : 2,
+                                      transition: 'left 0.2s ease',
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                    }} />
+                                  </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditDrawer(item)}
+                                    style={{
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #e2e8f0',
+                                      background: '#ffffff',
+                                      color: '#334155',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <Edit3 size={12} /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmItem(item)}
+                                    style={{
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #fee2e2',
+                                      background: '#fef2f2',
+                                      color: '#ef4444',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <Trash2 size={12} /> Delete
+                                  </button>
                                 </div>
                               </div>
-
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditDrawer(item)}
-                                  style={{
-                                    padding: '6px 10px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #e2e8f0',
-                                    background: '#ffffff',
-                                    color: '#334155',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  <Edit3 size={12} /> Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteConfirmItem(item)}
-                                  style={{
-                                    padding: '6px 10px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #fee2e2',
-                                    background: '#fef2f2',
-                                    color: '#ef4444',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  <Trash2 size={12} /> Delete
-                                </button>
-                              </div>
                             </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1', marginTop: '1.5rem', display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", gap: '1rem' }}>
