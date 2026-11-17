@@ -1,0 +1,318 @@
+/* Clients Trust Section CSS Module */
+.clientsSection {
+  padding: clamp(60px, 8vw, 110px) 0;
+  background: linear-gradient(180deg, #ffffff 0%, var(--bg-card-subtle) 100%);
+  border-top: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto clamp(36px, 5vw, 56px) auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.sectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4vw, 42px);
+  font-weight: 900;
+  color: var(--text-main);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.sectionSubtitle {
+  font-size: clamp(14px, 1.5vw, 16px);
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0;
+}
+
+/* Featured Client Spotlight Card (The Land Mark Cafe Jaipur) */
+.featuredCard {
+  background: #ffffff;
+  border: 1.5px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-xl);
+  padding: clamp(24px, 4.5vw, 48px);
+  box-shadow: 0 16px 48px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(16, 185, 129, 0.08);
+  position: relative;
+  margin-bottom: 32px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.featuredCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 52px -6px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(16, 185, 129, 0.15);
+}
+
+.featuredTopBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 24px;
+}
+
+.clientIdentity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.clientLogoBadge {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 20px;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
+.clientMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.clientName {
+  font-size: clamp(18px, 2.2vw, 22px);
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.015em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.verifiedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.clientLocation {
+  font-size: 13px;
+  color: var(--text-subtle);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ratingWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.starGroup {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #f59e0b;
+}
+
+.ratingNumber {
+  font-size: 13px;
+  font-weight: 800;
+  color: #b45309;
+}
+
+/* Quote */
+.quoteContainer {
+  margin-bottom: 28px;
+}
+
+.quoteText {
+  font-size: clamp(16px, 1.9vw, 19px);
+  color: #1e293b;
+  line-height: 1.7;
+  font-weight: 500;
+  position: relative;
+  margin: 0;
+  font-style: italic;
+}
+
+.quoteSignoff {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.signoffAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.signoffText {
+  display: flex;
+  flex-direction: column;
+}
+
+.signoffName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.signoffRole {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Metrics Bar */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.metricItem {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metricValue {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--color-primary);
+  letter-spacing: -0.02em;
+}
+
+.metricLabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Supporting reviews grid */
+.secondaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.secondaryCard {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.secondaryCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.secondaryQuote {
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.secondaryFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.secondaryAuthor {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.secondaryContext {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+@media (max-width: 768px) {
+  .featuredTopBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .ratingWrapper {
+    align-self: flex-start;
+  }
+
+  .metricsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,7 +5,9 @@ import HeroSection from './sections/HeroSection';
 import VisualAppShowcase from './sections/VisualAppShowcase';
 import ScrollScrubVisuals from './sections/ScrollScrubVisuals';
 import BeforeAfterSection from './sections/BeforeAfterSection';
+import ClientsTrustSection from './sections/ClientsTrustSection';
 import PricingSection from './sections/PricingSection';
+import FoundersCasualSection from './sections/FoundersCasualSection';
 import FAQSection from './sections/FAQSection';
 import CTASection from './sections/CTASection';
 import LeadCaptureModal from './interactive/LeadCaptureModal';
@@ -37,13 +39,19 @@ export default function LandingPage() {
           <BeforeAfterSection />
         </section>
 
-        {/* 5. Transparent Indian Pricing */}
+        {/* 5. Trust Our Clients Section — The Land Mark Cafe Jaipur */}
+        <ClientsTrustSection onOpenDemo={handleOpenDemo} />
+
+        {/* 6. Transparent Indian Pricing */}
         <PricingSection onOpenDemo={handleOpenDemo} />
 
-        {/* 6. Frequently Asked Questions */}
+        {/* 7. Built Casually by Deepak, Lakshya & Naveen */}
+        <FoundersCasualSection />
+
+        {/* 8. Frequently Asked Questions */}
         <FAQSection onOpenDemo={handleOpenDemo} />
 
-        {/* 7. High-Impact Call to Action */}
+        {/* 9. High-Impact Call to Action */}
         <CTASection onOpenDemo={handleOpenDemo} />
       </main>
 
