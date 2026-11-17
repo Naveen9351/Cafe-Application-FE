@@ -474,135 +474,248 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
 
   return (
     <div className={styles.container}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.titleGroup}>
-          <h2>
-            <BarChart3 size={26} color="#2563eb" />
-            Revenue & Sales Reports
-          </h2>
-          <p>Real-time accounting, daily sales breakdowns, and dish-wise catalog analytics</p>
+      {/* ── Unified Single-Row Header ── */}
+      <div className={styles.unifiedHeaderRow}>
+        {/* Left: Compact Title */}
+        <div className={styles.headerTitleArea}>
+          <div className={styles.headerIconBadge}>
+            <BarChart3 size={18} color="#2563eb" />
+          </div>
+          <h2 className={styles.compactHeaderTitle}>Reports Suite</h2>
         </div>
 
-        <div className={styles.controlsGroup}>
+        {/* Center: Segmented Navigation Pills */}
+        <div className={styles.segmentedNavPills}>
           <button
             type="button"
-            className={styles.printBtn}
-            onClick={() => setIsExecutiveReportOpen(true)}
-            style={{
-              backgroundColor: '#eff6ff',
-              borderColor: '#bfdbfe',
-              color: '#1d4ed8',
-              fontWeight: 800
-            }}
+            className={`${styles.navPillBtn} ${activeSubTab === 'overview' ? styles.navPillActive : ''}`}
+            onClick={() => setActiveSubTab('overview')}
           >
-            <Printer size={15} />
-            Executive PDF Report
+            <Layers size={14} />
+            <span>Overview</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.navPillBtn} ${activeSubTab === 'dailySales' ? styles.navPillActive : ''}`}
+            onClick={() => setActiveSubTab('dailySales')}
+          >
+            <Calendar size={14} />
+            <span>Daily Sales</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.navPillBtn} ${activeSubTab === 'itemSummary' ? styles.navPillActive : ''}`}
+            onClick={() => setActiveSubTab('itemSummary')}
+          >
+            <UtensilsCrossed size={14} />
+            <span>Dish Performance</span>
           </button>
         </div>
-      </div>
 
-      {/* Sub-Navigation Tabs */}
-      <div className={styles.subNavBar}>
-        <button
-          type="button"
-          className={`${styles.subTabBtn} ${activeSubTab === 'overview' ? styles.subTabActive : ''}`}
-          onClick={() => setActiveSubTab('overview')}
-        >
-          <Layers size={16} />
-          Overview & Settled Orders
-        </button>
+        {/* Right: Date Range Preset Pills + Action Button */}
+        <div className={styles.headerRightActions}>
+          {activeSubTab === 'overview' && (
+            <div className={styles.dateSegmentGroup}>
+              {['today', '7d', '30d', 'all'].map(tf => (
+                <button
+                  key={tf}
+                  type="button"
+                  className={`${styles.compactDateBtn} ${timeFilter === tf ? styles.compactDateBtnActive : ''}`}
+                  onClick={() => setTimeFilter(tf)}
+                >
+                  {tf === 'today' ? 'Today' : tf === '7d' ? 'Last 7 Days' : tf === '30d' ? 'Last 30 Days' : 'All Time'}
+                </button>
+              ))}
+            </div>
+          )}
 
-        <button
-          type="button"
-          className={`${styles.subTabBtn} ${activeSubTab === 'dailySales' ? styles.subTabActive : ''}`}
-          onClick={() => setActiveSubTab('dailySales')}
-        >
-          <Calendar size={16} />
-          Daily Sales Breakdown
-        </button>
+          {activeSubTab === 'dailySales' && (
+            <>
+              <div className={styles.dateSegmentGroup}>
+                <button
+                  type="button"
+                  className={`${styles.compactDateBtn} ${dailyMode === 'today' ? styles.compactDateBtnActive : ''}`}
+                  onClick={() => setDailyMode('today')}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.compactDateBtn} ${dailyMode === 'yesterday' ? styles.compactDateBtnActive : ''}`}
+                  onClick={() => setDailyMode('yesterday')}
+                >
+                  Yesterday
+                </button>
+                <div style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', borderLeft: '1px solid #cbd5e1' }}>
+                  <input
+                    type="date"
+                    value={customDailyDate}
+                    onChange={(e) => {
+                      setCustomDailyDate(e.target.value);
+                      setDailyMode('custom');
+                    }}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: '0.74rem',
+                      fontWeight: 500,
+                      color: dailyMode === 'custom' ? '#2563eb' : '#475569',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+              </div>
 
-        <button
-          type="button"
-          className={`${styles.subTabBtn} ${activeSubTab === 'itemSummary' ? styles.subTabActive : ''}`}
-          onClick={() => setActiveSubTab('itemSummary')}
-        >
-          <UtensilsCrossed size={16} />
-          Item Summary & Dish Performance
-        </button>
+              <button
+                type="button"
+                className={styles.headerPdfBtn}
+                onClick={handleExportDailyExcel}
+                title="Export Daily Excel"
+                style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}
+              >
+                <FileSpreadsheet size={13} color="#16a34a" />
+                <span>Export Daily Excel</span>
+              </button>
+            </>
+          )}
+
+          {activeSubTab === 'itemSummary' && (
+            <>
+              <div className={styles.dateSegmentGroup}>
+                {['today', '7d', '30d', 'all'].map(tf => (
+                  <button
+                    key={tf}
+                    type="button"
+                    className={`${styles.compactDateBtn} ${itemTimeFilter === tf ? styles.compactDateBtnActive : ''}`}
+                    onClick={() => setItemTimeFilter(tf)}
+                  >
+                    {tf === 'today' ? 'Today' : tf === '7d' ? '7 Days' : tf === '30d' ? '30 Days' : 'All'}
+                  </button>
+                ))}
+              </div>
+
+              <select
+                value={itemCategoryFilter}
+                onChange={(e) => setItemCategoryFilter(e.target.value)}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '7px',
+                  padding: '0.34rem 0.65rem',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  color: '#334155',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {availableCategories.map(cat => (
+                  <option key={cat} value={cat}>
+                    {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className={styles.headerPdfBtn}
+                onClick={handleExportItemPerformanceExcel}
+                title="Export Excel (.xlsx)"
+                style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}
+              >
+                <FileSpreadsheet size={13} color="#16a34a" />
+                <span>Export Excel</span>
+              </button>
+            </>
+          )}
+
+          <button
+            type="button"
+            className={styles.headerPdfBtn}
+            onClick={() => setIsExecutiveReportOpen(true)}
+            title="Download Executive PDF Report"
+          >
+            <Printer size={13} />
+            <span>Executive PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* TAB 1: OVERVIEW & GENERAL REPORT */}
       {activeSubTab === 'overview' && (
         <>
-          {/* Controls: Date range filter buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16, gap: 8 }}>
-            {['today', '7d', '30d', 'all'].map(tf => (
-              <button
-                key={tf}
-                type="button"
-                className={`${styles.dateFilterBtn} ${timeFilter === tf ? styles.dateFilterActive : ''}`}
-                onClick={() => setTimeFilter(tf)}
-              >
-                {tf === 'today' ? 'Today' : tf === '7d' ? 'Last 7 Days' : tf === '30d' ? 'Last 30 Days' : 'All Time'}
-              </button>
-            ))}
-          </div>
-
           {/* KPI Stats */}
           <div className={styles.kpiGrid}>
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Total Gross Revenue</div>
-                <div className={styles.kpiValue}>₹{totalGrossRevenue.toLocaleString()}</div>
-                <div className={styles.kpiSubtitle}>
-                  <ArrowUpRight size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                  From {totalCompletedCount} Completed Orders
+            {loading ? (
+              Array.from({ length: 4 }).map((_, kIdx) => (
+                <div key={`kpi-skel-${kIdx}`} className={styles.kpiCard}>
+                  <div style={{ flex: 1 }}>
+                    <div className={styles.skeletonLine} style={{ width: '90px', height: '11px', marginBottom: '8px' }} />
+                    <div className={styles.skeletonLine} style={{ width: '115px', height: '24px', marginBottom: '8px' }} />
+                    <div className={styles.skeletonLine} style={{ width: '130px', height: '11px' }} />
+                  </div>
+                  <div className={styles.skeletonLine} style={{ width: '38px', height: '38px', borderRadius: '10px' }} />
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
-                <DollarSign size={18} />
-              </div>
-            </div>
+              ))
+            ) : (
+              <>
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Total Gross Revenue</div>
+                    <div className={styles.kpiValue}>₹{totalGrossRevenue.toLocaleString()}</div>
+                    <div className={styles.kpiSubtitle}>
+                      <ArrowUpRight size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                      From {totalCompletedCount} Completed Orders
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
+                    <DollarSign size={18} />
+                  </div>
+                </div>
 
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Average Order Value</div>
-                <div className={styles.kpiValue}>₹{avgTicketSize}</div>
-                <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
-                  Per settled dining/takeaway ticket
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Average Order Value</div>
+                    <div className={styles.kpiValue}>₹{avgTicketSize}</div>
+                    <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
+                      Per settled dining/takeaway ticket
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                    <TrendingUp size={18} />
+                  </div>
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#16a34a' }}>
-                <TrendingUp size={18} />
-              </div>
-            </div>
 
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Total Orders Volume</div>
-                <div className={styles.kpiValue}>{totalOrdersCount}</div>
-                <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
-                  {totalCompletedCount} Settled • {activeOrdersCount} in Kitchen/Active
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Total Orders Volume</div>
+                    <div className={styles.kpiValue}>{totalOrdersCount}</div>
+                    <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
+                      {totalCompletedCount} Settled • {activeOrdersCount} in Kitchen/Active
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
+                    <ShoppingBag size={18} />
+                  </div>
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
-                <ShoppingBag size={18} />
-              </div>
-            </div>
 
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Khata / Udhari Dues</div>
-                <div className={styles.kpiValue} style={{ color: '#dc2626' }}>₹{outstandingKhata.toLocaleString()}</div>
-                <div className={styles.kpiSubtitle} style={{ color: '#dc2626' }}>
-                  {khataRecords.filter(k => k.status !== 'settled').length} Customers with pending balance
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Khata / Udhari Dues</div>
+                    <div className={styles.kpiValue} style={{ color: '#dc2626' }}>₹{outstandingKhata.toLocaleString()}</div>
+                    <div className={styles.kpiSubtitle} style={{ color: '#dc2626' }}>
+                      {khataRecords.filter(k => k.status !== 'settled').length} Customers with pending balance
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#fee2e2', color: '#dc2626' }}>
+                    <BookOpen size={18} />
+                  </div>
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#fee2e2', color: '#dc2626' }}>
-                <BookOpen size={18} />
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Grid: Payment Method Breakdown & Top Dishes */}
@@ -779,7 +892,39 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                       </tr>
                     </thead>
                     <tbody>
-                      {displayedOrders.length === 0 ? (
+                      {loading ? (
+                        Array.from({ length: 7 }).map((_, sIdx) => (
+                          <tr key={`skel-ord-${sIdx}`} className={styles.skeletonRow}>
+                            <td className={styles.skeletonCell}>
+                              <div className={styles.skeletonLine} style={{ width: '70px', height: '14px' }} />
+                            </td>
+                            <td className={styles.skeletonCell}>
+                              <div className={styles.skeletonLine} style={{ width: '85px', height: '14px' }} />
+                            </td>
+                            <td className={styles.skeletonCell}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div className={styles.skeletonLine} style={{ width: '95px', height: '13px' }} />
+                                <div className={styles.skeletonLine} style={{ width: '65px', height: '10px', opacity: 0.7 }} />
+                              </div>
+                            </td>
+                            <td className={styles.skeletonCell}>
+                              <div className={styles.skeletonLine} style={{ width: '140px', height: '12px' }} />
+                            </td>
+                            <td className={styles.skeletonCell}>
+                              <div className={styles.skeletonPill} style={{ width: '60px', height: '20px' }} />
+                            </td>
+                            <td className={styles.skeletonCell}>
+                              <div className={styles.skeletonLine} style={{ width: '90px', height: '12px' }} />
+                            </td>
+                            <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                              <div className={styles.skeletonLine} style={{ width: '65px', height: '14px', marginLeft: 'auto' }} />
+                            </td>
+                            <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                              <div className={styles.skeletonLine} style={{ width: '78px', height: '24px', margin: '0 auto', borderRadius: '6px' }} />
+                            </td>
+                          </tr>
+                        ))
+                      ) : displayedOrders.length === 0 ? (
                         <tr>
                           <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                             No orders match your filter criteria.
@@ -950,109 +1095,76 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
       {/* TAB 2: DAILY SALES SUMMARY (Date-Driven Sales Breakdown) */}
       {activeSubTab === 'dailySales' && (
         <div>
-          {/* Date Selector Controls */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={`${styles.dateFilterBtn} ${dailyMode === 'today' ? styles.dateFilterActive : ''}`}
-                onClick={() => setDailyMode('today')}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                className={`${styles.dateFilterBtn} ${dailyMode === 'yesterday' ? styles.dateFilterActive : ''}`}
-                onClick={() => setDailyMode('yesterday')}
-              >
-                Yesterday
-              </button>
-
-              <div className={styles.datePickerGroup}>
-                <Calendar size={14} color="#64748b" />
-                <input
-                  type="date"
-                  className={styles.dateInput}
-                  value={customDailyDate}
-                  onChange={(e) => {
-                    setCustomDailyDate(e.target.value);
-                    setDailyMode('custom');
-                  }}
-                />
-              </div>
-
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb', padding: '4px 8px', background: '#eff6ff', borderRadius: '6px' }}>
-                Showing: {targetDailyDate.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-              </span>
-            </div>
-
-            <div className={styles.exportBtnGroup}>
-              <button
-                type="button"
-                className={styles.excelBtn}
-                onClick={handleExportDailyExcel}
-              >
-                <FileSpreadsheet size={15} />
-                Export Daily Excel
-              </button>
-            </div>
-          </div>
-
           {/* Daily Performance KPIs */}
           <div className={styles.kpiGrid}>
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Daily Gross Revenue</div>
-                <div className={styles.kpiValue}>₹{dailyGrossRevenue.toLocaleString()}</div>
-                <div className={styles.kpiSubtitle}>
-                  From {dailyCompletedCount} settled orders
+            {loading ? (
+              Array.from({ length: 4 }).map((_, kIdx) => (
+                <div key={`daily-skel-${kIdx}`} className={styles.kpiCard}>
+                  <div style={{ flex: 1 }}>
+                    <div className={styles.skeletonLine} style={{ width: '90px', height: '11px', marginBottom: '8px' }} />
+                    <div className={styles.skeletonLine} style={{ width: '115px', height: '24px', marginBottom: '8px' }} />
+                    <div className={styles.skeletonLine} style={{ width: '130px', height: '11px' }} />
+                  </div>
+                  <div className={styles.skeletonLine} style={{ width: '38px', height: '38px', borderRadius: '10px' }} />
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
-                <DollarSign size={18} />
-              </div>
-            </div>
+              ))
+            ) : (
+              <>
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Daily Gross Revenue</div>
+                    <div className={styles.kpiValue}>₹{dailyGrossRevenue.toLocaleString()}</div>
+                    <div className={styles.kpiSubtitle}>
+                      From {dailyCompletedCount} settled orders
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
+                    <DollarSign size={18} />
+                  </div>
+                </div>
 
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Total Orders Placed</div>
-                <div className={styles.kpiValue}>{dailyTotalOrderCount}</div>
-                <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
-                  {dailyCompletedCount} Completed • {dailyCancelledCount} Cancelled
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Total Orders Placed</div>
+                    <div className={styles.kpiValue}>{dailyTotalOrderCount}</div>
+                    <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
+                      {dailyCompletedCount} Completed • {dailyCancelledCount} Cancelled
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
+                    <ShoppingBag size={18} />
+                  </div>
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
-                <ShoppingBag size={18} />
-              </div>
-            </div>
 
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Average Ticket Size</div>
-                <div className={styles.kpiValue}>₹{dailyAvgTicket}</div>
-                <div className={styles.kpiSubtitle} style={{ color: '#16a34a' }}>
-                  Per settled order today
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Average Ticket Size</div>
+                    <div className={styles.kpiValue}>₹{dailyAvgTicket}</div>
+                    <div className={styles.kpiSubtitle} style={{ color: '#16a34a' }}>
+                      Per settled order today
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                    <TrendingUp size={18} />
+                  </div>
                 </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#f0fdf4', color: '#16a34a' }}>
-                <TrendingUp size={18} />
-              </div>
-            </div>
 
-            <div className={styles.kpiCard}>
-              <div>
-                <div className={styles.kpiTitle}>Dishes Sold Today</div>
-                <div className={styles.kpiValue}>
-                  {dailyDishBreakdown.reduce((sum, d) => sum + d.quantity, 0)}
+                <div className={styles.kpiCard}>
+                  <div>
+                    <div className={styles.kpiTitle}>Dishes Sold Today</div>
+                    <div className={styles.kpiValue}>
+                      {dailyDishBreakdown.reduce((sum, d) => sum + d.quantity, 0)}
+                    </div>
+                    <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
+                      Across {dailyDishBreakdown.length} unique catalog items
+                    </div>
+                  </div>
+                  <div className={styles.kpiIcon} style={{ background: '#fae8ff', color: '#a855f7' }}>
+                    <UtensilsCrossed size={18} />
+                  </div>
                 </div>
-                <div className={styles.kpiSubtitle} style={{ color: '#64748b' }}>
-                  Across {dailyDishBreakdown.length} unique catalog items
-                </div>
-              </div>
-              <div className={styles.kpiIcon} style={{ background: '#fae8ff', color: '#a855f7' }}>
-                <UtensilsCrossed size={18} />
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Daily Payment Mode Split */}
@@ -1126,7 +1238,33 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDailyDishes.length === 0 ? (
+                  {loading ? (
+                    Array.from({ length: 6 }).map((_, sIdx) => (
+                      <tr key={`daily-dish-skel-${sIdx}`} className={styles.skeletonRow}>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonLine} style={{ width: '24px', height: '12px' }} />
+                        </td>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonLine} style={{ width: '120px', height: '14px' }} />
+                        </td>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonPill} style={{ width: '55px', height: '20px', borderRadius: '6px' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '45px', height: '13px', marginLeft: 'auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonLine} style={{ width: '32px', height: '20px', margin: '0 auto', borderRadius: '100px' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '65px', height: '14px', marginLeft: 'auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '40px', height: '13px', marginLeft: 'auto' }} />
+                        </td>
+                      </tr>
+                    ))
+                  ) : filteredDailyDishes.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                         No items sold on this date.
@@ -1168,80 +1306,6 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
       {/* TAB 3: ITEM SUMMARY REPORT (Catalog & Dish-Wise Performance) */}
       {activeSubTab === 'itemSummary' && (
         <div>
-          {/* Header Controls: Filters & Exports */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {['today', '7d', '30d', 'all'].map(tf => (
-                <button
-                  key={tf}
-                  type="button"
-                  className={`${styles.dateFilterBtn} ${itemTimeFilter === tf ? styles.dateFilterActive : ''}`}
-                  onClick={() => setItemTimeFilter(tf)}
-                >
-                  {tf === 'today' ? 'Daily (Today)' : tf === '7d' ? 'Weekly (7 Days)' : tf === '30d' ? 'Monthly (30 Days)' : 'All Time'}
-                </button>
-              ))}
-
-              <select
-                value={itemCategoryFilter}
-                onChange={(e) => setItemCategoryFilter(e.target.value)}
-                style={{
-                  padding: '7px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  backgroundColor: '#ffffff',
-                  outline: 'none'
-                }}
-              >
-                {availableCategories.map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </option>
-                ))}
-              </select>
-
-              <div style={{ position: 'relative' }}>
-                <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input
-                  type="text"
-                  placeholder="Search catalog dishes..."
-                  value={itemSearchQuery}
-                  onChange={(e) => setItemSearchQuery(e.target.value)}
-                  style={{
-                    padding: '6px 10px 6px 28px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '0.8rem',
-                    outline: 'none',
-                    width: '200px'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className={styles.exportBtnGroup}>
-              <button
-                type="button"
-                className={styles.excelBtn}
-                onClick={handleExportItemPerformanceExcel}
-              >
-                <FileSpreadsheet size={15} />
-                Export Excel (.xlsx)
-              </button>
-
-              <button
-                type="button"
-                className={styles.printBtn}
-                onClick={handlePrintItemSummary}
-              >
-                <Printer size={15} />
-                Print PDF Report
-              </button>
-            </div>
-          </div>
-
           {/* Top-Selling & Low-Performing Highlights */}
           <div className={styles.performanceGrid}>
             {/* Top-Selling Dishes */}
@@ -1323,14 +1387,33 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
 
           {/* Full Catalog Performance Table */}
           <div className={styles.chartCard}>
-            <div className={styles.chartCardHeader}>
+            <div className={styles.chartCardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
                   Full Menu Catalog & Performance ({filteredCatalogPerformance.length} Dishes)
                 </h3>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
                   Displaying units sold, current price, total revenue generated, category, and active stock status
                 </span>
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  placeholder="Search catalog dishes..."
+                  value={itemSearchQuery}
+                  onChange={(e) => setItemSearchQuery(e.target.value)}
+                  style={{
+                    padding: '5px 10px 5px 28px',
+                    borderRadius: '7px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.78rem',
+                    outline: 'none',
+                    width: '190px',
+                    background: '#ffffff'
+                  }}
+                />
               </div>
             </div>
 
@@ -1349,7 +1432,36 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCatalogPerformance.length === 0 ? (
+                  {loading ? (
+                    Array.from({ length: 7 }).map((_, sIdx) => (
+                      <tr key={`cat-skel-${sIdx}`} className={styles.skeletonRow}>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonLine} style={{ width: '24px', height: '12px' }} />
+                        </td>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonLine} style={{ width: '130px', height: '14px' }} />
+                        </td>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonPill} style={{ width: '55px', height: '20px', borderRadius: '6px' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '45px', height: '13px', marginLeft: 'auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonLine} style={{ width: '32px', height: '20px', margin: '0 auto', borderRadius: '100px' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '65px', height: '14px', marginLeft: 'auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonPill} style={{ width: '70px', height: '20px', margin: '0 auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonLine} style={{ width: '60px', height: '18px', margin: '0 auto', borderRadius: '5px' }} />
+                        </td>
+                      </tr>
+                    ))
+                  ) : filteredCatalogPerformance.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                         No catalog items match your search.

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import styles from './SuperAdminDashboard.module.css';
 import {
@@ -14,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { API_URL as API } from '../config/api';
 import { getSharedAuth } from '../utils/authStorage';
+import { TableRowSkeleton } from './common/SkeletonLoader';
 
 const SuperAdminDashboard = () => {
     const [tenants, setTenants] = useState([]);
@@ -1103,7 +1105,7 @@ const SuperAdminDashboard = () => {
                 <header className={styles.navbar}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <h2 className={styles.navTitle}>
-                            {activeTab === 'analytics' ? 'Website Intelligence & SaaS Telemetry' : 'Platform Governance & SaaS Operations'}
+                            {activeTab === 'analytics' ? 'Analytics & Telemetry' : 'Platform Operations'}
                         </h2>
                     </div>
 
@@ -1123,7 +1125,12 @@ const SuperAdminDashboard = () => {
                     {/* STATS CARDS */}
                     {activeTab !== 'analytics' && (
                         <div className={styles.statsGrid}>
-                            <div className={`${styles.statCard} ${styles.statCardBlue}`}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.03 }}
+                                className={`${styles.statCard} ${styles.statCardBlue}`}
+                            >
                                 <div className={`${styles.iconBox} ${styles.blueIcon}`}>
                                     <Building size={16} />
                                 </div>
@@ -1131,9 +1138,14 @@ const SuperAdminDashboard = () => {
                                     <h3>Total Cafes</h3>
                                     <p className={styles.statValue}>{tenants.length}</p>
                                 </div>
-                            </div>
+                            </motion.div>
 
-                            <div className={`${styles.statCard} ${styles.statCardGreen}`}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.06 }}
+                                className={`${styles.statCard} ${styles.statCardGreen}`}
+                            >
                                 <div className={`${styles.iconBox} ${styles.greenIcon}`}>
                                     <CreditCard size={16} />
                                 </div>
@@ -1141,9 +1153,14 @@ const SuperAdminDashboard = () => {
                                     <h3>Active Plans</h3>
                                     <p className={styles.statValue}>{stats.activesubs}</p>
                                 </div>
-                            </div>
+                            </motion.div>
 
-                            <div className={`${styles.statCard} ${styles.statCardPurple}`}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.09 }}
+                                className={`${styles.statCard} ${styles.statCardPurple}`}
+                            >
                                 <div className={`${styles.iconBox} ${styles.purpleIcon}`}>
                                     <BarChart3 size={16} />
                                 </div>
@@ -1151,9 +1168,15 @@ const SuperAdminDashboard = () => {
                                     <h3>Total Platform Revenue</h3>
                                     <p className={styles.statValue}>₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
                                 </div>
-                            </div>
+                            </motion.div>
 
-                            <div className={`${styles.statCard} ${styles.statCardAmber}`} style={{ borderColor: stats.expiringSoonCount > 0 ? '#f59e0b' : undefined }}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.12 }}
+                                className={`${styles.statCard} ${styles.statCardAmber}`}
+                                style={{ borderColor: stats.expiringSoonCount > 0 ? '#f59e0b' : undefined }}
+                            >
                                 <div className={`${styles.iconBox} ${styles.amberIcon}`}>
                                     <AlertTriangle size={16} />
                                 </div>
@@ -1163,7 +1186,7 @@ const SuperAdminDashboard = () => {
                                         {stats.expiringSoonCount}
                                     </p>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
                     )}
 
@@ -1178,7 +1201,16 @@ const SuperAdminDashboard = () => {
                     )}
 
                     {/* SECTION 1: REGISTERED CAFES */}
-                    {activeTab === 'businesses' && (() => {
+                    <AnimatePresence mode="wait">
+                    {activeTab === 'businesses' && (
+                        <motion.div
+                            key="businesses"
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                        {(() => {
                         const totalTenantsPages = Math.max(1, Math.ceil(tenants.length / tenantsPerPage));
                         const paginatedTenants = tenants.slice((tenantsPage - 1) * tenantsPerPage, tenantsPage * tenantsPerPage);
 
@@ -1205,14 +1237,7 @@ const SuperAdminDashboard = () => {
                                         </thead>
                                         <tbody>
                                             {loading ? (
-                                                <tr>
-                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '0' }}>
-                                                        <div className={styles.tableLoaderContainer}>
-                                                            <div className={styles.tableSpinnerRing}></div>
-                                                            <span className={styles.tableLoaderText}>Loading registered cafes...</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                <TableRowSkeleton rows={5} cols={6} />
                                             ) : paginatedTenants.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={6} style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b' }}>
@@ -1220,7 +1245,7 @@ const SuperAdminDashboard = () => {
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                paginatedTenants.map(tenant => {
+                                                paginatedTenants.map((tenant, idx) => {
                                                     const sub = tenant.subscription || {};
                                                     const now = new Date();
                                                     const endDate = sub.endDate ? new Date(sub.endDate) : null;
@@ -1230,7 +1255,12 @@ const SuperAdminDashboard = () => {
                                                     const isExpired = endDate && endDate < now;
 
                                                     return (
-                                                        <tr key={tenant._id}>
+                                                        <motion.tr
+                                                            key={tenant._id}
+                                                            initial={{ opacity: 0, y: 8 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
+                                                        >
                                                             <td>
                                                                 <div className={styles.tenantName}>{tenant.name}</div>
                                                                 <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
@@ -1374,7 +1404,7 @@ const SuperAdminDashboard = () => {
                                                                     </button>
                                                                 </div>
                                                             </td>
-                                                        </tr>
+                                                        </motion.tr>
                                                     );
                                                 })
                                             )}
@@ -1441,9 +1471,19 @@ const SuperAdminDashboard = () => {
                             </div>
                         );
                     })()}
+                    </motion.div>
+                    )}
 
                     {/* SECTION: ONBOARDING & CAFE APPLICATIONS QUEUE */}
-                    {activeTab === 'onboarding' && (() => {
+                    {activeTab === 'onboarding' && (
+                        <motion.div
+                            key="onboarding"
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                        {(() => {
                         const filteredRequests = onboardingRequests.filter(r => {
                             if (requestFilter === 'all') return true;
                             return r.status === requestFilter;
@@ -1902,9 +1942,19 @@ const SuperAdminDashboard = () => {
                             </div>
                         );
                     })()}
+                    </motion.div>
+                    )}
 
                     {/* SECTION 2: DEMO INQUIRIES */}
-                    {activeTab === 'inquiries' && (() => {
+                    {activeTab === 'inquiries' && (
+                        <motion.div
+                            key="inquiries"
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                        {(() => {
                         const totalLeadsPages = Math.max(1, Math.ceil(leads.length / leadsPerPage));
                         const paginatedLeads = leads.slice((leadsPage - 1) * leadsPerPage, leadsPage * leadsPerPage);
 
@@ -1937,23 +1987,21 @@ const SuperAdminDashboard = () => {
                                         </thead>
                                         <tbody>
                                             {loading ? (
-                                                <tr>
-                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '0' }}>
-                                                        <div className={styles.tableLoaderContainer}>
-                                                            <div className={styles.tableSpinnerRing}></div>
-                                                            <span className={styles.tableLoaderText}>Loading demo inquiries...</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                <TableRowSkeleton rows={5} cols={5} />
                                             ) : paginatedLeads.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                                         No demo inquiries logged yet.
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                paginatedLeads.map(lead => (
-                                                    <tr key={lead._id}>
+                                                paginatedLeads.map((lead, idx) => (
+                                                    <motion.tr
+                                                        key={lead._id}
+                                                        initial={{ opacity: 0, y: 8 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
+                                                    >
                                                         <td style={{ fontWeight: 500, color: '#0f172a' }}>
                                                             {lead.fullName || lead.contactName || 'Lead'}
                                                         </td>
@@ -1976,7 +2024,7 @@ const SuperAdminDashboard = () => {
                                                                 <Trash2 size={13} />
                                                             </button>
                                                         </td>
-                                                    </tr>
+                                                    </motion.tr>
                                                 ))
                                             )}
                                         </tbody>
@@ -2026,9 +2074,19 @@ const SuperAdminDashboard = () => {
                             </div>
                         );
                     })()}
+                    </motion.div>
+                    )}
 
                     {/* SECTION 3: SUPPORT & AI ISSUE TICKETS */}
-                    {activeTab === 'tickets' && (() => {
+                    {activeTab === 'tickets' && (
+                        <motion.div
+                            key="tickets"
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                        {(() => {
                         const filteredTickets = tickets.filter(t => {
                             if (ticketFilter === 'all') return true;
                             return t.status === ticketFilter;
@@ -2109,14 +2167,7 @@ const SuperAdminDashboard = () => {
                                         </thead>
                                         <tbody>
                                             {loading ? (
-                                                <tr>
-                                                    <td colSpan={8} style={{ textAlign: 'center', padding: '0' }}>
-                                                        <div className={styles.tableLoaderContainer}>
-                                                            <div className={styles.tableSpinnerRing}></div>
-                                                            <span className={styles.tableLoaderText}>Loading support & issue tickets...</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                <TableRowSkeleton rows={5} cols={8} />
                                             ) : paginatedTickets.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={8} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
@@ -2125,8 +2176,13 @@ const SuperAdminDashboard = () => {
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                paginatedTickets.map(ticket => (
-                                                    <tr key={ticket._id}>
+                                                paginatedTickets.map((ticket, idx) => (
+                                                    <motion.tr
+                                                        key={ticket._id}
+                                                        initial={{ opacity: 0, y: 8 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
+                                                    >
                                                         <td style={{ fontWeight: 550, color: '#4f46e5' }}>
                                                             #{ticket.ticketNumber}
                                                         </td>
@@ -2185,7 +2241,7 @@ const SuperAdminDashboard = () => {
                                                                 <Eye size={13} />
                                                             </button>
                                                         </td>
-                                                    </tr>
+                                                    </motion.tr>
                                                 ))
                                             )}
                                         </tbody>
@@ -2235,9 +2291,19 @@ const SuperAdminDashboard = () => {
                             </div>
                         );
                     })()}
+                    </motion.div>
+                    )}
 
                     {/* SECTION 4: TRAFFIC & USER ACTIVITIES INTELLIGENCE HUB */}
-                    {activeTab === 'analytics' && (() => {
+                    {activeTab === 'analytics' && (
+                        <motion.div
+                            key="analytics"
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                        {(() => {
                         const summary = analyticsStats?.summary || {
                             todayViews: 0,
                             yesterdayViews: 0,
@@ -2702,6 +2768,9 @@ const SuperAdminDashboard = () => {
                             </div>
                         );
                     })()}
+                    </motion.div>
+                    )}
+                    </AnimatePresence>
 
                 </div>
             </main>

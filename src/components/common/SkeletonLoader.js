@@ -70,3 +70,40 @@ export function MetricsGridSkeleton({ count = 4 }) {
     </div>
   );
 }
+
+export function TableRowSkeleton({ rows = 5, cols = 6, colWidths = [] }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rIdx) => (
+        <tr key={rIdx} className={styles.tableSkeletonRow}>
+          {Array.from({ length: cols }).map((_, cIdx) => (
+            <td key={cIdx} className={styles.tableSkeletonCell}>
+              <div
+                className={styles.shimmer}
+                style={{
+                  height: '14px',
+                  width: colWidths[cIdx] || (cIdx === 0 ? '75%' : cIdx === cols - 1 ? '50px' : '65%'),
+                  borderRadius: '6px'
+                }}
+              />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
+export function ShimmerBlock({ width = '100%', height = '16px', borderRadius = '6px', style = {} }) {
+  return (
+    <div
+      className={styles.shimmer}
+      style={{
+        width,
+        height,
+        borderRadius,
+        ...style
+      }}
+    />
+  );
+}

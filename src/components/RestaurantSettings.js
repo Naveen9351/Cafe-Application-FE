@@ -3,8 +3,10 @@ import {
   Building2, Clock, CreditCard,
   Upload, Trash2, CheckCircle, Info, X, ShieldCheck, Check, Sparkles, BookOpen,
   QrCode, Receipt, Lock, Smartphone, RefreshCw, AlertCircle, Printer, Download,
-  TrendingUp, Volume2, Volume1, VolumeX, Play, Globe, Moon
+  TrendingUp, Volume2, Volume1, VolumeX, Play, Globe, Moon,
+  MapPin, Phone, Mail, Sliders, Settings, ChevronRight
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { API_URL } from '../config/api';
@@ -345,16 +347,591 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     }
   };
 
+  const SECTIONS = [
+    { id: 'general', label: 'General Identity', icon: Building2 },
+    { id: 'operations', label: 'Operations & Hours', icon: Clock },
+    { id: 'language', label: 'Language & Display', icon: Globe },
+    { id: 'audio', label: 'Audio & Chimes', icon: Volume2 },
+    { id: 'subscription', label: 'Subscription & Plan', icon: CreditCard },
+    { id: 'all', label: 'All Settings', icon: Sliders }
+  ];
+
+  const renderGeneral = () => (
+    <section className={styles.sectionCard} id="general">
+      <div className={styles.cardHeader}>
+        <div className={styles.headerTitleWrap}>
+          <div className={styles.headerIconBox}>
+            <Building2 size={16} />
+          </div>
+          <div>
+            <h3 className={styles.cardTitle}>General Identity</h3>
+            <p className={styles.cardSubtitle}>Logo, store information, and official contact channels</p>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.cardBody}>
+        <div className={styles.identityGrid}>
+          {/* Logo Box */}
+          <div className={styles.logoDropzone}>
+            <label className={styles.fieldLabel}>Restaurant Logo</label>
+            <div className={styles.logoBox}>
+              {logoPreview ? (
+                <img src={logoPreview} alt="Logo" className={styles.logoImage} />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
+                  <Building2 size={30} />
+                  <span style={{ fontSize: '10px', marginTop: 4, color: '#94a3b8' }}>No Logo</span>
+                </div>
+              )}
+              <label className={styles.replaceOverlay}>
+                <Upload size={14} />
+                <span>{logoPreview ? 'Change' : 'Upload'}</span>
+                <small>PNG, JPG &lt; 5MB</small>
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error('Logo file size must be under 5MB');
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setLogoPreview(reader.result);
+                        toast.success('New logo selected');
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Form fields */}
+          <div className={styles.formCol}>
+            <div className={styles.inputRow}>
+              <div className={styles.inputGroup}>
+                <label>Restaurant Name</label>
+                <div className={styles.inputWrapper}>
+                  <Building2 size={14} className={styles.inputIcon} />
+                  <input
+                    type="text"
+                    placeholder="e.g. Cafe Delight"
+                    value={form.restaurantName}
+                    onChange={(e) => setForm({ ...form, restaurantName: e.target.value })}
+                    className={styles.textInput}
+                  />
+                </div>
+              </div>
+              <div className={styles.inputGroup}>
+                <label>GST / Tax Number</label>
+                <div className={styles.inputWrapper}>
+                  <Receipt size={14} className={styles.inputIcon} />
+                  <input
+                    type="text"
+                    placeholder="e.g. 29ABCDE1234F1Z5"
+                    value={form.gstNumber}
+                    onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+                    className={styles.textInput}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label>Store Address</label>
+              <div className={styles.inputWrapper}>
+                <MapPin size={14} className={styles.inputIcon} />
+                <input
+                  type="text"
+                  placeholder="e.g. 1224 Main Road, Sector 5, City"
+                  value={form.storeAddress}
+                  onChange={(e) => setForm({ ...form, storeAddress: e.target.value })}
+                  className={styles.textInput}
+                />
+              </div>
+            </div>
+
+            <div className={styles.inputRow}>
+              <div className={styles.inputGroup}>
+                <label>Primary Phone</label>
+                <div className={styles.inputWrapper}>
+                  <Phone size={14} className={styles.inputIcon} />
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit Phone No"
+                    value={form.primaryPhone}
+                    onKeyDown={(e) => {
+                      if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => setForm({ ...form, primaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    className={styles.textInput}
+                  />
+                </div>
+              </div>
+              <div className={styles.inputGroup}>
+                <label>Public Email</label>
+                <div className={styles.inputWrapper}>
+                  <Mail size={14} className={styles.inputIcon} />
+                  <input
+                    type="email"
+                    placeholder="e.g. contact@mycafe.com"
+                    value={form.publicEmail}
+                    onChange={(e) => setForm({ ...form, publicEmail: e.target.value })}
+                    className={styles.textInput}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderOperations = () => (
+    <section className={styles.sectionCard} id="operations">
+      <div className={styles.cardHeader}>
+        <div className={styles.headerTitleWrap}>
+          <div className={styles.headerIconBox}>
+            <Clock size={16} />
+          </div>
+          <div>
+            <h3 className={styles.cardTitle}>Operations & Feature Controls</h3>
+            <p className={styles.cardSubtitle}>Weekly schedule, kitchen prep timer, and financial switches</p>
+          </div>
+        </div>
+        <button type="button" className={styles.copyBtn} onClick={handleCopyMondayToAll}>
+          📋 Copy Monday to All
+        </button>
+      </div>
+
+      <div className={styles.cardBody}>
+        {/* Weekly hours */}
+        <div className={styles.hoursList}>
+          {form.operatingHours.map((schedule, idx) => (
+            <div key={schedule.day} className={styles.hourRow}>
+              <div className={styles.daySwitch}>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={schedule.enabled}
+                    onChange={() => handleToggleDay(idx)}
+                  />
+                  <span className={styles.slider}></span>
+                </label>
+                <span className={styles.dayName}>{schedule.day}</span>
+              </div>
+
+              {schedule.enabled ? (
+                <div className={styles.timeInputs}>
+                  <input
+                    type="text"
+                    value={schedule.open}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm(prev => {
+                        const updated = [...prev.operatingHours];
+                        updated[idx].open = val;
+                        return { ...prev, operatingHours: updated };
+                      });
+                    }}
+                    className={styles.timeField}
+                  />
+                  <span className={styles.toLabel}>to</span>
+                  <input
+                    type="text"
+                    value={schedule.close}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm(prev => {
+                        const updated = [...prev.operatingHours];
+                        updated[idx].close = val;
+                        return { ...prev, operatingHours: updated };
+                      });
+                    }}
+                    className={styles.timeField}
+                  />
+                </div>
+              ) : (
+                <span className={styles.closedBadge}>Closed for Business</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Feature Switches */}
+        <div className={styles.featureList}>
+          <div className={styles.featureRow}>
+            <div className={styles.featureInfo}>
+              <span className={styles.featureTitle}>Kitchen Prep Time Estimation</span>
+              <p className={styles.featureDesc}>Prompt staff for prep time &amp; show live countdown to diners</p>
+            </div>
+            <label className={styles.switch}>
+              <input
+                type="checkbox"
+                checked={form.enableEstimatedPrepTime}
+                onChange={(e) => handleTogglePrepTimeDirect(e.target.checked)}
+              />
+              <span className={styles.slider}></span>
+            </label>
+          </div>
+
+          <div className={styles.featureRow}>
+            <div className={styles.featureInfo}>
+              <div className={styles.featureTitleWrap}>
+                <span className={styles.featureTitle}>Customer Khata &amp; Borrow Ledger</span>
+                <span className={styles.featureBadge}>UDHAR</span>
+              </div>
+              <p className={styles.featureDesc}>Enable customer credit tracking at POS checkout &amp; Khata ledger</p>
+            </div>
+            <label className={styles.switch}>
+              <input
+                type="checkbox"
+                checked={form.enableKhata}
+                onChange={(e) => handleToggleKhataDirect(e.target.checked)}
+              />
+              <span className={styles.slider}></span>
+            </label>
+          </div>
+
+          <div className={styles.featureRow}>
+            <div className={styles.featureInfo}>
+              <span className={styles.featureTitle}>Estimated Net Profit Margin (%)</span>
+              <p className={styles.featureDesc}>Target margin percentage used for dashboard profit calculations</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={form.profitMargin ?? 40}
+                onChange={(e) => setForm({ ...form, profitMargin: Math.max(1, Math.min(100, Number(e.target.value) || 0)) })}
+                className={styles.profitInput}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderLanguage = () => (
+    <section className={styles.sectionCard} id="language">
+      <div className={styles.cardHeader}>
+        <div className={styles.headerTitleWrap}>
+          <div className={styles.headerIconBox}>
+            <Globe size={16} />
+          </div>
+          <div>
+            <h3 className={styles.cardTitle}>Interface Language (भाषा)</h3>
+            <p className={styles.cardSubtitle}>Choose dashboard and POS system language for your store</p>
+          </div>
+        </div>
+        <span style={{
+          padding: '3px 10px',
+          borderRadius: '100px',
+          fontSize: '11px',
+          fontWeight: 600,
+          background: isHindi ? '#fff7ed' : '#eff6ff',
+          color: isHindi ? '#c2410c' : '#1d4ed8',
+          border: isHindi ? '1px solid #fed7aa' : '1px solid #bfdbfe'
+        }}>
+          {isHindi ? '● सक्रिय: हिन्दी' : '● Active: English'}
+        </span>
+      </div>
+
+      <div className={styles.cardBody}>
+        <div className={styles.languageGrid}>
+          <button
+            type="button"
+            onClick={() => handleLanguageChange('en')}
+            className={`${styles.languageCard} ${!isHindi ? styles.activeLanguage : ''}`}
+          >
+            <div>
+              <span className={styles.langName}>🇬🇧 English</span>
+              <span className={styles.langSub}>Default international layout</span>
+            </div>
+            {!isHindi && <Check size={16} color="#4f46e5" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLanguageChange('hi')}
+            className={`${styles.languageCard} ${isHindi ? styles.activeLanguage : ''}`}
+          >
+            <div>
+              <span className={styles.langName}>🇮🇳 हिन्दी (Hindi)</span>
+              <span className={styles.langSub}>पूरा डैशबोर्ड और पीओएस</span>
+            </div>
+            {isHindi && <Check size={16} color="#4f46e5" />}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderAudio = () => (
+    <section className={styles.sectionCard} id="audio">
+      <div className={styles.cardHeader}>
+        <div className={styles.headerTitleWrap}>
+          <div className={styles.headerIconBox}>
+            <Volume2 size={16} />
+          </div>
+          <div>
+            <h3 className={styles.cardTitle}>Order Chime &amp; Audio Alerts</h3>
+            <p className={styles.cardSubtitle}>Sound notifications, volume level, and tone styles for new orders</p>
+          </div>
+        </div>
+        <span style={{
+          padding: '3px 10px',
+          borderRadius: '100px',
+          fontSize: '11px',
+          fontWeight: 600,
+          background: audioSettings.muted ? '#fee2e2' : '#ecfdf5',
+          color: audioSettings.muted ? '#b91c1c' : '#059669',
+          border: audioSettings.muted ? '1px solid #fecaca' : '1px solid #a7f3d0'
+        }}>
+          {audioSettings.muted ? '● Muted' : `● Active - Vol ${audioSettings.volume}`}
+        </span>
+      </div>
+
+      <div className={styles.cardBody}>
+        <div className={styles.audioBlock}>
+          {/* Integrated Volume Control Row with Toggle on Icon */}
+          <div className={styles.volumeControlRow}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label className={styles.switch} title={audioSettings.muted ? "Enable sound alerts" : "Mute sound alerts"}>
+                <input
+                  type="checkbox"
+                  checked={!audioSettings.muted}
+                  onChange={(e) => handleAudioMuteToggle(!e.target.checked)}
+                />
+                <span className={styles.slider}></span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => handleAudioMuteToggle(!audioSettings.muted)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+                title={audioSettings.muted ? "Click to unmute" : "Click to mute"}
+              >
+                {audioSettings.muted || audioSettings.volume === 0 ? (
+                  <VolumeX size={18} color="#ef4444" />
+                ) : audioSettings.volume <= 4 ? (
+                  <Volume1 size={18} color="#4f46e5" />
+                ) : (
+                  <Volume2 size={18} color="#4f46e5" />
+                )}
+                <span style={{ fontSize: '0.8rem', fontWeight: 500, color: audioSettings.muted ? '#94a3b8' : '#334155' }}>
+                  Volume
+                </span>
+              </button>
+            </div>
+
+            <div className={styles.volumeSliderWrap}>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="1"
+                disabled={audioSettings.muted}
+                value={audioSettings.muted ? 0 : audioSettings.volume}
+                onChange={(e) => handleAudioVolumeChange(e.target.value)}
+                className={styles.volumeSlider}
+                style={{ opacity: audioSettings.muted ? 0.35 : 1, cursor: audioSettings.muted ? 'not-allowed' : 'pointer' }}
+              />
+              <span className={styles.volumeLevelTag}>
+                {audioSettings.muted ? 'Muted' : `Level ${audioSettings.volume} / 10`}
+              </span>
+            </div>
+          </div>
+
+          {/* Compact Tone Variation Grid (Just Name & Play Button) */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a' }}>
+                Notification Tune (4 Styles)
+              </span>
+              <button
+                type="button"
+                onClick={() => previewTone(audioSettings.tone, audioSettings.volume)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #c7d2fe',
+                  background: '#eef2ff',
+                  color: '#4338ca',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                <Volume2 size={12} /> Test Current Tone
+              </button>
+            </div>
+
+            <div className={styles.tuneGrid}>
+              {TONE_OPTIONS.map(tone => {
+                const isSelected = audioSettings.tone === tone.id;
+                return (
+                  <div
+                    key={tone.id}
+                    onClick={() => handleAudioToneChange(tone.id)}
+                    className={`${styles.tuneCard} ${isSelected ? styles.activeToneCard : ''}`}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className={styles.tuneTitle}>{tone.label}</span>
+                      {isSelected && <Check size={14} color="#4f46e5" />}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAudioToneChange(tone.id);
+                        previewTone(tone.id, audioSettings.volume);
+                      }}
+                      className={`${styles.tunePlayBtn} ${isSelected ? styles.activeTunePlayBtn : ''}`}
+                      title={`Preview ${tone.label}`}
+                    >
+                      <Play size={11} style={{ marginLeft: 1 }} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderSubscription = () => (
+    <section className={styles.sectionCard} id="subscription">
+      <div className={styles.cardHeader}>
+        <div className={styles.headerTitleWrap}>
+          <div className={styles.headerIconBox}>
+            <CreditCard size={16} />
+          </div>
+          <div>
+            <h3 className={styles.cardTitle}>Subscription &amp; In-App Upgrades</h3>
+            <p className={styles.cardSubtitle}>Plan validity, active entitlements, and payment history</p>
+          </div>
+        </div>
+        <span style={{
+          background: tenantInfo?.subscription?.isActive !== false ? '#ecfdf5' : '#fee2e2',
+          color: tenantInfo?.subscription?.isActive !== false ? '#059669' : '#b91c1c',
+          border: tenantInfo?.subscription?.isActive !== false ? '1px solid #a7f3d0' : '1px solid #fecaca',
+          padding: '3px 10px',
+          borderRadius: '100px',
+          fontSize: '11px',
+          fontWeight: 600
+        }}>
+          {tenantInfo?.subscription?.isActive !== false ? '● ACTIVE PLAN' : '● DEACTIVATED'}
+        </span>
+      </div>
+
+      <div className={styles.cardBody}>
+        <div className={styles.subStatsGrid}>
+          <div className={styles.subStatCard}>
+            <span className={styles.subStatLabel}>Current Active Plan</span>
+            <div className={styles.subStatValue}>
+              {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
+            </div>
+          </div>
+          <div className={styles.subStatCard}>
+            <span className={styles.subStatLabel}>Plan Pricing</span>
+            <div className={styles.subStatValueGreen}>
+              ₹{tenantInfo?.subscription?.price || 999}
+            </div>
+          </div>
+          <div className={styles.subStatCard}>
+            <span className={styles.subStatLabel}>Plan Validity / Renewal</span>
+            <div className={styles.subStatValue}>
+              {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.subNotice}>
+          <ShieldCheck size={16} color="#4f46e5" style={{ flexShrink: 0 }} />
+          <span>Subscription tiers and renewals are managed by Platform Super Admin. Contact support for custom enterprise tiers.</span>
+        </div>
+
+        {/* History table */}
+        {(tenantInfo?.subscriptionHistory && tenantInfo.subscriptionHistory.length > 0) && (
+          <div style={{ marginTop: '1.25rem' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+              Subscription Activity History
+            </span>
+            <table className={styles.historyTable}>
+              <thead>
+                <tr>
+                  <th>Plan</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Action Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenantInfo.subscriptionHistory.map((item, i) => (
+                  <tr key={i}>
+                    <td style={{ fontWeight: 500 }}>{item.plan}</td>
+                    <td>₹{item.price}</td>
+                    <td>
+                      <span className={styles.statusActive}>
+                        {item.status?.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ color: '#64748b' }}>
+                      {item.actionDate ? new Date(item.actionDate).toLocaleDateString('en-IN') : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
   return (
     <div className={styles.settingsContainer}>
       {/* Top Header */}
       <div className={styles.topHeader}>
-        <div>
-          <h1 className={styles.pageTitle}>Restaurant Settings</h1>
+        <div className={styles.headerLeft}>
+          <div className={styles.headerBadge}>
+            <Settings size={18} />
+          </div>
+          <div>
+            <h1 className={styles.pageTitle}>Restaurant Settings</h1>
+            <p className={styles.pageBreadcrumb}>
+              Configure identity, operating hours, audio and store preferences
+            </p>
+          </div>
         </div>
         <div className={styles.topActions}>
-          <button type="button" className={styles.discardBtn} onClick={handleDiscard}>Discard Changes</button>
-          <button type="button" className={styles.saveBtn} onClick={handleSave}>Save Configuration</button>
+          <button type="button" className={styles.discardBtn} onClick={handleDiscard}>
+            <RefreshCw size={13} /> Discard Changes
+          </button>
+          <button type="button" className={styles.saveBtn} onClick={handleSave}>
+            <Check size={13} /> Save Configuration
+          </button>
         </div>
       </div>
 
@@ -362,726 +939,132 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         {/* Left Sub-nav */}
         <aside className={styles.subSidebar}>
           <div className={styles.navGroup}>
-            <span className={styles.groupLabel}>SECTIONS</span>
-            <button
-              className={`${styles.navItem} ${activeSection === 'general' ? styles.activeNav : ''}`}
-              onClick={() => { setActiveSection('general'); document.getElementById('general')?.scrollIntoView({ behavior: 'smooth' }); }}
-            >
-              <Building2 size={16} /> <span>General Identity</span>
-            </button>
-            <button
-              className={`${styles.navItem} ${activeSection === 'operations' ? styles.activeNav : ''}`}
-              onClick={() => { setActiveSection('operations'); document.getElementById('operations')?.scrollIntoView({ behavior: 'smooth' }); }}
-            >
-              <Clock size={16} /> <span>Features</span>
-            </button>
-            <button
-              className={`${styles.navItem} ${activeSection === 'audio' ? styles.activeNav : ''}`}
-              onClick={() => { setActiveSection('audio'); document.getElementById('audio')?.scrollIntoView({ behavior: 'smooth' }); }}
-            >
-              <Volume2 size={16} /> <span>Audio & Chimes</span>
-            </button>
-            <button
-              className={`${styles.navItem} ${activeSection === 'subscription' ? styles.activeNav : ''}`}
-              onClick={() => { setActiveSection('subscription'); document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth' }); }}
-            >
-              <CreditCard size={16} /> <span>Subscription</span>
-            </button>
+            <span className={styles.groupLabel}>Settings</span>
+            {SECTIONS.map(sec => {
+              const Icon = sec.icon;
+              const isSelected = activeSection === sec.id;
+              return (
+                <button
+                  key={sec.id}
+                  type="button"
+                  className={`${styles.navItem} ${isSelected ? styles.activeNav : ''}`}
+                  onClick={() => setActiveSection(sec.id)}
+                >
+                  <div className={styles.navItemContent}>
+                    <Icon size={15} className={styles.navIcon} />
+                    <span>{sec.label}</span>
+                  </div>
+                  {isSelected && <ChevronRight size={14} color="#4f46e5" />}
+                </button>
+              );
+            })}
           </div>
 
           {/* Active Plan Card */}
-          <div className={styles.enterpriseCard}>
-            <div className={styles.planHeader}>
-              <span className={styles.planPill}>ACTIVE</span>
-              <span className={styles.checkIcon}>✓</span>
+          <div className={styles.planSidebarCard}>
+            <div className={styles.planCardTop}>
+              <span className={styles.planBadge}>ACTIVE</span>
+              <ShieldCheck size={13} color="#059669" />
             </div>
-            <h4 className={styles.planTitle}>
-              {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
+            <h4 className={styles.planName}>
+              {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
             </h4>
-            <p className={styles.planSub}>
-              Expires: {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
+            <p className={styles.planExpiry}>
+              Exp: {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Lifetime'}
             </p>
-            <div style={{ marginTop: '10px', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <ShieldCheck size={13} color="#4f46e5" />
-              <span>Managed by Super Admin</span>
-            </div>
+            <button
+              type="button"
+              className={styles.planUpgradeBtn}
+              onClick={() => {
+                setPaymentStep('select');
+                setShowUpgradeModal(true);
+              }}
+            >
+              <Sparkles size={12} /> Upgrade Plan
+            </button>
           </div>
         </aside>
 
         {/* Right Settings Cards Area */}
         <div className={styles.cardsArea}>
+          <AnimatePresence mode="wait">
+            {activeSection === 'all' && (
+              <motion.div
+                key="all"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              >
+                {renderGeneral()}
+                {renderOperations()}
+                {renderLanguage()}
+                {renderAudio()}
+                {renderSubscription()}
+              </motion.div>
+            )}
 
-          {/* 1. General Identity */}
-          <section className={styles.sectionCard} id="general">
-            <div className={styles.cardHeader}>
-              <h3>General Identity</h3>
-              <Info size={16} className={styles.infoIcon} />
-            </div>
+            {activeSection === 'general' && (
+              <motion.div
+                key="general"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderGeneral()}
+              </motion.div>
+            )}
 
-            <div className={styles.cardBody}>
-              <div className={styles.identityGrid}>
-                {/* Logo Box */}
-                <div className={styles.logoDropzone}>
-                  <label className={styles.fieldLabel}>Restaurant Logo</label>
-                  <div className={styles.logoBox}>
-                    {logoPreview ? (
-                      <img src={logoPreview} alt="Logo" className={styles.logoImage} />
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
-                        <Building2 size={32} />
-                        <span style={{ fontSize: '11px', marginTop: 4 }}>No Logo Uploaded</span>
-                      </div>
-                    )}
-                    <label className={styles.replaceOverlay}>
-                      <Upload size={14} />
-                      <span>{logoPreview ? 'Replace Logo' : 'Upload Logo'}</span>
-                      <small>PNG, JPG up to 5MB</small>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          const file = e.target.files && e.target.files[0];
-                          if (file) {
-                            if (file.size > 5 * 1024 * 1024) {
-                              toast.error('Logo file size must be under 5MB');
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setLogoPreview(reader.result);
-                              toast.success('New logo selected');
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
+            {activeSection === 'operations' && (
+              <motion.div
+                key="operations"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderOperations()}
+              </motion.div>
+            )}
 
-                {/* Form fields */}
-                <div className={styles.formCol}>
-                  <div className={styles.inputRow}>
-                    <div className={styles.inputGroup}>
-                      <label>Restaurant Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Cafe Delight"
-                        value={form.restaurantName}
-                        onChange={(e) => setForm({ ...form, restaurantName: e.target.value })}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>GST / Tax Number</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. GSTIN29ABCDE1234F"
-                        value={form.gstNumber}
-                        onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
-                      />
-                    </div>
-                  </div>
+            {activeSection === 'language' && (
+              <motion.div
+                key="language"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderLanguage()}
+              </motion.div>
+            )}
 
-                  <div className={styles.inputGroup}>
-                    <label>Store Address</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 1224 Main Road, Sector 5, City"
-                      value={form.storeAddress}
-                      onChange={(e) => setForm({ ...form, storeAddress: e.target.value })}
-                    />
-                  </div>
+            {activeSection === 'audio' && (
+              <motion.div
+                key="audio"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderAudio()}
+              </motion.div>
+            )}
 
-                  <div className={styles.inputRow}>
-                    <div className={styles.inputGroup}>
-                      <label>Primary Phone</label>
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        maxLength={10}
-                        placeholder="10-digit Phone No (e.g. 9876543210)"
-                        value={form.primaryPhone}
-                        onKeyDown={(e) => {
-                          if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
-                            e.preventDefault();
-                          }
-                        }}
-                        onChange={(e) => setForm({ ...form, primaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Public Email</label>
-                      <input
-                        type="email"
-                        placeholder="e.g. contact@mycafe.com"
-                        value={form.publicEmail}
-                        onChange={(e) => setForm({ ...form, publicEmail: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 2. Operations & Feature Toggles */}
-          <section className={styles.sectionCard} id="operations">
-            <div className={styles.cardHeader}>
-              <h3>Operations & Feature Controls</h3>
-              <button type="button" className={styles.copyBtn} onClick={handleCopyMondayToAll}>
-                📋 Copy Hours to All
-              </button>
-            </div>
-
-            <div className={styles.cardBody}>
-              <div className={styles.hoursList}>
-                {form.operatingHours.map((schedule, idx) => (
-                  <div key={schedule.day} className={styles.hourRow}>
-                    <div className={styles.daySwitch}>
-                      <label className={styles.switch}>
-                        <input
-                          type="checkbox"
-                          checked={schedule.enabled}
-                          onChange={() => handleToggleDay(idx)}
-                        />
-                        <span className={styles.slider}></span>
-                      </label>
-                      <span className={styles.dayName}>{schedule.day}</span>
-                    </div>
-
-                    {schedule.enabled ? (
-                      <div className={styles.timeInputs}>
-                        <input
-                          type="text"
-                          value={schedule.open}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setForm(prev => {
-                              const updated = [...prev.operatingHours];
-                              updated[idx].open = val;
-                              return { ...prev, operatingHours: updated };
-                            });
-                          }}
-                          className={styles.timeField}
-                        />
-                        <span className={styles.toLabel}>to</span>
-                        <input
-                          type="text"
-                          value={schedule.close}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setForm(prev => {
-                              const updated = [...prev.operatingHours];
-                              updated[idx].close = val;
-                              return { ...prev, operatingHours: updated };
-                            });
-                          }}
-                          className={styles.timeField}
-                        />
-                        <button
-                          type="button"
-                          className={styles.deleteHourBtn}
-                          onClick={() => handleToggleDay(idx)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className={styles.closedTag}>Closed for Business</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Kitchen Prep Time Estimation Feature Toggle */}
-              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Clock size={16} color="#4f46e5" />
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Kitchen Prep Time Estimation</strong>
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Prompt staff for estimated preparation time when sending orders to the kitchen, and show live countdown to customers. (Default: OFF)
-                  </p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={form.enableEstimatedPrepTime}
-                    onChange={(e) => handleTogglePrepTimeDirect(e.target.checked)}
-                  />
-                  <span className={styles.slider}></span>
-                </label>
-              </div>
-
-              {/* Customer Khata & Borrow (Udhar Ledger) Feature Toggle */}
-              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <BookOpen size={16} color="#4f46e5" />
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Customer Khata & Borrow (Udhar Ledger)</strong>
-                    <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '100px' }}>
-                      UDHAR
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Enable customer borrowing/credit (Udhar) tracking at POS checkout, partial settlements, and access the dedicated Khata Ledger tab in your sidebar. (Default: OFF)
-                  </p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(form.enableKhata)}
-                    onChange={(e) => handleToggleKhataDirect(e.target.checked)}
-                  />
-                  <span className={styles.slider}></span>
-                </label>
-              </div>
-
-              {/* Target Net Profit Margin (%) */}
-              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <TrendingUp size={16} color="#4f46e5" />
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>Estimated Net Profit Margin (%)</strong>
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Used on your main Dashboard to calculate estimated net profit and profit margin from gross sales. (Default: 40%)
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={form.profitMargin ?? 40}
-                    onChange={(e) => setForm({ ...form, profitMargin: Math.max(1, Math.min(100, Number(e.target.value) || 0)) })}
-                    style={{ width: '70px', padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', textAlign: 'center', fontWeight: 700 }}
-                  />
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>%</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 2.6 Interface Language (Hindi / English) Section */}
-          <section className={styles.sectionCard} id="language">
-            <div className={styles.cardHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: '#eff6ff',
-                  color: '#2563eb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Globe size={20} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
-                    Interface Language (भाषा)
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
-                    Convert entire admin panel, POS, and KDS into Hindi or English for your store and staff.
-                  </p>
-                </div>
-              </div>
-
-              <span style={{
-                padding: '3px 12px',
-                borderRadius: '100px',
-                fontSize: '11px',
-                fontWeight: 800,
-                background: isHindi ? '#fff7ed' : '#eff6ff',
-                color: isHindi ? '#c2410c' : '#1d4ed8',
-                border: isHindi ? '1px solid #fed7aa' : '1px solid #bfdbfe'
-              }}>
-                {isHindi ? '● सक्रिय: हिन्दी' : '● Active: English'}
-              </span>
-            </div>
-
-            <div style={{ padding: '1.25rem' }}>
-              <strong style={{ fontSize: '13px', color: '#0f172a', display: 'block', marginBottom: 6 }}>
-                Select Store Language (भाषा चुनें)
-              </strong>
-              <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 14px 0' }}>
-                All staff members associated with this tenant will automatically view the interface in the chosen language.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: '500px' }}>
-                <button
-                  type="button"
-                  onClick={() => handleLanguageChange('en')}
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    border: !isHindi ? '2.5px solid #2563eb' : '1.5px solid #e2e8f0',
-                    background: !isHindi ? '#eff6ff' : '#ffffff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: 4,
-                    boxShadow: !isHindi ? '0 2px 8px rgba(37,99,235,0.12)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 800, color: !isHindi ? '#1e40af' : '#0f172a' }}>
-                      🇬🇧 English
-                    </span>
-                    {!isHindi && <Check size={16} color="#2563eb" />}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
-                    Default international layout
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLanguageChange('hi')}
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    border: isHindi ? '2.5px solid #ea580c' : '1.5px solid #e2e8f0',
-                    background: isHindi ? '#fff7ed' : '#ffffff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: 4,
-                    boxShadow: isHindi ? '0 2px 8px rgba(234,88,12,0.12)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 800, color: isHindi ? '#c2410c' : '#0f172a' }}>
-                      🇮🇳 हिन्दी (Hindi)
-                    </span>
-                    {isHindi && <Check size={16} color="#ea580c" />}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
-                    पूरा डैशबोर्ड और पीओएस हिन्दी में
-                  </span>
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* 2.7 Open / Night Menu (POS Only) Section COMMENTED OUT AS PER REQUEST: DO NOT SHOW ON UI
-          <section className={styles.sectionCard} id="nightmenu">
-            ...
-          </section>
-          */}
-
-          {/* 2.5 Audio & Order Chime Notification Settings */}
-          <section className={styles.sectionCard} id="audio">
-            <div className={styles.cardHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: '#eef2ff',
-                  color: '#4f46e5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Volume2 size={20} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
-                    Order Chime & Audio Alerts
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
-                    Customize sound alerts, tone styles, and notification loudness when new orders arrive.
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  padding: '3px 10px',
-                  borderRadius: '100px',
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  background: audioSettings.muted ? '#fef2f2' : '#f0fdf4',
-                  color: audioSettings.muted ? '#dc2626' : '#16a34a',
-                  border: audioSettings.muted ? '1px solid #fecaca' : '1px solid #bbf7d0'
-                }}>
-                  {audioSettings.muted ? 'Muted' : `Active • Vol ${audioSettings.volume}`}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ padding: '1.25rem' }}>
-              {/* Toggle Mute / Unmute */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingBottom: '1.25rem',
-                borderBottom: '1px solid #f1f5f9'
-              }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {audioSettings.muted ? <VolumeX size={17} color="#ef4444" /> : <Volume2 size={17} color="#4f46e5" />}
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
-                      Play Audio Chime on New Orders
-                    </strong>
-                  </div>
-                  <p style={{ fontSize: '11.5px', color: '#64748b', margin: '4px 0 0 0', maxWidth: '500px' }}>
-                    When toggled on, an audible chime plays whenever a guest places a new table order or POS ticket. Toggle off to mute all order sounds.
-                  </p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={!audioSettings.muted}
-                    onChange={(e) => handleAudioMuteToggle(!e.target.checked)}
-                  />
-                  <span className={styles.slider}></span>
-                </label>
-              </div>
-
-              {/* Volume Progress Bar / Slider (0 to 10) */}
-              <div style={{
-                paddingTop: '1.25rem',
-                paddingBottom: '1.25rem',
-                borderBottom: '1px solid #f1f5f9'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div>
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
-                      Notification Volume (Progress 0 – 10)
-                    </strong>
-                    <p style={{ fontSize: '11.5px', color: '#64748b', margin: '3px 0 0 0' }}>
-                      Reduce volume for quiet cafe seating or increase for noisy kitchens. Setting to 0 automatically mutes.
-                    </p>
-                  </div>
-                  <span style={{
-                    fontSize: '12.5px',
-                    fontWeight: 900,
-                    color: audioSettings.volume === 0 ? '#dc2626' : '#4f46e5',
-                    background: audioSettings.volume === 0 ? '#fef2f2' : '#eef2ff',
-                    padding: '3px 12px',
-                    borderRadius: '100px',
-                    border: audioSettings.volume === 0 ? '1px solid #fecaca' : '1px solid #c7d2fe'
-                  }}>
-                    {audioSettings.volume === 0 ? '0 • Mute' : `Level ${audioSettings.volume} / 10`}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <VolumeX size={18} color="#94a3b8" />
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    step="1"
-                    value={audioSettings.muted ? 0 : audioSettings.volume}
-                    onChange={(e) => handleAudioVolumeChange(Number(e.target.value))}
-                    style={{
-                      flex: 1,
-                      accentColor: '#4f46e5',
-                      cursor: 'pointer',
-                      height: '8px',
-                      borderRadius: '4px'
-                    }}
-                  />
-                  <Volume2 size={18} color="#4f46e5" />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginTop: 6, fontWeight: 600 }}>
-                  <span>0 (Muted)</span>
-                  <span>1 (Soft)</span>
-                  <span>5 (Balanced)</span>
-                  <span>10 (Maximum Loud)</span>
-                </div>
-              </div>
-
-              {/* Tone Variations (4 Tunes) */}
-              <div style={{ paddingTop: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div>
-                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
-                      Notification Tune Variation (4 Styles)
-                    </strong>
-                    <p style={{ fontSize: '11.5px', color: '#64748b', margin: '3px 0 0 0' }}>
-                      Select which synthesized chime to play. Click "Play" or any card to preview.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => previewTone(audioSettings.tone, audioSettings.volume)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '5px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #c7d2fe',
-                      background: '#eef2ff',
-                      color: '#4338ca',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Volume2 size={13} /> Test Current Tone
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                  {TONE_OPTIONS.map(tone => {
-                    const isSelected = audioSettings.tone === tone.id;
-                    return (
-                      <div
-                        key={tone.id}
-                        onClick={() => handleAudioToneChange(tone.id)}
-                        style={{
-                          padding: '14px 16px',
-                          borderRadius: '12px',
-                          border: isSelected ? '2px solid #4f46e5' : '1px solid #e2e8f0',
-                          background: isSelected ? '#f8faff' : '#ffffff',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 10,
-                          boxShadow: isSelected ? '0 2px 8px rgba(79, 70, 229, 0.12)' : '0 1px 2px rgba(0,0,0,0.02)',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: '13.5px', fontWeight: 800, color: isSelected ? '#4338ca' : '#0f172a' }}>
-                              {tone.label}
-                            </span>
-                            {isSelected && <Check size={15} color="#4f46e5" />}
-                          </div>
-                          <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: 3 }}>
-                            {tone.desc}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAudioToneChange(tone.id);
-                            previewTone(tone.id, audioSettings.volume);
-                          }}
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '50%',
-                            border: isSelected ? '1.5px solid #4f46e5' : '1px solid #cbd5e1',
-                            background: isSelected ? '#4f46e5' : '#ffffff',
-                            color: isSelected ? '#ffffff' : '#475569',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            flexShrink: 0
-                          }}
-                          title="Preview Tune"
-                        >
-                          <Play size={12} style={{ marginLeft: 2 }} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 3. Subscription Plan Details & In-App Upgrade */}
-          <section className={styles.sectionCard} id="subscription">
-            <div className={styles.cardHeader}>
-              <h3>Subscription Plan & In-App Upgrades</h3>
-              <span className={styles.planPill} style={{ background: tenantInfo?.subscription?.isActive !== false ? '#dcfce7' : '#fee2e2', color: tenantInfo?.subscription?.isActive !== false ? '#15803d' : '#b91c1c', padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: 800 }}>
-                {tenantInfo?.subscription?.isActive !== false ? '● ACTIVE PLAN' : '● DEACTIVATED'}
-              </span>
-            </div>
-
-            <div className={styles.cardBody}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
-                <div>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Current Active Plan</span>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginTop: 4 }}>
-                    {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
-                  </div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Plan Pricing</span>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#16a34a', marginTop: 4 }}>
-                    ₹{tenantInfo?.subscription?.price || 999}
-                  </div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Plan Validity / Renewal</span>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', marginTop: 4 }}>
-                    {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: '10px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                color: '#64748b',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 6
-              }}>
-                <ShieldCheck size={16} color="#4f46e5" />
-                <span>Subscription tiers and renewals are managed by Platform Super Admin. Contact platform support for custom tiers or renewal extensions.</span>
-              </div>
-
-              {/* History table */}
-              {(tenantInfo?.subscriptionHistory && tenantInfo.subscriptionHistory.length > 0) && (
-                <div style={{ marginTop: '1.5rem' }}>
-                  <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#334155', marginBottom: 8 }}>Subscription Activity History</h4>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ background: '#f1f5f9', color: '#475569' }}>
-                        <th style={{ padding: '8px 12px', borderRadius: '6px 0 0 6px' }}>Plan</th>
-                        <th style={{ padding: '8px 12px' }}>Price</th>
-                        <th style={{ padding: '8px 12px' }}>Status</th>
-                        <th style={{ padding: '8px 12px', borderRadius: '0 6px 6px 0' }}>Action Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tenantInfo.subscriptionHistory.map((item, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '8px 12px', fontWeight: 700 }}>{item.plan}</td>
-                          <td style={{ padding: '8px 12px' }}>₹{item.price}</td>
-                          <td style={{ padding: '8px 12px' }}>
-                            <span style={{ color: item.status === 'active' ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
-                              {item.status?.toUpperCase()}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 12px', color: '#64748b' }}>
-                            {item.actionDate ? new Date(item.actionDate).toLocaleDateString('en-IN') : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
+            {activeSection === 'subscription' && (
+              <motion.div
+                key="subscription"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderSubscription()}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Footer Info */}
           <footer className={styles.settingsFooter}>

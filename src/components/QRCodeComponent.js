@@ -2190,7 +2190,7 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                   </div>
                 ) : (
                   <div className="table-qr-grid-5">
-                    {secTables.map((table) => {
+                    {secTables.map((table, tIdx) => {
                       const qrUrl = getTableQRUrl(table.tableNumber);
                       const isOccupied = isTableOccupied(table);
                       const activeOrder = getTableActiveOrder(table);
@@ -2199,9 +2199,9 @@ const QRCodeComponent = ({ orders = [], initialTables = [], tenantInfo = null })
                         <motion.div
                           key={table._id || table.tableNumber}
                           layout
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.2 }}
+                          initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ duration: 0.24, delay: Math.min(tIdx * 0.035, 0.35), ease: [0.22, 1, 0.36, 1] }}
                           style={{
                             background: '#ffffff',
                             borderRadius: '16px',

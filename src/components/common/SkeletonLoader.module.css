@@ -193,3 +193,14 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+
+/* Generic Table Row Skeleton */
+.tableSkeletonRow {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tableSkeletonCell {
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+

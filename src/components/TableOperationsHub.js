@@ -422,7 +422,7 @@ export default function TableOperationsHub({
         gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
         gap: '0.75rem'
       }}>
-        {filteredTables.map((tbl) => {
+        {filteredTables.map((tbl, idx) => {
           const tableOrders = getActiveOrdersForTable(tbl);
           const isOccupied = tableOrders.length > 0;
           const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
@@ -437,6 +437,9 @@ export default function TableOperationsHub({
           return (
             <motion.div
               key={tbl._id || tbl.tableNumber}
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.24, delay: Math.min(idx * 0.035, 0.35), ease: [0.22, 1, 0.36, 1] }}
               whileHover={{ y: -2, boxShadow: '0 6px 16px -2px rgba(15, 23, 42, 0.08)' }}
               style={{
                 background: '#ffffff',

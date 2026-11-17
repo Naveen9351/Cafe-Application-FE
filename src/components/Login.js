@@ -9,15 +9,16 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Sparkles,
-  ShieldAlert
+  ShieldAlert,
+  Zap,
+  ChartNoAxesColumnIncreasing,
+  Crown
 } from "lucide-react";
 import toast from "react-hot-toast";
-import DineviqLogo from "./brand/DineviqLogo";
 import { buildAuthCallbackUrl, isBillingOrAdminSubdomain } from "../utils/subdomain";
 
 const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24">
+  <svg width="20" height="20" viewBox="0 0 24 24">
     <path
       fill="#4285F4"
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -92,28 +93,25 @@ const Login = () => {
     setIsPendingApproval(false);
   };
 
-  const handleLogoClick = () => {
-    if (typeof window !== 'undefined') {
-      const mainBase = getMainDomainBase();
-      if (mainBase && !mainBase.includes(window.location.hostname)) {
-        window.location.href = mainBase;
-        return;
+  const handleForgotPassword = () => {
+    toast(
+      "To reset your password, please contact your Restaurant Super Admin or email support@dineviq.com",
+      {
+        icon: "🔒",
+        duration: 5000
       }
-    }
-    navigate('/');
+    );
   };
 
   const handleLoginSuccess = (user, token) => {
     const targetPath = user.role === "super_admin" ? "/super-admin" : "/admin/dashboard";
 
-    // Only handoff cross-origin if logging in from billing/admin subdomain
     if (typeof window !== "undefined" && isBillingOrAdminSubdomain()) {
-      const storedToken = token || localStorage.getItem('token');
+      const storedToken = token || localStorage.getItem("token");
       window.location.href = buildAuthCallbackUrl(storedToken, user, targetPath);
       return;
     }
 
-    // On www.dineviq.com or local origin, navigate directly within SPA
     navigate(targetPath);
   };
 
@@ -131,7 +129,8 @@ const Login = () => {
     if (result && result.success && result.user) {
       handleLoginSuccess(result.user, result.token);
     } else {
-      const errorMsg = result?.error || "Invalid credentials. Please verify your email/phone and password.";
+      const errorMsg =
+        result?.error || "Invalid credentials. Please verify your email/phone and password.";
       setGeneralError(errorMsg);
       if (result?.pendingApproval) {
         setIsPendingApproval(true);
@@ -157,9 +156,7 @@ const Login = () => {
   // Google OAuth Flow
   const handleGoogleSignIn = () => {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-
     if (!clientId) {
-      // In dev or if Google Client ID not yet set in frontend environment
       toast("Google Client ID is not configured in environment. Please log in with email/password.", {
         icon: "ℹ️"
       });
@@ -211,11 +208,19 @@ const Login = () => {
                 handleLoginSuccess(res.user, res.token);
               } else if (res.pendingApproval) {
                 setIsPendingApproval(true);
-                setGeneralError(res.error || "Your onboarding application is under review by Super Admin.");
+                setGeneralError(
+                  res.error || "Your onboarding application is under review by Super Admin."
+                );
               } else if (res.isNewUser) {
-                setGeneralError(res.error || "No registered cafe found for this Google email. Please register your restaurant first.");
+                setGeneralError(
+                  res.error ||
+                  "No registered cafe found for this Google email. Please register your restaurant first."
+                );
                 toast.error("No cafe found. Redirecting to onboarding...", { duration: 4000 });
-                setTimeout(() => navigate(`/register?email=${encodeURIComponent(res.email || gEmail)}`), 1500);
+                setTimeout(
+                  () => navigate(`/register?email=${encodeURIComponent(res.email || gEmail)}`),
+                  1500
+                );
               } else {
                 setGeneralError(res.error || "Google sign-in failed. Please use email and password.");
               }
@@ -241,94 +246,114 @@ const Login = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.splitContainer}>
+      {/* ── SINGLE FULL-VIEWPORT BACKGROUND IMAGE (SEAMLESS PANORAMIC FEEL) ── */}
+      <img
+        src="/assets/dineviq-login-bg.png"
+        alt=""
+        className={styles.fullBgImage}
+      />
+      <div className={styles.fullBgOverlay} />
 
-        {/* ── LEFT SIDE: Editorial Luxury Restaurant Photography ── */}
-        <div className={styles.heroSide}>
-          <img
-            src="/login-premium.jpg"
-            alt="DineviQ Restaurant Operating System"
-            className={styles.fullArtImage}
-          />
-          <div className={styles.imageOverlayGradient} />
-          <div className={styles.heroOverlayContent}>
-            <div className={styles.heroBadge}>DINEVIQ RESTAURANT OS</div>
-            <h2 className={styles.heroQuote}>
-              "Everything you need to run high-volume service seamlessly."
-            </h2>
-            <p className={styles.heroSubquote}>
+      {/* ── MAIN GRID (PERFECT HORIZONTAL & VERTICAL CENTERING) ── */}
+      <div className={styles.mainGrid}>
+        {/* ── LEFT HERO: HEADLINE, HIGHLIGHT & 3 CARDS ── */}
+        <section className={styles.heroCol}>
+          <div className={styles.heroTextGroup}>
+            <h1 className={styles.heroHeadline}>
+              Everything you need to run<br />
+              <span className={styles.orangeHighlight}>
+                high-volume service
+                <svg
+                  className={styles.swooshUnderline}
+                  viewBox="0 0 280 18"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M3 13C65 3 200 3 277 11"
+                    stroke="#FF8A00"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span><br />
+              seamlessly.
+            </h1>
+
+            <p className={styles.supportingText}>
               Trusted by leading cafes, fine dining, and multi-outlet restaurants.
             </p>
           </div>
-        </div>
 
-        {/* ── RIGHT SIDE: Polished Enterprise SaaS Form ── */}
-        <div className={styles.loginSide}>
-          <div className={styles.formContainer}>
-
-            {/* Top Brand Area */}
-            <div className={styles.brandHeader}>
-              <DineviqLogo size="md" showSubtitle={false} showBadge={true} onClick={handleLogoClick} />
-              <div className={styles.headerText}>
-                <h1 className={styles.title}>Sign In</h1>
-                <p className={styles.subtitle}>Welcome back. Please enter your account details.</p>
-              </div>
+          {/* Three Feature Cards */}
+          <div className={styles.featureCardsRow}>
+            <div className={styles.featureCard}>
+              <Zap size={26} color="#FF8A00" strokeWidth={2.2} />
+              <span className={styles.featureCardLabel}>Fast &amp; Reliable</span>
             </div>
+
+            <div className={styles.featureCard}>
+              <ChartNoAxesColumnIncreasing size={26} color="#FF8A00" strokeWidth={2.2} />
+              <span className={styles.featureCardLabel}>Smart Analytics</span>
+            </div>
+
+            <div className={styles.featureCard}>
+              <Crown size={26} color="#FF8A00" strokeWidth={2.2} />
+              <span className={styles.featureCardLabel}>Grow Your Business</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── RIGHT COLUMN: AUTHENTICATION CARD ── */}
+        <section className={styles.cardCol}>
+          <div className={styles.authCard}>
+
+            {/* Card Header with Official DineviQ Logo (Navigates to Landing Page) */}
+            <Link to="/" className={styles.cardLogoLink} title="Back to home">
+              <div className={styles.cardLogoRow}>
+                <img src="/logo.png" alt="DineviQ" className={styles.cardLogoImg} />
+                <span className={styles.cardBrandName}>DINEVIQ</span>
+              </div>
+            </Link>
+
+            <h2 className={styles.signInHeading}>Sign In</h2>
+            <p className={styles.welcomeDesc}>
+              Welcome back. Please enter your account details.
+            </p>
 
             {/* Error / Approval Notice Banner */}
             {generalError && (
               <div
                 className={styles.errorBanner}
-                style={isPendingApproval ? { background: '#fef3c7', borderColor: '#fde68a', color: '#92400e' } : {}}
+                style={
+                  isPendingApproval
+                    ? { background: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }
+                    : {}
+                }
               >
                 {isPendingApproval ? (
-                  <ShieldAlert size={18} style={{ flexShrink: 0, color: '#b45309' }} />
+                  <ShieldAlert size={16} style={{ flexShrink: 0, color: "#B45309" }} />
                 ) : (
-                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
                 )}
                 <span>{generalError}</span>
               </div>
             )}
 
-            {/* Google One-Click Login Button */}
-            <button
-              type="button"
-              className={styles.googleBtn}
-              onClick={handleGoogleSignIn}
-              disabled={loading || googleLoading}
-            >
-              {googleLoading ? (
-                <>
-                  <div className={styles.spinner} style={{ borderColor: '#cbd5e1', borderTopColor: '#059669' }} />
-                  <span>Connecting to Google...</span>
-                </>
-              ) : (
-                <>
-                  <GoogleIcon />
-                  <span>Sign in with Google</span>
-                </>
-              )}
-            </button>
-
-            {/* Divider */}
-            <div className={styles.dividerRow}>
-              <div className={styles.dividerLine} />
-              <span className={styles.dividerText}>or continue with email</span>
-              <div className={styles.dividerLine} />
-            </div>
-
             {/* Form */}
             <form onSubmit={handleSubmit} className={styles.form} noValidate>
-
               {/* Email / Mobile Field */}
               <div className={styles.fieldWrapper}>
-                <label className={styles.label}>Email or Phone Number</label>
-                <div className={`${styles.inputGroup} ${fieldErrors.identifier ? styles.inputError : ''}`}>
-                  <Mail className={styles.icon} size={18} />
+                <label className={styles.inputLabel}>Email or Phone Number</label>
+                <div
+                  className={`${styles.inputGroup} ${fieldErrors.identifier ? styles.inputError : ""
+                    }`}
+                >
+                  <Mail className={styles.inputIcon} size={18} />
                   <input
                     type="text"
-                    className={styles.inputField}
-                    placeholder="name@restaurant.com"
+                    className={styles.textInput}
+                    placeholder="deepak@gmail.com"
                     value={identifier}
                     onChange={handleIdentifierChange}
                     disabled={loading || googleLoading}
@@ -338,22 +363,32 @@ const Login = () => {
                 </div>
                 {fieldErrors.identifier && (
                   <span className={styles.errorText}>
-                    <AlertCircle size={13} /> {fieldErrors.identifier}
+                    <AlertCircle size={12} /> {fieldErrors.identifier}
                   </span>
                 )}
               </div>
 
-              {/* Password Field */}
+              {/* Password Field with Inline "Forgot Password?" */}
               <div className={styles.fieldWrapper}>
-                <div className={styles.passwordHeaderRow}>
-                  <label className={styles.label}>Password</label>
+                <div className={styles.labelRow}>
+                  <label className={styles.inputLabel}>Password</label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className={styles.forgotBtn}
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
-                <div className={`${styles.inputGroup} ${fieldErrors.password ? styles.inputError : ''}`}>
-                  <Lock className={styles.icon} size={18} />
+                <div
+                  className={`${styles.inputGroup} ${fieldErrors.password ? styles.inputError : ""
+                    }`}
+                >
+                  <Lock className={styles.inputIcon} size={18} />
                   <input
                     type={showPassword ? "text" : "password"}
-                    className={styles.inputField}
-                    placeholder="Enter your password"
+                    className={styles.textInput}
+                    placeholder="••••••••••••"
                     value={password}
                     onChange={handlePasswordChange}
                     disabled={loading || googleLoading}
@@ -366,51 +401,58 @@ const Login = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex="-1"
                     disabled={loading || googleLoading}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {fieldErrors.password && (
                   <span className={styles.errorText}>
-                    <AlertCircle size={13} /> {fieldErrors.password}
+                    <AlertCircle size={12} /> {fieldErrors.password}
                   </span>
                 )}
               </div>
 
-              {/* Sign In Button */}
-              <button type="submit" className={styles.submitBtn} disabled={loading || googleLoading}>
-                {loading ? (
-                  <>
-                    <div className={styles.spinner} />
-                    <span>Verifying session...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Sign in to Terminal</span>
-                    <ArrowRight size={17} />
-                  </>
-                )}
-              </button>
+              {/* Actions Row: [ Sign in to Terminal → ]   or   [ G ] */}
+              <div className={styles.submitActionsRow}>
+                <button
+                  type="submit"
+                  className={styles.submitBtn}
+                  disabled={loading || googleLoading}
+                >
+                  {loading ? (
+                    <>
+                      <div className={styles.spinner} />
+                      <span>Verifying session...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign in to Terminal</span>
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
 
+                <span className={styles.orText}>or</span>
+
+                <button
+                  type="button"
+                  className={styles.googleIconBtn}
+                  onClick={handleGoogleSignIn}
+                  disabled={loading || googleLoading}
+                  title="Sign in with Google"
+                  aria-label="Sign in with Google"
+                >
+                  {googleLoading ? (
+                    <div className={styles.spinnerDark} />
+                  ) : (
+                    <GoogleIcon />
+                  )}
+                </button>
+              </div>
             </form>
-
-            {/* Link to Registration & Onboarding Application */}
-            <div className={styles.signupPrompt}>
-              Don't have an onboarded cafe yet?
-              <Link to="/register">Create Cafe Account</Link>
-            </div>
-
-            {/* Legal Links */}
-            <div style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.74rem', color: '#94a3b8' }}>
-              By logging in, you agree to DINEVIQ's{" "}
-              <Link to="/terms-of-service" style={{ color: '#64748b', textDecoration: 'underline' }}>Terms</Link>
-              {" "}and{" "}
-              <Link to="/privacy-policy" style={{ color: '#64748b', textDecoration: 'underline' }}>Privacy Policy</Link>.
-            </div>
-
           </div>
-        </div>
-
+        </section>
       </div>
     </div>
   );

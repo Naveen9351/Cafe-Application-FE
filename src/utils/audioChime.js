@@ -3,9 +3,9 @@
 
 export const TONE_OPTIONS = [
   { id: 'classic', label: 'Classic Chime', desc: 'Resonant dual-tone ascending bell (Recommended)' },
-  { id: 'crisp', label: 'Digital Ding', desc: 'Bright crystal elevator bell with shimmer' },
-  { id: 'gong', label: 'Kitchen Gong', desc: 'Deep brass call bell for noisy kitchens' },
-  { id: 'pop', label: 'Soft Pop', desc: 'Acoustic marimba pop for quiet counters' }
+  { id: 'arpeggio', label: 'Melodic Arpeggio', desc: 'Ascending 4-tone cafe melody with long singing sustain (~1.8s)' },
+  { id: 'gong', label: 'Kitchen Gong', desc: 'Deep brass call bell for noisy kitchens (~1.5s)' },
+  { id: 'broadcast', label: 'Broadcast Alert', desc: 'Two-phrase chime with rich resonance for busy environments (~2.1s)' }
 ];
 
 export const getAudioSettings = () => {
@@ -58,29 +58,45 @@ export const setAudioMuted = (muted) => saveAudioSettings({ muted });
 // Tone Synthesizers with Full Harmonic Presence
 const playToneSynthesis = (ctx, masterGain, now, toneId) => {
   switch (toneId) {
-    case 'crisp': {
-      // High crystal elevator chime (E6 primary + E7 octave harmonic)
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(1318.51, now);
-      gain1.gain.setValueAtTime(1.0, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
-      osc1.connect(gain1);
-      gain1.connect(masterGain);
-      osc1.start(now);
-      osc1.stop(now + 0.75);
+    case 'crisp': // Legacy fallback
+    case 'arpeggio': {
+      // 4-note ascending cafe arpeggio melody with warm singing sustain (~1.85s)
+      // Notes: C5 (523Hz) -> E5 (659Hz) -> G5 (784Hz) -> C6 (1046Hz)
+      const notes = [
+        { freq: 523.25, time: 0, decay: 0.60, gain: 0.85 },
+        { freq: 659.25, time: 0.18, decay: 0.65, gain: 0.90 },
+        { freq: 783.99, time: 0.36, decay: 0.75, gain: 0.95 },
+        { freq: 1046.50, time: 0.54, decay: 1.35, gain: 1.00 }
+      ];
 
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(2637.02, now);
-      gain2.gain.setValueAtTime(0.45, now);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-      osc2.connect(gain2);
-      gain2.connect(masterGain);
-      osc2.start(now);
-      osc2.stop(now + 0.45);
+      notes.forEach(({ freq, time, decay, gain }) => {
+        const tStart = now + time;
+        const tEnd = tStart + decay;
+
+        // Primary fundamental bell tone (pure sine)
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, tStart);
+        g.gain.setValueAtTime(gain, tStart);
+        g.gain.exponentialRampToValueAtTime(0.001, tEnd);
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(tStart);
+        osc.stop(tEnd);
+
+        // Harmonic overtone shimmer (triangle 2x octave harmonic)
+        const oscHarm = ctx.createOscillator();
+        const gHarm = ctx.createGain();
+        oscHarm.type = 'triangle';
+        oscHarm.frequency.setValueAtTime(freq * 2, tStart);
+        gHarm.gain.setValueAtTime(gain * 0.35, tStart);
+        gHarm.gain.exponentialRampToValueAtTime(0.001, tStart + (decay * 0.55));
+        oscHarm.connect(gHarm);
+        gHarm.connect(masterGain);
+        oscHarm.start(tStart);
+        oscHarm.stop(tStart + (decay * 0.55));
+      });
       break;
     }
 
@@ -94,39 +110,54 @@ const playToneSynthesis = (ctx, masterGain, now, toneId) => {
         osc.frequency.setValueAtTime(freq, now);
         const initialAmp = idx === 0 ? 0.7 : (0.55 / idx);
         gain.gain.setValueAtTime(initialAmp, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
         osc.connect(gain);
         gain.connect(masterGain);
         osc.start(now);
-        osc.stop(now + 1.1);
+        osc.stop(now + 1.4);
       });
       break;
     }
 
-    case 'pop': {
-      // Resonant marimba pop with low-end thump
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'triangle';
-      osc1.frequency.setValueAtTime(520, now);
-      osc1.frequency.exponentialRampToValueAtTime(980, now + 0.07);
-      gain1.gain.setValueAtTime(1.0, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-      osc1.connect(gain1);
-      gain1.connect(masterGain);
-      osc1.start(now);
-      osc1.stop(now + 0.28);
+    case 'pop': // Legacy fallback
+    case 'broadcast': {
+      // Two-phrase luxury broadcast alert chime with extended bell ring (~2.1s)
+      // Phrase 1 (The Call): G5 (784Hz) -> E5 (659Hz)
+      // Phrase 2 (The Confirmation): A5 (880Hz) -> C6 (1046Hz) with singing resonant ring
+      const phrases = [
+        { freq: 783.99, time: 0, decay: 0.60, gain: 0.90 },
+        { freq: 659.25, time: 0.22, decay: 0.70, gain: 0.85 },
+        { freq: 880.00, time: 0.58, decay: 0.70, gain: 0.95 },
+        { freq: 1046.50, time: 0.82, decay: 1.35, gain: 1.00 }
+      ];
 
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(260, now);
-      gain2.gain.setValueAtTime(0.6, now);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc2.connect(gain2);
-      gain2.connect(masterGain);
-      osc2.start(now);
-      osc2.stop(now + 0.15);
+      phrases.forEach(({ freq, time, decay, gain }) => {
+        const tStart = now + time;
+        const tEnd = tStart + decay;
+
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, tStart);
+        g.gain.setValueAtTime(gain, tStart);
+        g.gain.exponentialRampToValueAtTime(0.001, tEnd);
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(tStart);
+        osc.stop(tEnd);
+
+        // Warm 5th harmonic overtone (freq * 1.5) for lush brass presence
+        const oscHarm = ctx.createOscillator();
+        const gHarm = ctx.createGain();
+        oscHarm.type = 'triangle';
+        oscHarm.frequency.setValueAtTime(freq * 1.5, tStart);
+        gHarm.gain.setValueAtTime(gain * 0.28, tStart);
+        gHarm.gain.exponentialRampToValueAtTime(0.001, tStart + (decay * 0.5));
+        oscHarm.connect(gHarm);
+        gHarm.connect(masterGain);
+        oscHarm.start(tStart);
+        oscHarm.stop(tStart + (decay * 0.5));
+      });
       break;
     }
 

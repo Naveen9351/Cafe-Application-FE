@@ -26,7 +26,7 @@ import SalesSummary from './SalesSummary';
 import KhataLedger from './KhataLedger';
 import SupportModal from './SupportModal';
 import CafeAICopilotChatbot, { KHUSHI_AVATAR_URL } from './CafeAICopilotChatbot';
-import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton } from './common/SkeletonLoader';
+import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton, ShimmerBlock } from './common/SkeletonLoader';
 import skeletonStyles from './common/SkeletonLoader.module.css';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
@@ -3292,10 +3292,10 @@ export default function AdminPanel() {
               {activeTab === 'dashboard' && (
                 <motion.div
                   key="dashboard"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   className={styles.dashboardView}
                 >
                   {/* PWA Quick Install Banner - only shown when not standalone and not installed */}
@@ -3511,10 +3511,7 @@ export default function AdminPanel() {
                         <span className={styles.kpiCardTag}>{isHindi ? 'सकल राजस्व' : 'Gross Revenue'}</span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                              <Loader size={20} className={styles.spinIcon} color="#059669" />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
-                            </div>
+                            <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
                           ) : (
                             `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
                           )}
@@ -3523,19 +3520,7 @@ export default function AdminPanel() {
                       <div className={styles.kpiFooterMeta}>
                         <span>{isFilterLoading ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...') : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}</span>
                         {isFilterLoading ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }}>
-                            <Loader size={12} className={styles.spinIcon} />
-                          </div>
+                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
                         ) : metrics.grossSales > 0 ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3596,10 +3581,7 @@ export default function AdminPanel() {
                         <span className={styles.kpiCardTag}>{isHindi ? 'शुद्ध बिक्री (बिना टैक्स)' : 'Net Sales (Excl. Tax)'}</span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                              <Loader size={20} className={styles.spinIcon} color="#4f46e5" />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
-                            </div>
+                            <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
                           ) : (
                             `₹${Math.round(metrics.netSales || 0).toLocaleString('en-IN')}`
                           )}
@@ -3608,19 +3590,7 @@ export default function AdminPanel() {
                       <div className={styles.kpiFooterMeta}>
                         <span>{isFilterLoading ? (isHindi ? 'गणना जारी...' : 'Recalculating...') : (isHindi ? `${metrics.completedOrders?.length || 0} चुकता बिलों से • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} टैक्स` : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`)}</span>
                         {isFilterLoading ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }}>
-                            <Loader size={12} className={styles.spinIcon} />
-                          </div>
+                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
                         ) : metrics.netSales > 0 ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3667,10 +3637,7 @@ export default function AdminPanel() {
                         <span className={styles.kpiCardTag}>{isHindi ? 'औसत बिल मूल्य (AOV)' : 'Average Bill Value'}</span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                              <Loader size={20} className={styles.spinIcon} color="#d97706" />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
-                            </div>
+                            <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
                           ) : (
                             `₹${Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}`
                           )}
@@ -3679,19 +3646,7 @@ export default function AdminPanel() {
                       <div className={styles.kpiFooterMeta}>
                         <span>{isFilterLoading ? (isHindi ? 'अपडेट जारी...' : 'Updating average...') : (isHindi ? 'प्रति ऑर्डर औसत' : 'Per order average')}</span>
                         {isFilterLoading ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }}>
-                            <Loader size={12} className={styles.spinIcon} />
-                          </div>
+                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
                         ) : metrics.avgTicket > 0 ? (
                           <div style={{
                             display: 'inline-flex',
@@ -3754,10 +3709,7 @@ export default function AdminPanel() {
                         </span>
                         <div className={styles.kpiBigNum}>
                           {isFilterLoading ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '32px' }}>
-                              <Loader size={20} className={styles.spinIcon} color="#0284c7" />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Loading...</span>
-                            </div>
+                            <ShimmerBlock width="80px" height="28px" borderRadius="6px" />
                           ) : (
                             metrics.totalOrdersCount
                           )}
@@ -3766,19 +3718,7 @@ export default function AdminPanel() {
                       <div className={styles.kpiFooterMeta}>
                         <span>{isFilterLoading ? (isHindi ? 'गिनती जारी...' : 'Updating count...') : (isHindi ? `${metrics.completedOrders?.length || 0} पूर्ण • ${liveActiveOrdersCount} किचन में` : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`)}</span>
                         {isFilterLoading ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }}>
-                            <Loader size={12} className={styles.spinIcon} />
-                          </div>
+                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
                         ) : metrics.totalOrdersCount > 0 ? (
                           <div style={{
                             display: 'inline-flex',
@@ -4237,14 +4177,20 @@ export default function AdminPanel() {
                       </div>
 
                       <div className={styles.liveCardsStream}>
-                        {liveActiveOrders.slice(0, 5).map((order) => {
+                        {liveActiveOrders.slice(0, 5).map((order, oIdx) => {
                           const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-5) || 'ORD'}`;
                           const totalAmt = Number(order.total || order.totalAmount) || 0;
                           const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
                           const tableText = order.tableNumber ? formatTableBadge(order.tableNumber) : 'Counter Walk-in';
 
                           return (
-                            <div key={order._id} className={styles.liveTicketCard}>
+                            <motion.div
+                              key={order._id}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.22, delay: oIdx * 0.05 }}
+                              className={styles.liveTicketCard}
+                            >
                               <div className={styles.ticketHead}>
                                 <span className={styles.ticketIdBadge}>{orderCode}</span>
                                 <span className={`${styles.ticketStatusPill} ${order.status === 'completed'
@@ -4259,7 +4205,7 @@ export default function AdminPanel() {
                               <div className={styles.ticketBody}>
                                 <span>{order.tableNumber ? formatTableBadge(order.tableNumber) : (isHindi ? 'काउंटर वॉक-इन' : 'Counter Walk-in')}</span>
                               </div>
-                            </div>
+                            </motion.div>
                           );
                         })}
 
@@ -4414,7 +4360,7 @@ export default function AdminPanel() {
                           <TableMatrixSkeleton count={8} />
                         ) : (
                           <div className={styles.tableGridContainer}>
-                            {previewTables.map((tbl) => {
+                            {previewTables.map((tbl, tblIdx) => {
                               const tableOrders = getActiveOrdersForTable(tbl);
                               const isOccupied = tableOrders.length > 0;
                               const isServed = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid' || o.status === 'served');
@@ -4438,8 +4384,11 @@ export default function AdminPanel() {
                               // 1. FREE / EMPTY CARD
                               if (!isOccupied) {
                                 return (
-                                  <div
+                                  <motion.div
                                     key={tbl._id || tbl.tableNumber}
+                                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.22, delay: Math.min(tblIdx * 0.035, 0.3) }}
                                     onClick={() => {
                                       setPosSelectedTable(tbl.tableNumber);
                                       handleTabChange('pos');
@@ -4464,16 +4413,19 @@ export default function AdminPanel() {
                                     <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', margin: '4px 0' }}>
                                       {formatTableBadge(tbl.tableNumber)}
                                     </span>
-                                    <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>+ Take Order</span>
-                                  </div>
+                                    <span style={{ fontSize: '10.5px', color: '#10b981', fontWeight: 600 }}>+ Take Order</span>
+                                  </motion.div>
                                 );
                               }
 
                               // 2. PAID / SERVED CARD (Soft Green)
                               if (isServed) {
                                 return (
-                                  <div
+                                  <motion.div
                                     key={tbl._id || tbl.tableNumber}
+                                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.22, delay: Math.min(tblIdx * 0.035, 0.3) }}
                                     onClick={() => {
                                       setPosSelectedTable(tbl.tableNumber);
                                       handleTabChange('pos');
@@ -4495,26 +4447,29 @@ export default function AdminPanel() {
                                     }}
                                     title={`${formatTableBadge(tbl.tableNumber)} - All Orders Served/Paid. Click to open POS.`}
                                   >
-                                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857' }}>
+                                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#047857' }}>
                                       ✓ {elapsedMins}
                                     </div>
                                     <span style={{ fontSize: '1rem', fontWeight: 600, color: '#065f46', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {getCustomerFirstName(rawCustName, formatTableBadge(tbl.tableNumber))}
                                     </span>
                                     {getCustomerFirstName(rawCustName) && (
-                                      <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700 }}>
+                                      <span style={{ fontSize: '10px', color: '#047857', fontWeight: 600 }}>
                                         {formatTableBadge(tbl.tableNumber)}
                                       </span>
                                     )}
                                     <strong style={{ fontSize: '12.5px', fontWeight: 600, color: '#047857' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
-                                  </div>
+                                  </motion.div>
                                 );
                               }
 
                               // 3. OCCUPIED / RUNNING CARD (Orange / Warm Amber)
                               return (
-                                <div
+                                <motion.div
                                   key={tbl._id || tbl.tableNumber}
+                                  initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  transition={{ duration: 0.22, delay: Math.min(tblIdx * 0.035, 0.3) }}
                                   onClick={() => {
                                     setPosSelectedTable(tbl.tableNumber);
                                     handleTabChange('pos');
@@ -4536,19 +4491,19 @@ export default function AdminPanel() {
                                   }}
                                   title={`${formatTableBadge(tbl.tableNumber)} - Running Order ₹${orderTotal}. Click to open POS.`}
                                 >
-                                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e' }}>
+                                  <div style={{ fontSize: '10px', fontWeight: 600, color: '#92400e' }}>
                                     ⏱️ {elapsedMins}
                                   </div>
                                   <span style={{ fontSize: '1rem', fontWeight: 600, color: '#78350f', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {getCustomerFirstName(rawCustName, formatTableBadge(tbl.tableNumber))}
                                   </span>
                                   {getCustomerFirstName(rawCustName) && (
-                                    <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 700 }}>
+                                    <span style={{ fontSize: '10px', color: '#92400e', fontWeight: 600 }}>
                                       {formatTableBadge(tbl.tableNumber)}
                                     </span>
                                   )}
                                   <strong style={{ fontSize: '12.5px', fontWeight: 600, color: '#92400e' }}>₹{orderTotal.toLocaleString('en-IN')}</strong>
-                                </div>
+                                </motion.div>
                               );
                             })}
 
@@ -4920,10 +4875,10 @@ export default function AdminPanel() {
               {activeTab === 'tables_hub' && (
                 <motion.div
                   key="tables_hub"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <TableOperationsHub
                     tables={tables}
@@ -4953,10 +4908,10 @@ export default function AdminPanel() {
               {activeTab === 'kds' && (
                 <motion.div
                   key="kds"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
                 >
                   <KOTMonitor
@@ -4974,10 +4929,10 @@ export default function AdminPanel() {
               {activeTab === 'orders' && (
                 <motion.div
                   key="orders"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
                 >
                   <OrdersManagement
@@ -4994,10 +4949,10 @@ export default function AdminPanel() {
               {activeTab === 'menu' && (
                 <motion.div
                   key="menu"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   className={styles.menuManagementView}
                 >
                   {/* Top Action Header */}
@@ -5240,7 +5195,7 @@ export default function AdminPanel() {
                     <DishGridSkeleton count={10} gridClassName={styles.menuItemsGrid} />
                   ) : filteredMenuItems.length > 0 ? (
                     <div className={styles.menuItemsGrid}>
-                      {filteredMenuItems.map((item) => {
+                      {filteredMenuItems.map((item, index) => {
                         const isSelected = selectedItemIds.includes(item._id);
                         const discount = item.discount || {};
                         const hasDiscount = Boolean(discount.isDiscounted && discount.value > 0);
@@ -5257,6 +5212,9 @@ export default function AdminPanel() {
                         return (
                           <motion.div
                             key={item._id}
+                            initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ duration: 0.25, delay: Math.min(index * 0.035, 0.35), ease: [0.22, 1, 0.36, 1] }}
                             whileHover={{ y: -4 }}
                             className={`${styles.dishCard} ${!item.available ? styles.dishOutOfStock : ''}`}
                           >
@@ -5478,10 +5436,10 @@ export default function AdminPanel() {
               {activeTab === 'pos' && (
                 <motion.div
                   key="pos"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
                 >
                   <POSTerminal
@@ -5551,10 +5509,10 @@ export default function AdminPanel() {
               {activeTab === 'crm' && (
                 <motion.div
                   key="crm"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
                 >
                   <CRMLoyalty orders={orders} />
@@ -5567,10 +5525,10 @@ export default function AdminPanel() {
               {activeTab === 'qrcodes' && (
                 <motion.div
                   key="qrcodes"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <QRCodeComponent orders={orders} initialTables={tables} tenantInfo={tenantInfo} />
                 </motion.div>
@@ -5582,10 +5540,10 @@ export default function AdminPanel() {
               {activeTab === 'settings' && (
                 <motion.div
                   key="settings"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <RestaurantSettings
                     tenantInfo={tenantInfo}
@@ -5600,10 +5558,10 @@ export default function AdminPanel() {
               {activeTab === 'staff' && (
                 <motion.div
                   key="staff"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <StaffManager />
                 </motion.div>
@@ -5615,10 +5573,10 @@ export default function AdminPanel() {
               {activeTab === 'reports' && (
                 <motion.div
                   key="reports"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <ReportsSuite initialOrders={orders} tenantInfo={tenantInfo} menuItems={items} />
                 </motion.div>
@@ -5630,10 +5588,10 @@ export default function AdminPanel() {
               {activeTab === 'sales-summary' && (
                 <motion.div
                   key="sales-summary"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <SalesSummary initialOrders={orders} />
                 </motion.div>
@@ -5645,10 +5603,10 @@ export default function AdminPanel() {
               {activeTab === 'khata' && (
                 <motion.div
                   key="khata"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <KhataLedger menuItems={items} tenantId={tenantId || tenantInfo?._id} />
                 </motion.div>

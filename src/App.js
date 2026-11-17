@@ -301,6 +301,11 @@ const PublicChatbotWrapper = () => {
     return null;
   }
 
+  // Hide on authentication screens (clean enterprise login)
+  if (pathname === '/login' || pathname === '/register') {
+    return null;
+  }
+
   // Hide on internal staff & super-admin operational dashboards
   if (pathname.startsWith('/admin') || pathname.startsWith('/super-admin')) {
     return null;

@@ -664,31 +664,51 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                         </thead>
                         <tbody>
                           {isLoading ? (
-                            Array.from({ length: 7 }).map((_, sIdx) => (
+                            Array.from({ length: 8 }).map((_, sIdx) => (
                               <tr key={sIdx} className={styles.skeletonRow}>
+                                {/* Order ID + Channel Badge */}
                                 <td className={styles.skeletonCell}>
-                                  <div className={styles.skeletonLine} style={{ width: '70px', height: '13px' }} />
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div className={styles.skeletonLine} style={{ width: '55px', height: '14px', borderRadius: '5px' }} />
+                                    <div className={styles.skeletonPill} style={{ width: '50px', height: '16px', borderRadius: '4px' }} />
+                                  </div>
                                 </td>
-                                <td className={styles.skeletonCell}>
-                                  <div className={styles.skeletonLine} style={{ width: '75px', height: '13px' }} />
-                                </td>
-                                <td className={styles.skeletonCell}>
-                                  <div className={styles.skeletonLine} style={{ width: '90px', height: '12px' }} />
-                                </td>
-                                <td className={styles.skeletonCell}>
-                                  <div className={styles.skeletonLine} style={{ width: '85px', height: '12px' }} />
-                                </td>
-                                <td className={styles.skeletonCell}>
-                                  <div className={styles.skeletonPill} />
-                                </td>
-                                <td className={styles.skeletonCell}>
-                                  <div className={styles.skeletonLine} style={{ width: '100px', height: '11px' }} />
-                                </td>
+                                {/* Table / Area */}
                                 <td className={styles.skeletonCell}>
                                   <div className={styles.skeletonLine} style={{ width: '65px', height: '13px' }} />
                                 </td>
+                                {/* Customer Name + Phone */}
+                                <td className={styles.skeletonCell}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div className={styles.skeletonLine} style={{ width: sIdx % 2 === 0 ? '105px' : '85px', height: '13px' }} />
+                                    <div className={styles.skeletonLine} style={{ width: '65px', height: '10px', opacity: 0.65 }} />
+                                  </div>
+                                </td>
+                                {/* Items: Count + Preview */}
+                                <td className={styles.skeletonCell}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div className={styles.skeletonLine} style={{ width: '45px', height: '14px', borderRadius: '4px' }} />
+                                    <div className={styles.skeletonLine} style={{ width: '120px', height: '10px', opacity: 0.65 }} />
+                                  </div>
+                                </td>
+                                {/* Status Pill */}
+                                <td className={styles.skeletonCell}>
+                                  <div className={styles.skeletonPill} style={{ width: '70px', height: '22px' }} />
+                                </td>
+                                {/* Date & Time */}
+                                <td className={styles.skeletonCell}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div className={styles.skeletonLine} style={{ width: '65px', height: '12px' }} />
+                                    <div className={styles.skeletonLine} style={{ width: '55px', height: '10px', opacity: 0.65 }} />
+                                  </div>
+                                </td>
+                                {/* Total Amount */}
+                                <td className={styles.skeletonCell}>
+                                  <div className={styles.skeletonLine} style={{ width: '60px', height: '14px' }} />
+                                </td>
+                                {/* Action: View Button */}
                                 <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
-                                  <div className={styles.skeletonLine} style={{ width: '75px', height: '24px', margin: '0 auto', borderRadius: '7px' }} />
+                                  <div className={styles.skeletonLine} style={{ width: '78px', height: '24px', margin: '0 auto', borderRadius: '7px' }} />
                                 </td>
                               </tr>
                             ))
@@ -709,7 +729,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               </td>
                             </tr>
                           ) : (
-                            paginatedOrders.map(ord => {
+                            paginatedOrders.map((ord, idx) => {
                               const custName = ord.customerName || ord.customerDetails?.name || 'Guest Diner';
                               const custPhone = ord.customerPhone || ord.customerDetails?.phone;
                               const hasPhone = custPhone && custPhone !== '';
@@ -725,6 +745,9 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               return (
                                 <motion.tr
                                   key={ord._id}
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
                                   className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
                                   style={status === 'cancelled' ? { backgroundColor: 'rgba(254, 242, 242, 0.45)', cursor: 'default' } : {}}
                                   onClick={() => {

@@ -14,7 +14,8 @@ import {
   Calendar,
   FileSpreadsheet,
   Eye,
-  Clock
+  Clock,
+  Filter
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -53,6 +54,122 @@ export default function SalesSummary() {
 
   // Detail Modal for seeing exact bills of an item on a date
   const [selectedRow, setSelectedRow] = useState(null);
+
+  // Filter Modal & Draft States (Applied only on "Apply Filter")
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [draftSearch, setDraftSearch] = useState('');
+  const [draftDateFilter, setDraftDateFilter] = useState('all');
+  const [draftStartDate, setDraftStartDate] = useState('');
+  const [draftEndDate, setDraftEndDate] = useState('');
+  const [draftCategoryFilter, setDraftCategoryFilter] = useState('all');
+  const [draftStatusScope, setDraftStatusScope] = useState('completed');
+  const [draftGroupBy, setDraftGroupBy] = useState('date');
+  const [draftSortBy, setDraftSortBy] = useState('date_desc');
+
+  const handleOpenFilterModal = () => {
+    setDraftSearch(search);
+    setDraftDateFilter(dateFilter);
+    setDraftStartDate(startDate);
+    setDraftEndDate(endDate);
+    setDraftCategoryFilter(categoryFilter);
+    setDraftStatusScope(statusScope);
+    setDraftGroupBy(groupBy);
+    setDraftSortBy(sortBy);
+    setIsFilterModalOpen(true);
+  };
+
+  const handleApplyFilters = () => {
+    setSearch(draftSearch);
+    setDebouncedSearch(draftSearch);
+    setDateFilter(draftDateFilter);
+    setStartDate(draftStartDate);
+    setEndDate(draftEndDate);
+    setCategoryFilter(draftCategoryFilter);
+    setStatusScope(draftStatusScope);
+    setGroupBy(draftGroupBy);
+    setSortBy(draftSortBy);
+    setPage(1);
+    setIsFilterModalOpen(false);
+  };
+
+  const handleResetFilters = () => {
+    setDraftSearch('');
+    setDraftDateFilter('all');
+    setDraftStartDate('');
+    setDraftEndDate('');
+    setDraftCategoryFilter('all');
+    setDraftStatusScope('completed');
+    setDraftGroupBy('date');
+    setDraftSortBy('date_desc');
+    setSearch('');
+    setDebouncedSearch('');
+    setDateFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setCategoryFilter('all');
+    setStatusScope('completed');
+    setGroupBy('date');
+    setSortBy('date_desc');
+    setPage(1);
+    setIsFilterModalOpen(false);
+  };
+
+  const handleRemoveSearch = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setDraftSearch('');
+    setPage(1);
+  };
+
+  const handleRemoveDate = () => {
+    setDateFilter('all');
+    setDraftDateFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setDraftStartDate('');
+    setDraftEndDate('');
+    setPage(1);
+  };
+
+  const handleRemoveCategory = () => {
+    setCategoryFilter('all');
+    setDraftCategoryFilter('all');
+    setPage(1);
+  };
+
+  const handleRemoveGroupBy = () => {
+    setGroupBy('date');
+    setDraftGroupBy('date');
+    setPage(1);
+  };
+
+  const handleRemoveStatusScope = () => {
+    setStatusScope('completed');
+    setDraftStatusScope('completed');
+    setPage(1);
+  };
+
+  const handleRemoveSort = () => {
+    setSortBy('date_desc');
+    setDraftSortBy('date_desc');
+    setPage(1);
+  };
+
+  const activeFilterCount =
+    (search.trim() ? 1 : 0) +
+    (dateFilter !== 'all' ? 1 : 0) +
+    (categoryFilter !== 'all' ? 1 : 0) +
+    (groupBy !== 'date' ? 1 : 0) +
+    (statusScope !== 'completed' ? 1 : 0) +
+    (sortBy !== 'date_desc' ? 1 : 0);
+
+  const draftActiveCount =
+    (draftSearch.trim() ? 1 : 0) +
+    (draftDateFilter !== 'all' ? 1 : 0) +
+    (draftCategoryFilter !== 'all' ? 1 : 0) +
+    (draftGroupBy !== 'date' ? 1 : 0) +
+    (draftStatusScope !== 'completed' ? 1 : 0) +
+    (draftSortBy !== 'date_desc' ? 1 : 0);
 
   // Debounce search input
   useEffect(() => {
@@ -231,153 +348,26 @@ export default function SalesSummary() {
           <h2 className={styles.title}>Item Summary</h2>
         </div>
 
-        <div className={styles.headerActions} style={{ flexWrap: 'wrap' }}>
-          {/* Search Input */}
-          <div style={{ position: 'relative' }}>
-            <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              placeholder="Search item or date..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                padding: '0.4rem 1.6rem 0.4rem 1.8rem',
-                borderRadius: '7px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.76rem',
-                outline: 'none',
-                width: '170px',
-                background: '#ffffff'
-              }}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-              >
-                <X size={12} />
-              </button>
+        <div className={styles.headerActions}>
+          {/* Single Filter Trigger Button */}
+          <button
+            type="button"
+            className={`${styles.btnSecondary} ${activeFilterCount > 0 ? styles.btnFilterActive : ''}`}
+            onClick={handleOpenFilterModal}
+            title="Filter Summary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            <Filter size={13} color={activeFilterCount > 0 ? '#2563eb' : '#475569'} />
+            <span>Filter</span>
+            {activeFilterCount > 0 && (
+              <span className={styles.filterBadgeCount}>{activeFilterCount}</span>
             )}
-          </div>
-
-          {/* Date Preset Filter */}
-          <select
-            value={dateFilter}
-            onChange={(e) => handleDateFilterChange(e.target.value)}
-            className={styles.btnSecondary}
-            style={{ outline: 'none' }}
-          >
-            <option value="all">All Dates</option>
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-            <option value="this_month">This Month</option>
-            <option value="custom">Custom Range</option>
-          </select>
-
-          {/* Clean Custom Date Range Pickers */}
-          {dateFilter === 'custom' && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '7px', padding: '0.26rem 0.55rem' }}>
-              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>From</span>
-              <input
-                type="date"
-                value={startDate}
-                max={endDate || undefined}
-                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                style={{ border: 'none', fontSize: '0.74rem', fontWeight: 600, color: '#0f172a', outline: 'none', background: 'transparent' }}
-              />
-              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>To</span>
-              <input
-                type="date"
-                value={endDate}
-                min={startDate || undefined}
-                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                style={{ border: 'none', fontSize: '0.74rem', fontWeight: 600, color: '#0f172a', outline: 'none', background: 'transparent' }}
-              />
-              <button
-                type="button"
-                onClick={() => handleDateFilterChange('all')}
-                title="Clear custom range"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 2px', display: 'flex', alignItems: 'center' }}
-              >
-                <X size={13} />
-              </button>
-            </div>
-          )}
-
-          {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-            className={styles.btnSecondary}
-            style={{ outline: 'none' }}
-          >
-            <option value="all">All Categories</option>
-            {categories.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-
-          {/* View Grouping Toggle: Date Grouped vs Item-Wise */}
-          <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: '7px', padding: '2px', border: '1px solid #cbd5e1' }}>
-            <button
-              type="button"
-              onClick={() => { setGroupBy('date'); setPage(1); }}
-              style={{
-                border: 'none',
-                borderRadius: '5px',
-                padding: '0.3rem 0.65rem',
-                fontSize: '0.73rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                background: groupBy === 'date' ? '#2563eb' : 'transparent',
-                color: groupBy === 'date' ? '#ffffff' : '#475569'
-              }}
-            >
-              Date Grouped
-            </button>
-            <button
-              type="button"
-              onClick={() => { setGroupBy('item'); setPage(1); }}
-              style={{
-                border: 'none',
-                borderRadius: '5px',
-                padding: '0.3rem 0.65rem',
-                fontSize: '0.73rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                background: groupBy === 'item' ? '#2563eb' : 'transparent',
-                color: groupBy === 'item' ? '#ffffff' : '#475569'
-              }}
-            >
-              Item-Wise
-            </button>
-          </div>
-
-          {/* Order Status Scope Filter */}
-          <select
-            value={statusScope}
-            onChange={(e) => { setStatusScope(e.target.value); setPage(1); }}
-            className={styles.btnSecondary}
-            style={{ outline: 'none' }}
-          >
-            <option value="completed">Completed Bills</option>
-            <option value="all">All Active + Completed</option>
-          </select>
-
-          {/* Sort Filter */}
-          <select
-            value={sortBy}
-            onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-            className={styles.btnSecondary}
-            style={{ outline: 'none' }}
-          >
-            <option value="date_desc">Newest Date</option>
-            <option value="qty_desc">Highest Qty</option>
-            <option value="sales_desc">Highest Sales</option>
-          </select>
+          </button>
 
           <button
             type="button"
@@ -400,75 +390,199 @@ export default function SalesSummary() {
         </div>
       </div>
 
+      {/* ── Active Filter Pills Bar (Quick Remove) ── */}
+      {activeFilterCount > 0 && (
+        <div className={styles.activeFilterPillsBar} style={{ margin: '0 0 0.55rem 0', borderRadius: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
+          {search.trim() && (
+            <span className={styles.filterChip}>
+              Search: "{search}"
+              <button type="button" onClick={handleRemoveSearch} className={styles.filterChipRemove} title="Clear search">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {dateFilter !== 'all' && (
+            <span className={styles.filterChip}>
+              Date: {dateFilter === 'custom' ? `${startDate || '...'} to ${endDate || '...'}` : dateFilter.replace('_', ' ')}
+              <button type="button" onClick={handleRemoveDate} className={styles.filterChipRemove} title="Clear date filter">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {categoryFilter !== 'all' && (
+            <span className={styles.filterChip}>
+              Category: {categoryFilter}
+              <button type="button" onClick={handleRemoveCategory} className={styles.filterChipRemove} title="Clear category filter">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {groupBy !== 'date' && (
+            <span className={styles.filterChip}>
+              View: Item-Wise
+              <button type="button" onClick={handleRemoveGroupBy} className={styles.filterChipRemove} title="Reset view to date grouped">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {statusScope !== 'completed' && (
+            <span className={styles.filterChip}>
+              Status: All Active + Completed
+              <button type="button" onClick={handleRemoveStatusScope} className={styles.filterChipRemove} title="Reset status to completed bills">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {sortBy !== 'date_desc' && (
+            <span className={styles.filterChip}>
+              Sort: {sortBy === 'qty_desc' ? 'Highest Qty' : 'Highest Sales'}
+              <button type="button" onClick={handleRemoveSort} className={styles.filterChipRemove} title="Reset sort order">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ef4444',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: '2px 4px',
+              marginLeft: 'auto'
+            }}
+          >
+            Clear All
+          </button>
+        </div>
+      )}
+
       {/* ── Top KPI Ribbon Cards ── */}
       <div className={styles.compactKpiRibbon} style={{ flexShrink: 0 }}>
-        <div className={styles.miniKpiCard}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.03 }}
+          className={styles.miniKpiCard}
+        >
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Total Sales</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{formatCurrency(kpi.totalRevenue)}</span>
-              <span className={styles.miniKpiSub}>({kpi.totalBills} Bills)</span>
+              {isLoading && kpi.totalRevenue === 0 ? (
+                <div className={styles.skeletonLine} style={{ width: '90px', height: '18px', marginTop: '3px' }} />
+              ) : (
+                <>
+                  <span className={styles.miniKpiVal}>{formatCurrency(kpi.totalRevenue)}</span>
+                  <span className={styles.miniKpiSub}>({kpi.totalBills} Bills)</span>
+                </>
+              )}
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconIndigo}`}>
             <IndianRupee size={16} />
           </div>
-        </div>
+        </motion.div>
 
-        <div className={styles.miniKpiCard}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.07 }}
+          className={styles.miniKpiCard}
+        >
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Total Items Sold</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{kpi.totalUnits}</span>
-              <span className={styles.miniKpiSub}>Units</span>
+              {isLoading && kpi.totalRevenue === 0 ? (
+                <div className={styles.skeletonLine} style={{ width: '65px', height: '18px', marginTop: '3px' }} />
+              ) : (
+                <>
+                  <span className={styles.miniKpiVal}>{kpi.totalUnits}</span>
+                  <span className={styles.miniKpiSub}>Units</span>
+                </>
+              )}
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconEmerald}`}>
             <ShoppingBag size={16} />
           </div>
-        </div>
+        </motion.div>
 
-        <div className={styles.miniKpiCard}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.11 }}
+          className={styles.miniKpiCard}
+        >
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Unique Dishes</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{kpi.uniqueDishes}</span>
-              <span className={styles.miniKpiSub}>Menu Items</span>
+              {isLoading && kpi.totalRevenue === 0 ? (
+                <div className={styles.skeletonLine} style={{ width: '70px', height: '18px', marginTop: '3px' }} />
+              ) : (
+                <>
+                  <span className={styles.miniKpiVal}>{kpi.uniqueDishes}</span>
+                  <span className={styles.miniKpiSub}>Menu Items</span>
+                </>
+              )}
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconAmber}`}>
             <Utensils size={16} />
           </div>
-        </div>
+        </motion.div>
 
-        <div className={styles.miniKpiCard}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.15 }}
+          className={styles.miniKpiCard}
+        >
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Average Order Value</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal}>{formatCurrency(kpi.aov)}</span>
+              {isLoading && kpi.totalRevenue === 0 ? (
+                <div className={styles.skeletonLine} style={{ width: '60px', height: '18px', marginTop: '3px' }} />
+              ) : (
+                <span className={styles.miniKpiVal}>{formatCurrency(kpi.aov)}</span>
+              )}
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconRose}`}>
             <Receipt size={16} />
           </div>
-        </div>
+        </motion.div>
 
-        <div className={styles.miniKpiCard}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.19 }}
+          className={styles.miniKpiCard}
+        >
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel}>Top Selling Item</span>
             <div className={styles.miniKpiValueRow}>
-              <span className={styles.miniKpiVal} style={{ fontSize: '0.88rem', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {kpi.topDish ? kpi.topDish.name : '—'}
-              </span>
-              {kpi.topDish && (
-                <span className={styles.miniKpiSub}>(×{kpi.topDish.qty})</span>
+              {isLoading && kpi.totalRevenue === 0 ? (
+                <div className={styles.skeletonLine} style={{ width: '85px', height: '18px', marginTop: '3px' }} />
+              ) : (
+                <>
+                  <span className={styles.miniKpiVal} style={{ fontSize: '0.88rem', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {kpi.topDish ? kpi.topDish.name : '—'}
+                  </span>
+                  {kpi.topDish && (
+                    <span className={styles.miniKpiSub}>(×{kpi.topDish.qty})</span>
+                  )}
+                </>
               )}
             </div>
           </div>
           <div className={`${styles.miniKpiIcon} ${styles.iconEmerald}`}>
             <Award size={16} />
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Full-Width Table Card (Only List Scrolls Internally) ── */}
@@ -487,101 +601,246 @@ export default function SalesSummary() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={groupBy === 'item' ? 7 : 6} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
-                    {isLoading ? 'Loading item summary...' : 'No item sales found for the selected filter.'}
-                  </td>
-                </tr>
-              ) : groupBy === 'date' ? (
-                groupedByDate.map((group) => (
-                  <React.Fragment key={group.dateKey}>
-                    {/* Date Group Header Row */}
+              {isLoading ? (
+                groupBy === 'date' ? (
+                  <>
+                    {/* Skeleton Date Group 1 Header */}
                     <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
-                      <td colSpan={6} style={{ padding: '8px 16px', fontWeight: 800, color: '#0f172a', fontSize: '0.8rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <Calendar size={14} color="#2563eb" />
-                            {formatDisplayDate(group.dateKey)}
-                            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginLeft: '4px' }}>
-                              ({group.items.length} {group.items.length === 1 ? 'Item' : 'Items'})
-                            </span>
-                          </span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
-                            <span style={{ color: '#2563eb', fontWeight: 700 }}>×{group.totalQty} Units</span>
-                            <span style={{ color: '#0f172a', fontWeight: 800 }}>{formatCurrency(Math.round(group.totalSales))}</span>
-                          </span>
+                      <td colSpan={6} style={{ padding: '8px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.skeletonLine} style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '110px', height: '14px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '60px', height: '12px' }} />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div className={styles.skeletonLine} style={{ width: '60px', height: '13px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '75px', height: '15px' }} />
+                          </div>
                         </div>
                       </td>
                     </tr>
-                    {group.items.map((row) => (
-                      <tr key={`${row.dateKey}_${row.name}_${row.variant || ''}`} className={styles.tr}>
-                        <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b', paddingLeft: '28px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span>{row.name}</span>
-                            {row.variant && (
-                              <span style={{
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                padding: '1px 6px',
-                                borderRadius: '5px',
-                                background: '#eef2ff',
-                                color: '#4338ca'
-                              }}>
-                                {row.variant}
-                              </span>
-                            )}
+                    {/* Item Rows for Group 1 */}
+                    {[1, 2, 3].map((sKey) => (
+                      <tr key={`sg1-${sKey}`} className={styles.skeletonRow}>
+                        <td className={styles.skeletonCell} style={{ paddingLeft: '28px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.skeletonLine} style={{ width: sKey % 2 === 0 ? '140px' : '110px', height: '14px' }} />
+                            <div className={styles.skeletonPill} style={{ width: '45px', height: '16px', borderRadius: '5px' }} />
                           </div>
                         </td>
-                        <td className={styles.td}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            background: '#f1f5f9',
-                            color: '#475569'
-                          }}>
-                            {row.category || 'General'}
-                          </span>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonPill} style={{ width: '55px', height: '20px', borderRadius: '6px' }} />
                         </td>
-                        <td className={styles.td} style={{ textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '2px 9px',
-                            borderRadius: '100px',
-                            fontSize: '0.74rem',
-                            fontWeight: 800,
-                            background: '#eff6ff',
-                            color: '#2563eb'
-                          }}>
-                            ×{row.qty}
-                          </span>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonLine} style={{ width: '36px', height: '20px', margin: '0 auto', borderRadius: '100px' }} />
                         </td>
-                        <td className={styles.td} style={{ textAlign: 'right', color: '#64748b' }}>
-                          {formatCurrency(Math.round(row.unitPrice || 0))}
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '48px', height: '13px', marginLeft: 'auto' }} />
                         </td>
-                        <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', paddingRight: '20px' }}>
-                          {formatCurrency(Math.round(row.totalSales || 0))}
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right', paddingRight: '20px' }}>
+                          <div className={styles.skeletonLine} style={{ width: '62px', height: '14px', marginLeft: 'auto' }} />
                         </td>
-                        <td className={styles.td} style={{ textAlign: 'center', paddingRight: '16px' }}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRow(row)}
-                            className={styles.btnSecondary}
-                            style={{ padding: '3px 9px', fontSize: '0.72rem', margin: '0 auto' }}
-                          >
-                            <Eye size={12} /> View ({row.orders?.length || 0})
-                          </button>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center', paddingRight: '16px' }}>
+                          <div className={styles.skeletonLine} style={{ width: '72px', height: '24px', margin: '0 auto', borderRadius: '6px' }} />
                         </td>
                       </tr>
                     ))}
-                  </React.Fragment>
-                ))
+
+                    {/* Skeleton Date Group 2 Header */}
+                    <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+                      <td colSpan={6} style={{ padding: '8px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.skeletonLine} style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '110px', height: '14px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '60px', height: '12px' }} />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div className={styles.skeletonLine} style={{ width: '60px', height: '13px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '75px', height: '15px' }} />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Item Rows for Group 2 */}
+                    {[1, 2, 3].map((sKey) => (
+                      <tr key={`sg2-${sKey}`} className={styles.skeletonRow}>
+                        <td className={styles.skeletonCell} style={{ paddingLeft: '28px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.skeletonLine} style={{ width: sKey % 2 === 0 ? '125px' : '150px', height: '14px' }} />
+                            <div className={styles.skeletonPill} style={{ width: '45px', height: '16px', borderRadius: '5px' }} />
+                          </div>
+                        </td>
+                        <td className={styles.skeletonCell}>
+                          <div className={styles.skeletonPill} style={{ width: '55px', height: '20px', borderRadius: '6px' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                          <div className={styles.skeletonLine} style={{ width: '36px', height: '20px', margin: '0 auto', borderRadius: '100px' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                          <div className={styles.skeletonLine} style={{ width: '48px', height: '13px', marginLeft: 'auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'right', paddingRight: '20px' }}>
+                          <div className={styles.skeletonLine} style={{ width: '62px', height: '14px', marginLeft: 'auto' }} />
+                        </td>
+                        <td className={styles.skeletonCell} style={{ textAlign: 'center', paddingRight: '16px' }}>
+                          <div className={styles.skeletonLine} style={{ width: '72px', height: '24px', margin: '0 auto', borderRadius: '6px' }} />
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                ) : (
+                  Array.from({ length: 8 }).map((_, sIdx) => (
+                    <tr key={`sitem-${sIdx}`} className={styles.skeletonRow}>
+                      <td className={styles.skeletonCell} style={{ paddingLeft: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className={styles.skeletonLine} style={{ width: sIdx % 2 === 0 ? '135px' : '110px', height: '14px' }} />
+                          <div className={styles.skeletonPill} style={{ width: '45px', height: '16px', borderRadius: '5px' }} />
+                        </div>
+                      </td>
+                      <td className={styles.skeletonCell}>
+                        <div className={styles.skeletonPill} style={{ width: '55px', height: '20px', borderRadius: '6px' }} />
+                      </td>
+                      <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                        <div className={styles.skeletonLine} style={{ width: '42px', height: '18px', margin: '0 auto', borderRadius: '6px' }} />
+                      </td>
+                      <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                        <div className={styles.skeletonLine} style={{ width: '36px', height: '20px', margin: '0 auto', borderRadius: '100px' }} />
+                      </td>
+                      <td className={styles.skeletonCell} style={{ textAlign: 'right' }}>
+                        <div className={styles.skeletonLine} style={{ width: '48px', height: '13px', marginLeft: 'auto' }} />
+                      </td>
+                      <td className={styles.skeletonCell} style={{ textAlign: 'right', paddingRight: '20px' }}>
+                        <div className={styles.skeletonLine} style={{ width: '62px', height: '14px', marginLeft: 'auto' }} />
+                      </td>
+                      <td className={styles.skeletonCell} style={{ textAlign: 'center', paddingRight: '16px' }}>
+                        <div className={styles.skeletonLine} style={{ width: '72px', height: '24px', margin: '0 auto', borderRadius: '6px' }} />
+                      </td>
+                    </tr>
+                  ))
+                )
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={groupBy === 'item' ? 7 : 6} className={styles.td} style={{ textAlign: 'center', padding: '5rem 1rem', color: '#94a3b8', fontSize: '0.85rem', borderBottom: 'none' }}>
+                    No item sales found for the selected filter.
+                  </td>
+                </tr>
+              ) : groupBy === 'date' ? (
+                (() => {
+                  let rowCounter = 0;
+                  return groupedByDate.map((group) => {
+                    const groupIdx = rowCounter++;
+                    return (
+                      <React.Fragment key={group.dateKey}>
+                        {/* Date Group Header Row */}
+                        <motion.tr
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.22, delay: Math.min(groupIdx * 0.025, 0.35) }}
+                          style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}
+                        >
+                          <td colSpan={6} style={{ padding: '8px 16px', fontWeight: 800, color: '#0f172a', fontSize: '0.8rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <Calendar size={14} color="#2563eb" />
+                                {formatDisplayDate(group.dateKey)}
+                                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginLeft: '4px' }}>
+                                  ({group.items.length} {group.items.length === 1 ? 'Item' : 'Items'})
+                                </span>
+                              </span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
+                                <span style={{ color: '#2563eb', fontWeight: 700 }}>×{group.totalQty} Units</span>
+                                <span style={{ color: '#0f172a', fontWeight: 800 }}>{formatCurrency(Math.round(group.totalSales))}</span>
+                              </span>
+                            </div>
+                          </td>
+                        </motion.tr>
+                        {group.items.map((row) => {
+                          const itemIdx = rowCounter++;
+                          return (
+                            <motion.tr
+                              key={`${row.dateKey}_${row.name}_${row.variant || ''}`}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.22, delay: Math.min(itemIdx * 0.025, 0.4) }}
+                              className={styles.tr}
+                            >
+                              <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b', paddingLeft: '28px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span>{row.name}</span>
+                                  {row.variant && (
+                                    <span style={{
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      padding: '1px 6px',
+                                      borderRadius: '5px',
+                                      background: '#eef2ff',
+                                      color: '#4338ca'
+                                    }}>
+                                      {row.variant}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={styles.td}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  background: '#f1f5f9',
+                                  color: '#475569'
+                                }}>
+                                  {row.category || 'General'}
+                                </span>
+                              </td>
+                              <td className={styles.td} style={{ textAlign: 'center' }}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '2px 9px',
+                                  borderRadius: '100px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#eff6ff',
+                                  color: '#2563eb'
+                                }}>
+                                  ×{row.qty}
+                                </span>
+                              </td>
+                              <td className={styles.td} style={{ textAlign: 'right', color: '#64748b' }}>
+                                {formatCurrency(Math.round(row.unitPrice || 0))}
+                              </td>
+                              <td className={styles.td} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', paddingRight: '20px' }}>
+                                {formatCurrency(Math.round(row.totalSales || 0))}
+                              </td>
+                              <td className={styles.td} style={{ textAlign: 'center', paddingRight: '16px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedRow(row)}
+                                  className={styles.btnSecondary}
+                                  style={{ padding: '3px 9px', fontSize: '0.72rem', margin: '0 auto' }}
+                                >
+                                  <Eye size={12} /> View ({row.orders?.length || 0})
+                                </button>
+                              </td>
+                            </motion.tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  });
+                })()
               ) : (
-                rows.map((row) => (
-                  <tr key={`${row.name}_${row.variant || ''}`} className={styles.tr}>
+                rows.map((row, idx) => (
+                  <motion.tr
+                    key={`${row.name}_${row.variant || ''}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, delay: Math.min(idx * 0.025, 0.4) }}
+                    className={styles.tr}
+                  >
                     <td className={styles.td} style={{ fontWeight: 700, color: '#1e293b', paddingLeft: '16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span>{row.name}</span>
@@ -644,7 +903,7 @@ export default function SalesSummary() {
                         <Eye size={12} /> View ({row.orders?.length || 0})
                       </button>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))
               )}
             </tbody>
@@ -685,6 +944,233 @@ export default function SalesSummary() {
           )}
         </div>
       </div>
+
+      {/* ── Filter Popup Modal ── */}
+      <AnimatePresence>
+        {isFilterModalOpen && (
+          <div className={styles.filterModalOverlay} onClick={() => setIsFilterModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.16 }}
+              className={styles.filterModalCard}
+              style={{ maxWidth: '480px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.filterModalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Filter size={16} color="#2563eb" />
+                  <h3 className={styles.filterModalTitle}>Filter Item Summary</h3>
+                  {draftActiveCount > 0 && (
+                    <span className={styles.filterBadgeCount}>{draftActiveCount} active</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className={styles.modalCloseBtn}
+                  title="Close"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className={styles.filterModalBody}>
+                {/* Search */}
+                <div className={styles.filterGroup}>
+                  <label className={styles.filterLabel}>Search Item or Date</label>
+                  <div className={styles.modalSearchWrap}>
+                    <Search size={14} color="#94a3b8" />
+                    <input
+                      type="text"
+                      placeholder="Search item name, category, or date..."
+                      value={draftSearch}
+                      onChange={(e) => setDraftSearch(e.target.value)}
+                      className={styles.modalSearchInput}
+                    />
+                    {draftSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setDraftSearch('')}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Date Preset */}
+                <div className={styles.filterGroup}>
+                  <label className={styles.filterLabel}>Date Preset</label>
+                  <select
+                    value={draftDateFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDraftDateFilter(val);
+                      if (val !== 'custom') {
+                        setDraftStartDate('');
+                        setDraftEndDate('');
+                      } else if (!draftStartDate && !draftEndDate) {
+                        const today = new Date().toISOString().slice(0, 10);
+                        setDraftStartDate(today);
+                        setDraftEndDate(today);
+                      }
+                    }}
+                    className={styles.modalSelectField}
+                  >
+                    <option value="all">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="this_month">This Month</option>
+                    <option value="custom">Custom Date Range</option>
+                  </select>
+                </div>
+
+                {/* Custom Date Pickers */}
+                {draftDateFilter === 'custom' && (
+                  <div className={styles.filterGrid} style={{ marginTop: '-4px' }}>
+                    <div className={styles.filterGroup}>
+                      <label className={styles.filterLabel} style={{ fontSize: '0.68rem', color: '#64748b' }}>Start Date</label>
+                      <input
+                        type="date"
+                        value={draftStartDate}
+                        max={draftEndDate || undefined}
+                        onChange={(e) => setDraftStartDate(e.target.value)}
+                        className={styles.modalSelectField}
+                        style={{ fontSize: '0.78rem' }}
+                      />
+                    </div>
+                    <div className={styles.filterGroup}>
+                      <label className={styles.filterLabel} style={{ fontSize: '0.68rem', color: '#64748b' }}>End Date</label>
+                      <input
+                        type="date"
+                        value={draftEndDate}
+                        min={draftStartDate || undefined}
+                        onChange={(e) => setDraftEndDate(e.target.value)}
+                        className={styles.modalSelectField}
+                        style={{ fontSize: '0.78rem' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Category & Status */}
+                <div className={styles.filterGrid}>
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Category</label>
+                    <select
+                      value={draftCategoryFilter}
+                      onChange={(e) => setDraftCategoryFilter(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Categories</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Bill Status</label>
+                    <select
+                      value={draftStatusScope}
+                      onChange={(e) => setDraftStatusScope(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="completed">Completed Bills</option>
+                      <option value="all">All Active + Completed</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Grouping & Sort */}
+                <div className={styles.filterGrid}>
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Grouping</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <button
+                        type="button"
+                        onClick={() => setDraftGroupBy('date')}
+                        style={{
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.38rem 0.5rem',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          background: draftGroupBy === 'date' ? '#2563eb' : 'transparent',
+                          color: draftGroupBy === 'date' ? '#ffffff' : '#64748b',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        Date Grouped
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraftGroupBy('item')}
+                        style={{
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.38rem 0.5rem',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          background: draftGroupBy === 'item' ? '#2563eb' : 'transparent',
+                          color: draftGroupBy === 'item' ? '#ffffff' : '#64748b',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        Item-Wise
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Sort Order</label>
+                    <select
+                      value={draftSortBy}
+                      onChange={(e) => setDraftSortBy(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="date_desc">Newest Date</option>
+                      <option value="qty_desc">Highest Qty</option>
+                      <option value="sales_desc">Highest Sales</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.filterModalFooter}>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className={styles.filterResetBtn}
+                  disabled={draftActiveCount === 0 && activeFilterCount === 0}
+                >
+                  Reset Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  className={styles.filterApplyBtn}
+                  disabled={isLoading}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  {isLoading ? <RefreshCw size={13} className="animate-spin" /> : <Filter size={13} />}
+                  <span>{isLoading ? 'Applying...' : 'Apply Filter'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Item Sale Bills Modal */}
       <AnimatePresence>

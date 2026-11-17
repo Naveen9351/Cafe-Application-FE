@@ -187,17 +187,17 @@
     display: flex;
     align-items: center;
     gap: 0.55rem;
-    padding: 0.4rem 0.55rem;
-    border-radius: 6px;
+    padding: 0.44rem 0.65rem;
+    border-radius: 8px;
     color: #64748b;
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 500;
     width: 100%;
     text-align: left;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
     white-space: nowrap;
     overflow: hidden;
 }
@@ -205,12 +205,13 @@
 .navItem:hover {
     background: #f8fafc;
     color: #0f172a;
+    transform: translateX(2px);
 }
 
 .activeNavItem {
     background: #4f46e5 !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
     border-color: #4338ca !important;
 }
 
@@ -2034,7 +2035,7 @@
 
 .exploreKpiLabel {
     font-size: 0.72rem;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     color: #64748b;
     letter-spacing: 0.4px;
@@ -2042,7 +2043,7 @@
 
 .exploreKpiValue {
     font-size: 1.35rem;
-    font-weight: 800;
+    font-weight: 600;
     color: #0f172a;
 }
 
@@ -2528,7 +2529,7 @@
 
 .exploreKpiLabel {
     font-size: 0.72rem;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     color: #64748b;
     letter-spacing: 0.4px;
@@ -2536,7 +2537,7 @@
 
 .exploreKpiValue {
     font-size: 1.35rem;
-    font-weight: 800;
+    font-weight: 600;
     color: #0f172a;
 }
 

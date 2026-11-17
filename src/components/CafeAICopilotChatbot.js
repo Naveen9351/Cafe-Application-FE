@@ -229,8 +229,9 @@ const TypewriterMessage = ({ text, isTyping, onComplete, onTick }) => {
   );
 };
 
-export const KHUSHI_AVATAR_URL = 'https://cdnai.iconscout.com/ai-image/premium/thumb/ai-insurance-agent-id-3d-icon-png-download-jpg-13717616.png';
-const SESSION_CHAT_KEY = 'serviq_khushi_chat_history';
+export const AI_AVATAR_URL = 'https://cdnai.iconscout.com/ai-image/premium/thumb/ai-insurance-agent-id-3d-icon-png-download-jpg-13717616.png';
+export const KHUSHI_AVATAR_URL = AI_AVATAR_URL;
+const SESSION_CHAT_KEY = 'dineviq_ai_chat_history_v2';
 
 const defaultGreeting = {
   role: 'assistant',
@@ -266,10 +267,17 @@ export default function CafeAICopilotChatbot({
   // Load chat messages from sessionStorage so data is retained across drawer open/close
   const [messages, setMessages] = useState(() => {
     try {
+      // Clear legacy storage key if present
+      sessionStorage.removeItem('serviq_khushi_chat_history');
       const saved = sessionStorage.getItem(SESSION_CHAT_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(m => ({
+            ...m,
+            text: typeof m.text === 'string' ? m.text.replace(/Khushi\s*AI/gi, 'DineviQ AI') : m.text
+          }));
+        }
       }
     } catch (e) {
       console.warn('Session chat load error:', e);
@@ -481,7 +489,6 @@ export default function CafeAICopilotChatbot({
             alt="DineviQ AI Bot"
             className={styles.launcherAvatarImg}
           />
-          <span className={styles.floatingLabelPill}>DineviQ AI Bot</span>
         </button>
       )}
 

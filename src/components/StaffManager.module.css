@@ -150,7 +150,7 @@
   padding: 3px 9px;
   border-radius: 20px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: capitalize;
 }
 
@@ -165,7 +165,7 @@
   align-items: center;
   gap: 5px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .statusActive { color: #16a34a; }
@@ -283,7 +283,7 @@
 
 .formGroup label {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   color: #334155;
 }
 
@@ -314,7 +314,7 @@
   background: #f8fafc;
   color: #475569;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }

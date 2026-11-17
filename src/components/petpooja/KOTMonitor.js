@@ -460,14 +460,17 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                 </div>
 
                 <div className={styles.ticketsList}>
-                  {newOrders.map(order => {
+                  {newOrders.map((order, idx) => {
                     const elapsedMins = getElapsedMinutes(order.createdAt);
                     const isLate = elapsedMins >= 15;
                     const isDraggingThis = draggedOrder?._id === order._id;
 
                     return (
-                      <div
+                      <motion.div
                         key={order._id}
+                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.22, delay: Math.min(idx * 0.04, 0.3) }}
                         draggable
                         onDragStart={(e) => handleDragStart(e, order)}
                         onDragEnd={handleDragEnd}
@@ -547,7 +550,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                   {newOrders.length === 0 && (
@@ -574,15 +577,18 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                 </div>
 
                 <div className={styles.ticketsList}>
-                  {inKitchenOrders.map(order => {
+                  {inKitchenOrders.map((order, idx) => {
                     const targetMins = order.estimatedTime || 20;
                     const elapsedMins = getElapsedMinutes(order.createdAt);
                     const isLate = elapsedMins >= targetMins;
                     const isDraggingThis = draggedOrder?._id === order._id;
 
                     return (
-                      <div
+                      <motion.div
                         key={order._id}
+                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.22, delay: Math.min(idx * 0.04, 0.3) }}
                         draggable
                         onDragStart={(e) => handleDragStart(e, order)}
                         onDragEnd={handleDragEnd}
@@ -668,7 +674,7 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                   {inKitchenOrders.length === 0 && (

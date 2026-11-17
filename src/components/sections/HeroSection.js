@@ -217,7 +217,7 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
               <div className={styles.imageShowcaseWrapper}>
                 <img
                   src={heroImg}
-                  alt="DINEVIQ AI OS — Kitchen KDS, QR Dining, Khushi AI, UPI Billing & Inventory Ecosystem"
+                  alt="DINEVIQ AI OS — Kitchen KDS, QR Dining, DineviQ AI, UPI Billing & Inventory Ecosystem"
                   className={styles.heroEcosystemImg}
                   loading="eager"
                   fetchPriority="high"

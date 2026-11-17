@@ -177,7 +177,6 @@ export default function LandingChatbot({ onOpenDemo }) {
             className={styles.launcherAvatarImg}
           />
           <span className={styles.onlineDot} />
-          <span className={styles.floatingLabelPill}>DineviQ AI Bot</span>
         </button>
       )}
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Shield, Check, X, Edit, Trash2, Key, UserCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
+import { TableRowSkeleton } from './common/SkeletonLoader';
 import styles from './StaffManager.module.css';
 
 const ROLE_PRESETS = {
@@ -310,14 +312,7 @@ export default function StaffManager() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                      <Loader2 size={30} color="#4f46e5" style={{ animation: 'spin 1s linear infinite' }} />
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Loading staff directory...</span>
-                    </div>
-                  </td>
-                </tr>
+                <TableRowSkeleton rows={4} cols={6} />
               ) : staffList.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
@@ -325,15 +320,20 @@ export default function StaffManager() {
                   </td>
                 </tr>
               ) : (
-                staffList.map((staff) => (
-                  <tr key={staff._id}>
+                staffList.map((staff, idx) => (
+                  <motion.tr
+                    key={staff._id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, delay: Math.min(idx * 0.04, 0.3) }}
+                  >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div className={styles.staffAvatar}>
                           {staff.fullName ? staff.fullName.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, color: '#0f172a' }}>{staff.fullName}</div>
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{staff.fullName}</div>
                           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                             {staff.username?.includes('@') ? staff.username : `@${staff.username}`}
                           </div>
@@ -423,7 +423,7 @@ export default function StaffManager() {
                         )}
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))
               )}
             </tbody>

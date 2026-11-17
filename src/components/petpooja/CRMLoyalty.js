@@ -912,13 +912,37 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
 
       {/* ── Top Header Row ── */}
-      <div className={styles.headerRow}>
-        <div className={styles.titleArea}>
+      <div className={styles.headerRow} style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+        <div className={styles.titleArea} style={{ flexShrink: 0 }}>
           <div className={styles.brandIconWrap}>
             <Users size={20} />
           </div>
           <div>
             <h2 className={styles.title}>Customer Directory</h2>
+          </div>
+        </div>
+
+        {/* ── Inline Metrics in Empty Space (Requested in Header Row) ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+          <div className={styles.totalOrdersLedgerBadge}>
+            <Users size={13} color="#059669" />
+            <span>All Guests</span>
+            <span className={styles.totalOrdersLedgerCount}>{filteredCustomers.length}</span>
+          </div>
+
+          <div className={styles.inlineMetricItem}>
+            <span className={styles.inlineMetricLabel}>Total Spend:</span>
+            <span className={styles.inlineMetricVal}>{formatCurrency(metrics.totalSpend)}</span>
+          </div>
+
+          <div className={styles.inlineMetricItem}>
+            <span className={styles.inlineMetricLabel}>AOV:</span>
+            <span className={styles.inlineMetricVal}>{formatCurrency(metrics.overallAov)}</span>
+          </div>
+
+          <div className={styles.inlineMetricItem}>
+            <span className={styles.inlineMetricLabel}>Orders:</span>
+            <span className={styles.inlineMetricVal}>{metrics.totalOrders} ({metrics.repeatRate}% repeat)</span>
           </div>
         </div>
 
@@ -968,64 +992,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
       {/* ── Full-Width Maximized Customer Table Card ── */}
       <div className={styles.fullWidthCard}>
-        {/* Unified Toolbar with Compact Inline Metrics (Matching Orders Clean Layout) */}
-        <div className={styles.unifiedToolbar}>
-          {/* Left: Compact Badge + Total Spend + AOV + Repeat Orders */}
-          <div className={styles.toolbarLeft}>
-            <div className={styles.totalOrdersLedgerBadge}>
-              <Users size={14} color="#059669" />
-              <span>All Guests</span>
-              <span className={styles.totalOrdersLedgerCount}>{filteredCustomers.length}</span>
-            </div>
-
-            <div className={styles.inlineMetricItem}>
-              <span className={styles.inlineMetricLabel}>Total Spend:</span>
-              <span className={styles.inlineMetricVal}>{formatCurrency(metrics.totalSpend)}</span>
-            </div>
-
-            <div className={styles.inlineMetricItem}>
-              <span className={styles.inlineMetricLabel}>AOV:</span>
-              <span className={styles.inlineMetricVal}>{formatCurrency(metrics.overallAov)}</span>
-            </div>
-
-            <div className={styles.inlineMetricItem}>
-              <span className={styles.inlineMetricLabel}>Orders:</span>
-              <span className={styles.inlineMetricVal}>{metrics.totalOrders} ({metrics.repeatRate}% repeat)</span>
-            </div>
-          </div>
-
-          {/* Search & Filter Toolbar Right */}
-          <div className={styles.toolbarRight}>
-            <div className={styles.searchField}>
-              <Search size={13} className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search name, phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={styles.inputField}
-              />
-              {searchQuery && (
-                <button className={styles.clearBtn} onClick={() => setSearchQuery('')}>
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className={`${styles.filterIconButton} ${activeFilterCount > 0 ? styles.filterIconButtonActive : ''}`}
-              onClick={() => setIsFilterModalOpen(true)}
-              title="Filter Guests"
-            >
-              <Filter size={15} />
-              {activeFilterCount > 0 && (
-                <span className={styles.filterBadge}>{activeFilterCount}</span>
-              )}
-            </button>
-          </div>
-        </div>
-            {/* Active Filter Pills Bar (Shown only when filters active) */}
+        {/* Active Filter Pills Bar (Shown only when filters active) */}
             {hasActiveFilters && (
               <div className={styles.activeFilterPillsBar}>
                 <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
@@ -1132,34 +1099,46 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    Array.from({ length: 7 }).map((_, sIdx) => (
+                    Array.from({ length: 8 }).map((_, sIdx) => (
                       <tr key={sIdx} className={styles.skeletonRow}>
+                        {/* Checkbox */}
                         <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
                           <div className={styles.skeletonLine} style={{ width: '16px', height: '16px', margin: '0 auto', borderRadius: '4px' }} />
                         </td>
+                        {/* Customer Name + Email subtitle */}
                         <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '85px', height: '13px' }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <div className={styles.skeletonLine} style={{ width: sIdx % 2 === 0 ? '115px' : '95px', height: '13px' }} />
+                            <div className={styles.skeletonLine} style={{ width: '68px', height: '10px', opacity: 0.65 }} />
+                          </div>
                         </td>
+                        {/* Mobile Number */}
                         <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '90px', height: '12px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '92px', height: '12px' }} />
                         </td>
+                        {/* Status Pill */}
                         <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonPill} />
+                          <div className={styles.skeletonPill} style={{ width: '68px', height: '22px' }} />
                         </td>
+                        {/* Last Visit */}
                         <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '75px', height: '11px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '82px', height: '11px' }} />
                         </td>
+                        {/* Visits Badge */}
                         <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
-                          <div className={styles.skeletonLine} style={{ width: '26px', height: '22px', margin: '0 auto', borderRadius: '7px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '28px', height: '20px', margin: '0 auto', borderRadius: '6px' }} />
                         </td>
+                        {/* Lifetime Spend */}
                         <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '60px', height: '13px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '64px', height: '13px' }} />
                         </td>
+                        {/* AOV */}
                         <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '50px', height: '12px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '52px', height: '12px' }} />
                         </td>
+                        {/* Actions: View Profile */}
                         <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
-                          <div className={styles.skeletonLine} style={{ width: '75px', height: '24px', margin: '0 auto', borderRadius: '7px' }} />
+                          <div className={styles.skeletonLine} style={{ width: '84px', height: '26px', margin: '0 auto', borderRadius: '7px' }} />
                         </td>
                       </tr>
                     ))
@@ -1180,7 +1159,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       </td>
                     </tr>
                   ) : (
-                    paginatedCustomers.map(cust => {
+                    paginatedCustomers.map((cust, idx) => {
                       const validOrders = (cust.orders || []).filter(o => o.status !== 'cancelled');
                       const spend = (cust.orders && cust.orders.length > 0)
                         ? validOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
@@ -1195,6 +1174,9 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       return (
                         <motion.tr
                           key={cust._id || cust.phone}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
                           className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
                           onClick={() => setSelectedCustomer(cust)}
                         >

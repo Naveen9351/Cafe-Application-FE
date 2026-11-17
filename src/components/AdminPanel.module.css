@@ -821,30 +821,31 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.38rem 0.65rem;
+  padding: 0.42rem 0.72rem;
   border: 1px solid transparent;
   background: transparent;
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  border-radius: 7px;
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
 }
 
 .navLink:hover {
   background: #f8fafc;
   color: #0f172a;
+  transform: translateX(2px);
 }
 
 .activeNavLink {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
+  background: #eef2ff !important;
+  color: #4338ca !important;
   font-weight: 600 !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  border: 1px solid #c7d2fe !important;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.08) !important;
 }
 
 .navPill {

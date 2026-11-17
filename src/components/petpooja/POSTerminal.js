@@ -2001,7 +2001,7 @@ export default function POSTerminal({
                       : 'repeat(4, minmax(0, 1fr))'
                   }}
                 >
-                {filteredMenuItems.map(item => {
+                {filteredMenuItems.map((item, idx) => {
                   const imgUrl = getValidFoodImage(item);
                   const price = getItemEffectivePrice(item);
                   const cartQty = cart
@@ -2009,8 +2009,11 @@ export default function POSTerminal({
                     .reduce((sum, c) => sum + (c.quantity || 1), 0);
 
                   return (
-                    <div
+                    <motion.div
                       key={item._id}
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.22, delay: Math.min(idx * 0.025, 0.3) }}
                       className={`${styles.dishCard} ${cartQty > 0 ? styles.dishCardInCart : ''}`}
                       onClick={() => handleQuickAdd(item)}
                     >
@@ -2104,7 +2107,7 @@ export default function POSTerminal({
                           </button>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

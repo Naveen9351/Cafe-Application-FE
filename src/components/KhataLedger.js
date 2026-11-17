@@ -5,12 +5,14 @@ import {
   ChevronRight, ChevronLeft, Utensils, Minus, Printer, QrCode, Smartphone, Banknote,
   FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight, Zap
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
 import { useTranslation } from '../utils/translations';
 import { getValidFoodImage } from './AdminPanel';
+import { TableRowSkeleton } from './common/SkeletonLoader';
 import styles from './KhataLedger.module.css';
 
 const getAvatarStyle = (name = '') => {
@@ -1903,24 +1905,12 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                        <Loader2 size={36} className="animate-spin" style={{ color: '#4f46e5', margin: '0 auto' }} />
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>
-                          {isHindi ? 'ग्राहक खाता बही लोड हो रही है...' : 'Loading Customer Khata & Credit Ledger...'}
-                        </span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                          {isHindi ? 'कृपया प्रतीक्षा करें...' : 'Fetching customer balances, dues and credit statements...'}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableRowSkeleton rows={6} cols={8} />
                 ) : paginatedCustomers.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <User size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155', display: 'block' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#334155', display: 'block' }}>
                         {isHindi ? 'कोई ग्राहक खाता नहीं मिला' : 'No Customer Khata Accounts Found'}
                       </span>
                       <span style={{ fontSize: '12px', color: '#64748b' }}>
@@ -1929,15 +1919,20 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                     </td>
                   </tr>
                 ) : (
-                  paginatedCustomers.map((cust) => {
+                  paginatedCustomers.map((cust, idx) => {
                     const hasDue = cust.outstandingBalance > 0;
                     const paidPercent = cust.totalPurchases > 0 ? Math.min(100, Math.round((cust.totalPaid / cust.totalPurchases) * 100)) : 100;
 
                     return (
-                      <tr key={cust.customerPhone !== 'N/A' ? cust.customerPhone : cust.customerName}>
+                      <motion.tr
+                        key={cust.customerPhone !== 'N/A' ? cust.customerPhone : cust.customerName}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
+                      >
                         {/* Customer Name (No circular avatar) */}
                         <td>
-                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px' }}>
+                          <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13.5px' }}>
                             {cust.customerName}
                           </span>
                         </td>
@@ -2072,7 +2067,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             )}
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })
                 )}
@@ -2147,38 +2142,31 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                        <Loader2 size={36} className="animate-spin" style={{ color: '#4f46e5', margin: '0 auto' }} />
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>
-                          {isHindi ? 'लेन-देन लोड हो रहे हैं...' : 'Loading Transaction Ledger...'}
-                        </span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                          {isHindi ? 'कृपया प्रतीक्षा करें...' : 'Fetching recorded audit trails...'}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableRowSkeleton rows={6} cols={9} />
                 ) : paginatedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
                       <Calendar size={38} color="#cbd5e1" style={{ margin: '0 auto 10px auto', display: 'block' }} />
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155', display: 'block' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#334155', display: 'block' }}>
                         {isHindi ? 'कोई लेन-देन नहीं मिला' : 'No Transactions Recorded'}
                       </span>
                     </td>
                   </tr>
                 ) : (
-                  paginatedTransactions.map(rec => {
+                  paginatedTransactions.map((rec, idx) => {
                     const due = Number(rec.borrowAmount !== undefined ? rec.borrowAmount : (rec.remainingAmount || 0));
                     const isSettled = rec.status === 'settled' || due <= 0;
 
                     return (
-                      <tr key={rec._id}>
+                      <motion.tr
+                        key={rec._id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
+                      >
                         {/* Customer Name */}
                         <td>
-                          <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>
+                          <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
                             {rec.customerName}
                           </span>
                         </td>
@@ -2290,7 +2278,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                             </button>
                           )}
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })
                 )}
