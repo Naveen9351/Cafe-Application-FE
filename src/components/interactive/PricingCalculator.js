@@ -15,7 +15,7 @@ export default function PricingCalculator({
   const comparisonCategories = PRICING_COMPARISON_CATEGORIES || [];
 
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className={styles.calculatorWrap}>
       {/* Duration Header Pills */}
       <div className={styles.toggleContainer}>
         <div className={styles.toggleWrapper}>
@@ -135,7 +135,7 @@ export default function PricingCalculator({
 
       {/* Feature Comparison Matrix */}
       {showComparison && (
-        <div style={{ textAlign: "center", marginTop: 24 }}>
+        <div className={styles.comparisonToggleWrap}>
           <button
             type="button"
             onClick={() => setComparisonOpen(!comparisonOpen)}

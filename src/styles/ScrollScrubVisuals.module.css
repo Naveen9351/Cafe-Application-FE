@@ -1,0 +1,228 @@
+/* ScrollScrubVisuals CSS Module — 3D Perspective, Parallax, Glass Finish */
+.scrubSection {
+  padding: 40px 0 60px;
+  background: #070d18;
+  color: #f8fafc;
+  position: relative;
+  overflow: hidden;
+}
+
+.scrubSection::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 5%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.scrubSection::after {
+  content: '';
+  position: absolute;
+  bottom: 10%;
+  right: 5%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Small & Crisp Main Header */
+.mainHeader {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.mainTitle {
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.mainSubtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 560px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Stage Block 2-Col Grid */
+.stageBlock {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 40px;
+  align-items: center;
+  margin-bottom: 50px;
+  position: relative;
+  z-index: 1;
+}
+
+.stageBlock:last-child {
+  margin-bottom: 0;
+}
+
+.stageBlockReverse {
+  grid-template-columns: 1.35fr 1fr;
+}
+
+.stageBlockReverse .stageInfo {
+  order: 2;
+}
+
+.stageBlockReverse .perspectiveWrap {
+  order: 1;
+}
+
+.stageInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stepBadge {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #38bdf8;
+  display: inline-flex;
+}
+
+.stageTitle {
+  font-size: clamp(18px, 2.0vw, 24px);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.stageDesc {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.statPillsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.statPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  width: fit-content;
+}
+
+/* 3D Perspective Card Wrapper */
+.perspectiveWrap {
+  perspective: 1200px;
+  width: 100%;
+}
+
+.stageCard3D {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0b1320;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+.stageImg {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+@media (max-width: 900px) {
+  .stageBlock,
+  .stageBlockReverse {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    margin-bottom: 40px;
+  }
+  .stageBlockReverse .stageInfo {
+    order: 1;
+  }
+  .stageBlockReverse .perspectiveWrap {
+    order: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .scrubSection {
+    padding: 24px 0 32px;
+  }
+  .mainHeader {
+    margin-bottom: 20px;
+    padding: 0 16px;
+    gap: 6px;
+  }
+  .mainTitle {
+    font-size: 19px;
+    line-height: 1.25;
+  }
+  .mainSubtitle {
+    display: none !important; /* Reduced text on mobile as requested */
+  }
+  .stageBlock,
+  .stageBlockReverse {
+    margin-bottom: 28px;
+    gap: 14px;
+  }
+  .stageInfo {
+    gap: 8px;
+  }
+  .stageTitle {
+    font-size: 16px;
+    line-height: 1.3;
+  }
+  .stageDesc {
+    display: none !important; /* Reduced text on mobile as requested */
+  }
+  .statPillsList {
+    margin-top: 2px;
+  }
+  .statPillsList > div:nth-child(n+2) {
+    display: none !important; /* Show single punchy pill on mobile */
+  }
+  .perspectiveWrap {
+    perspective: none;
+  }
+  .stageCard3D {
+    border-radius: 12px;
+    transform-style: flat;
+  }
+}

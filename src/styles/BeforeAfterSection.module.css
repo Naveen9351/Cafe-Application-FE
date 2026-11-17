@@ -1,0 +1,236 @@
+/* Comparison Table Section CSS Module */
+.sectionWrapper {
+  padding: 40px 0 60px;
+  background: var(--bg-card-subtle);
+  border-top: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2.0vw, 24px);
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.sectionSubtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 540px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Table Wrapper Card — Fixed Width, Zero Scrollbar */
+.tableCard {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  box-shadow: 0 12px 36px -10px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  will-change: transform, opacity;
+}
+
+.tableContainer {
+  width: 100%;
+  overflow: hidden;
+  /* No scrollbar */
+}
+
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  /* Prevents overflow and eliminates scrollbars */
+  text-align: left;
+}
+
+.tableHeaderRow {
+  background: #ffffff;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.thDimension,
+.thLegacy,
+.thPlatform {
+  padding: 14px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.thDimension {
+  width: 24%;
+  color: #0f172a;
+}
+
+.thLegacy {
+  width: 38%;
+  color: #f43f5e;
+}
+
+.thPlatform {
+  width: 38%;
+  color: #059669;
+}
+
+.tableBodyRow {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.tableBodyRow:last-child {
+  border-bottom: none;
+}
+
+.tableBodyRow:hover {
+  background: #f8fafc;
+}
+
+.tdDimension,
+.tdLegacy,
+.tdPlatform {
+  padding: 14px 18px;
+  vertical-align: top;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.tdDimension {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.tdLegacy {
+  font-size: 12.5px;
+  color: #f43f5e;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.tdPlatform {
+  font-size: 12.5px;
+  color: #059669;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+/* Mobile Comparison Cards View */
+.mobileCardsList {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sectionWrapper {
+    padding: 28px 0 24px;
+  }
+
+  .tableCard {
+    display: none; /* Hide squeezed 3-column table on mobile */
+  }
+
+  .mobileCardsList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .mobileCard {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mobileCardHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .mobileDimensionNum {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+
+  .mobileDimensionTitle {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+
+  .mobileLegacyBox {
+    background: rgba(244, 63, 94, 0.06);
+    border: 1px solid rgba(244, 63, 94, 0.15);
+    border-radius: 10px;
+    padding: 9px 12px;
+  }
+
+  .mobileTagLegacy {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #e11d48;
+    margin-bottom: 3px;
+  }
+
+  .mobileLegacyText {
+    font-size: 12px;
+    color: #f43f5e;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  .mobileDineviqBox {
+    background: rgba(16, 185, 129, 0.07);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 10px;
+    padding: 9px 12px;
+  }
+
+  .mobileTagDineviq {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #059669;
+    margin-bottom: 3px;
+  }
+
+  .mobileDineviqText {
+    font-size: 12px;
+    color: #059669;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+}

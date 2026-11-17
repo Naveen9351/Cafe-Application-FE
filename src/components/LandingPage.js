@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
 import HeroSection from './sections/HeroSection';
-import FlagshipQROrderingSection from './sections/FlagshipQROrderingSection';
-import FlagshipKDSSection from './sections/FlagshipKDSSection';
+import VisualAppShowcase from './sections/VisualAppShowcase';
+import ScrollScrubVisuals from './sections/ScrollScrubVisuals';
 import BeforeAfterSection from './sections/BeforeAfterSection';
-import EcosystemSection from './sections/EcosystemSection';
-import TrustAndROISection from './sections/TrustAndROISection';
 import PricingSection from './sections/PricingSection';
 import FAQSection from './sections/FAQSection';
 import CTASection from './sections/CTASection';
@@ -23,35 +21,29 @@ export default function LandingPage() {
       {/* Top sticky navigation */}
       <Navbar onOpenDemoModal={handleOpenDemo} />
 
-      {/* Main Landing Page Sections */}
+      {/* Main Landing Page Visual Experience */}
       <main>
         {/* 1. Hero Section with GSAP motion, Rotating Headline & Connected Simulator */}
         <HeroSection onOpenDemo={handleOpenDemo} />
 
-        {/* 2. Flagship QR Table Dining Showcase */}
-        <FlagshipQROrderingSection onOpenDemo={handleOpenDemo} />
+        {/* 2. Flagship Interactive Real-UI App Explorer (POS, KDS, Dashboard, Menu, Khata, AI) */}
+        <VisualAppShowcase onOpenDemo={handleOpenDemo} />
 
-        {/* 3. Flagship Zero-Latency Kitchen Display System (KDS) */}
-        <FlagshipKDSSection onOpenDemo={handleOpenDemo} />
+        {/* 3. 3D Perspective GSAP Scroll Scrub Animation Flow */}
+        <ScrollScrubVisuals onOpenDemo={handleOpenDemo} />
 
         {/* 4. Before vs After Comparison */}
         <section id="about">
           <BeforeAfterSection />
         </section>
 
-        {/* 5. Comprehensive Ecosystem (FOH, BOH, AI Intelligence) */}
-        <EcosystemSection />
-
-        {/* 6. Measurable ROI & Live Analytics Preview */}
-        <TrustAndROISection onOpenDemo={handleOpenDemo} />
-
-        {/* 7. Transparent Indian Pricing */}
+        {/* 5. Transparent Indian Pricing */}
         <PricingSection onOpenDemo={handleOpenDemo} />
 
-        {/* 8. Frequently Asked Questions */}
+        {/* 6. Frequently Asked Questions */}
         <FAQSection onOpenDemo={handleOpenDemo} />
 
-        {/* 9. High-Impact Call to Action */}
+        {/* 7. High-Impact Call to Action */}
         <CTASection onOpenDemo={handleOpenDemo} />
       </main>
 

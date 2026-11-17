@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import QRMenuSimulator from "./QRMenuSimulator";
 import KDSSimulator from "./KDSSimulator";
-import { Utensils, CheckCircle2, Sparkles } from "lucide-react";
 import styles from "../../styles/Simulator.module.css";
 
 export default function LiveConnectedSimulator() {
   const [syncedTicket, setSyncedTicket] = useState(null);
-  const [flashSync, setFlashSync] = useState(false);
+  const [activeMobileView, setActiveMobileView] = useState("phone"); // 'phone' | 'kds'
+  const [hasNewTicket, setHasNewTicket] = useState(false);
 
   const handleOrderPlacedFromPhone = (order) => {
     const newKdsTicket = {
@@ -24,41 +24,35 @@ export default function LiveConnectedSimulator() {
     };
 
     setSyncedTicket(newKdsTicket);
-    setFlashSync(true);
-    setTimeout(() => setFlashSync(false), 3000);
+    setHasNewTicket(true);
   };
 
   return (
     <div className={styles.simulatorContainer}>
-      {/* Interactive Guidance Banner */}
-      <div className={styles.guidanceBanner}>
-        <div className={styles.guidanceLeft}>
-          <div className={styles.guidanceIcon}>
-            <Utensils style={{ width: 18, height: 18 }} />
-          </div>
-          <div>
-            <div className={styles.guidanceTitle}>
-              <span>Live Connected Restaurant Simulator</span>
-              <span className="badge-pill badge-blue" style={{ fontSize: 9 }}>
-                Live Sync
-              </span>
-            </div>
-            <div className={styles.guidanceDesc}>
-              Add an item on the phone (Left) and tap "Send to Kitchen" — watch it appear live on the KDS board (Right) in real time!
-            </div>
-          </div>
-        </div>
-
-        {flashSync && (
-          <div className="badge-pill badge-emerald" style={{ padding: "6px 14px" }}>
-            <CheckCircle2 style={{ width: 14, height: 14 }} />
-            <span>KOT Arrived in New Orders Column!</span>
-          </div>
-        )}
+      {/* Mobile View Switcher (Visible only on mobile <= 768px) */}
+      <div className={styles.mobileSimulatorTabs}>
+        <button
+          type="button"
+          onClick={() => setActiveMobileView("phone")}
+          className={`${styles.mobileTabBtn} ${activeMobileView === "phone" ? styles.mobileTabBtnActive : ""}`}
+        >
+          📱 1. Guest Phone
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveMobileView("kds");
+            setHasNewTicket(false);
+          }}
+          className={`${styles.mobileTabBtn} ${activeMobileView === "kds" ? styles.mobileTabBtnActive : ""}`}
+        >
+          🍳 2. Kitchen KDS
+          {hasNewTicket && <span className={styles.newBadgeDot}>●</span>}
+        </button>
       </div>
 
-      {/* Side-by-Side Dual Showcase */}
-      <div className={styles.dualGrid}>
+      {/* Side-by-Side Dual Showcase on Desktop; Responsive Tabbed on Mobile */}
+      <div className={`${styles.dualGrid} ${styles[`show_${activeMobileView}`]}`}>
         {/* Left: Guest QR Phone App */}
         <div className={styles.phoneColumn}>
           <div className={styles.columnHeader}>
@@ -72,7 +66,7 @@ export default function LiveConnectedSimulator() {
         </div>
 
         {/* Right: Kitchen Display System (KDS) Board */}
-        <div>
+        <div className={styles.kdsColumnWrap}>
           <div className={styles.columnHeader}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-indigo)" }} />

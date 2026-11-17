@@ -24,6 +24,22 @@ const PrivacyPolicy = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-10% 0px -65% 0px', threshold: 0.1 }
+    );
+
+    const sectionElements = document.querySelectorAll(`.${styles.section}`);
+    sectionElements.forEach((sec) => observer.observe(sec));
+
+    return () => observer.disconnect();
   }, []);
 
   const tocItems = [
@@ -118,7 +134,7 @@ const PrivacyPolicy = () => {
               1. Overview & Commitment to Privacy
             </h2>
             <p className={styles.paragraph}>
-              DINEVIQ Technologies India Private Limited (<strong>"DINEVIQ"</strong>, <strong>"we"</strong>, <strong>"our"</strong>, or <strong>"us"</strong>) operates an enterprise restaurant operating system comprising cloud point-of-sale (POS) billing, interactive table QR menus, kitchen display systems (KDS), and inventory automation.
+              DINEVIQ (<strong>"we"</strong>, <strong>"our"</strong>, or <strong>"us"</strong>) operates a modern restaurant operating system comprising cloud point-of-sale (POS) billing, interactive table QR menus, kitchen display systems (KDS), and inventory automation.
             </p>
             <p className={styles.paragraph}>
               This Privacy Policy explains how we collect, store, process, and safeguard personal and business data when you visit our website (<strong>dineviq.com</strong>), onboard your restaurant, access administrative portals, or dine at a partner establishment using our QR table-ordering interface.
@@ -326,9 +342,9 @@ const PrivacyPolicy = () => {
                   <span className={styles.contactValue}>+91 96801 32562</span>
                 </div>
                 <div className={styles.contactInfoItem} style={{ gridColumn: '1 / -1' }}>
-                  <span className={styles.contactLabel}>Registered Office</span>
+                  <span className={styles.contactLabel}>Product Headquarters</span>
                   <span className={styles.contactValue}>
-                    DINEVIQ Technologies India Pvt. Ltd., Tech Corridor, Bangalore & Delhi NCR, India.
+                    DINEVIQ Team, India.
                   </span>
                 </div>
               </div>

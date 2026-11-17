@@ -263,243 +263,244 @@ export function ContactPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column' }}>
       <Navbar onOpenDemoModal={() => navigate('/demo')} />
 
-      {/* Hero Header */}
-      <section style={{ paddingTop: 140, paddingBottom: 50, paddingLeft: 20, paddingRight: 20, textAlign: 'center', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-mesh-hero)' }}>
-        <div style={{ maxWidth: 840, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div className="badge-pill badge-blue">
-            <Phone style={{ width: 14, height: 14 }} />
+      <main style={{ flex: 1, padding: '80px 20px 20px', maxWidth: 1100, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {/* Compact Header */}
+        <div style={{ textAlign: 'center', maxWidth: 700, margin: '0 auto 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div className="badge-pill badge-blue" style={{ padding: '3px 10px', fontSize: 11 }}>
+            <Phone style={{ width: 12, height: 12 }} />
             <span>24/7 Specialist Support & Consultations</span>
           </div>
-          <h1 style={{ fontSize: 'clamp(32px, 4.5vw, 54px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
+          <h1 style={{ fontSize: 'clamp(20px, 2.4vw, 26px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>
             Connect with Our <span className="gradient-text">Restaurant Tech Specialists</span>
           </h1>
-          <p style={{ fontSize: 16, color: 'var(--text-muted)', maxWidth: 680, margin: 0, lineHeight: 1.6 }}>
-            Whether you want to digitize paper menus, configure multi-station KDS, or schedule a customized franchise walkthrough, we are available round-the-clock across India.
+          <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+            Direct support across India for menu digitization, KDS rollout, or custom integrations.
           </p>
         </div>
-      </section>
 
-      {/* Main Grid: Form + Direct Contact Cards */}
-      <section style={{ padding: '60px 20px 80px 20px', maxWidth: 1140, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 36, alignItems: 'flex-start' }}>
-        
-        {/* Left: Consultation Form */}
-        <div className="card-luxury" style={{ padding: 'clamp(24px, 4vw, 36px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, borderBottom: '1px solid var(--border-subtle)' }}>
-            <div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: 'var(--text-main)' }}>
-                Request Consultation or Live Demo
-              </h2>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                Fill out the details below and a specialist will connect in &lt; 15 minutes.
-              </p>
+        {/* Main Grid: Form + Direct Contact Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'stretch' }}>
+          
+          {/* Left: Consultation Form */}
+          <div className="card-luxury" style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: 'var(--text-main)' }}>
+                  Request Consultation or Live Demo
+                </h2>
+                <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                  A specialist will connect in &lt; 15 minutes.
+                </p>
+              </div>
+              <span className="badge-pill badge-emerald" style={{ fontSize: 10, padding: '2px 8px' }}>Sub-15m SLA</span>
             </div>
-            <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>Sub-15m SLA</span>
+
+            {errorMessage && (
+              <div style={{ padding: '6px 10px', borderRadius: 'var(--radius-md)', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.25)', color: '#e11d48', fontSize: 11.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {submitted ? (
+              <div style={{ padding: '28px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--color-emerald-light)', color: 'var(--color-emerald)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckCircle style={{ width: 22, height: 22 }} />
+                </div>
+                <h3 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>Thank You, {formData.name || 'Partner'}!</h3>
+                <p style={{ fontSize: 12.5, color: 'var(--text-muted)', maxWidth: 360, margin: 0, lineHeight: 1.4 }}>
+                  Our team has received your request for <strong>{formData.restaurantName || 'your outlet'}</strong> and will call or message on WhatsApp at <strong>+91 {sanitizePhoneDigits(formData.phone)}</strong> shortly.
+                </p>
+                <a
+                  href={`https://wa.me/919680132562?text=Hi%20DineviQ%2C%20I%20just%20submitted%20a%20consultation%20request%20for%20${encodeURIComponent(formData.restaurantName || 'my restaurant')}.`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-electric"
+                  style={{ padding: '8px 16px', fontSize: 12, marginTop: 4 }}
+                >
+                  <span>Fast-Track on WhatsApp</span>
+                  <ArrowRight style={{ width: 13, height: 13 }} />
+                </a>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      Your Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Rahul Sharma"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      style={{ width: '100%', padding: '7px 11px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 12.5, outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      Work Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. rahul@bistro.in"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      style={{ width: '100%', padding: '7px 11px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 12.5, outline: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      WhatsApp Number *
+                    </label>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      required
+                      placeholder="10-digit number"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 11px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 12.5, outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      Restaurant Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Copper Chimney"
+                      value={formData.restaurantName}
+                      onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
+                      style={{ width: '100%', padding: '7px 11px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 12.5, outline: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      Venue Type
+                    </label>
+                    <select
+                      value={formData.outletType}
+                      onChange={(e) => setFormData({ ...formData, outletType: e.target.value })}
+                      style={{ width: '100%', padding: '7px 11px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 12, outline: 'none' }}
+                    >
+                      <option value="Cafe / Coffee Bar">Cafe / Coffee Bar</option>
+                      <option value="QSR / Fast Food Counter">QSR / Fast Food</option>
+                      <option value="Casual & Fine Dining">Dine-In Restaurant</option>
+                      <option value="Cloud Kitchen / Ghost Brand">Cloud Kitchen</option>
+                      <option value="Multi-Outlet Franchise">Franchise / Chain</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                      Requirements / Note
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 15 tables, QR + KDS"
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      style={{ width: '100%', padding: '7px 11px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 12.5, outline: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-electric"
+                  style={{ padding: '9px 18px', fontSize: 12.5, width: '100%', justifyContent: 'center', marginTop: 4 }}
+                >
+                  <span>{isSubmitting ? 'Submitting Request...' : 'Request Free Consultation'}</span>
+                  <Send style={{ width: 13, height: 13 }} />
+                </button>
+              </form>
+            )}
           </div>
 
-          {errorMessage && (
-            <div style={{ padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(244, 63, 94, 0.08)', border: '1px solid rgba(244, 63, 94, 0.25)', color: '#e11d48', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {submitted ? (
-            <div style={{ padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-emerald-light)', color: 'var(--color-emerald)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle style={{ width: 28, height: 28 }} />
+          {/* Right: Direct Channels & SLA */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Quick Connect WhatsApp Card */}
+            <div className="card-luxury" style={{ padding: '14px 18px', borderLeft: '3px solid var(--color-emerald)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-emerald-light)', color: 'var(--color-emerald)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MessageSquare style={{ width: 15, height: 15 }} />
+                  </div>
+                  <h3 style={{ fontSize: 14, fontWeight: 900, margin: 0 }}>Instant WhatsApp Specialist</h3>
+                </div>
+                <span className="badge-pill badge-emerald" style={{ fontSize: 9.5, padding: '2px 7px' }}>Live Now</span>
               </div>
-              <h3 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>Thank You, {formData.name || 'Partner'}!</h3>
-              <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 400, margin: 0, lineHeight: 1.5 }}>
-                Our restaurant technology specialist has received your request for <strong>{formData.restaurantName || 'your outlet'}</strong> and will call or message you on WhatsApp at <strong>+91 {sanitizePhoneDigits(formData.phone)}</strong> shortly.
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                Instant answers regarding hardware compatibility, Petpooja migration, or custom quotes.
               </p>
               <a
-                href={`https://wa.me/919680132562?text=Hi%20DineviQ%2C%20I%20just%20submitted%20a%20consultation%20request%20for%20${encodeURIComponent(formData.restaurantName || 'my restaurant')}.`}
+                href="https://wa.me/919680132562?text=Hi%20DineviQ%2C%20I%20would%20like%20to%20know%20more%20about%20your%20autonomous%20restaurant%20OS."
                 target="_blank"
                 rel="noreferrer"
-                className="btn-electric"
-                style={{ padding: '10px 20px', fontSize: 12, marginTop: 8 }}
+                className="btn-white"
+                style={{ padding: '7px 12px', fontSize: 11.5, color: 'var(--color-emerald)', fontWeight: 800, justifyContent: 'center' }}
               >
-                <span>Fast-Track on WhatsApp Now</span>
-                <ArrowRight style={{ width: 14, height: 14 }} />
+                <span>+91 96801 32562 (Chat on WhatsApp)</span>
+                <ArrowRight style={{ width: 12, height: 12 }} />
               </a>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    Your Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Rahul Sharma"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
-                  />
+
+            {/* Email Support Card */}
+            <div className="card-luxury" style={{ padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Mail style={{ width: 15, height: 15 }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    Work / Contact Email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. rahul@restaurant.in"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
-                  />
+                  <h3 style={{ fontSize: 13.5, fontWeight: 900, margin: 0 }}>Official Support</h3>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>support@dineviq.com</span>
                 </div>
               </div>
+              <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Direct Desk</span>
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    WhatsApp / Mobile Number * (10 Digits)
-                  </label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    required
-                    placeholder="10-digit number (e.g. 9876543210)"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
-                  />
+            {/* SLA & Regional Offices */}
+            <div className="card-luxury" style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-light)', letterSpacing: '0.05em' }}>
+                Service Level Guarantees:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11.5, color: 'var(--text-main)', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Clock style={{ width: 13, height: 13, color: 'var(--color-primary)' }} />
+                  <span>Sub-15 minute average first response time</span>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    Restaurant / Cafe Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Copper Chimney Cafe"
-                    value={formData.restaurantName}
-                    onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
-                  />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ShieldCheck style={{ width: 13, height: 13, color: 'var(--color-emerald)' }} />
+                  <span>99.98% Cloud Uptime SLA for POS & KDS lines</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <MapPin style={{ width: 13, height: 13, color: 'var(--color-indigo)' }} />
+                  <span>Hubs: Bangalore • Mumbai • Delhi NCR</span>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Venue Type
-                </label>
-                <select
-                  value={formData.outletType}
-                  onChange={(e) => setFormData({ ...formData, outletType: e.target.value })}
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none' }}
-                >
-                  <option value="Cafe / Coffee Bar">Cafe / Coffee Bar</option>
-                  <option value="QSR / Fast Food Counter">QSR / Fast Food Counter</option>
-                  <option value="Casual & Fine Dining">Casual & Fine Dining</option>
-                  <option value="Cloud Kitchen / Ghost Brand">Cloud Kitchen / Ghost Brand</option>
-                  <option value="Multi-Outlet Franchise">Multi-Outlet Franchise</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Tell us about your requirements or current setup
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="e.g. We have 18 tables and want to switch from paper KOTs to kitchen display screens and accept direct UPI."
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: 13, outline: 'none', resize: 'vertical' }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn-electric"
-                style={{ padding: '13px 24px', fontSize: 13, width: '100%', justifyContent: 'center' }}
-              >
-                <span>{isSubmitting ? 'Submitting Request...' : 'Request Free Walkthrough & Consultation'}</span>
-                <Send style={{ width: 14, height: 14 }} />
-              </button>
-            </form>
-          )}
         </div>
+      </main>
 
-        {/* Right: Direct Channels & SLA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Quick Connect WhatsApp Card */}
-          <div className="card-luxury" style={{ padding: 24, borderLeft: '4px solid var(--color-emerald)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-emerald-light)', color: 'var(--color-emerald)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MessageSquare style={{ width: 18, height: 18 }} />
-                </div>
-                <h3 style={{ fontSize: 16, fontWeight: 900, margin: 0 }}>Instant WhatsApp Specialist</h3>
-              </div>
-              <span className="badge-pill badge-emerald" style={{ fontSize: 10 }}>Live Now</span>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-              Chat directly with our solutions engineering team for instantaneous answers regarding hardware compatibility, Petpooja migration, or custom pricing.
-            </p>
-            <a
-              href="https://wa.me/919680132562?text=Hi%20DineviQ%2C%20I%20would%20like%20to%20know%20more%20about%20your%20autonomous%20restaurant%20OS."
-              target="_blank"
-              rel="noreferrer"
-              className="btn-white"
-              style={{ padding: '10px 16px', fontSize: 12, color: 'var(--color-emerald)', fontWeight: 800, justifyContent: 'center' }}
-            >
-              <span>+91 96801 32562 (Chat on WhatsApp)</span>
-              <ArrowRight style={{ width: 13, height: 13 }} />
-            </a>
-          </div>
-
-          {/* Email Support Card */}
-          <div className="card-luxury" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Mail style={{ width: 18, height: 18 }} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: 16, fontWeight: 900, margin: 0 }}>Official Support Inquiries</h3>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>support@dineviq.com</span>
-              </div>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-              Send menus, architectural queries, or vendor RFP specifications directly to our engineering desk.
-            </p>
-          </div>
-
-          {/* SLA & Regional Offices */}
-          <div className="card-luxury" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-light)', letterSpacing: '0.06em' }}>
-              Service Level Guarantees:
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: 'var(--text-main)', fontWeight: 600 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Clock style={{ width: 15, height: 15, color: 'var(--color-primary)' }} />
-                <span>Sub-15 minute average first response time</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ShieldCheck style={{ width: 15, height: 15, color: 'var(--color-emerald)' }} />
-                <span>99.98% Cloud Uptime SLA for POS & KDS lines</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <MapPin style={{ width: 15, height: 15, color: 'var(--color-indigo)' }} />
-                <span>Hubs: Bangalore • Mumbai • Delhi NCR</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <Footer onOpenDemoModal={() => navigate('/demo')} />
+      <footer style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-card)', textAlign: 'center', fontSize: 11.5, color: 'var(--text-muted)' }}>
+        © {new Date().getFullYear()} DINEVIQ Technologies. 24/7 Support: support@dineviq.com • +91 96801 32562
+      </footer>
     </div>
   );
 }

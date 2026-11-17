@@ -226,13 +226,13 @@ function AppRoutes() {
 
         {/* Marketing / Landing Subpages */}
         <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/solutions" element={<SolutionsPage />} />
+        <Route path="/products" element={<Navigate to="/" replace />} />
+        <Route path="/solutions" element={<Navigate to="/" replace />} />
         <Route path="/demo" element={<BookDemoPage />} />
         <Route path="/book-demo" element={<BookDemoPage />} />
 
         {/* Feature Pages */}
-        <Route path="/whatsapp" element={<CRMLoyaltyPage />} />
+        <Route path="/whatsapp" element={<Navigate to="/" replace />} />
         <Route path="/features/pos-billing" element={<POSBillingPage />} />
         <Route path="/features/kitchen-ops" element={<KitchenOpsPage />} />
         <Route path="/features/inventory" element={<InventoryPage />} />

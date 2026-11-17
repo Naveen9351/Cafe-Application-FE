@@ -1,64 +1,59 @@
 import React from 'react';
 import Navbar from './layout/Navbar';
-import Footer from './layout/Footer';
 import LeadCaptureForm from './interactive/LeadCaptureForm';
 import { CheckCircle2, ShieldCheck, Sparkles, Clock, Calendar } from 'lucide-react';
 
 export default function BookDemoPage() {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column' }}>
       <Navbar onOpenDemoModal={() => {}} />
 
-      <main style={{ padding: '140px 20px 80px 20px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 48, alignItems: 'start' }}>
+      <main style={{ flex: 1, padding: '85px 20px 25px', maxWidth: 1060, margin: '0 auto', width: '100%', display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32, alignItems: 'center', width: '100%' }}>
           
           {/* Left Column: Value proposition */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <div className="badge-pill badge-blue" style={{ marginBottom: 16 }}>
-                <Sparkles style={{ width: 14, height: 14 }} />
+              <div className="badge-pill badge-blue" style={{ marginBottom: 10, padding: '3px 10px', fontSize: 11 }}>
+                <Sparkles style={{ width: 13, height: 13 }} />
                 <span>Live 1-on-1 Product Demo</span>
               </div>
-              <h1 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>
-                Experience the Velocity of DINEVIQ for Your Food Outlet
+              <h1 style={{ fontSize: 'clamp(22px, 2.5vw, 28px)', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1.2, margin: 0 }}>
+                Experience DINEVIQ in Action
               </h1>
-              <p style={{ marginTop: 16, fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                Schedule a 15-minute customized walkthrough with our restaurant technology engineers. See how DINEVIQ solves rush-hour bottlenecks, speeds up kitchen throughput, and maximizes table turnover.
+              <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+                15-minute personalized walkthrough. See how DINEVIQ eliminates rush-hour bottlenecks and accelerates table turnover.
               </p>
             </div>
 
             {/* What to expect list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
                 What happens during the demo?
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   {
                     title: 'Tailored Workflow Audit',
-                    desc: 'We review your table capacity, kitchen stations, and existing billing hardware.',
+                    desc: 'Review table capacity, kitchen stations & POS setup.',
                   },
                   {
                     title: 'Live QR & KDS Demonstration',
-                    desc: 'Experience placing an order on customer phone and seeing it hit the kitchen in real-time.',
+                    desc: 'Place an order on customer phone & watch real-time kitchen sync.',
                   },
                   {
-                    title: 'Free Menu Digitization',
-                    desc: 'Send us your PDF/photo menu and our team will upload and optimize it at no cost.',
-                  },
-                  {
-                    title: 'Custom Pricing & Setup Plan',
-                    desc: 'Get exact pricing tailored to your restaurant count with zero lock-in contracts.',
+                    title: 'Free Menu Setup & Custom Pricing',
+                    desc: 'Send your menu for complimentary digitization & ROI review.',
                   },
                 ].map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 'var(--radius-sm)', background: 'var(--color-primary-light)', border: '1px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-                      <CheckCircle2 style={{ width: 15, height: 15, color: 'var(--color-primary)' }} />
+                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 'var(--radius-sm)', background: 'var(--color-primary-light)', border: '1px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                      <CheckCircle2 style={{ width: 13, height: 13, color: 'var(--color-primary)' }} />
                     </div>
                     <div>
-                      <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{item.title}</h4>
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0 0', lineHeight: 1.4 }}>{item.desc}</p>
+                      <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{item.title}</h4>
+                      <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '1px 0 0 0', lineHeight: 1.35 }}>{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -66,36 +61,38 @@ export default function BookDemoPage() {
             </div>
 
             {/* Quick trust metrics */}
-            <div className="card-luxury" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Clock style={{ width: 16, height: 16, color: 'var(--color-primary)' }} />
+            <div className="card-luxury" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Clock style={{ width: 14, height: 14, color: 'var(--color-primary)' }} />
                 <span>15 Min Session</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Calendar style={{ width: 16, height: 16, color: 'var(--color-emerald)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Calendar style={{ width: 14, height: 14, color: 'var(--color-emerald)' }} />
                 <span>Same-Day Availability</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <ShieldCheck style={{ width: 16, height: 16, color: 'var(--color-indigo)' }} />
-                <span>No Commitment</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <ShieldCheck style={{ width: 14, height: 14, color: 'var(--color-indigo)' }} />
+                <span>Zero Commitment</span>
               </div>
             </div>
           </div>
 
           {/* Right Column: Interactive Form */}
-          <div className="card-luxury" style={{ padding: '36px 32px' }}>
-            <h2 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-main)', margin: '0 0 8px 0' }}>Request Your Demo</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 24px 0', lineHeight: 1.5 }}>
-              Fill in your outlet details below. A restaurant tech specialist will reach out within 30 minutes.
+          <div className="card-luxury" style={{ padding: '22px 24px' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-main)', margin: '0 0 4px 0' }}>Request Your Demo</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '0 0 16px 0', lineHeight: 1.4 }}>
+              Fill in your outlet details. A restaurant specialist will connect within 15 minutes.
             </p>
 
-            <LeadCaptureForm sourcePage="BookDemoPage" />
+            <LeadCaptureForm sourcePage="BookDemoPage" hideHeader={true} compact={true} />
           </div>
 
         </div>
       </main>
 
-      <Footer onOpenDemoModal={() => {}} />
+      <footer style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-card)', textAlign: 'center', fontSize: 11.5, color: 'var(--text-muted)' }}>
+        © {new Date().getFullYear()} DINEVIQ Technologies. 24/7 Support: support@dineviq.com • +91 96801 32562
+      </footer>
     </div>
   );
 }

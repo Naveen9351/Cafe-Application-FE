@@ -3,6 +3,7 @@ import { ChevronDown, HelpCircle, MessageSquare } from 'lucide-react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { FAQS } from '../../data/faqsData';
+import styles from '../../styles/FAQSection.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -117,7 +118,7 @@ export default function FAQSection({ onOpenDemo }) {
     <section
       ref={sectionRef}
       id="faq"
-      style={{ padding: "clamp(50px, 7vw, 100px) 0", background: "var(--bg-card-subtle)", borderTop: "1px solid var(--border-subtle)", position: "relative", overflow: "hidden" }}
+      className={styles.faqSection}
     >
       {/* Decorative background orbs */}
       <div style={{
@@ -131,21 +132,21 @@ export default function FAQSection({ onOpenDemo }) {
       <div className="container-narrow">
         
         {/* Header */}
-        <div ref={headerRef} style={{ textAlign: "center", marginBottom: 36, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <div ref={headerRef} className={styles.faqHeader}>
           <div className="badge-pill badge-blue">
             <HelpCircle style={{ width: 14, height: 14 }} />
             <span>Frequently Asked Questions</span>
           </div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4vw, 44px)", fontWeight: 900, color: "var(--text-main)", letterSpacing: "-0.02em", margin: 0 }}>
+          <h2 className={styles.faqTitle}>
             Got Questions? We Have Answers.
           </h2>
-          <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0 }}>
+          <p className={styles.faqSubtitle}>
             Everything you need to know about setting up DINEVIQ, hardware compatibility, UPI payments, and Indian POS sync.
           </p>
         </div>
 
         {/* Category Filter */}
-        <div ref={filterRef} style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 32 }}>
+        <div ref={filterRef} className={styles.categoryFilter}>
           {categories.map((cat) => (
             <button
               key={cat}
@@ -245,40 +246,19 @@ export default function FAQSection({ onOpenDemo }) {
         </div>
 
         {/* Still have questions banner */}
-        <div
-          className="card-luxury shimmer-on-hover"
-          style={{
-            padding: "clamp(16px, 3.5vw, 24px)",
-            marginTop: 36,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 16,
-            transition: "transform 0.3s ease, box-shadow 0.3s ease"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-4px)";
-            e.currentTarget.style.boxShadow = "0 12px 30px rgba(5,150,105,0.12)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "var(--shadow-md)";
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--color-primary-light)", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <MessageSquare style={{ width: 20, height: 20 }} />
+        <div className={styles.specialistCard}>
+          <div className={styles.specialistLeft}>
+            <div className={styles.specialistIcon}>
+              <MessageSquare style={{ width: 18, height: 18 }} />
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: "var(--text-main)" }}>Need a custom feature or hardware integration?</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Our Indian restaurant tech specialists are available 24/7.</div>
+              <div className={styles.specialistTitle}>Need a custom feature or hardware integration?</div>
+              <div className={styles.specialistDesc}>Our Indian restaurant tech specialists are available 24/7.</div>
             </div>
           </div>
           <button
             onClick={onOpenDemo}
-            className="btn-electric"
-            style={{ padding: "10px 20px", fontSize: 12 }}
+            className={styles.specialistBtn}
           >
             Speak to a Specialist
           </button>

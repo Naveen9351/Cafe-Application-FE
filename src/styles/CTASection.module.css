@@ -1,0 +1,254 @@
+/* CTA Section CSS Module */
+.ctaSection {
+  padding: clamp(50px, 7vw, 100px) 0;
+  background: #ffffff;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ctaCard {
+  border-radius: var(--radius-xl);
+  padding: clamp(36px, 6vw, 64px) clamp(16px, 5vw, 48px);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #047857 100%);
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(15,23,42,0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.ctaTitle {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.5vw, 58px);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  max-width: 820px;
+  margin: 0 auto 16px auto;
+}
+
+.ctaSubtitle {
+  font-size: clamp(15px, 1.8vw, 18px);
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 640px;
+  margin: 0 auto 40px auto;
+  line-height: 1.6;
+}
+
+.ctaActions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.btnShortText {
+  display: none;
+}
+
+.btnFullText {
+  display: inline;
+}
+
+.subShortText {
+  display: none;
+}
+
+.subFullText {
+  display: inline;
+}
+
+.propShortText {
+  display: none;
+}
+
+.propFullText {
+  display: inline;
+}
+
+.btnPrimary {
+  padding: 15px 34px;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.btnPrimary:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 18px 36px rgba(0,0,0,0.28);
+}
+
+.btnSecondary {
+  padding: 15px 34px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.valueProps {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+.valuePropItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+}
+
+/* Mobile Responsive Overrides */
+@media (max-width: 768px) {
+  .ctaSection {
+    padding: 24px 0 32px 0 !important;
+  }
+
+  .ctaCard {
+    padding: 24px 14px;
+    border-radius: 18px;
+  }
+
+  .ctaBadge {
+    padding: 4px 12px;
+    font-size: 10px;
+    margin-bottom: 12px;
+  }
+
+  .ctaTitle {
+    font-size: 21px;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+
+  .ctaSubtitle {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-bottom: 18px;
+  }
+
+  .ctaActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .btnShortText {
+    display: inline;
+  }
+
+  .btnFullText {
+    display: none;
+  }
+
+  .subShortText {
+    display: inline;
+  }
+
+  .subFullText {
+    display: none;
+  }
+
+  .propShortText {
+    display: inline;
+    white-space: nowrap;
+  }
+
+  .propFullText {
+    display: none;
+  }
+
+  .btnPrimary {
+    padding: 10px 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    border-radius: var(--radius-full);
+    text-transform: none;
+    letter-spacing: normal;
+    gap: 4px;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+
+  .btnSecondary {
+    padding: 10px 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    border-radius: var(--radius-full);
+    gap: 4px;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .valueProps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 8px;
+    margin-top: 18px;
+    padding-top: 14px;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .valuePropItem {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+    gap: 6px;
+    white-space: nowrap;
+  }
+}

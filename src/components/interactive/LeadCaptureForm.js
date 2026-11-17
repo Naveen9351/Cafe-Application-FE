@@ -70,7 +70,9 @@ export const validatePhone = (phone) => {
 
 export default function LeadCaptureForm({
   onSuccess,
-  sourcePage = "GeneralLanding"
+  sourcePage = "GeneralLanding",
+  hideHeader = false,
+  compact = false
 }) {
   const [formData, setFormData] = useState({
     contactName: "",
@@ -237,40 +239,42 @@ export default function LeadCaptureForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ paddingBottom: 8, borderBottom: "1px solid var(--border-subtle)", marginBottom: 2 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <Sparkles style={{ width: 16, height: 16, color: "var(--color-primary)" }} /> Schedule Live Demo
-        </h3>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 0" }}>
-          Enter your details and our team will get in touch.
-        </p>
-      </div>
+    <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: compact ? 10 : 14 }}>
+      {!hideHeader && (
+        <div style={{ paddingBottom: 8, borderBottom: "1px solid var(--border-subtle)", marginBottom: 2 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+            <Sparkles style={{ width: 16, height: 16, color: "var(--color-primary)" }} /> Schedule Live Demo
+          </h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+            Enter your details and our team will get in touch.
+          </p>
+        </div>
+      )}
 
       {errorMessage && (
         <div
           style={{
-            padding: "9px 12px",
+            padding: compact ? "6px 10px" : "9px 12px",
             borderRadius: "var(--radius-md)",
             background: "rgba(244, 63, 94, 0.08)",
             border: "1px solid rgba(244, 63, 94, 0.25)",
             color: "#e11d48",
-            fontSize: 12,
+            fontSize: 11.5,
             fontWeight: 600,
             display: "flex",
             alignItems: "center",
             gap: 8
           }}
         >
-          <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
+          <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* Name Input */}
       <div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
-          <User style={{ width: 14, height: 14, color: "var(--color-primary)" }} /> Full Name *
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: compact ? 11 : 12, fontWeight: 800, color: "var(--text-main)", marginBottom: 3 }}>
+          <User style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Full Name *
         </label>
         <div style={{ position: "relative" }}>
           <input
@@ -282,19 +286,19 @@ export default function LeadCaptureForm({
             onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
             style={{
               width: "100%",
-              padding: "10px 14px",
+              padding: compact ? "7px 12px" : "10px 14px",
               borderRadius: "var(--radius-md)",
               border: nameError ? "1.5px solid #e11d48" : "1px solid var(--border-subtle)",
               background: nameError ? "rgba(244, 63, 94, 0.03)" : "var(--bg-card-subtle)",
-              fontSize: 13,
+              fontSize: compact ? 12.5 : 13,
               outline: "none",
               transition: "border-color 0.2s ease"
             }}
           />
         </div>
         {nameError && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, color: "#e11d48", fontSize: 11.5, fontWeight: 600 }}>
-            <AlertCircle style={{ width: 13, height: 13 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "#e11d48", fontSize: 11, fontWeight: 600 }}>
+            <AlertCircle style={{ width: 12, height: 12 }} />
             <span>{nameError}</span>
           </div>
         )}
@@ -302,8 +306,8 @@ export default function LeadCaptureForm({
 
       {/* Email Input */}
       <div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
-          <Mail style={{ width: 14, height: 14, color: "var(--color-primary)" }} /> Email Address *
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: compact ? 11 : 12, fontWeight: 800, color: "var(--text-main)", marginBottom: 3 }}>
+          <Mail style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Email Address *
         </label>
         <div style={{ position: "relative" }}>
           <input
@@ -315,7 +319,7 @@ export default function LeadCaptureForm({
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             style={{
               width: "100%",
-              padding: "10px 38px 10px 14px",
+              padding: compact ? "7px 34px 7px 12px" : "10px 38px 10px 14px",
               borderRadius: "var(--radius-md)",
               border: emailError
                 ? "1.5px solid #e11d48"
@@ -327,46 +331,41 @@ export default function LeadCaptureForm({
                 : isEmailValid
                 ? "rgba(5, 150, 105, 0.03)"
                 : "var(--bg-card-subtle)",
-              fontSize: 13,
+              fontSize: compact ? 12.5 : 13,
               outline: "none",
               transition: "all 0.2s ease"
             }}
           />
-          <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
             {emailError ? (
-              <AlertCircle style={{ width: 16, height: 16, color: "#e11d48" }} />
+              <AlertCircle style={{ width: 14, height: 14, color: "#e11d48" }} />
             ) : isEmailValid ? (
-              <CheckCircle2 style={{ width: 16, height: 16, color: "#059669" }} />
+              <CheckCircle2 style={{ width: 14, height: 14, color: "#059669" }} />
             ) : null}
           </div>
         </div>
         {emailError ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, color: "#e11d48", fontSize: 11.5, fontWeight: 600 }}>
-            <AlertCircle style={{ width: 13, height: 13 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "#e11d48", fontSize: 11, fontWeight: 600 }}>
+            <AlertCircle style={{ width: 12, height: 12 }} />
             <span>{emailError}</span>
-          </div>
-        ) : isEmailValid ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, color: "#059669", fontSize: 11.5, fontWeight: 600 }}>
-            <Check style={{ width: 13, height: 13 }} />
-            <span>Valid email format</span>
           </div>
         ) : null}
       </div>
 
       {/* Phone Input with +91 indicator and instant validation */}
       <div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: "var(--text-main)", marginBottom: 4 }}>
-          <Phone style={{ width: 14, height: 14, color: "var(--color-primary)" }} /> Mobile / WhatsApp Number *
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: compact ? 11 : 12, fontWeight: 800, color: "var(--text-main)", marginBottom: 3 }}>
+          <Phone style={{ width: 13, height: 13, color: "var(--color-primary)" }} /> Mobile / WhatsApp Number *
         </label>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
           <div
             style={{
               position: "absolute",
-              left: 12,
+              left: 10,
               display: "flex",
               alignItems: "center",
               gap: 4,
-              fontSize: 12,
+              fontSize: compact ? 11 : 12,
               fontWeight: 800,
               color: "var(--text-muted)",
               pointerEvents: "none",
@@ -381,7 +380,7 @@ export default function LeadCaptureForm({
             inputMode="numeric"
             maxLength={10}
             required
-            placeholder="10-digit Mobile Number (starts with 6-9)"
+            placeholder="10-digit Mobile Number"
             value={formData.phone}
             onBlur={() => handleBlur("phone")}
             onKeyDown={(e) => {
@@ -397,7 +396,7 @@ export default function LeadCaptureForm({
             onChange={handlePhoneChange}
             style={{
               width: "100%",
-              padding: "10px 38px 10px 62px",
+              padding: compact ? "7px 34px 7px 58px" : "10px 38px 10px 62px",
               borderRadius: "var(--radius-md)",
               border: phoneError
                 ? "1.5px solid #e11d48"
@@ -409,34 +408,29 @@ export default function LeadCaptureForm({
                 : isPhoneValid
                 ? "rgba(5, 150, 105, 0.03)"
                 : "var(--bg-card-subtle)",
-              fontSize: 13,
+              fontSize: compact ? 12.5 : 13,
               outline: "none",
               transition: "all 0.2s ease"
             }}
           />
-          <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
             {phoneError ? (
-              <AlertCircle style={{ width: 16, height: 16, color: "#e11d48" }} />
+              <AlertCircle style={{ width: 14, height: 14, color: "#e11d48" }} />
             ) : isPhoneValid ? (
-              <CheckCircle2 style={{ width: 16, height: 16, color: "#059669" }} />
+              <CheckCircle2 style={{ width: 14, height: 14, color: "#059669" }} />
             ) : null}
           </div>
         </div>
         {phoneError ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, color: "#e11d48", fontSize: 11.5, fontWeight: 600 }}>
-            <AlertCircle style={{ width: 13, height: 13 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "#e11d48", fontSize: 11, fontWeight: 600 }}>
+            <AlertCircle style={{ width: 12, height: 12 }} />
             <span>{phoneError}</span>
           </div>
-        ) : isPhoneValid ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, color: "#059669", fontSize: 11.5, fontWeight: 600 }}>
-            <Check style={{ width: 13, height: 13 }} />
-            <span>Valid 10-digit mobile number</span>
+        ) : !phoneError && !isPhoneValid ? (
+          <div style={{ fontSize: 10.5, color: "var(--text-subtle)", marginTop: 2 }}>
+            Starts with 6, 7, 8, or 9
           </div>
-        ) : (
-          <div style={{ fontSize: 11, color: "var(--text-subtle)", marginTop: 4 }}>
-            Enter 10-digit mobile number starting with 6, 7, 8, or 9
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Submit Button */}
@@ -444,9 +438,9 @@ export default function LeadCaptureForm({
         type="submit"
         disabled={isSubmitting}
         className="btn-electric"
-        style={{ width: "100%", padding: "12px", fontSize: 13, marginTop: 4 }}
+        style={{ width: "100%", padding: compact ? "9px 14px" : "12px", fontSize: compact ? 12.5 : 13, marginTop: compact ? 2 : 4 }}
       >
-        <Sparkles style={{ width: 16, height: 16 }} />
+        <Sparkles style={{ width: 15, height: 15 }} />
         <span>{isSubmitting ? "Scheduling Session..." : "Book Demo Walkthrough"}</span>
       </button>
     </form>

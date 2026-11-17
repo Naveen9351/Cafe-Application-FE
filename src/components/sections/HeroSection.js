@@ -14,9 +14,12 @@ import {
   ChevronDown
 } from "lucide-react";
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import LiveConnectedSimulator from "../interactive/LiveConnectedSimulator";
 import heroImg from "../../assets/hero-dineviq-3d-ecosystem-transparent.png";
 import styles from "../../styles/HeroSection.module.css";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const ROTATING_PHRASES = [
   "High-Speed Kitchens",
@@ -55,22 +58,96 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
   const ctaRef = useRef(null);
   const trustRef = useRef(null);
   const imageRef = useRef(null);
+  const pill1Ref = useRef(null);
+  const pill2Ref = useRef(null);
   const consoleRef = useRef(null);
   const marqueeRef = useRef(null);
 
-  // Fast, instant entrance animation (Snappy, zero delay)
+  // High-End GSAP Animations & Scroll Scrub Physics
   useEffect(() => {
     const ctx = gsap.context(() => {
+      // 1. Snappy initial entrance
       gsap.fromTo(
         [badgeRef.current, titleRef.current, subtitleRef.current, ctaRef.current, trustRef.current],
-        { opacity: 0, y: 12 },
-        { opacity: 1, y: 0, duration: 0.35, stagger: 0.05, ease: "power2.out" }
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power2.out" }
       );
       gsap.fromTo(
         imageRef.current,
-        { opacity: 0, scale: 0.98 },
-        { opacity: 1, scale: 1, duration: 0.35, ease: "power2.out" }
+        { opacity: 0, scale: 0.95, y: 20 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "power2.out" }
       );
+
+      // 2. Continuous floating levitation on the 3D ecosystem visual
+      if (imageRef.current) {
+        gsap.to(imageRef.current, {
+          y: -10,
+          rotation: 0.8,
+          duration: 3.6,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+      }
+
+      // 3. Continuous floating on telemetry badges
+      if (pill1Ref.current) {
+        gsap.to(pill1Ref.current, {
+          y: -8,
+          x: 4,
+          duration: 2.8,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+      }
+      if (pill2Ref.current) {
+        gsap.to(pill2Ref.current, {
+          y: 8,
+          x: -4,
+          duration: 3.2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut"
+        });
+      }
+
+      // 4. Smooth scroll scrub parallax on hero 3D visual
+      if (imageRef.current && heroRef.current) {
+        gsap.to(imageRef.current, {
+          y: -60,
+          scale: 1.06,
+          rotateY: -8,
+          ease: "none",
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top top",
+            end: "bottom top",
+            scrub: 1.4
+          }
+        });
+      }
+
+      // 5. High-Impact Scroll Scrub 3D Lift on Simulator Box
+      if (consoleRef.current) {
+        gsap.fromTo(
+          consoleRef.current,
+          { opacity: 0.35, y: 80, scale: 0.94, rotateX: 6 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            rotateX: 0,
+            ease: "none",
+            scrollTrigger: {
+              trigger: consoleRef.current,
+              start: "top 95%",
+              end: "top 45%",
+              scrub: 1.2
+            }
+          }
+        );
+      }
     }, heroRef);
 
     return () => ctx.revert();
@@ -125,10 +202,10 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
       <div className={styles.heroViewport}>
         <div className={styles.heroContainer}>
           <div className={styles.heroGrid}>
-            
+
             {/* ── Left Column: Headline, Subtitle, CTAs & Trust Badges ── */}
             <div className={styles.heroTextColumn}>
-              
+
               {/* Top Status Pill */}
               <div ref={badgeRef} className={styles.heroBadge}>
                 <span className={styles.pulseDot} />
@@ -161,7 +238,8 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
                     className="btn-electric"
                     style={{ padding: "11px 22px", fontSize: 13, cursor: "pointer" }}
                   >
-                    <span>Book a 15-Min Live Demo</span>
+                    <span className={styles.btnFullText}>Book a 15-Min Live Demo</span>
+                    <span className={styles.btnShortText}>Book Live Demo</span>
                     <ArrowRight style={{ width: 14, height: 14 }} />
                   </button>
                 ) : (
@@ -170,7 +248,8 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
                     className="btn-electric"
                     style={{ padding: "11px 22px", fontSize: 13 }}
                   >
-                    <span>Book a 15-Min Live Demo</span>
+                    <span className={styles.btnFullText}>Book a 15-Min Live Demo</span>
+                    <span className={styles.btnShortText}>Book Live Demo</span>
                     <ArrowRight style={{ width: 14, height: 14 }} />
                   </Link>
                 )}
@@ -181,7 +260,8 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
                   style={{ padding: "11px 20px", fontSize: 13 }}
                 >
                   <QrCode style={{ width: 15, height: 15, color: "var(--color-emerald)" }} />
-                  <span>Test Customer QR Menu</span>
+                  <span className={styles.btnFullText}>Test Customer QR Menu</span>
+                  <span className={styles.btnShortText}>Test QR Menu</span>
                 </Link>
 
                 <Link
@@ -215,6 +295,12 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
             {/* ── Right Column: 3D DINEVIQ Ecosystem Showcase ── */}
             <div ref={imageRef} className={styles.heroVisualColumn}>
               <div className={styles.imageShowcaseWrapper}>
+                <div ref={pill1Ref} className={styles.heroFloatingPill1}>
+                  <span className={styles.pulseDotGreen} />
+                  <Zap style={{ width: 13, height: 13, color: "var(--color-primary)" }} />
+                  <span>&lt; 50ms KOT Instant Dispatch</span>
+                </div>
+
                 <img
                   src={heroImg}
                   alt="DINEVIQ AI OS — Kitchen KDS, QR Dining, DineviQ AI, UPI Billing & Inventory Ecosystem"
@@ -222,6 +308,11 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
                   loading="eager"
                   fetchPriority="high"
                 />
+
+                <div ref={pill2Ref} className={styles.heroFloatingPill2}>
+                  <TrendingUp style={{ width: 13, height: 13, color: "var(--color-emerald)" }} />
+                  <span>+24% Check Size via Modifiers</span>
+                </div>
               </div>
             </div>
 
@@ -262,11 +353,6 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
 
         {/* Interactive Live Dual Simulator Box */}
         <div id="live-sandbox" ref={consoleRef} className={styles.simulatorWrapper}>
-          <div className={styles.simulatorTopRibbon}>
-            <Sparkles style={{ width: 14, height: 14 }} />
-            Interactive Live Sandbox: Tap to Place an Order Below!
-          </div>
-
           <LiveConnectedSimulator />
         </div>
       </div>

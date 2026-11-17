@@ -74,10 +74,7 @@ export default function KDSSimulator({ incomingTicket }) {
             Real-Time Kitchen Queue (KDS)
           </span>
         </div>
-        <span className="badge-pill badge-emerald" style={{ fontSize: 9 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-emerald)" }} />
-          Active WebSockets Sync
-        </span>
+
       </div>
 
       {/* 3 Active Columns */}

@@ -1,0 +1,176 @@
+/* VisualAppShowcase CSS Module — High Animation, Full Screen Glass Finish */
+.sectionWrapper {
+  padding: 20px 0 32px;
+  background: radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 70%), var(--bg-main);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.fullWidthContainer {
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Numbered Stepper Bar */
+.stepperWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 5;
+}
+
+.stepperTrack {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-subtle);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.08);
+}
+
+.stepBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+}
+
+.stepBtn:hover {
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  transform: translateY(-2px);
+}
+
+.stepBtnActive {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #0f172a !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.3);
+  transform: scale(1.08);
+}
+
+.stepNum {
+  font-family: var(--font-display, inherit);
+  line-height: 1;
+}
+
+/* Full Screen Stage & Browser Frame */
+.stageContainer {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  perspective: 1200px;
+}
+
+.stageGlow {
+  position: absolute;
+  top: 10%;
+  left: 5%;
+  right: 5%;
+  bottom: 5%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(59, 130, 246, 0.10) 40%, transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.browserFrame {
+  position: relative;
+  z-index: 1;
+  background: #0b1320;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 28px 70px -15px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  width: 100%;
+}
+
+.browserHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  background: #070d18;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.windowDots {
+  display: flex;
+  gap: 7px;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.dotRed {
+  background: #ff5f56;
+}
+
+.dotYellow {
+  background: #ffbd2e;
+}
+
+.dotGreen {
+  background: #27c93f;
+}
+
+.urlBar {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0 auto;
+}
+
+/* Full Screen Image Viewport */
+.imageViewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: min(640px, 75vh);
+  background: #070d18;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 18px 18px;
+}
+
+.screenImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .sectionWrapper {
+    display: none !important; /* Removed on mobile screens as requested by user */
+  }
+}

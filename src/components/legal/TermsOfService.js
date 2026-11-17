@@ -24,6 +24,22 @@ const TermsOfService = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-10% 0px -65% 0px', threshold: 0.1 }
+    );
+
+    const sectionElements = document.querySelectorAll(`.${styles.section}`);
+    sectionElements.forEach((sec) => observer.observe(sec));
+
+    return () => observer.disconnect();
   }, []);
 
   const tocItems = [
@@ -282,7 +298,7 @@ const TermsOfService = () => {
               <strong>You Own Your Data:</strong> You retain full, exclusive ownership of your restaurant's logo, trademarks, menu items, recipe configurations, and customer order history.
             </p>
             <p className={styles.paragraph}>
-              <strong>DINEVIQ Owns the Software:</strong> The DINEVIQ brand name, visual design, source code, AI algorithms, and layout architecture are the proprietary intellectual property of DINEVIQ Technologies India Pvt. Ltd. You may not reverse-engineer, decompile, or create derivative copies of the software.
+              <strong>DINEVIQ Owns the Software:</strong> The DINEVIQ brand name, visual design, source code, AI algorithms, and layout architecture are the proprietary intellectual property of DINEVIQ. You may not reverse-engineer, decompile, or create derivative copies of the software.
             </p>
           </section>
 

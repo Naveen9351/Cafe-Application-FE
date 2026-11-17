@@ -116,8 +116,23 @@ export default function QRMenuSimulator({ onOrderPlaced }) {
 
   return (
     <div className={styles.phoneFrame}>
-      {/* Phone Notch */}
-      <div className={styles.phoneNotch} />
+      {/* Realistic Mobile Status Bar: Time, Dynamic Island, Signal, 5G, Battery */}
+      <div className={styles.phoneStatusBar}>
+        <span className={styles.statusTime}>9:41</span>
+        <div className={styles.dynamicIsland} />
+        <div className={styles.statusIcons}>
+          <div className={styles.cellularSignal} title="Full 5G Signal">
+            <span className={styles.cellularBar} />
+            <span className={styles.cellularBar} />
+            <span className={styles.cellularBar} />
+            <span className={styles.cellularBar} />
+          </div>
+          <span className={styles.networkBadge}>5G</span>
+          <div className={styles.batteryShell} title="Battery 100%">
+            <div className={styles.batteryFill} />
+          </div>
+        </div>
+      </div>
 
       {/* Phone Header */}
       <div className={styles.phoneHeader}>

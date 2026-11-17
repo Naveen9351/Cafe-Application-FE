@@ -3,14 +3,15 @@ import { Sparkles, ArrowRight, ShieldCheck, Zap, PhoneCall, CheckCircle2 } from 
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import styles from '../../styles/CTASection.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const VALUE_PROPS = [
-  { icon: ShieldCheck, color: "#86efac", text: "Works on any mobile / iOS browser" },
-  { icon: Zap, color: "#fde047", text: "Instant table QR menu generation" },
-  { icon: PhoneCall, color: "#ffffff", text: "Direct Indian WhatsApp tech support" },
-  { icon: CheckCircle2, color: "#6ee7b7", text: "14-Day free trial, zero setup fee" }
+  { icon: ShieldCheck, color: "#86efac", text: "Works on any mobile / iOS browser", shortText: "Works on any device" },
+  { icon: Zap, color: "#fde047", text: "Instant table QR menu generation", shortText: "Instant QR setup" },
+  { icon: PhoneCall, color: "#ffffff", text: "Direct Indian WhatsApp tech support", shortText: "WhatsApp support" },
+  { icon: CheckCircle2, color: "#6ee7b7", text: "14-Day free trial, zero setup fee", shortText: "14-Day free trial" }
 ];
 
 // Floating particle positions (deterministic)
@@ -36,53 +37,43 @@ export default function CTASection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Snappy non-blocking entrance
-      gsap.fromTo(
-        cardRef.current,
-        { opacity: 0, y: 20 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.35,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: cardRef.current,
-            start: "top 85%",
-            once: true
+      // 1. High-Impact Scroll Scrub Zoom on CTA Card
+      if (cardRef.current) {
+        gsap.fromTo(
+          cardRef.current,
+          { opacity: 0.4, y: 70, scale: 0.93 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            ease: "none",
+            scrollTrigger: {
+              trigger: cardRef.current,
+              start: "top 90%",
+              end: "top 45%",
+              scrub: 1.2
+            }
           }
-        }
-      );
+        );
 
-      // Continuous subtle pulse on the card border glow
-      gsap.to(cardRef.current, {
-        boxShadow: "0 30px 70px rgba(15,23,42,0.45), 0 0 50px rgba(5,150,105,0.25)",
-        duration: 2,
-        ease: "sine.inOut",
-        yoyo: true,
-        repeat: -1,
-        delay: 1
-      });
+        // Continuous subtle neon pulse on the card border glow
+        gsap.to(cardRef.current, {
+          boxShadow: "0 30px 80px rgba(15,23,42,0.55), 0 0 60px rgba(16,185,129,0.32)",
+          duration: 2.4,
+          ease: "sine.inOut",
+          yoyo: true,
+          repeat: -1
+        });
+      }
     }, sectionRef);
 
     return () => ctx.revert();
   }, []);
 
   return (
-    <section ref={sectionRef} style={{ padding: "clamp(50px, 7vw, 100px) 0", background: "#ffffff", borderTop: "1px solid var(--border-subtle)" }}>
+    <section ref={sectionRef} className={styles.ctaSection}>
       <div className="container">
-        <div
-          ref={cardRef}
-          style={{
-            borderRadius: "var(--radius-xl)",
-            padding: "clamp(36px, 6vw, 64px) clamp(16px, 5vw, 48px)",
-            background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #047857 100%)",
-            color: "#ffffff",
-            textAlign: "center",
-            boxShadow: "0 20px 50px rgba(15,23,42,0.35)",
-            position: "relative",
-            overflow: "hidden"
-          }}
-        >
+        <div ref={cardRef} className={styles.ctaCard}>
           {/* Animated Floating Particles */}
           {PARTICLES.map((p, i) => (
             <div
@@ -129,156 +120,54 @@ export default function CTASection({ onOpenDemo }) {
           {/* Content above z-index particles */}
           <div style={{ position: "relative", zIndex: 2 }}>
             {/* Badge */}
-            <div
-              ref={badgeRef}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 18px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(255, 255, 255, 0.18)",
-                border: "1px solid rgba(255, 255, 255, 0.3)",
-                fontSize: 12,
-                fontWeight: 800,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginBottom: 20,
-                backdropFilter: "blur(10px)"
-              }}
-            >
+            <div ref={badgeRef} className={styles.ctaBadge}>
               <Sparkles style={{ width: 14, height: 14 }} />
               Zero Setup Fee • 14-Day Free Trial
             </div>
 
             {/* Heading */}
-            <h2
-              ref={titleRef}
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(30px, 4.5vw, 58px)",
-                fontWeight: 900,
-                color: "#ffffff",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.15,
-                maxWidth: 820,
-                margin: "0 auto 16px auto"
-              }}
-            >
-              Ready to Transform Your Restaurant Operations?
+            <h2 ref={titleRef} className={styles.ctaTitle}>
+              Ready to Transform Your Restaurant?
             </h2>
 
-            <p
-              ref={subtitleRef}
-              style={{
-                fontSize: "clamp(15px, 1.8vw, 18px)",
-                color: "rgba(255, 255, 255, 0.88)",
-                maxWidth: 640,
-                margin: "0 auto 40px auto",
-                lineHeight: 1.6
-              }}
-            >
-              Join hundreds of forward-thinking Indian cafes, QSRs, and dining rooms cutting wait times and maximizing table turn rates with DINEVIQ.
+            <p ref={subtitleRef} className={styles.ctaSubtitle}>
+              <span className={styles.subFullText}>
+                Join hundreds of forward-thinking Indian cafes, QSRs, and dining rooms cutting wait times and maximizing table turn rates with DINEVIQ.
+              </span>
+
             </p>
 
-            {/* CTA Buttons */}
-            <div ref={actionsRef} style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            {/* CTA Buttons in 2-Col Grid on Mobile */}
+            <div ref={actionsRef} className={styles.ctaActions}>
               <button
+                type="button"
                 onClick={onOpenDemo}
-                style={{
-                  padding: "15px 34px",
-                  borderRadius: "var(--radius-md)",
-                  background: "#ffffff",
-                  color: "var(--color-primary)",
-                  fontSize: 13,
-                  fontWeight: 900,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
-                  transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-3px) scale(1.03)";
-                  e.currentTarget.style.boxShadow = "0 18px 36px rgba(0,0,0,0.28)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0) scale(1)";
-                  e.currentTarget.style.boxShadow = "0 12px 28px rgba(0,0,0,0.18)";
-                }}
+                className={styles.btnPrimary}
               >
-                <span>Schedule Live Walkthrough</span>
-                <ArrowRight style={{ width: 16, height: 16 }} />
+                <span className={styles.btnFullText}>Schedule Live Walkthrough</span>
+                <span className={styles.btnShortText}>Live Demo</span>
+                <ArrowRight style={{ width: 14, height: 14 }} />
               </button>
 
               <Link
                 to="/register"
-                style={{
-                  padding: "15px 28px",
-                  borderRadius: "var(--radius-md)",
-                  background: "rgba(15, 23, 42, 0.35)",
-                  color: "#ffffff",
-                  fontSize: 13,
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                  backdropFilter: "blur(8px)",
-                  transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-3px) scale(1.02)";
-                  e.currentTarget.style.background = "rgba(15, 23, 42, 0.55)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0) scale(1)";
-                  e.currentTarget.style.background = "rgba(15, 23, 42, 0.35)";
-                }}
+                className={styles.btnSecondary}
               >
-                <Zap style={{ width: 15, height: 15, color: "#fde047" }} />
-                <span>Create Restaurant Account</span>
+                <Zap style={{ width: 14, height: 14, color: "#fde047" }} />
+                <span className={styles.btnFullText}>Create Restaurant Account</span>
+                <span className={styles.btnShortText}>Create Account</span>
               </Link>
             </div>
 
             {/* Value Props Strip */}
-            <div
-              ref={propsRef}
-              style={{
-                marginTop: "clamp(28px, 4vw, 52px)",
-                paddingTop: 24,
-                borderTop: "1px solid rgba(255, 255, 255, 0.2)",
-                display: "flex",
-                justifyContent: "center",
-                gap: "clamp(12px, 3vw, 32px)",
-                flexWrap: "wrap",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "rgba(255, 255, 255, 0.9)"
-              }}
-            >
+            <div ref={propsRef} className={styles.valueProps}>
               {VALUE_PROPS.map((prop, i) => {
                 const Icon = prop.icon;
                 return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      transition: "transform 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
-                  >
-                    <Icon style={{ width: 16, height: 16, color: prop.color }} />
-                    <span>{prop.text}</span>
+                  <div key={i} className={styles.valuePropItem}>
+                    <Icon style={{ width: 15, height: 15, color: prop.color, flexShrink: 0 }} />
+                    <span className={styles.propFullText}>{prop.text}</span>
+                    <span className={styles.propShortText}>{prop.shortText}</span>
                   </div>
                 );
               })}
