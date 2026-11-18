@@ -13,7 +13,9 @@ import {
   Moon,
   Receipt,
   Utensils,
-  FileText
+  FileText,
+  Edit3,
+  X
 } from "lucide-react";
 import TableBadge from "./common/TableBadge";
 import TrackOrderBadge from "./common/TrackOrderBadge";
@@ -30,6 +32,7 @@ export default function Cart() {
     items,
     setItems,
     updateItemQuantity,
+    updateItemNote,
     removeItem,
     getCartTotal,
   } = useCartContext();
@@ -41,6 +44,11 @@ export default function Cart() {
   const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
   const [isPlacing, setIsPlacing] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+
+  // Cooking / preparation instructions notes state
+  const [editingNoteItemId, setEditingNoteItemId] = useState(null);
+  const [noteInputText, setNoteInputText] = useState('');
+  const [orderGeneralNote, setOrderGeneralNote] = useState('');
 
   // Customer verification profile
   const [customer, setCustomer] = useState(() => {
@@ -167,7 +175,8 @@ export default function Cart() {
           phone: activeCustomer?.phone || "",
           email: activeCustomer?.email || "",
           isPhoneVerified: Boolean(activeCustomer?.verified)
-        }
+        },
+        notes: orderGeneralNote || ''
       };
 
       const { data } = await axios.post(`${API}/orders`, payload);
@@ -387,11 +396,135 @@ export default function Cart() {
                           )}
                         </div>
 
-                        {notes && (
-                          <p className={styles.notePill} style={{ color: theme.textMuted }}>
-                            <FileText size={11} color={theme.accent} />
-                            <span>"{notes}"</span>
-                          </p>
+                        {/* Item Cooking Note */}
+                        {editingNoteItemId === item.id ? (
+                          <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input
+                              type="text"
+                              value={noteInputText}
+                              onChange={(e) => setNoteInputText(e.target.value)}
+                              placeholder="e.g. Less sugar, extra ice, no onions..."
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateItemNote(item.id, noteInputText.trim());
+                                  setEditingNoteItemId(null);
+                                }
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '5px 8px',
+                                borderRadius: '6px',
+                                border: `1.5px solid ${theme.accent}`,
+                                fontSize: '0.78rem',
+                                background: isDarkMode ? '#1e1610' : '#ffffff',
+                                color: theme.textMain,
+                                outline: 'none'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateItemNote(item.id, noteInputText.trim());
+                                setEditingNoteItemId(null);
+                              }}
+                              style={{
+                                padding: '5px 9px',
+                                borderRadius: '6px',
+                                background: theme.accent,
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingNoteItemId(null)}
+                              style={{
+                                padding: '5px 7px',
+                                borderRadius: '6px',
+                                background: 'transparent',
+                                color: theme.textMuted,
+                                border: `1px solid ${theme.border}`,
+                                fontSize: '0.74rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : notes ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                            <p className={styles.notePill} style={{ color: theme.textMuted, margin: 0 }}>
+                              <FileText size={11} color={theme.accent} />
+                              <span>"{notes}"</span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingNoteItemId(item.id);
+                                setNoteInputText(notes);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: theme.accent,
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                              title="Edit Note"
+                            >
+                              <Edit3 size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateItemNote(item.id, '')}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#94a3b8',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                              title="Remove Note"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingNoteItemId(item.id);
+                              setNoteInputText('');
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: 'transparent',
+                              border: `1px dashed ${theme.border}`,
+                              borderRadius: '6px',
+                              padding: '2px 8px',
+                              fontSize: '0.73rem',
+                              color: theme.accent,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              marginTop: '4px',
+                              alignSelf: 'flex-start'
+                            }}
+                          >
+                            <FileText size={10} />
+                            <span>+ Note (e.g. less sugar)</span>
+                          </button>
                         )}
 
                         <div className={styles.actions}>
@@ -457,6 +590,38 @@ export default function Cart() {
                 </div>
                 <ChevronRight size={16} />
               </Link>
+
+              {/* Cooking / Chef Instructions Note */}
+              <div style={{
+                backgroundColor: theme.bgCard,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '12px',
+                padding: '12px 14px',
+                marginTop: '12px',
+                boxShadow: isDarkMode ? '0 4px 16px rgba(0,0,0,0.3)' : '0 2px 12px rgba(15,23,42,0.04)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: theme.textMain, marginBottom: '6px' }}>
+                  <FileText size={14} color={theme.accent} />
+                  <span>Cooking / Chef Instructions (Optional)</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Less sugar in drinks, serve starters first, extra napkins..."
+                  value={orderGeneralNote}
+                  onChange={(e) => setOrderGeneralNote(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.border}`,
+                    background: isDarkMode ? '#1e1610' : '#f8fafc',
+                    color: theme.textMain,
+                    fontSize: '0.82rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
 
               {/* Bill Details Box */}
               <div className={styles.summary} style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}>

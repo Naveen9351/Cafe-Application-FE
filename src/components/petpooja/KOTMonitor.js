@@ -73,9 +73,10 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
           name: it.name || it.item?.name || 'Dish',
           quantity: it.quantity || 1,
           modifiers: it.variant?.name ? `Size: ${it.variant.name}` : (it.addons && it.addons.length > 0 ? it.addons.map(a => a.name).join(', ') : ''),
+          notes: it.specialNotes || it.notes || '',
           price: (it.price || 0) * (it.quantity || 1)
-        })) || [{ name: 'Item', quantity: 1, modifiers: '', price: 100 }],
-        specialInstructions: o.specialInstructions || '',
+        })) || [{ name: 'Item', quantity: 1, modifiers: '', notes: '', price: 100 }],
+        specialInstructions: o.specialInstructions || o.notes || o.customerDetails?.notes || '',
         totalAmount: o.total || o.totalAmount || 0
       }));
       setLocalOrders(formatted);
@@ -508,6 +509,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                               <div className={styles.itemMain}>
                                 <span className={styles.itemName}>{it.name}</span>
                                 {it.modifiers && <span className={styles.itemModifier}>{String(it.modifiers).replace(/^[↳\s]+/, '')}</span>}
+                                {it.notes && (
+                                  <div style={{ fontSize: '0.73rem', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 800, marginTop: '2px', display: 'inline-block' }}>
+                                    📝 {it.notes}
+                                  </div>
+                                )}
                               </div>
                               <span className={styles.itemQty}>×{it.quantity}</span>
                             </div>
@@ -641,6 +647,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                               <div className={styles.itemMain}>
                                 <span className={styles.itemName}>{it.name}</span>
                                 {it.modifiers && <span className={styles.itemModifier}>{String(it.modifiers).replace(/^[↳\s]+/, '')}</span>}
+                                {it.notes && (
+                                  <div style={{ fontSize: '0.73rem', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 800, marginTop: '2px', display: 'inline-block' }}>
+                                    📝 {it.notes}
+                                  </div>
+                                )}
                               </div>
                               <span className={styles.itemQty}>×{it.quantity}</span>
                             </div>
@@ -740,6 +751,11 @@ export default function KOTMonitor({ orders = [], onUpdateStatus, onDeleteOrder,
                               <div className={styles.itemMain}>
                                 <span className={styles.itemName}>{it.name}</span>
                                 {it.modifiers && <span className={styles.itemModifier}>{String(it.modifiers).replace(/^[↳\s]+/, '')}</span>}
+                                {it.notes && (
+                                  <div style={{ fontSize: '0.73rem', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 800, marginTop: '2px', display: 'inline-block' }}>
+                                    📝 {it.notes}
+                                  </div>
+                                )}
                               </div>
                               <span className={styles.itemQty}>×{it.quantity}</span>
                             </div>

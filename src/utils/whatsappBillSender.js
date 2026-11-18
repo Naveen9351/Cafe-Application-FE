@@ -1,8 +1,12 @@
 /**
  * SERVIQ Cafe OS - WhatsApp E-Bill & Digital Invoice Dispatcher
  * Formats a clean, high-conversion WhatsApp digital invoice with items breakdown,
- * taxes, discount, payment status, and 1-click wa.me dispatch link.
+ * taxes, discount, payment status, and background dispatch via server-linked WhatsApp.
  */
+
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { API_URL } from '../config/api';
 
 export const generateWhatsappBillText = (order, tenantInfo = null) => {
   if (!order) return '';
@@ -88,12 +92,111 @@ export const getWhatsappBillUrl = (order, tenantInfo = null, overridePhone = '')
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 };
 
-export const openWhatsappBill = (order, tenantInfo = null, overridePhone = '') => {
-  const url = getWhatsappBillUrl(order, tenantInfo, overridePhone);
-  if (url && url !== '#') {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    return true;
+/**
+ * Send WhatsApp digital bill directly from the Cafe's linked server device.
+ * Dispatches silently in background without opening WhatsApp Web and without cashier login.
+ */
+export const sendDirectWhatsappBill = async (order, tenantInfo = null, overridePhone = '') => {
+  if (!order) {
+    toast.error('Order details are missing.');
+    return { success: false, error: 'Order details missing' };
   }
-  return false;
+
+  const rawPhone = overridePhone || order.customerPhone || order.customerDetails?.phone || '';
+  const cleanPhone = String(rawPhone).replace(/\D/g, '');
+
+  if (!cleanPhone || cleanPhone.length < 10) {
+    toast.error('Customer phone number is missing or has fewer than 10 digits.');
+    return { success: false, error: 'Invalid phone' };
+  }
+
+  const toastId = toast.loading('Sending bill via WhatsApp...');
+
+  try {
+    const text = generateWhatsappBillText(order, tenantInfo);
+    const token = localStorage.getItem('token');
+    const tenantId = tenantInfo?._id || order.tenantId;
+
+    const response = await axios.post(
+      `${API_URL}/whatsapp/send-bill`,
+      {
+        orderId: order._id,
+        phone: cleanPhone,
+        message: text,
+        tenantId
+      },
+      {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(tenantId ? { 'x-tenant-id': tenantId } : {})
+        },
+        timeout: 18000
+      }
+    );
+
+    if (response.data?.success) {
+      toast.success(`Bill sent to +${response.data.phone || cleanPhone} via WhatsApp! 📱`, { id: toastId });
+      return { success: true, phone: response.data.phone };
+    } else {
+      throw new Error(response.data?.error || 'Failed to dispatch WhatsApp message');
+    }
+  } catch (err) {
+    const isNotConnected = err.response?.data?.notConnected || err.response?.status === 503;
+    const errorMsg = err.response?.data?.error || err.message || 'Error sending WhatsApp bill';
+
+    if (isNotConnected) {
+      toast.error('Cafe WhatsApp is not linked yet. Please scan QR in Restaurant Settings.', { id: toastId, duration: 6000 });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('serviq_open_whatsapp_modal', { detail: { tenantInfo } }));
+      }
+    } else {
+      toast.error(errorMsg, { id: toastId });
+    }
+
+    return {
+      success: false,
+      notConnected: isNotConnected,
+      error: errorMsg
+    };
+  }
 };
 
+/**
+ * Universal dispatcher:
+ * Sends silently in the background directly from the cafe's linked server number.
+ * No WhatsApp Web login or window open is performed.
+ */
+export const openWhatsappBill = async (order, tenantInfo = null, overridePhone = '') => {
+  let phoneToSend = overridePhone || order?.customerPhone || order?.customerDetails?.phone || '';
+  const cleanDigits = String(phoneToSend).replace(/\D/g, '');
+  
+  if (!cleanDigits || cleanDigits.length < 10) {
+    const userInput = window.prompt("Enter your 10-digit WhatsApp number to receive your digital bill:");
+    if (!userInput) return false;
+    phoneToSend = userInput.replace(/\D/g, '');
+    if (!phoneToSend || phoneToSend.length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number.");
+      return false;
+    }
+  }
+
+  const result = await sendDirectWhatsappBill(order, tenantInfo, phoneToSend);
+  if (result.success) {
+    return true;
+  }
+
+  // Only if server WhatsApp is not linked yet, offer fallback so operations aren't blocked
+  if (result.notConnected) {
+    const fallbackUrl = getWhatsappBillUrl(order, tenantInfo, phoneToSend);
+    const confirmFallback = window.confirm(
+      "WhatsApp is not linked on the Cafe server yet.\n\n" +
+      "Would you like to open WhatsApp Web as a temporary fallback, or cancel and link the Cafe's phone in Restaurant Settings?"
+    );
+    if (confirmFallback && fallbackUrl && fallbackUrl !== '#') {
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+  }
+
+  return false;
+};

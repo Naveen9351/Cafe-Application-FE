@@ -8,7 +8,7 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle, Volume2, Volume1, VolumeX, Play,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -347,6 +347,16 @@ export default function AdminPanel() {
 
   const hasAccessToCurrentTab = allowedTabs.some(t => t.id === activeTab);
 
+  // Subscription check: If tenant subscription is deactivated or expired, block all non-super-admin access
+  const isSubscriptionBlocked = useMemo(() => {
+    if (user?.role === 'super_admin') return false;
+    const sub = tenantInfo?.subscription;
+    if (!sub) return false;
+    if (sub.isActive === false) return true;
+    if (sub.endDate && new Date(sub.endDate) < new Date()) return true;
+    return false;
+  }, [user, tenantInfo]);
+
   // Auto-redirect user to their first permitted tab if navigating to an unauthorized / disallowed route
   useEffect(() => {
     if (user && allowedTabs.length > 0) {
@@ -418,7 +428,7 @@ export default function AdminPanel() {
         if (it.category) {
           const cleanCat = String(it.category).trim();
           const catId = toCategorySlug(cleanCat);
-          if (catId && !knownIds.has(catId.toLowerCase()) && !knownNames.has(cleanCat.toLowerCase()) && catId !== 'all') {
+          if (catId && catId !== 'all' && catId !== 'uncategorized' && !knownIds.has(catId.toLowerCase()) && !knownNames.has(cleanCat.toLowerCase())) {
             knownIds.add(catId.toLowerCase());
             knownNames.add(cleanCat.toLowerCase());
             const iconKey = detectCategoryIcon(cleanCat);
@@ -440,8 +450,8 @@ export default function AdminPanel() {
     }
 
     const combined = [
-      ...categories.filter(c => c.id !== 'all' && !isLegacyDummyCategory(c)),
-      ...autoDiscovered
+      ...categories.filter(c => c.id !== 'all' && c.id !== 'uncategorized' && (c.name || '').toLowerCase() !== 'uncategorized' && !isLegacyDummyCategory(c)),
+      ...autoDiscovered.filter(c => c.id !== 'uncategorized' && (c.name || '').toLowerCase() !== 'uncategorized')
     ];
     const others = combined
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
@@ -690,7 +700,24 @@ export default function AdminPanel() {
           isVeg: d.isVeg !== undefined ? d.isVeg : true,
           discount: d.discount || { isDiscounted: false, type: 'percentage', value: 0 }
         }));
-        setItems(enriched);
+
+        // Deduplicate dishes if an identical name exists with both a valid category and 'uncategorized'
+        const validCategoryItems = new Set(
+          enriched
+            .filter(d => d.category && d.category.toLowerCase() !== 'uncategorized')
+            .map(d => String(d.name || '').trim().toLowerCase())
+        );
+
+        const deduplicated = enriched.filter(d => {
+          const isUncat = !d.category || d.category.toLowerCase() === 'uncategorized';
+          const normName = String(d.name || '').trim().toLowerCase();
+          if (isUncat && validCategoryItems.has(normName)) {
+            return false;
+          }
+          return true;
+        });
+
+        setItems(deduplicated);
       }
     } catch (err) {
       console.log('Fetch menu error:', err.message);
@@ -1089,33 +1116,54 @@ export default function AdminPanel() {
   }, [orders]);
   const liveActiveOrdersCount = liveActiveOrders.length;
 
-  // Real-time NEW orders count for Live Orders badge (only pending/confirmed/new orders)
+  // Real-time NEW orders count for Live Orders badge (strictly matches KDS Column 1)
   const liveNewOrders = useMemo(() => {
-    return (orders || []).filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'new');
+    return (orders || []).filter(o => o.status === 'pending' || o.status === 'confirmed');
   }, [orders]);
   const liveNewOrdersCount = liveNewOrders.length;
 
   // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
     const targetOrders = dashboardOrders;
-    const completedOrders = targetOrders.filter(o => o.status === 'completed');
-    const activeOrders = targetOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+    // Valid orders exclude cancelled orders, matching Super Admin Lifetime & Today metrics
+    const validOrders = targetOrders.filter(o => o.status !== 'cancelled');
+    const completedOrders = targetOrders.filter(o => o.status === 'completed' || o.paymentStatus === 'paid');
+    const activeOrders = targetOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled' && o.paymentStatus !== 'paid');
     const cancelledOrders = targetOrders.filter(o => o.status === 'cancelled');
 
-    // Realized Gross Sales from Settled Orders (matches Reports Suite & Bills)
-    const grossSales = completedOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+    // Realized Gross Sales from All Valid Orders (matches Super Admin exactly)
+    const grossSales = validOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
     const activePipelineSales = activeOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
-    const totalOrdersCount = targetOrders.length;
+    const totalOrdersCount = validOrders.length;
 
-    // Real Net Sales (SubTotal of completed orders excluding taxes)
-    const netSales = completedOrders.reduce((sum, o) => sum + (o.subTotal || Math.round(getOrderAmount(o) / 1.05)), 0);
+    // Real Net Sales (Excluding GST/Taxes, guaranteed <= grossSales)
+    const netSales = Math.min(grossSales, Math.round(grossSales / 1.05));
 
-    // Average Order Value (AOV) / Average Bill Value
-    const avgTicket = completedOrders.length > 0 ? Math.round(grossSales / completedOrders.length) : (totalOrdersCount > 0 ? Math.round((grossSales + activePipelineSales) / totalOrdersCount) : 0);
+    // Average Order Value (AOV) matches Super Admin: grossSales / totalOrdersCount
+    const avgTicket = totalOrdersCount > 0 ? Math.round(grossSales / totalOrdersCount) : 0;
 
     // Dynamic Net Profit Margin (from cafe settings, default 40%)
     const profitMarginPercent = Number(tenantInfo?.settings?.profitMargin ?? 40);
     const netProfit = Math.round(grossSales * (profitMarginPercent / 100));
+
+    // Sales Channel Breakdown (Operational / Online vs Cash)
+    let onlineSales = 0;
+    let onlineOrdersCount = 0;
+    let cashSales = 0;
+    let cashOrdersCount = 0;
+
+    validOrders.forEach(o => {
+      const amt = getOrderAmount(o);
+      const method = String(o.paymentMethod || '').toLowerCase();
+      const isOnline = method.includes('upi') || method.includes('online') || method.includes('card') || o.orderType === 'online' || o.orderType === 'qr';
+      if (isOnline) {
+        onlineSales += amt;
+        onlineOrdersCount += 1;
+      } else {
+        cashSales += amt;
+        cashOrdersCount += 1;
+      }
+    });
 
     const occupiedTablesList = tables.filter(t => {
       const rawNum = String(t.tableNumber || '').trim().toLowerCase();
@@ -1457,6 +1505,11 @@ export default function AdminPanel() {
     return {
       grossSales,
       netSales,
+      onlineSales,
+      onlineOrdersCount,
+      cashSales,
+      cashOrdersCount,
+      activePipelineSales,
       profitMarginPercent,
       totalOrdersCount,
       avgTicket,
@@ -2642,33 +2695,39 @@ export default function AdminPanel() {
             )}
           </div>
 
-          {/* Sidebar Footer */}
+          {/* Sidebar Footer - Matching Image 1 (Sign Out & AI Bot Avatar) */}
           <div className={styles.sidebarFooter}>
             <button
               type="button"
-              className={styles.logoutBtn}
+              className={`${styles.logoutBtn} ${sidebarCollapsed ? styles.logoutBtnCollapsed : ''}`}
               onClick={() => setShowLogoutModal(true)}
               title="Sign Out"
             >
               <LogOut size={16} /> {!sidebarCollapsed && <span>{t('header.signOut')}</span>}
             </button>
-
-            {/* Chatbot Circular Avatar Button (Placed after Log Out) */}
-            <button
-              type="button"
-              className={`${styles.chatbotCircleBtn} ${isKhushiOpen ? styles.chatbotCircleBtnActive : ''}`}
-              onClick={() => setIsKhushiOpen(prev => !prev)}
-              title="DineviQ AI Bot (Copilot)"
-            >
-              <div className={styles.khushiAvatarWrap}>
-                <img
-                  src={KHUSHI_AVATAR_URL}
-                  alt="DineviQ AI Bot"
-                  className={styles.khushiSidebarImg}
-                />
+            {!sidebarCollapsed && (
+              <div
+                className={styles.khushiAvatarWrap}
+                onClick={() => setIsKhushiOpen(prev => !prev)}
+                title="DineviQ AI Assistant"
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(124, 58, 237, 0.35)',
+                  position: 'relative'
+                }}
+              >
+                <Sparkles size={16} />
                 <span className={styles.khushiOnlineDot} />
               </div>
-            </button>
+            )}
           </div>
         </aside>
       )}
@@ -3262,7 +3321,41 @@ export default function AdminPanel() {
 
         {/* MAIN BODY AREA */}
         <main className={`${styles.mainContent} ${(activeTab === 'pos' || activeTab === 'kds' || activeTab === 'orders' || activeTab === 'crm') ? styles.mainContentFitScreen : ''}`}>
-          {!hasAccessToCurrentTab ? (
+          {isSubscriptionBlocked ? (
+            <div className={styles.accessRestrictedWrap} style={{ background: '#fef2f2' }}>
+              <div className={styles.accessRestrictedCard} style={{ borderColor: '#fca5a5', maxWidth: '520px', padding: '2.5rem 2rem' }}>
+                <div className={styles.accessRestrictedIcon} style={{ background: '#fee2e2', color: '#dc2626' }}>
+                  <AlertTriangle size={36} />
+                </div>
+                <h3 style={{ color: '#991b1b', fontSize: '1.25rem', fontWeight: 800 }}>Account Deactivated</h3>
+                <p style={{ color: '#7f1d1d', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                  Your cafe subscription plan is currently <strong>deactivated</strong> or <strong>expired</strong>. Access to POS, Live Orders, Kitchen KDS, and Menu has been suspended.
+                </p>
+                <div style={{ background: '#ffffff', borderRadius: '10px', padding: '12px 16px', border: '1px solid #fecaca', margin: '1rem 0', textAlign: 'left', fontSize: '0.8rem', color: '#334155' }}>
+                  <p style={{ margin: '0 0 6px 0', fontWeight: 700, color: '#0f172a' }}>How to restore access:</p>
+                  <p style={{ margin: '0 0 4px 0' }}>• Contact SuperAdmin to renew or activate your subscription plan.</p>
+                  <p style={{ margin: 0 }}>• Support Email: <strong>deepak@gmail.com</strong></p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    className={styles.goToPermittedBtn}
+                    onClick={() => setShowSupportModal(true)}
+                    style={{ background: '#dc2626', borderColor: '#b91c1c' }}
+                  >
+                    Contact Support
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoutModal(true)}
+                    style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : !hasAccessToCurrentTab ? (
             <div className={styles.accessRestrictedWrap}>
               <div className={styles.accessRestrictedCard}>
                 <div className={styles.accessRestrictedIcon}>
@@ -3489,6 +3582,71 @@ export default function AdminPanel() {
                     return null;
                   })()}
 
+                  {/* Sales Channel Metric Breakdown (operational_online vs cash - Point 4) */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    padding: '10px 16px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                    marginBottom: '1rem',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        📊 {isHindi ? 'बिक्री चैनल (माध्यम):' : 'Sales Channel Telemetry:'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe'
+                      }}>
+                        <Globe size={14} color="#2563eb" />
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e40af' }}>
+                          Operational / Online:
+                        </span>
+                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#1d4ed8' }}>
+                          ₹{Math.round(metrics.onlineSales || 0).toLocaleString('en-IN')}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 600 }}>
+                          ({metrics.onlineOrdersCount || 0} {isHindi ? 'ऑर्डर्स' : 'orders'})
+                        </span>
+                      </div>
+
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        background: '#ecfdf5',
+                        border: '1px solid #a7f3d0'
+                      }}>
+                        <Banknote size={14} color="#059669" />
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#065f46' }}>
+                          Cash (Counter POS):
+                        </span>
+                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#047857' }}>
+                          ₹{Math.round(metrics.cashSales || 0).toLocaleString('en-IN')}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>
+                          ({metrics.cashOrdersCount || 0} {isHindi ? 'ऑर्डर्स' : 'orders'})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
                   <div className={styles.kpiGridModern}>
                     {/* Card 1: Gross Revenue */}
@@ -3518,7 +3676,15 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...') : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}</span>
+                        <span>
+                          {isFilterLoading
+                            ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...')
+                            : metrics.completedOrders.length > 0
+                              ? `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}${metrics.activePipelineSales > 0 ? ` • +₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'किचन में' : 'in kitchen'}` : ''}`
+                              : metrics.activePipelineSales > 0
+                                ? `₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'लाइव पाइपलाइन (किचन में)' : 'live in kitchen queue'}`
+                                : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}
+                        </span>
                         {isFilterLoading ? (
                           <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
                         ) : metrics.grossSales > 0 ? (
@@ -3588,7 +3754,15 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? (isHindi ? 'गणना जारी...' : 'Recalculating...') : (isHindi ? `${metrics.completedOrders?.length || 0} चुकता बिलों से • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} टैक्स` : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`)}</span>
+                        <span>
+                          {isFilterLoading
+                            ? (isHindi ? 'गणना जारी...' : 'Recalculating...')
+                            : metrics.completedOrders.length > 0
+                              ? (isHindi ? `${metrics.completedOrders?.length || 0} चुकता बिलों से • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} टैक्स` : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`)
+                              : metrics.activePipelineSales > 0
+                                ? (isHindi ? `${metrics.activeOrders.length} सक्रिय ऑर्डर किचन में (बिलिंग बाकी)` : `${metrics.activeOrders.length} active orders in kitchen queue`)
+                                : (isHindi ? '0 चुकता बिल • ₹0 टैक्स' : 'From 0 Settled Bills • ₹0 Tax')}
+                        </span>
                         {isFilterLoading ? (
                           <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
                         ) : metrics.netSales > 0 ? (
@@ -5450,6 +5624,7 @@ export default function AdminPanel() {
                     initialTable={posSelectedTable}
                     isMainSidebarOpen={!sidebarCollapsed}
                     onOrderPlaced={(newOrd) => {
+                      setPosSelectedTable(null);
                       if (newOrd?._refreshAll) {
                         if (newOrd.status === 'completed' && newOrd.tableNumber) {
                           setOrders(prev => prev.map(o => {
@@ -5487,6 +5662,7 @@ export default function AdminPanel() {
                       fetchOrders();
                     }}
                     onOrderCreated={(newOrd) => {
+                      setPosSelectedTable(null);
                       if (newOrd?._refreshAll && newOrd?.status === 'completed' && newOrd?.tableNumber) {
                         setOrders(prev => prev.map(o => {
                           const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();

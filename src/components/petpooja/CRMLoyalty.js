@@ -28,10 +28,16 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   // Unified Search & Detailed Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [verificationFilter, setVerificationFilter] = useState('all'); // 'all', 'verified', 'unverified'
-  const [sortBy, setSortBy] = useState('highest_spend'); // 'highest_spend', 'highest_aov', 'recent_visit', 'total_visits', 'name_asc'
+  const [sortBy, setSortBy] = useState('recent_visit'); // 'recent_visit' default puts new customers on Page 1 top
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  // Draft filter states (only applied when user clicks "Apply Filter")
+  const [draftSearchQuery, setDraftSearchQuery] = useState('');
+  const [draftActiveTab, setDraftActiveTab] = useState('all');
+  const [draftVerificationFilter, setDraftVerificationFilter] = useState('all');
+  const [draftSortBy, setDraftSortBy] = useState('recent_visit');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,6 +79,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [selectedCampaignTemplate, setSelectedCampaignTemplate] = useState('diwali');
   const [customCampaignMessage, setCustomCampaignMessage] = useState('');
+  const [editableCampaignMessage, setEditableCampaignMessage] = useState('');
   const [broadcastQueueIndex, setBroadcastQueueIndex] = useState(0);
   const [sentBroadcastIds, setSentBroadcastIds] = useState(new Set());
   const [tenantDetails, setTenantDetails] = useState(null);
@@ -724,11 +731,16 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
   const cafeBrandName = tenantDetails?.name || 'Dineviq Cafe';
 
+  useEffect(() => {
+    const tmpl = CAMPAIGN_TEMPLATES.find(t => t.id === selectedCampaignTemplate) || CAMPAIGN_TEMPLATES[0];
+    const initialText = tmpl.message.replace(/{cafe}/g, cafeBrandName).replace(/{cafe_name}/g, cafeBrandName);
+    setEditableCampaignMessage(initialText);
+  }, [selectedCampaignTemplate, cafeBrandName]);
+
   const getFormattedCampaignMessage = (templateId, cust) => {
-    const tmpl = CAMPAIGN_TEMPLATES.find(t => t.id === templateId) || CAMPAIGN_TEMPLATES[0];
-    const templateText = templateId === 'custom' && customCampaignMessage.trim() ? customCampaignMessage : tmpl.message;
+    const text = editableCampaignMessage.trim() ? editableCampaignMessage : ((CAMPAIGN_TEMPLATES.find(t => t.id === templateId) || CAMPAIGN_TEMPLATES[0]).message);
     const name = cust?.name || 'Valued Guest';
-    return templateText
+    return text
       .replace(/{name}/g, name)
       .replace(/{customer_name}/g, name)
       .replace(/{cafe}/g, cafeBrandName)
@@ -846,7 +858,11 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
         if (sortBy === 'lowest_spend') return aSpend - bSpend;
         if (sortBy === 'highest_aov') return bAov - aAov;
         if (sortBy === 'lowest_aov') return aAov - bAov;
-        if (sortBy === 'recent_visit') return new Date(b.lastVisit || 0) - new Date(a.lastVisit || 0);
+        if (sortBy === 'recent_visit' || !sortBy) {
+          const bTime = new Date(b.lastVisit || b.updatedAt || b.createdAt || 0).getTime();
+          const aTime = new Date(a.lastVisit || a.updatedAt || a.createdAt || 0).getTime();
+          return bTime - aTime;
+        }
         if (sortBy === 'oldest_visit') return new Date(a.lastVisit || 0) - new Date(b.lastVisit || 0);
         if (sortBy === 'total_visits') return bVisits - aVisits;
         if (sortBy === 'least_visits') return aVisits - bVisits;
@@ -877,11 +893,39 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
   const hasActiveFilters = searchQuery || activeFilterCount > 0;
 
+  const handleOpenFilterModal = () => {
+    setDraftSearchQuery(searchQuery);
+    setDraftActiveTab(activeTab);
+    setDraftVerificationFilter(verificationFilter);
+    setDraftSortBy(sortBy);
+    setIsFilterModalOpen(true);
+  };
+
+  const handleApplyFilter = () => {
+    setSearchQuery(draftSearchQuery);
+    setActiveTab(draftActiveTab);
+    setVerificationFilter(draftVerificationFilter);
+    setSortBy(draftSortBy);
+    setCurrentPage(1);
+    setIsFilterModalOpen(false);
+  };
+
+  const handleResetDraftFilters = () => {
+    setDraftSearchQuery('');
+    setDraftActiveTab('all');
+    setDraftVerificationFilter('all');
+    setDraftSortBy('recent_visit');
+  };
+
   const resetFilters = () => {
     setActiveTab('all');
     setSearchQuery('');
     setVerificationFilter('all');
     setSortBy('highest_spend');
+    setDraftSearchQuery('');
+    setDraftActiveTab('all');
+    setDraftVerificationFilter('all');
+    setDraftSortBy('recent_visit');
   };
 
   const handleHeaderSort = (col) => {
@@ -950,7 +994,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
           {/* Combined Filter Button */}
           <button
             className={`${styles.btnSecondary} ${hasActiveFilters ? styles.btnFilterActive : ''}`}
-            onClick={() => setIsFilterModalOpen(true)}
+            onClick={handleOpenFilterModal}
             title="Filter and Search Customers"
           >
             <Filter size={13} color={hasActiveFilters ? "#2563eb" : "#475569"} />
@@ -2010,12 +2054,12 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                         <input
                           type="text"
                           placeholder="Search by name or mobile number..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
+                          value={draftSearchQuery}
+                          onChange={(e) => setDraftSearchQuery(e.target.value)}
                           className={styles.modalSearchInput}
                         />
-                        {searchQuery && (
-                          <button type="button" onClick={() => setSearchQuery('')} className={styles.clearBtn}>
+                        {draftSearchQuery && (
+                          <button type="button" onClick={() => setDraftSearchQuery('')} className={styles.clearBtn}>
                             <X size={12} />
                           </button>
                         )}
@@ -2027,8 +2071,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       <div className={styles.filterGroup}>
                         <label className={styles.filterLabel}>Guest Segment</label>
                         <select
-                          value={activeTab}
-                          onChange={(e) => setActiveTab(e.target.value)}
+                          value={draftActiveTab}
+                          onChange={(e) => setDraftActiveTab(e.target.value)}
                           className={styles.modalSelectField}
                         >
                           <option value="all">All Guests ({tabCounts.all})</option>
@@ -2044,8 +2088,8 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       <div className={styles.filterGroup}>
                         <label className={styles.filterLabel}>Verification Status</label>
                         <select
-                          value={verificationFilter}
-                          onChange={(e) => setVerificationFilter(e.target.value)}
+                          value={draftVerificationFilter}
+                          onChange={(e) => setDraftVerificationFilter(e.target.value)}
                           className={styles.modalSelectField}
                         >
                           <option value="all">All Verification</option>
@@ -2058,13 +2102,13 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       <div className={styles.filterGroup} style={{ gridColumn: '1 / -1' }}>
                         <label className={styles.filterLabel}>Sort By</label>
                         <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value)}
+                          value={draftSortBy}
+                          onChange={(e) => setDraftSortBy(e.target.value)}
                           className={styles.modalSelectField}
                         >
+                          <option value="recent_visit">Recent Visit Date</option>
                           <option value="highest_spend">Highest Lifetime Spend</option>
                           <option value="highest_aov">Highest Average Order Value (AOV)</option>
-                          <option value="recent_visit">Recent Visit Date</option>
                           <option value="total_visits">Total Visit Frequency</option>
                         </select>
                       </div>
@@ -2074,18 +2118,17 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                   <div className={styles.filterModalFooter}>
                     <button
                       type="button"
-                      onClick={resetFilters}
+                      onClick={handleResetDraftFilters}
                       className={styles.filterResetBtn}
-                      disabled={activeFilterCount === 0}
                     >
                       Reset Filters
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsFilterModalOpen(false)}
+                      onClick={handleApplyFilter}
                       className={styles.filterApplyBtn}
                     >
-                      Done
+                      Apply Filter
                     </button>
                   </div>
                 </motion.div>
@@ -2169,29 +2212,28 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                       </div>
                     </div>
 
-                    {/* Custom Message Editor if Custom Template */}
-                    {selectedCampaignTemplate === 'custom' && (
-                      <div style={{ marginBottom: 14 }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                          Custom Message (Use placeholders: {'{name}'}, {'{cafe}'}):
-                        </label>
-                        <textarea
-                          rows={4}
-                          value={customCampaignMessage}
-                          onChange={(e) => setCustomCampaignMessage(e.target.value)}
-                          placeholder="Write your custom festival greetings or promotional discount..."
-                          style={{
-                            width: '100%',
-                            padding: '10px',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.82rem',
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-                    )}
+                    {/* Message Body Editor (Editable for all templates) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                        Message Body (Customize greetings or offer — placeholders: {'{name}'}, {'{cafe}'}):
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={editableCampaignMessage}
+                        onChange={(e) => setEditableCampaignMessage(e.target.value)}
+                        placeholder="Write or customize campaign message..."
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '0.82rem',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                    </div>
 
                     {/* Live WhatsApp Preview */}
                     <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>

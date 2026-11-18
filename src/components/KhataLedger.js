@@ -3,7 +3,7 @@ import {
   Loader2, BookOpen, Search, CheckCircle, AlertCircle, Check, X, Phone, User, Plus,
   RefreshCw, Calendar, ArrowUpRight, ArrowDownRight, MessageCircle, Trash2, ShoppingBag, CreditCard,
   ChevronRight, ChevronLeft, Utensils, Minus, Printer, QrCode, Smartphone, Banknote,
-  FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight, Zap
+  FileText, Clock, Sparkles, ArrowLeft, UserPlus, ArrowRight, Zap, Filter
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -38,7 +38,47 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'settled'
+  const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', '7days', 'month'
+  const [sortBy, setSortBy] = useState('date_desc'); // 'date_desc', 'date_asc', 'price_desc', 'price_asc'
   const [viewMode, setViewMode] = useState('customers'); // 'customers' or 'transactions'
+
+  // Filter Popover / Modal State
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [draftStatusFilter, setDraftStatusFilter] = useState('all');
+  const [draftDateFilter, setDraftDateFilter] = useState('all');
+  const [draftSortBy, setDraftSortBy] = useState('date_desc');
+
+  const activeKhataFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (dateFilter !== 'all') count++;
+    if (sortBy !== 'date_desc') count++;
+    return count;
+  }, [statusFilter, dateFilter, sortBy]);
+
+  const handleOpenFilter = () => {
+    setDraftStatusFilter(statusFilter);
+    setDraftDateFilter(dateFilter);
+    setDraftSortBy(sortBy);
+    setIsFilterModalOpen(true);
+  };
+
+  const handleApplyFilter = () => {
+    setStatusFilter(draftStatusFilter);
+    setDateFilter(draftDateFilter);
+    setSortBy(draftSortBy);
+    setIsFilterModalOpen(false);
+  };
+
+  const handleResetFilter = () => {
+    setDraftStatusFilter('all');
+    setDraftDateFilter('all');
+    setDraftSortBy('date_desc');
+    setStatusFilter('all');
+    setDateFilter('all');
+    setSortBy('date_desc');
+    setIsFilterModalOpen(false);
+  };
   const [tenantInfo, setTenantInfo] = useState(null);
   const [passbookCustomer, setPassbookCustomer] = useState(null);
   const [passbookTab, setPassbookTab] = useState('bills'); // 'bills' or 'items'
@@ -269,8 +309,24 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   // Aggregated Customer Accounts (Person-Centric Running Udhar Profiles)
   const customerAccounts = useMemo(() => {
     const map = new Map();
+    const now = new Date();
 
     records.forEach(r => {
+      // Date filter check
+      if (dateFilter !== 'all') {
+        const recDate = new Date(r.createdAt || r.date || Date.now());
+        if (dateFilter === 'today') {
+          const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (recDate < startOfToday) return;
+        } else if (dateFilter === '7days') {
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (recDate < sevenDaysAgo) return;
+        } else if (dateFilter === 'month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          if (recDate < startOfMonth) return;
+        }
+      }
+
       const phone = String(r.customerPhone || '').trim();
       const name = String(r.customerName || 'Walk-in Guest').trim();
       const cleanPhone = phone.replace(/\D/g, '');
@@ -285,7 +341,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           totalPaid: 0,
           outstandingBalance: 0,
           entriesCount: 0,
-          lastActivity: r.createdAt,
+          lastActivity: r.createdAt || r.date,
           transactions: []
         });
       }
@@ -302,10 +358,32 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
       }
       acc.entriesCount += 1;
       acc.transactions.push(r);
+
+      // Keep latest lastActivity
+      if (r.createdAt && new Date(r.createdAt) > new Date(acc.lastActivity || 0)) {
+        acc.lastActivity = r.createdAt;
+      }
     });
 
-    return Array.from(map.values()).sort((a, b) => b.outstandingBalance - a.outstandingBalance);
-  }, [records]);
+    const list = Array.from(map.values());
+
+    return list.sort((a, b) => {
+      if (sortBy === 'date_desc') {
+        return new Date(b.lastActivity || 0) - new Date(a.lastActivity || 0);
+      }
+      if (sortBy === 'date_asc') {
+        return new Date(a.lastActivity || 0) - new Date(b.lastActivity || 0);
+      }
+      if (sortBy === 'price_asc') {
+        return a.outstandingBalance - b.outstandingBalance;
+      }
+      if (sortBy === 'name_asc') {
+        return (a.customerName || '').localeCompare(b.customerName || '');
+      }
+      // default / price_desc: highest outstanding due first
+      return b.outstandingBalance - a.outstandingBalance;
+    });
+  }, [records, dateFilter, sortBy]);
 
   // Detected existing customer while selecting or typing
   const matchedExistingCustomer = useMemo(() => {
@@ -915,6 +993,20 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
 
   // Filtered transactions list
   const filteredTransactions = records.filter(rec => {
+    if (dateFilter !== 'all') {
+      const recDate = new Date(rec.createdAt || rec.date || Date.now());
+      const now = new Date();
+      if (dateFilter === 'today') {
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (recDate < startOfToday) return false;
+      } else if (dateFilter === '7days') {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (recDate < sevenDaysAgo) return false;
+      } else if (dateFilter === 'month') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        if (recDate < startOfMonth) return false;
+      }
+    }
     const q = searchQuery.toLowerCase().trim();
     const matches = !q || (rec.customerName || '').toLowerCase().includes(q) || String(rec.customerPhone || '').includes(q);
     if (!matches) return false;
@@ -923,6 +1015,20 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
     if (statusFilter === 'pending') return !isSettled;
     if (statusFilter === 'settled') return isSettled;
     return true;
+  }).sort((a, b) => {
+    if (sortBy === 'date_asc') return new Date(a.createdAt || a.date || 0) - new Date(b.createdAt || b.date || 0);
+    if (sortBy === 'price_desc') {
+      const dueA = Number(a.borrowAmount !== undefined ? a.borrowAmount : (a.remainingAmount || 0));
+      const dueB = Number(b.borrowAmount !== undefined ? b.borrowAmount : (b.remainingAmount || 0));
+      return dueB - dueA;
+    }
+    if (sortBy === 'price_asc') {
+      const dueA = Number(a.borrowAmount !== undefined ? a.borrowAmount : (a.remainingAmount || 0));
+      const dueB = Number(b.borrowAmount !== undefined ? b.borrowAmount : (b.remainingAmount || 0));
+      return dueA - dueB;
+    }
+    // default: date_desc
+    return new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0);
   });
 
   // Paginated customer accounts
@@ -942,7 +1048,7 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
   useEffect(() => {
     setCustomerPage(1);
     setTransactionPage(1);
-  }, [searchQuery, statusFilter, viewMode]);
+  }, [searchQuery, statusFilter, viewMode, dateFilter, sortBy]);
 
   return (
     <div className={styles.container}>
@@ -1430,7 +1536,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                           <input
                             type="number"
                             min="0"
-                            max={maxPayable}
                             value={newPaidAmount}
                             onChange={(e) => {
                               const val = e.target.value;
@@ -1782,46 +1887,57 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
           </h2>
         </div>
 
-        <div className={styles.headerActions}>
-          {/* Status Filters (All / Pending Dues / Fully Settled) moved up to top bar */}
-          <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 9, border: '1px solid #e2e8f0' }}>
-            {[
-              { key: 'all', label: isHindi ? 'सभी' : 'All' },
-              { key: 'pending', label: isHindi ? 'बकाया उधारी' : 'Pending Dues' },
-              { key: 'settled', label: isHindi ? 'पूर्ण चुकता' : 'Fully Settled' }
-            ].map(tab => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setStatusFilter(tab.key)}
-                style={{
-                  padding: '6px 13px',
-                  borderRadius: 7,
-                  border: 'none',
-                  background: statusFilter === tab.key ? '#ffffff' : 'transparent',
-                  color: statusFilter === tab.key ? '#2563eb' : '#64748b',
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  boxShadow: statusFilter === tab.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className={styles.searchWrap}>
-            <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+        <div className={styles.headerActions} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+          <div className={styles.searchWrap} style={{ width: '220px' }}>
+            <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
-              placeholder={isHindi ? "नाम या फ़ोन से खोजें..." : "Search customer or phone..."}
+              placeholder={isHindi ? "खोजें..." : "Search customer or phone..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchBar}
+              style={{ width: '100%', paddingLeft: '30px', fontSize: '12px' }}
             />
           </div>
+
+          {/* Clean Filter Icon Button */}
+          <button
+            type="button"
+            onClick={handleOpenFilter}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 13px',
+              borderRadius: '8px',
+              border: activeKhataFilterCount > 0 ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+              background: activeKhataFilterCount > 0 ? '#eff6ff' : '#ffffff',
+              color: activeKhataFilterCount > 0 ? '#2563eb' : '#334155',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Filter and Sort Khata Ledger"
+          >
+            <Filter size={14} color={activeKhataFilterCount > 0 ? "#2563eb" : "#475569"} />
+            <span>{isHindi ? 'फ़िल्टर' : 'Filters'}</span>
+            {activeKhataFilterCount > 0 && (
+              <span style={{
+                background: '#2563eb',
+                color: '#ffffff',
+                fontSize: '10px',
+                fontWeight: 800,
+                padding: '1px 5px',
+                borderRadius: '999px',
+                marginLeft: '2px'
+              }}>
+                {activeKhataFilterCount}
+              </span>
+            )}
+          </button>
 
           <button
             type="button"
@@ -1829,19 +1945,197 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             className={styles.refreshBtn}
             title="Refresh Ledger"
           >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
 
           <button
             type="button"
             onClick={handleOpenAddUdharModal}
             className={styles.addRecordBtn}
+            style={{ whiteSpace: 'nowrap' }}
           >
-            <Plus size={16} />
+            <Plus size={15} />
             <span>{isHindi ? 'नया उधार जोड़ें' : 'Add Customer Udhar'}</span>
           </button>
         </div>
       </div>
+
+      {/* Khata Combined Filter Modal */}
+      {isFilterModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setIsFilterModalOpen(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 20px 40px -15px rgba(0,0,0,0.2)',
+              width: '100%',
+              maxWidth: '420px',
+              padding: '20px',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Filter size={16} color="#2563eb" />
+                <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#0f172a' }}>
+                  {isHindi ? 'खाता फ़िल्टर व क्रमबद्ध' : 'Filter & Sort Khata'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFilterModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Filter 1: Payment Status */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                {isHindi ? 'भुगतान स्थिति' : 'Payment Status'}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                {[
+                  { key: 'all', label: isHindi ? 'सभी' : 'All' },
+                  { key: 'pending', label: isHindi ? 'बकाया उधारी' : 'Pending Dues' },
+                  { key: 'settled', label: isHindi ? 'पूर्ण चुकता' : 'Fully Settled' }
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setDraftStatusFilter(tab.key)}
+                    style={{
+                      padding: '7px 4px',
+                      borderRadius: '8px',
+                      border: draftStatusFilter === tab.key ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                      background: draftStatusFilter === tab.key ? '#eff6ff' : '#f8fafc',
+                      color: draftStatusFilter === tab.key ? '#2563eb' : '#475569',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filter 2: Date Range */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                {isHindi ? 'समय सीमा (दिनांक फ़िल्टर)' : 'Date Range (Time Filter)'}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                {[
+                  { key: 'all', label: isHindi ? 'सभी तिथियाँ' : 'All Dates' },
+                  { key: 'today', label: isHindi ? 'आज (Today)' : 'Today' },
+                  { key: '7days', label: isHindi ? 'पिछले 7 दिन' : 'Last 7 Days' },
+                  { key: 'month', label: isHindi ? 'इस महीने' : 'This Month' }
+                ].map(d => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    onClick={() => setDraftDateFilter(d.key)}
+                    style={{
+                      padding: '7px 4px',
+                      borderRadius: '8px',
+                      border: draftDateFilter === d.key ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                      background: draftDateFilter === d.key ? '#eff6ff' : '#f8fafc',
+                      color: draftDateFilter === d.key ? '#2563eb' : '#475569',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filter 3: Sort By */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                {isHindi ? 'क्रमबद्ध करें (Sort By)' : 'Sort Khata Profiles By'}
+              </label>
+              <select
+                value={draftSortBy}
+                onChange={(e) => setDraftSortBy(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="date_desc">{isHindi ? 'हालिया दिनांक (Newest Activity First)' : 'Recent Date (Newest Activity First)'}</option>
+                <option value="date_asc">{isHindi ? 'पुरानी दिनांक (Oldest Activity First)' : 'Oldest Date (Oldest Activity First)'}</option>
+                <option value="price_desc">{isHindi ? 'अधिकतम उधारी (Highest Due First)' : 'Highest Due First (Price)'}</option>
+                <option value="price_asc">{isHindi ? 'न्यूनतम उधारी (Lowest Due First)' : 'Lowest Due First (Price)'}</option>
+              </select>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                type="button"
+                onClick={handleResetFilter}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '6px 8px'
+                }}
+              >
+                {isHindi ? 'रीसेट करें' : 'Reset All'}
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyFilter}
+                style={{
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {isHindi ? 'लागू करें' : 'Apply Filter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary KPI Cards */}
       <div className={styles.statsGrid}>
@@ -1893,13 +2187,31 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
             <table className={styles.khataTable}>
               <thead>
                 <tr>
-                  <th>{isHindi ? 'ग्राहक का नाम' : 'Customer Name'}</th>
+                  <th
+                    onClick={() => setSortBy(prev => prev === 'name_asc' ? 'date_desc' : 'name_asc')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                    title="Click to sort by Customer Name"
+                  >
+                    {isHindi ? 'ग्राहक का नाम' : 'Customer Name'} {sortBy === 'name_asc' ? '▲' : ''}
+                  </th>
                   <th>{isHindi ? 'मोबाइल नंबर' : 'Mobile Number'}</th>
                   <th>{isHindi ? 'कुल खरीदारी' : 'Total Purchases'}</th>
                   <th>{isHindi ? 'कुल भुगतान' : 'Total Paid'}</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>{isHindi ? 'बकाया उधार' : 'Current Due'}</th>
+                  <th
+                    onClick={() => setSortBy(prev => prev === 'price_desc' ? 'price_asc' : 'price_desc')}
+                    style={{ whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}
+                    title="Click to sort by Outstanding Due (Price)"
+                  >
+                    {isHindi ? 'बकाया उधार' : 'Current Due'} {sortBy === 'price_desc' ? '▼' : sortBy === 'price_asc' ? '▲' : ''}
+                  </th>
                   <th>{isHindi ? 'ऑर्डर विज़िट्स' : 'Visits'}</th>
-                  <th>{isHindi ? 'अंतिम सक्रियता' : 'Last Active'}</th>
+                  <th
+                    onClick={() => setSortBy(prev => prev === 'date_desc' ? 'date_asc' : 'date_desc')}
+                    style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                    title="Click to sort by Last Active Date"
+                  >
+                    {isHindi ? 'अंतिम सक्रियता' : 'Last Active'} {sortBy === 'date_desc' ? '▼' : sortBy === 'date_asc' ? '▲' : ''}
+                  </th>
                   <th style={{ textAlign: 'right' }}>{isHindi ? 'कार्रवाई' : 'Actions'}</th>
                 </tr>
               </thead>
@@ -1930,10 +2242,12 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
                       >
-                        {/* Customer Name (No circular avatar) */}
+                        {/* Customer Name */}
                         <td>
                           <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13.5px' }}>
-                            {cust.customerName}
+                            {cust.customerName && !/^table\s*\d+\s*guest$/i.test(cust.customerName.trim()) && cust.customerName.trim().toLowerCase() !== 'walk-in guest'
+                              ? cust.customerName
+                              : ''}
                           </span>
                         </td>
 
@@ -1941,11 +2255,13 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                         <td>
                           <span style={{
                             fontSize: '12.5px',
-                            color: cust.customerPhone && cust.customerPhone !== 'N/A' ? '#475569' : '#94a3b8',
+                            color: '#475569',
                             fontWeight: 600,
                             fontVariantNumeric: 'tabular-nums'
                           }}>
-                            {cust.customerPhone && cust.customerPhone !== 'N/A' ? cust.customerPhone : '—'}
+                            {cust.customerPhone && cust.customerPhone !== 'N/A' && cust.customerPhone !== '—'
+                              ? cust.customerPhone
+                              : ''}
                           </span>
                         </td>
 
@@ -3227,7 +3543,6 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
                       <input
                         type="number"
                         min="0"
-                        max={effectiveTotalBill}
                         placeholder="0"
                         value={newPaidAmount}
                         onChange={(e) => {

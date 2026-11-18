@@ -81,13 +81,8 @@ export default function InvoiceModal({ order, tenantInfo, onClose }) {
     printOrderBill(order, cafeName);
   };
 
-  const handleSendWhatsApp = () => {
-    const sent = openWhatsappBill(order, tenantInfo);
-    if (sent) {
-      toast.success('WhatsApp E-Bill opened!');
-    } else {
-      toast.error('Could not open WhatsApp');
-    }
+  const handleSendWhatsApp = async () => {
+    await openWhatsappBill(order, tenantInfo);
   };
 
   const handleCopyText = () => {

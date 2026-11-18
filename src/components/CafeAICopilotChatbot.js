@@ -480,15 +480,13 @@ export default function CafeAICopilotChatbot({
           type="button"
           onClick={() => setIsOpen(true)}
           className={styles.roundLauncherBtn}
-          title="Chat with DineviQ AI Bot (Store Assistant)"
+          title="Chat with DineviQ AI Assistant"
         >
           <div className={styles.pulseRingCircle} />
           <div className={styles.circleBaseBackdrop} />
-          <img
-            src={KHUSHI_AVATAR_URL}
-            alt="DineviQ AI Bot"
-            className={styles.launcherAvatarImg}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: '#ffffff' }}>
+            <Sparkles size={22} />
+          </div>
         </button>
       )}
 
@@ -498,16 +496,12 @@ export default function CafeAICopilotChatbot({
           {/* Header */}
           <div className={styles.drawerHeader}>
             <div className={styles.headerInfo}>
-              <div className={styles.headerAvatarWrapper}>
-                <img
-                  src={KHUSHI_AVATAR_URL}
-                  alt="DineviQ AI Bot"
-                  className={styles.headerAvatarImg}
-                />
+              <div className={styles.headerAvatarWrapper} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)', color: '#ffffff' }}>
+                <Sparkles size={16} />
               </div>
               <div>
                 <div className={styles.headerTitleRow}>
-                  <h4>DineviQ AI Bot</h4>
+                  <h4>DineviQ AI Assistant</h4>
                 </div>
                 <p className={styles.headerSub}>
                   {tenantInfo?.businessName || tenantInfo?.name || 'Restaurant Growth & Operations'}

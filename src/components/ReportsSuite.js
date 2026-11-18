@@ -39,6 +39,13 @@ import ExecutiveReportModal from './ExecutiveReportModal';
 import InvoiceModal from './InvoiceModal';
 import { formatTableBadge } from './common/TableBadge';
 
+const formatCleanTableNumber = (num) => {
+  if (num === null || num === undefined || num === '') return '';
+  const str = String(num).trim();
+  if (str.toLowerCase() === 'walk-in' || str.toLowerCase() === 'takeaway') return 'Walk-in';
+  return str.replace(/^(table|t)[\s-_]*/i, '').trim() || str;
+};
+
 export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenantInfo = null, menuItems: propMenuItems = [] }) {
   const [orders, setOrders] = useState(() => (Array.isArray(initialOrders) && initialOrders.length > 0 ? initialOrders : []));
   const [khataRecords, setKhataRecords] = useState([]);
@@ -871,7 +878,7 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                     >
                       <option value="all">All Tables</option>
                       {uniqueTables.map(tNum => (
-                        <option key={tNum} value={tNum}>{formatTableBadge(tNum)}</option>
+                        <option key={tNum} value={tNum}>{formatCleanTableNumber(tNum)}</option>
                       ))}
                     </select>
                   </div>
@@ -943,7 +950,7 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                                   #{orderNum}
                                 </td>
                                 <td style={{ fontWeight: 700, color: '#0f172a' }}>
-                                  {ord.tableNumber ? formatTableBadge(ord.tableNumber) : 'Takeaway / POS'}
+                                  {ord.tableNumber ? formatCleanTableNumber(ord.tableNumber) : 'Takeaway / POS'}
                                 </td>
                                 <td>
                                   <div style={{ fontWeight: 700 }}>{ord.customerName || ord.customerDetails?.name || 'Walk-in Guest'}</div>
@@ -1021,7 +1028,6 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                                       type="button"
                                       onClick={() => {
                                         openWhatsappBill(ord, tenantInfo);
-                                        toast.success('WhatsApp E-Bill opened!');
                                       }}
                                       style={{
                                         padding: '4px 8px',
@@ -1685,7 +1691,6 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                   type="button"
                   onClick={() => {
                     openWhatsappBill(selectedOrder, tenantInfo);
-                    toast.success('WhatsApp E-Bill opened!');
                   }}
                   style={{
                     flex: 1,

@@ -4,8 +4,10 @@ import {
   Upload, Trash2, CheckCircle, Info, X, ShieldCheck, Check, Sparkles, BookOpen,
   QrCode, Receipt, Lock, Smartphone, RefreshCw, AlertCircle, Printer, Download,
   TrendingUp, Volume2, Volume1, VolumeX, Play, Globe, Moon,
-  MapPin, Phone, Mail, Sliders, Settings, ChevronRight
+  MapPin, Phone, Mail, Sliders, Settings, ChevronRight, MessageSquare, Send, CheckCircle2, Zap
 } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
+import WhatsAppConnectModal from './WhatsAppConnectModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -32,6 +34,57 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   const [payMethod, setPayMethod] = useState('upi_qr'); // 'upi_qr', 'upi_vpa', 'card', 'netbanking'
   const [upiVpa, setUpiVpa] = useState('');
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvv: '', name: '' });
+
+  // WhatsApp E-Bill Dispatcher State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [waConnected, setWaConnected] = useState(false);
+  const [waPhone, setWaPhone] = useState('');
+  const [testPhone, setTestPhone] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const handleSendTestReceipt = async () => {
+    const cleanDigits = String(testPhone || '').replace(/\D/g, '');
+    if (!cleanDigits || cleanDigits.length < 10) {
+      toast.error('Please enter a valid 10-digit customer WhatsApp number');
+      return;
+    }
+    setIsSendingTest(true);
+    const toastId = toast.loading('Sending test receipt via WhatsApp...');
+    try {
+      const res = await axios.post(`${API_URL}/whatsapp/send-bill`, {
+        phone: cleanDigits,
+        message: `🧾 *TEST E-BILL DISPATCH*\n*${(tenantInfo?.name || 'DINEVIQ CAFE').toUpperCase()}*\n──────────────────────\n✅ *Status:* Engine connected and active!\n• 1x Cold Brew Coffee - ₹180\n• 1x Margherita Sourdough - ₹320\n──────────────────────\n*GRAND TOTAL: ₹500 (PAID ✅)*\n──────────────────────\n✨ Your Cafe POS is ready to send silent WhatsApp bills with 1-click!`,
+        tenantId: tenantInfo?._id
+      });
+      if (res.data?.success) {
+        toast.success(`Test receipt delivered to +${res.data.phone || cleanDigits}! 📱`, { id: toastId });
+        setTestPhone('');
+      } else {
+        throw new Error(res.data?.error || 'Failed to dispatch');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Error sending test WhatsApp', { id: toastId });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkWa = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/whatsapp/status`, {
+          params: { tenantId: tenantInfo?._id }
+        });
+        if (isMounted && res.data?.success) {
+          setWaConnected(res.data.connected);
+          setWaPhone(res.data.user?.id || '');
+        }
+      } catch (e) {}
+    };
+    checkWa();
+    return () => { isMounted = false; };
+  }, [tenantInfo, showWhatsAppModal]);
 
   // Audio Notification Settings State
   const [audioSettings, setAudioSettings] = useState(() => getAudioSettings());
@@ -350,6 +403,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   const SECTIONS = [
     { id: 'general', label: 'General Identity', icon: Building2 },
     { id: 'operations', label: 'Operations & Hours', icon: Clock },
+    { id: 'whatsapp', label: 'WhatsApp E-Bills', icon: MessageSquare },
     { id: 'language', label: 'Language & Display', icon: Globe },
     { id: 'audio', label: 'Audio & Chimes', icon: Volume2 },
     { id: 'subscription', label: 'Subscription & Plan', icon: CreditCard },
@@ -621,6 +675,82 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>%</span>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderWhatsApp = () => (
+    <section className={styles.sectionCard} id="whatsapp">
+      <div className={styles.cardBody} style={{ padding: '18px 22px' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '14px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              background: '#f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              color: '#25D366',
+              flexShrink: 0
+            }}>
+              <FaWhatsapp />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800, color: '#0f172a' }}>
+                  WhatsApp E-Bill Dispatcher
+                </h4>
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: '100px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  background: waConnected ? '#ecfdf5' : '#fef3c7',
+                  color: waConnected ? '#059669' : '#b45309',
+                  border: waConnected ? '1px solid #a7f3d0' : '1px solid #fde68a'
+                }}>
+                  {waConnected ? `Linked (+${waPhone})` : 'Not Linked'}
+                </span>
+              </div>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                {waConnected
+                  ? `Silent background dispatch active from +${waPhone}. Staff never need to log in.`
+                  : 'Link cafe phone once to send digital bills silently to customers.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowWhatsAppModal(true)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '9px',
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#0f172a',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <QrCode size={14} />
+            <span>{waConnected ? 'Manage Device' : 'Link Cafe Phone'}</span>
+          </button>
         </div>
       </div>
     </section>
@@ -999,6 +1129,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               >
                 {renderGeneral()}
                 {renderOperations()}
+                {renderWhatsApp()}
                 {renderLanguage()}
                 {renderAudio()}
                 {renderSubscription()}
@@ -1026,6 +1157,18 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 transition={{ duration: 0.2 }}
               >
                 {renderOperations()}
+              </motion.div>
+            )}
+
+            {activeSection === 'whatsapp' && (
+              <motion.div
+                key="whatsapp"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderWhatsApp()}
               </motion.div>
             )}
 
@@ -1490,6 +1633,13 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Link Modal */}
+      <WhatsAppConnectModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        tenantInfo={tenantInfo}
+      />
 
     </div>
   );

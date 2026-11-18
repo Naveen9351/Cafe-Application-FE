@@ -21,9 +21,14 @@ const isDevDomain = () => {
 };
 
 const getApiUrl = () => {
+  // 1. Localhost development always talks to local backend
+  if (isLocalhost) {
+    return 'http://localhost:5000/api';
+  }
+
   const envUrl = process.env.REACT_APP_API_URL;
 
-  // 1. If explicit remote URL is set at build time (e.g. Vercel environment variable)
+  // 2. If explicit remote URL is set at build time (e.g. Vercel environment variable)
   if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
     return envUrl;
   }

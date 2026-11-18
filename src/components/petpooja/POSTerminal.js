@@ -5,7 +5,7 @@ import {
   Trash2, QrCode, Printer, Smartphone, Zap, Coffee, Clock,
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Tag, ArrowLeft, ShoppingCart, IndianRupee,
   Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter, Layers,
-  User, UserPlus, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon
+  User, UserPlus, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon, GitMerge, Link2
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
@@ -16,6 +16,7 @@ import { API_URL as API } from '../../config/api';
 import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioChime';
 import { printOrderBill } from '../../utils/billPrinter';
 import { openWhatsappBill } from '../../utils/whatsappBillSender';
+import WhatsAppConnectModal from '../WhatsAppConnectModal';
 
 // Smart table name formatter:
 // Converts "1" -> "T 1", "Table 1" -> "T 1", "Ground" -> "T Ground", matching QR Code screens
@@ -84,6 +85,7 @@ export default function POSTerminal({
 
   // Khata / Borrow Modal states
   const [showKhataModal, setShowKhataModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [khataCustomerList, setKhataCustomerList] = useState([]);
   const [selectedKhataCustomerChoice, setSelectedKhataCustomerChoice] = useState('NEW');
 
@@ -119,6 +121,16 @@ export default function POSTerminal({
   // Merged tables state
   const [mergedTables, setMergedTables] = useState([]);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [primaryMergeTable, setPrimaryMergeTable] = useState('');
+  const [showOpenItemModal, setShowOpenItemModal] = useState(false);
+  const [isOpenItemModeEnabled, setIsOpenItemModeEnabled] = useState(false);
+  const [openItemForm, setOpenItemForm] = useState({
+    name: '',
+    price: '',
+    quantity: 1,
+    notes: '',
+    saveToMenu: false
+  });
   const [actualAmountReceived, setActualAmountReceived] = useState('');
   const [settlementDiscount, setSettlementDiscount] = useState('');
   const [settlementDiscountReason, setSettlementDiscountReason] = useState('Customer Concession / Round Off');
@@ -232,17 +244,44 @@ export default function POSTerminal({
     return map;
   }, [orders]);
 
-  // Helper: Get active orders for a specific table object
+  // Helper: Get active orders for a specific table object (combining merged tables and clearing merged-in tables)
   const getOrdersForTableObj = useCallback((tbl) => {
+    // If this table is merged into another table, its orders now belong to the primary table; return empty so it shows cleared
+    if (tbl.status === 'merged' || tbl.mergedInto) {
+      return [];
+    }
+
     const tStr = String(tbl.tableNumber || tbl.table || '').trim();
     const numOnly = tStr.replace(/^Table\s*/i, '').trim();
-    return activeOrdersByTable[tStr]
+    let res = activeOrdersByTable[tStr]
       || activeOrdersByTable[tStr.toLowerCase()]
       || activeOrdersByTable[tStr.replace(/\s+/g, '')]
       || activeOrdersByTable[tStr.replace(/\s+/g, '').toLowerCase()]
       || activeOrdersByTable[numOnly]
       || activeOrdersByTable[numOnly.toLowerCase()]
       || [];
+
+    // If table has mergedWith (e.g. Table 1 merged with Table 2), combine all orders of merged tables so primary shows full combined total (e.g. ₹270)
+    if (tbl.mergedWith && Array.isArray(tbl.mergedWith) && tbl.mergedWith.length > 0) {
+      const mergedOrders = [];
+      tbl.mergedWith.forEach(mT => {
+        const mStr = String(mT).trim();
+        const mNum = mStr.replace(/^Table\s*/i, '').trim();
+        const mList = activeOrdersByTable[mStr]
+          || activeOrdersByTable[mStr.toLowerCase()]
+          || activeOrdersByTable[mNum]
+          || activeOrdersByTable[mNum.toLowerCase()]
+          || [];
+        mList.forEach(mo => {
+          if (!res.some(r => r._id === mo._id) && !mergedOrders.some(m => m._id === mo._id)) {
+            mergedOrders.push(mo);
+          }
+        });
+      });
+      res = [...res, ...mergedOrders];
+    }
+
+    return res;
   }, [activeOrdersByTable]);
 
   // Unified tables list (combines DB tables and active orders)
@@ -374,10 +413,24 @@ export default function POSTerminal({
   // Handle clicking a table card -> opens POS Terminal
   const handleOpenTableInPOS = (tblNum) => {
     const tStr = String(tblNum).trim();
+    const tblObj = dbTables.find(t => String(t.tableNumber).trim() === tStr);
+
+    // If this table was merged into another table, navigate directly to primary table
+    if (tblObj && tblObj.mergedInto) {
+      toast.info(`Table ${formatTableOnlyNumber(tStr)} is merged into Table ${formatTableOnlyNumber(tblObj.mergedInto)}. Viewing combined bill.`);
+      return handleOpenTableInPOS(tblObj.mergedInto);
+    }
+
     setTableNumber(tStr);
     setViewMode('terminal');
 
-    const tblObj = dbTables.find(t => String(t.tableNumber).trim() === tStr);
+    // Load any merged tables associated with this table from DB
+    if (tblObj && Array.isArray(tblObj.mergedWith)) {
+      setMergedTables(tblObj.mergedWith);
+    } else {
+      setMergedTables([]);
+    }
+
     const isTemp = tblObj?.isTemporary || /^temp/i.test(tStr);
 
     const ordersForTable = activeOrdersByTable[tStr] || activeOrdersByTable[tStr.replace(/[^0-9]/g, '')] || [];
@@ -404,6 +457,110 @@ export default function POSTerminal({
     setCustomerPhone('');
     setViewMode('terminal');
     toast.success('Opened Counter Walk-in POS');
+  };
+
+  // Enterprise Table Merge Handler (Persisted to Database)
+  const handleMergeTables = async (primaryTbl, tablesToMerge) => {
+    if (!primaryTbl) {
+      toast.error('Please select a primary table');
+      return;
+    }
+    if (!tablesToMerge || tablesToMerge.length === 0) {
+      toast.error('Please select at least one table to merge');
+      return;
+    }
+    const token = localStorage.getItem('token');
+    try {
+      const res = await axios.post(`${API}/tables/merge`, {
+        primaryTable: primaryTbl,
+        tablesToMerge: tablesToMerge
+      }, {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
+      toast.success(res.data.message || `Merged tables into Table ${primaryTbl}`);
+      setMergedTables(tablesToMerge);
+      fetchTables();
+      if (onOrderPlaced) onOrderPlaced({ _refreshAll: true });
+    } catch (err) {
+      console.error('Merge tables error:', err);
+      toast.error('Failed to merge tables: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Demerge Table Handler (Restores table in Database)
+  const handleDemergeTable = async (primaryTbl, tableToDemerge) => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await axios.post(`${API}/tables/demerge`, {
+        primaryTable: primaryTbl,
+        tableToDemerge: tableToDemerge
+      }, {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
+      toast.success(res.data.message || `Demerged Table ${tableToDemerge}`);
+      setMergedTables(prev => prev.filter(t => t !== tableToDemerge));
+      fetchTables();
+      if (onOrderPlaced) onOrderPlaced({ _refreshAll: true });
+    } catch (err) {
+      console.error('Demerge table error:', err);
+      toast.error('Failed to demerge table: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Emergency Open Item Quick Puncher (All fields optional per user request)
+  const handleAddOpenItem = async (e) => {
+    e?.preventDefault();
+    const finalName = openItemForm.name.trim() || 'Open Item';
+    const priceNum = openItemForm.price !== '' && !isNaN(Number(openItemForm.price)) ? Math.max(0, Number(openItemForm.price)) : 0;
+    const qty = Math.max(1, Number(openItemForm.quantity) || 1);
+
+    const customId = 'open-' + Date.now();
+    const newItem = {
+      id: customId,
+      itemId: customId,
+      _id: customId,
+      name: finalName,
+      price: priceNum,
+      quantity: qty,
+      category: '⚡ Open Item',
+      isOpenItem: true,
+      notes: (openItemForm.notes || '').trim(),
+      specialNotes: (openItemForm.notes || '').trim(),
+      image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500&auto=format&fit=crop&q=60'
+    };
+
+    setCart(prev => {
+      const existing = prev.find(it => it.name.toLowerCase() === newItem.name.toLowerCase() && it.price === newItem.price);
+      if (existing) {
+        return prev.map(it => it.id === existing.id ? { ...it, quantity: it.quantity + qty } : it);
+      }
+      return [...prev, newItem];
+    });
+
+    toast.success(`⚡ Added "${newItem.name}" (₹${priceNum}) to cart!`);
+
+    if (openItemForm.saveToMenu) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${API}/menu`, {
+          name: openItemForm.name.trim(),
+          price: priceNum,
+          category: 'Open Items',
+          isOpenMenu: true,
+          isPosOnly: true,
+          isVeg: true,
+          image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500&auto=format&fit=crop&q=60'
+        }, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+        toast.success(`Saved "${openItemForm.name.trim()}" to menu catalog`);
+      } catch (err) {
+        console.warn('Could not persist open item to menu:', err.message);
+      }
+    }
+
+    setOpenItemForm({ name: '', price: '', quantity: 1, notes: '', saveToMenu: false });
+    setShowOpenItemModal(false);
   };
 
   // Active orders currently belonging to the selected table + any merged tables in POS
@@ -694,13 +851,16 @@ export default function POSTerminal({
     const newItems = [...(order.items || [])];
     if (!newItems[itemIndex]) return;
 
-    newItems[itemIndex] = {
-      ...newItems[itemIndex],
-      quantity: (newItems[itemIndex].quantity || 1) + delta
-    };
+    const currentQty = Number(newItems[itemIndex].quantity) || 1;
+    const updatedQty = currentQty + delta;
 
-    if (newItems[itemIndex].quantity <= 0) {
+    if (updatedQty <= 0) {
       newItems.splice(itemIndex, 1);
+    } else {
+      newItems[itemIndex] = {
+        ...newItems[itemIndex],
+        quantity: updatedQty
+      };
     }
 
     const newTotal = newItems.reduce((sum, it) => sum + ((Number(it.price) || 0) * (it.quantity || 1)), 0);
@@ -711,7 +871,7 @@ export default function POSTerminal({
         await axios.delete(`${API}/orders/${orderId}`, {
           headers: token ? { 'x-auth-token': token } : {}
         });
-        toast.success('Order removed');
+        toast.success('Unpaid item removed (order cleared)');
       } else {
         await axios.put(`${API}/orders/${orderId}`, {
           items: newItems,
@@ -719,12 +879,48 @@ export default function POSTerminal({
         }, {
           headers: token ? { 'x-auth-token': token } : {}
         });
-        toast.success('Updated item quantity');
+        toast.success(delta < 0 ? 'Decreased item quantity' : 'Increased item quantity');
       }
       if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
+      if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
     } catch (err) {
       console.error('Update item error:', err);
       toast.error('Failed to update order item');
+    }
+  };
+
+  // Remove existing unpaid order item directly
+  const handleRemoveExistingOrderItem = async (orderId, itemIndex) => {
+    const order = currentTableOrders.find(o => o._id === orderId);
+    if (!order) return;
+    const newItems = [...(order.items || [])];
+    if (!newItems[itemIndex]) return;
+
+    const removedItemName = newItems[itemIndex].name || 'Item';
+    newItems.splice(itemIndex, 1);
+    const newTotal = newItems.reduce((sum, it) => sum + ((Number(it.price) || 0) * (it.quantity || 1)), 0);
+    const token = localStorage.getItem('token');
+
+    try {
+      if (newItems.length === 0) {
+        await axios.delete(`${API}/orders/${orderId}`, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+        toast.success(`Removed ${removedItemName}`);
+      } else {
+        await axios.put(`${API}/orders/${orderId}`, {
+          items: newItems,
+          totalAmount: newTotal
+        }, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+        toast.success(`Removed ${removedItemName}`);
+      }
+      if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
+      if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
+    } catch (err) {
+      console.error('Remove item error:', err);
+      toast.error('Failed to remove item');
     }
   };
 
@@ -770,14 +966,45 @@ export default function POSTerminal({
     };
 
     try {
-      const res = await axios.post(`${API}/orders`, orderPayload, {
-        headers: token ? { 'x-auth-token': token } : {}
-      });
+      if (currentTableOrders.length > 0) {
+        const unpaidOrder = currentTableOrders.find(o => o.paymentStatus !== 'paid' && o.status !== 'completed' && o.status !== 'cancelled') || currentTableOrders[currentTableOrders.length - 1];
+        const itemsToAppend = cart.map(it => ({
+          id: it.id,
+          itemId: it.id,
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          variant: it.variant ? it.variant : null,
+          addons: (it.addons || []),
+          specialNotes: it.specialNotes || it.notes || '',
+          itemStatus: 'preparing',
+          isPaid: false
+        }));
 
-      toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
-      setCart([]);
-      if (onOrderPlaced) onOrderPlaced(res.data);
-      if (onOrderCreated) onOrderCreated(res.data);
+        const res = await axios.post(`${API}/orders/${unpaidOrder._id}/append-items`, { items: itemsToAppend }, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+
+        toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
+        setCart([]);
+        setDishSearch('');
+        setTableNumber('');
+        setViewMode('tables');
+        if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
+        if (onOrderCreated) onOrderCreated(res.data.order || res.data);
+      } else {
+        const res = await axios.post(`${API}/orders`, orderPayload, {
+          headers: token ? { 'x-auth-token': token } : {}
+        });
+
+        toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
+        setCart([]);
+        setDishSearch('');
+        setTableNumber('');
+        setViewMode('tables');
+        if (onOrderPlaced) onOrderPlaced(res.data);
+        if (onOrderCreated) onOrderCreated(res.data);
+      }
     } catch (err) {
       console.error('Send order error:', err);
       toast.error('Failed to submit order: ' + (err.response?.data?.error || err.message));
@@ -849,8 +1076,11 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
-        toast.success(`⚡ Direct items added to Round ${lastOrder.roundNumber || 1} & served!`);
+        toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
         setCart([]);
+        setDishSearch('');
+        setTableNumber('');
+        setViewMode('tables');
         if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
         if (onOrderCreated) onOrderCreated(res.data.order || res.data);
       } else {
@@ -860,6 +1090,9 @@ export default function POSTerminal({
 
         toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
         setCart([]);
+        setDishSearch('');
+        setTableNumber('');
+        setViewMode('tables');
         if (onOrderPlaced) onOrderPlaced(res.data);
         if (onOrderCreated) onOrderCreated(res.data);
       }
@@ -1542,7 +1775,36 @@ export default function POSTerminal({
                 }}
                 title="Create Temporary Table / Open Tab for walk-in or floating customers (e.g. Deepak)"
               >
-                <span> Temp Table</span>
+                <span>+ Temp Tab</span>
+              </button>
+
+              {/* Table Merge Button (near Temp Table per user request) */}
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultPrimary = tableNumber || (dbTables.find(t => (activeOrdersByTable[String(t.tableNumber).trim()] || []).length > 0)?.tableNumber) || '1';
+                  setPrimaryMergeTable(defaultPrimary);
+                  setShowMergeModal(true);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.42rem 0.85rem',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  color: '#4f46e5',
+                  border: '1.5px solid #c7d2fe',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(79, 70, 229, 0.08)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Merge tables: Combine running bills of 2 or more tables into one"
+              >
+                <GitMerge size={14} />
+                <span>Merge Tables</span>
               </button>
 
               <div className={styles.searchBox}>
@@ -1628,6 +1890,37 @@ export default function POSTerminal({
                       const custName = getCustomerFirstName(rawCustName);
                       const isTemp = tbl.isTemporary || /^temp/i.test(String(tbl.tableNumber || ''));
                       const tempCustLabel = tbl.customerName || custName || (tbl.tableNumber ? String(tbl.tableNumber).replace(/^temp\s*-\s*/i, '') : 'Tab');
+
+                      // 0. MERGED TABLE CARD (Cleared from Floor / Linked to Primary Table)
+                      if (tbl.status === 'merged' || tbl.mergedInto) {
+                        const targetT = tbl.mergedInto;
+                        return (
+                          <div
+                            key={tbl._id || tbl.tableNumber}
+                            className={styles.tableTile}
+                            onClick={() => handleOpenTableInPOS(targetT || tbl.tableNumber)}
+                            style={{
+                              borderColor: '#c7d2fe',
+                              background: '#f8fafc',
+                              opacity: 0.88,
+                              cursor: 'pointer',
+                              borderStyle: 'dashed'
+                            }}
+                            title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} is merged into Table ${formatTableOnlyNumber(targetT)}. All orders combined.`}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.62rem', fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '2px 6px', borderRadius: '4px', marginBottom: '4px' }}>
+                              <GitMerge size={10} />
+                              <span>MERGED → T{formatTableOnlyNumber(targetT)}</span>
+                            </div>
+                            <span className={styles.tileName} style={{ color: '#64748b' }}>
+                              Table {formatTableOnlyNumber(tbl.tableNumber)}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: '#6366f1', fontWeight: 700 }}>
+                              Orders on T{formatTableOnlyNumber(targetT)}
+                            </span>
+                          </div>
+                        );
+                      }
 
                       // 1. FREE / EMPTY CARD
                       if (!isOccupied) {
@@ -1841,158 +2134,213 @@ export default function POSTerminal({
 
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
-              <div className={styles.menuFilterBar}>
-                {/* Inline Back Arrow Button to return to Floor Tables */}
-                <button
-                  type="button"
-                  className={styles.backIconBtn}
-                  onClick={() => setViewMode('tables')}
-                  title="Back to Floor Tables"
+              {/* 1. Left Side: Vertical Category List starting from TOP */}
+              {!isCategorySidebarOpen ? (
+                <div
+                  className={styles.collapsedCategoryRail}
+                  onClick={() => setIsCategorySidebarOpen(true)}
+                  title="Click to expand Categories"
                 >
-                  <ArrowLeft size={16} />
-                </button>
-
-                {/* Dish Search input right after back button */}
-                <div className={styles.searchBox}>
-                  <Search size={13} color="#94a3b8" />
-                  <input
-                    type="text"
-                    placeholder="Search dish..."
-                    value={dishSearch}
-                    onChange={(e) => setDishSearch(e.target.value)}
-                    className={styles.searchInput}
-                  />
-                  {dishSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setDishSearch('')}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex' }}
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Special Filter Button: Open Item (Owner/POS Only) */}
-                <div className={styles.specialFilterGroup}>
                   <button
                     type="button"
-                    className={`${styles.specialFilterBtn} ${(selectedCategory === '⚡ Open Item' || selectedCategory === '⚡ Open Menu') ? styles.specialFilterBtnActiveOpen : ''}`}
-                    onClick={() => setSelectedCategory(prev => (prev === '⚡ Open Item' || prev === '⚡ Open Menu') ? 'all' : '⚡ Open Item')}
-                    title="View Open Items (Owner/POS Only items like cigarettes, off-menu counter items)"
+                    className={styles.collapsedCategoryExpandBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCategorySidebarOpen(true);
+                    }}
+                    title="Expand Categories"
                   >
-                    <Zap size={13} className={styles.specialFilterIcon} />
-                    <span>Open Item</span>
+                    <ChevronRight size={15} />
+                  </button>
+                  <div className={styles.collapsedCategoryIconWrap}>
+                    <Layers size={15} color="#475569" />
+                    <span className={styles.collapsedCategoryBadge}>{categories.length}</span>
+                  </div>
+                  <div className={styles.collapsedCategoryVerticalLabel}>
+                    <span>CATEGORIES</span>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.categorySidebar}>
+                  <div className={styles.categorySidebarHeader}>
+                    <span>Categories</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className={styles.categorySidebarTotalCount}>{categories.length}</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsCategorySidebarOpen(false)}
+                        className={styles.catSidebarToggleBtn}
+                        title="Collapse Categories"
+                      >
+                        <ChevronLeft size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className={styles.categoryListContainer}>
+                    {categories.map(cat => {
+                      const isActive = selectedCategory === cat;
+                      const count = categoryDishCounts[cat] !== undefined ? categoryDishCounts[cat] : 0;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          className={`${styles.categoryListItem} ${isActive ? styles.categoryListItemActive : ''}`}
+                          onClick={() => setSelectedCategory(cat)}
+                          title={cat === 'all' ? 'All Dishes' : cat}
+                        >
+                          <span className={styles.categoryItemName}>
+                            {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                          </span>
+                          <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Right Side: Main Column (Search/Toggle Bar on Top + Dishes Grid Below) */}
+              <div className={styles.menuMainColumn}>
+                <div className={styles.menuFilterBar}>
+                  {/* Inline Back Arrow Button to return to Floor Tables */}
+                  <button
+                    type="button"
+                    className={styles.backIconBtn}
+                    onClick={() => setViewMode('tables')}
+                    title="Back to Floor Tables"
+                  >
+                    <ArrowLeft size={16} />
                   </button>
 
-                  {/* Quick toggle pill in filter bar if category sidebar is collapsed */}
-                  {!isCategorySidebarOpen && (
-                    <button
-                      type="button"
-                      className={styles.openCategoriesHeaderPill}
-                      onClick={() => setIsCategorySidebarOpen(true)}
-                      title="Expand Categories Sidebar"
-                    >
-                      <Layers size={13} />
-                      <span>Categories ({categories.length})</span>
-                      <ChevronRight size={13} />
-                    </button>
-                  )}
-                </div>
-
-                {/* NIGHT MENU STATUS BANNER COMMENTED OUT AS PER REQUEST
-                {isNightActiveNow && (
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    background: 'linear-gradient(135deg, #4c1d95, #6d28d9)',
-                    color: '#ffffff',
-                    padding: '5px 11px',
-                    borderRadius: '20px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(109, 40, 217, 0.35)',
-                    flexShrink: 0
-                  }}>
-                    <span>🌙</span>
-                    <span>Night Pricing Active ({tenantInfo?.settings?.nightMenuStart || '22:00'} - {tenantInfo?.settings?.nightMenuEnd || '05:00'})</span>
+                  {/* Dish Search input right after back button */}
+                  <div className={styles.searchBox}>
+                    <Search size={13} color="#94a3b8" />
+                    <input
+                      type="text"
+                      placeholder="Search dish..."
+                      value={dishSearch}
+                      onChange={(e) => setDishSearch(e.target.value)}
+                      className={styles.searchInput}
+                    />
+                    {dishSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setDishSearch('')}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex' }}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
                   </div>
-                )}
-                */}
-              </div>
 
-              {/* Menu Content Body: Left Category List (Top to Bottom) + Right Dishes Grid */}
-              <div className={styles.menuContentBody}>
-                {/* 1. Left Side: Vertical Category List (Top to Bottom) */}
-                {!isCategorySidebarOpen ? (
-                  <div
-                    className={styles.collapsedCategoryRail}
-                    onClick={() => setIsCategorySidebarOpen(true)}
-                    title="Click to expand Categories"
-                  >
-                    <button
-                      type="button"
-                      className={styles.collapsedCategoryExpandBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCategorySidebarOpen(true);
+                  {/* Open Item Interactive Toggle Switch & Add Button */}
+                  <div className={styles.specialFilterGroup}>
+                    <div
+                      onClick={() => setIsOpenItemModeEnabled(prev => !prev)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        background: isOpenItemModeEnabled ? '#eff6ff' : '#f8fafc',
+                        border: `1.5px solid ${isOpenItemModeEnabled ? '#3b82f6' : '#e2e8f0'}`,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isOpenItemModeEnabled ? '0 1px 4px rgba(59, 130, 246, 0.2)' : 'none'
                       }}
-                      title="Expand Categories"
+                      title="Toggle Open Item mode"
                     >
-                      <ChevronRight size={15} />
-                    </button>
-                    <div className={styles.collapsedCategoryIconWrap}>
-                      <Layers size={15} color="#475569" />
-                      <span className={styles.collapsedCategoryBadge}>{categories.length}</span>
-                    </div>
-                    <div className={styles.collapsedCategoryVerticalLabel}>
-                      <span>CATEGORIES</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.categorySidebar}>
-                    <div className={styles.categorySidebarHeader}>
-                      <span>Categories</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span className={styles.categorySidebarTotalCount}>{categories.length}</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsCategorySidebarOpen(false)}
-                          className={styles.catSidebarToggleBtn}
-                          title="Collapse Categories"
-                        >
-                          <ChevronLeft size={13} />
-                        </button>
+                      <div style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: isOpenItemModeEnabled ? '#3b82f6' : '#e2e8f0',
+                        color: isOpenItemModeEnabled ? '#ffffff' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Zap size={11} />
+                      </div>
+                      <span style={{
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        color: isOpenItemModeEnabled ? '#1d4ed8' : '#475569'
+                      }}>
+                        Open Item
+                      </span>
+                      {/* Toggle Pill */}
+                      <div style={{
+                        width: '28px',
+                        height: '16px',
+                        borderRadius: '10px',
+                        background: isOpenItemModeEnabled ? '#2563eb' : '#cbd5e1',
+                        position: 'relative',
+                        transition: 'background 0.2s ease'
+                      }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: '#ffffff',
+                          position: 'absolute',
+                          top: '2px',
+                          left: isOpenItemModeEnabled ? '14px' : '2px',
+                          transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                        }} />
                       </div>
                     </div>
-                    <div className={styles.categoryListContainer}>
-                      {categories.map(cat => {
-                        const isActive = selectedCategory === cat;
-                        const count = categoryDishCounts[cat] !== undefined ? categoryDishCounts[cat] : 0;
-                        return (
-                          <button
-                            key={cat}
-                            type="button"
-                            className={`${styles.categoryListItem} ${isActive ? styles.categoryListItemActive : ''}`}
-                            onClick={() => setSelectedCategory(cat)}
-                            title={cat === 'all' ? 'All Dishes' : cat}
-                          >
-                            <span className={styles.categoryItemName}>
-                              {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                            </span>
-                            <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
-                              {count}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
-                {/* 2. Right Side: Dish Cards Grid (3 columns when both sidebars open, 4 columns when collapsed) */}
+                    {/* When Open Item toggle is enabled, show the '+ Add Open Item' button */}
+                    {isOpenItemModeEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => setShowOpenItemModal(true)}
+                        style={{
+                          height: '32px',
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                          color: '#ffffff',
+                          fontSize: '0.78rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title="Punch an emergency / off-menu item"
+                      >
+                        <Plus size={14} />
+                        <span>Add Open Item</span>
+                      </button>
+                    )}
+
+                    {/* Quick toggle pill in filter bar if category sidebar is collapsed */}
+                    {!isCategorySidebarOpen && (
+                      <button
+                        type="button"
+                        className={styles.openCategoriesHeaderPill}
+                        onClick={() => setIsCategorySidebarOpen(true)}
+                        title="Expand Categories Sidebar"
+                      >
+                        <Layers size={13} />
+                        <span>Categories ({categories.length})</span>
+                        <ChevronRight size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dishes Grid */}
                 <div
                   className={`${styles.dishesGrid} ${isBothSidebarsOpen ? styles.dishesGrid3 : styles.dishesGrid4}`}
                   style={{
@@ -2163,7 +2511,7 @@ export default function POSTerminal({
                           + Table {formatTableOnlyNumber(mTable)}
                           <button
                             type="button"
-                            onClick={() => setMergedTables(prev => prev.filter(t => t !== mTable))}
+                            onClick={() => handleDemergeTable(tableNumber, mTable)}
                             title={`Demerge Table ${mTable}`}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4338ca', padding: 0, display: 'flex' }}
                           >
@@ -2174,22 +2522,15 @@ export default function POSTerminal({
                       {tableNumber !== 'Walk-in' && (
                         <button
                           type="button"
-                          onClick={() => setShowMergeModal(true)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            backgroundColor: '#f1f5f9',
-                            border: '1px solid #cbd5e1',
-                            padding: '2px 7px',
-                            borderRadius: '6px',
-                            fontSize: '0.7rem',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            color: '#334155'
+                          onClick={() => {
+                            setPrimaryMergeTable(tableNumber);
+                            setShowMergeModal(true);
                           }}
+                          className={styles.mergeTablesBtn}
+                          title="Merge another table into this bill"
                         >
-                          <Plus size={11} /> Merge
+                          <GitMerge size={12} />
+                          <span>+ Merge</span>
                         </button>
                       )}
                     </div>
@@ -2406,18 +2747,46 @@ export default function POSTerminal({
                                         )}
                                       </div>
                                       <p className={styles.cartItemPrice} style={{ margin: '2px 0 0' }}>₹{formatAmount(it.price || 0)} each</p>
+                                      {(it.specialNotes || it.notes) && (
+                                        <div style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          marginTop: '3px',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          background: '#fef3c7',
+                                          border: '1px solid #fde68a',
+                                          color: '#92400e',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 700
+                                        }}>
+                                          <span>📝 Note: {it.specialNotes || it.notes}</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                   <div className={styles.qtyControls}>
                                     {!isPaid && (
-                                      <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, -1)}>
+                                      <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, -1)} title="Decrease quantity (or remove if 0)">
                                         <Minus size={10} />
                                       </button>
                                     )}
                                     <span className={styles.qtyVal}>{it.quantity || 1}</span>
                                     {!isPaid && (
-                                      <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, 1)}>
+                                      <button type="button" className={styles.qtyBtn} onClick={() => handleUpdateExistingOrderItem(ord._id, itemIdx, 1)} title="Increase quantity">
                                         <Plus size={10} />
+                                      </button>
+                                    )}
+                                    {!isPaid && (
+                                      <button
+                                        type="button"
+                                        className={styles.qtyBtn}
+                                        onClick={() => handleRemoveExistingOrderItem(ord._id, itemIdx)}
+                                        title="Remove unpaid item"
+                                        style={{ marginLeft: '4px', borderColor: '#fecaca', background: '#fef2f2', color: '#dc2626' }}
+                                      >
+                                        <Trash2 size={10} />
                                       </button>
                                     )}
                                   </div>
@@ -2425,6 +2794,25 @@ export default function POSTerminal({
                               );
                             })}
                           </div>
+
+                          {(ord.notes || ord.specialInstructions || ord.customerDetails?.notes) && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              background: '#fffbeb',
+                              border: '1px solid #fde68a',
+                              color: '#b45309',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              marginTop: '6px'
+                            }}>
+                              <StickyNote size={12} />
+                              <span>Chef Note: {ord.notes || ord.specialInstructions || ord.customerDetails?.notes}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -2637,20 +3025,29 @@ export default function POSTerminal({
                                   </button>
                                 )}
 
-                                {/* 4. Clear Table: Shown ONLY AFTER order is active on the table */}
-                                {hasActiveOrders && (
+                                {/* 4. Clear Table: Always visible when table is active or has draft items */}
+                                {(hasActiveOrders || hasDraftItems) && (
                                   <button
                                     type="button"
                                     className={styles.clearTableBtn}
-                                    onClick={handleClearTableClick}
+                                    onClick={() => {
+                                      if (hasActiveOrders) {
+                                        handleClearTableClick();
+                                      } else {
+                                        setCart([]);
+                                        toast.success(`Cleared draft items for Table ${formatTableOnlyNumber(tableNumber)}`);
+                                      }
+                                    }}
                                     disabled={isSettling}
-                                    title="Clear and reset table once customer finishes"
+                                    title="Clear and reset table"
                                   >
                                     <CheckCircle2 size={14} />
                                     <span>
                                       {isSettling
                                         ? 'Clearing...'
-                                        : (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)}
+                                        : (hasActiveOrders
+                                          ? (balanceDue === 0 ? 'Clear Table (Free)' : `Clear Table (₹${formatAmount(balanceDue)})`)
+                                          : 'Clear Table')}
                                     </span>
                                   </button>
                                 )}
@@ -2720,7 +3117,6 @@ export default function POSTerminal({
                                           paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
                                         };
                                         openWhatsappBill(billOrder, tenantInfo, customerPhone);
-                                        toast.success('WhatsApp E-Bill opened!');
                                       }}
                                       style={{
                                         padding: '8px 10px',
@@ -3548,9 +3944,7 @@ export default function POSTerminal({
                       ? 'Processing...'
                       : (currentMethod === 'Khata / Borrow'
                         ? (borrowDueNum > 0 ? `Record Khata (₹${formatAmount(borrowDueNum)} Due)` : `Confirm & Settle (₹${formatAmount(paidNowNum)})`)
-                        : (discountVal > 0
-                          ? `Confirm & Pay ₹${formatAmount(finalPayable)} (-₹${formatAmount(discountVal)})`
-                          : `Confirm & Pay ₹${formatAmount(finalPayable)}`))}
+                        : `Confirm & Pay ₹${formatAmount(finalPayable)}`)}
                   </span>
                 </button>
               </div>
@@ -3938,15 +4332,25 @@ export default function POSTerminal({
       )}
 
       {/* ========================================================= */}
-      {/* 4B. MERGE TABLE MODAL                                     */}
+      {/* 4B. MERGE TABLE MODAL (Persisted to Database)             */}
       {/* ========================================================= */}
       {showMergeModal && (
         <div className={styles.splitModalOverlay} onClick={() => setShowMergeModal(false)}>
-          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+          <div className={styles.splitModalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
-                Merge Tables with Table {tableNumber}
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: '#e0e7ff', color: '#4338ca', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                  <GitMerge size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                    Merge Tables & Combine Bills
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#64748b' }}>
+                    T2 Bill + T3 Bill = T3 Total Bill • Merged table is cleared from floor
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowMergeModal(false)}
@@ -3955,13 +4359,44 @@ export default function POSTerminal({
                 <X size={18} />
               </button>
             </div>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 1rem' }}>
-              Select occupied tables to combine their running orders into one bill. You can demerge at any time before payment.
+
+            {/* Target / Primary Table Selector */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                Primary Table (All bills will merge into this table):
+              </label>
+              <select
+                value={primaryMergeTable || tableNumber || ''}
+                onChange={(e) => {
+                  setPrimaryMergeTable(e.target.value);
+                  setMergedTables([]);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              >
+                {dbTables.map(t => (
+                  <option key={t._id || t.tableNumber} value={t.tableNumber}>
+                    Table {t.tableNumber} {t.customerName ? `(${t.customerName})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 8px', fontWeight: 600 }}>
+              Select tables to merge into Table {primaryMergeTable || tableNumber || '1'}:
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
               {dbTables
-                .filter(tbl => String(tbl.tableNumber).trim() !== String(tableNumber).trim())
+                .filter(tbl => String(tbl.tableNumber).trim() !== String(primaryMergeTable || tableNumber || '').trim())
                 .map(tbl => {
                   const tStr = String(tbl.tableNumber).trim();
                   const ords = activeOrdersByTable[tStr] || activeOrdersByTable[`Table ${tStr}`] || [];
@@ -4002,7 +4437,7 @@ export default function POSTerminal({
                             Table {tbl.tableNumber}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: isOccupied ? '#b45309' : '#10b981', fontWeight: 700 }}>
-                            {isOccupied ? `● Occupied (${ords.length} orders)` : 'Free'}
+                            {isOccupied ? `● Occupied (${ords.length} running orders)` : 'Free'}
                           </div>
                         </div>
                       </div>
@@ -4018,9 +4453,12 @@ export default function POSTerminal({
 
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                const targetPrimary = primaryMergeTable || tableNumber || '1';
+                if (mergedTables.length > 0) {
+                  await handleMergeTables(targetPrimary, mergedTables);
+                }
                 setShowMergeModal(false);
-                toast.success(mergedTables.length > 0 ? `Merged ${mergedTables.length} tables with Table ${tableNumber}` : 'Demerged tables');
               }}
               style={{
                 width: '100%',
@@ -4032,11 +4470,436 @@ export default function POSTerminal({
                 fontWeight: 800,
                 fontSize: '0.85rem',
                 cursor: 'pointer',
-                marginTop: '1rem'
+                marginTop: '1rem',
+                boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)'
               }}
             >
-              Done ({mergedTables.length} Tables Merged)
+              Done & Save ({mergedTables.length} Tables Merged)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4C. EMERGENCY OPEN ITEM POPUP MODAL (Modern Redesign)       */}
+      {/* ========================================================= */}
+      {showOpenItemModal && (
+        <div
+          className={styles.splitModalOverlay}
+          onClick={() => setShowOpenItemModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '1.6rem',
+              width: '92%',
+              maxWidth: '470px',
+              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+              border: '1px solid #e2e8f0',
+              animation: 'scaleIn 0.18s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 10px rgba(37, 99, 235, 0.35)'
+                }}>
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Add Open Item</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#64748b' }}>Fast off-menu dishes, custom charges or emergency items</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOpenItemModal(false)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.15s ease'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* 1-Tap Quick Presets */}
+            <div style={{ marginBottom: '1.1rem' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                ⚡ 1-Tap Quick Presets:
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {[
+                  { label: '💧 Water', name: 'Mineral Water', price: 20 },
+                  { label: '🚬 Cigarette', name: 'Cigarette Pack', price: 20 },
+                  { label: '🥤 Cold Drink', name: 'Cold Drink 300ml', price: 40 },
+                  { label: '🍟 Quick Snack', name: 'Quick Snack', price: 50 },
+                  { label: '⚡ Custom ₹100', name: 'Custom Charge', price: 100 }
+                ].map((preset) => {
+                  const isSelected = openItemForm.name === preset.name && Number(openItemForm.price) === preset.price;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setOpenItemForm(prev => ({
+                        ...prev,
+                        name: preset.name,
+                        price: preset.price
+                      }))}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '16px',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                        background: isSelected ? '#eff6ff' : '#f8fafc',
+                        color: isSelected ? '#1d4ed8' : '#334155',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <form onSubmit={handleAddOpenItem} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Item Name Input */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                    Item Name
+                  </label>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Optional (defaults to 'Open Item')</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc',
+                  transition: 'border-color 0.15s ease'
+                }}>
+                  <Tag size={15} color="#94a3b8" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Special Hookah, Off-menu Dish, Extra Pack"
+                    value={openItemForm.name}
+                    onChange={(e) => setOpenItemForm(prev => ({ ...prev, name: e.target.value }))}
+                    autoFocus
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      width: '100%',
+                      fontSize: '0.86rem',
+                      fontWeight: 600,
+                      color: '#0f172a'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Price & Quantity Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '10px' }}>
+                {/* Price */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                      Price (₹)
+                    </label>
+                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Optional</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #cbd5e1',
+                    background: '#f8fafc'
+                  }}>
+                    <span style={{ fontWeight: 800, color: '#2563eb', fontSize: '0.95rem' }}>₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      value={openItemForm.price}
+                      onChange={(e) => setOpenItemForm(prev => ({ ...prev, price: e.target.value }))}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        outline: 'none',
+                        width: '100%',
+                        fontSize: '0.92rem',
+                        fontWeight: 800,
+                        color: '#0f172a'
+                      }}
+                    />
+                  </div>
+                  {/* Quick price bump buttons */}
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '5px' }}>
+                    {[10, 20, 50, 100].map(addVal => (
+                      <button
+                        key={addVal}
+                        type="button"
+                        onClick={() => {
+                          const cur = Number(openItemForm.price) || 0;
+                          setOpenItemForm(prev => ({ ...prev, price: cur + addVal }));
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '2px 0',
+                          borderRadius: '6px',
+                          border: '1px solid #e2e8f0',
+                          background: '#ffffff',
+                          color: '#475569',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        +{addVal}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                      Quantity
+                    </label>
+                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Optional</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 8px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #cbd5e1',
+                    background: '#f8fafc',
+                    height: '38px',
+                    boxSizing: 'border-box'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = Math.max(1, (Number(openItemForm.quantity) || 1) - 1);
+                        setOpenItemForm(prev => ({ ...prev, quantity: cur }));
+                      }}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#475569'
+                      }}
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={openItemForm.quantity}
+                      onChange={(e) => setOpenItemForm(prev => ({ ...prev, quantity: e.target.value }))}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        outline: 'none',
+                        width: '36px',
+                        textAlign: 'center',
+                        fontSize: '0.9rem',
+                        fontWeight: 800,
+                        color: '#0f172a'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = (Number(openItemForm.quantity) || 1) + 1;
+                        setOpenItemForm(prev => ({ ...prev, quantity: cur }));
+                      }}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#475569'
+                      }}
+                    >
+                      <Plus size={11} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chef Note / Description */}
+              <div>
+                <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                  Cooking Note / Instructions (Optional)
+                </label>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#f8fafc'
+                }}>
+                  <StickyNote size={14} color="#94a3b8" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Less sugar, extra spicy, no onion"
+                    value={openItemForm.notes}
+                    onChange={(e) => setOpenItemForm(prev => ({ ...prev, notes: e.target.value }))}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      width: '100%',
+                      fontSize: '0.82rem',
+                      color: '#0f172a'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Save to menu toggle */}
+              <div
+                onClick={() => setOpenItemForm(prev => ({ ...prev, saveToMenu: !prev.saveToMenu }))}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  background: openItemForm.saveToMenu ? '#eff6ff' : '#f8fafc',
+                  border: `1px solid ${openItemForm.saveToMenu ? '#93c5fd' : '#e2e8f0'}`,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={14} color={openItemForm.saveToMenu ? '#2563eb' : '#94a3b8'} />
+                  <span style={{ fontSize: '0.76rem', fontWeight: 600, color: openItemForm.saveToMenu ? '#1d4ed8' : '#475569' }}>
+                    Save to POS Open Items catalog
+                  </span>
+                </div>
+                <div style={{
+                  width: '28px',
+                  height: '16px',
+                  borderRadius: '10px',
+                  background: openItemForm.saveToMenu ? '#2563eb' : '#cbd5e1',
+                  position: 'relative',
+                  transition: 'background 0.2s ease'
+                }}>
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    position: 'absolute',
+                    top: '2px',
+                    left: openItemForm.saveToMenu ? '14px' : '2px',
+                    transition: 'left 0.2s ease',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                  }} />
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowOpenItemModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#64748b',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 2,
+                    padding: '10px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)'
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>Add to Table Order</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -4547,6 +5410,13 @@ export default function POSTerminal({
           </div>
         )}
       </AnimatePresence>
+
+      {/* WhatsApp Link Modal */}
+      <WhatsAppConnectModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        tenantInfo={tenantInfo}
+      />
 
     </div>
   );

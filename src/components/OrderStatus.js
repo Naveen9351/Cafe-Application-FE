@@ -802,7 +802,7 @@ const OrderStatus = () => {
               }}
             >
               <MessageSquare size={16} color="#16a34a" />
-              <span>Get Digital E-Bill on WhatsApp</span>
+              <span>Get Bill</span>
             </button>
           </div>
 

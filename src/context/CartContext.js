@@ -50,13 +50,21 @@ export function CartProvider({ children }) {
     );
   };
 
+  const updateItemNote = (id, noteText) => {
+    setItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === id ? { ...item, specialNotes: noteText, notes: noteText } : item
+      )
+    );
+  };
+
   const getCartTotal = () => {
     return items.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
   return (
     <CartContext.Provider
-      value={{ items, setItems, addItem, removeItem, updateItemQuantity, getCartTotal }}
+      value={{ items, setItems, addItem, removeItem, updateItemQuantity, updateItemNote, getCartTotal }}
     >
       {children}
     </CartContext.Provider>

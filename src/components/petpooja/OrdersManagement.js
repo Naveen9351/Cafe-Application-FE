@@ -271,9 +271,40 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     };
   }, [serverSummary, localOrders, totalServerOrders]);
 
-  // Filtered & Sorted Orders
+  // Filtered & Sorted Orders with Enterprise Dining Session Consolidation
   const filteredOrders = useMemo(() => {
-    return localOrders
+    // 0. First, consolidate any child round orders (e.g. #GST-0134-1 into #GST-0134)
+    const sessionMap = new Map();
+    const consolidatedList = [];
+
+    localOrders.forEach(o => {
+      const rawNum = String(o.orderNumber || o._id || '').trim();
+      const isChildSuffix = /^(.+)-(\d+)$/.test(rawNum);
+      const parentNum = isChildSuffix ? rawNum.replace(/-(\d+)$/, '') : rawNum;
+      const tblStr = String(o.tableNumber || o.table || '').trim().toLowerCase();
+      // Group by table + parent order number (or session)
+      const groupKey = tblStr && tblStr !== 'walk-in' && tblStr !== 'takeaway' && tblStr !== 'counter'
+        ? `${tblStr}_${parentNum}`
+        : `${o._id || rawNum}`;
+
+      if (isChildSuffix && sessionMap.has(groupKey)) {
+        const parent = sessionMap.get(groupKey);
+        const childTotal = Number(o.totalAmount || o.finalAmount || o.total || 0);
+        parent.total = (Number(parent.totalAmount || parent.finalAmount || parent.total || 0) + childTotal);
+        parent.totalAmount = parent.total;
+        parent.finalAmount = parent.total;
+        parent.subTotal = (Number(parent.subTotal || 0) + (Number(o.subTotal) || childTotal));
+        parent.items = [...(parent.items || []), ...(o.items || [])];
+        if (o.status === 'completed' || parent.status === 'completed') parent.status = 'completed';
+        if (o.paymentStatus === 'paid' || parent.paymentStatus === 'paid') parent.paymentStatus = 'paid';
+      } else {
+        const clone = { ...o, items: [...(o.items || [])] };
+        sessionMap.set(groupKey, clone);
+        consolidatedList.push(clone);
+      }
+    });
+
+    return consolidatedList
       .filter(o => {
         const status = (o.status || 'pending').toLowerCase();
         const payStatus = (o.paymentStatus || 'unpaid').toLowerCase();
@@ -1082,6 +1113,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                         <td className={styles.receiptTd}>
                                           <div className={styles.receiptItemName}>{itName}</div>
                                           {modifier && <div className={styles.receiptItemModifier}>{modifier}</div>}
+                                          {(it.specialNotes || it.notes) && (
+                                            <div style={{ fontSize: '0.72rem', color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px', fontWeight: 700 }}>
+                                              📝 Note: {it.specialNotes || it.notes}
+                                            </div>
+                                          )}
                                         </td>
                                         <td className={styles.receiptTd} style={{ textAlign: 'center', fontWeight: '800' }}>
                                           x{itQty}
@@ -1097,6 +1133,12 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                   })}
                                 </tbody>
                               </table>
+
+                              {(selectedOrder.notes || selectedOrder.specialInstructions || selectedOrder.customerDetails?.notes) && (
+                                <div style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '8px', background: '#fffbeb', border: '1px solid #fef3c7', color: '#92400e', fontSize: '0.78rem', fontWeight: 600 }}>
+                                  📌 <strong>Chef Instruction:</strong> {selectedOrder.notes || selectedOrder.specialInstructions || selectedOrder.customerDetails?.notes}
+                                </div>
+                              )}
 
                               {/* Financial Bill Ledger Breakdown */}
                               <div className={styles.calculationCard} style={{ marginTop: '0.5rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px' }}>
