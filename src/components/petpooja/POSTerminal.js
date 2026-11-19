@@ -818,6 +818,17 @@ export default function POSTerminal({
     return Number(item.salePrice || item.price) || 0;
   };
 
+  // Helper to merge open menu category variations (e.g. Open_menu, open items -> Open Items)
+  const normalizeOpenCategory = (cat, isOpenMode = false) => {
+    if (!cat) return isOpenMode ? 'Open Items' : 'main-courses';
+    const s = String(cat).trim();
+    const l = s.toLowerCase();
+    if (l === 'open items' || l === 'open_menu' || l === 'open menu' || l === 'open item' || l === 'open_items' || l === '⚡ open item' || l === 'open') {
+      return 'Open Items';
+    }
+    return s;
+  };
+
   // Categories list for POS Menu (switches dynamically between Normal Menu and Open Menu)
   const categories = useMemo(() => {
     const cats = ['all'];
@@ -834,7 +845,7 @@ export default function POSTerminal({
     });
 
     const dynamicCats = [...new Set(
-      targetItems.map(item => item.category || (isOpenItemModeEnabled ? 'Open Items' : 'main-courses'))
+      targetItems.map(item => normalizeOpenCategory(item.category, isOpenItemModeEnabled))
     )];
     return [...cats, ...dynamicCats];
   }, [menuItems, isOpenItemModeEnabled]);
@@ -855,7 +866,7 @@ export default function POSTerminal({
 
     const map = { all: targetItems.length };
     targetItems.forEach(item => {
-      const c = item.category || (isOpenItemModeEnabled ? 'Open Items' : 'main-courses');
+      const c = normalizeOpenCategory(item.category, isOpenItemModeEnabled);
       map[c] = (map[c] || 0) + 1;
     });
     return map;
@@ -884,7 +895,8 @@ export default function POSTerminal({
       if (selectedCategory === 'all') {
         matchesCat = true;
       } else {
-        matchesCat = item.category === selectedCategory;
+        const itemCat = normalizeOpenCategory(item.category, isOpenItemModeEnabled);
+        matchesCat = itemCat.toLowerCase() === selectedCategory.toLowerCase();
       }
       const matchesSearch = !dishSearch || item.name.toLowerCase().includes(dishSearch.toLowerCase());
       return matchesCat && matchesSearch;

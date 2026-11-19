@@ -4462,9 +4462,9 @@ export default function AdminPanel() {
                       return (
                         <div style={{
                           display: 'grid',
-                          gridTemplateColumns: 'minmax(240px, 280px) 1fr',
-                          gap: '1.5rem',
-                          alignItems: 'center'
+                          gridTemplateColumns: 'minmax(220px, 260px) 1fr',
+                          gap: '1.25rem',
+                          alignItems: 'stretch'
                         }}>
                           {/* 1. Donut Graph Left Panel */}
                           <div style={{
@@ -4565,11 +4565,11 @@ export default function AdminPanel() {
                             </div>
                           </div>
 
-                          {/* 2. Detailed Method Tiles Right Panel (2x2 Grid) */}
+                          {/* 2. Detailed Method Tiles Right Panel (Balanced 2x2 Grid) */}
                           <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: '12px'
+                            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                            gap: '10px'
                           }}>
                             {methods.map(m => {
                               const pct = totalSales > 0 ? Math.round((m.amt / totalSales) * 100) : 0;

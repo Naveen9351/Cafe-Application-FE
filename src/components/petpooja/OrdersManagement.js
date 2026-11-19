@@ -602,21 +602,8 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
           </div>
         </div>
 
-        {/* 5. Cancelled Orders Section */}
-        <div
-          className={`${styles.miniKpiCard} ${statusFilter === 'cancelled' ? styles.miniKpiCardActiveFilter : ''}`}
-          onClick={() => {
-            if (statusFilter === 'cancelled') {
-              setStatusFilter('all');
-              fetchOrders(1, search, paymentFilter, 'all', sortBy);
-            } else {
-              setStatusFilter('cancelled');
-              fetchOrders(1, search, paymentFilter, 'cancelled', sortBy);
-            }
-          }}
-          style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-          title="Click to view Cancelled Orders"
-        >
+        {/* 5. Cancelled Orders Section (Non-clickable stat card, consistent with other KPI cards) */}
+        <div className={styles.miniKpiCard}>
           <div className={styles.miniKpiInfo}>
             <span className={styles.miniKpiLabel} style={{ color: '#dc2626' }}>Cancelled Orders</span>
             <div className={styles.miniKpiValueRow}>
