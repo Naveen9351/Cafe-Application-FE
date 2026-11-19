@@ -11,6 +11,8 @@ import WhatsAppConnectModal from './WhatsAppConnectModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
+import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, validateUpiId, buildUpiUri } from './common/UpiBrandLogos';
 import { API_URL } from '../config/api';
 import styles from './RestaurantSettings.module.css';
 import { useTranslation } from '../utils/translations';
@@ -85,6 +87,126 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     checkWa();
     return () => { isMounted = false; };
   }, [tenantInfo, showWhatsAppModal]);
+
+  // Razorpay Route Linked Account State
+  const [routeAccount, setRouteAccount] = useState(tenantInfo?.razorpay || null);
+  const [isCheckingRouteStatus, setIsCheckingRouteStatus] = useState(false);
+  const [isSubmittingRoute, setIsSubmittingRoute] = useState(false);
+  const [routeFormMode, setRouteFormMode] = useState('connect_id'); // 'connect_id' | 'register_api'
+  const [routeForm, setRouteForm] = useState({
+    accountId: tenantInfo?.razorpay?.accountId || '',
+    businessName: tenantInfo?.name || '',
+    legalName: tenantInfo?.name || '',
+    email: tenantInfo?.email || '',
+    phone: tenantInfo?.phone || '',
+    businessType: 'individual',
+    contactName: tenantInfo?.name || '',
+    accountNumber: '',
+    ifscCode: '',
+    street: tenantInfo?.address || '',
+    city: '',
+    state: '',
+    postalCode: ''
+  });
+
+  const fetchRouteStatus = async (silent = false) => {
+    if (!tenantInfo?._id) return;
+    setIsCheckingRouteStatus(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('user_token');
+      const res = await axios.get(`${API_URL}/payments/account/status`, {
+        params: { tenantId: tenantInfo._id },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.data) {
+        setRouteAccount(res.data);
+        if (!silent) {
+          toast.success(`Verification Status: ${res.data.accountStatus?.toUpperCase() || 'SYNCED'}`);
+        }
+      }
+    } catch (err) {
+      if (!silent) {
+        toast.error(err.response?.data?.error || 'Failed to check verification status');
+      }
+    } finally {
+      setIsCheckingRouteStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tenantInfo?._id) {
+      fetchRouteStatus(true);
+    }
+  }, [tenantInfo?._id]);
+
+  const handleConnectRouteAccount = async (e) => {
+    if (e) e.preventDefault();
+    setIsSubmittingRoute(true);
+    const toastId = toast.loading('Connecting Razorpay Route payment account...');
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('user_token');
+      const payload = {
+        tenantId: tenantInfo?._id,
+        ...routeForm
+      };
+      if (routeFormMode === 'connect_id') {
+        if (!routeForm.accountId?.trim()) {
+          toast.error('Please enter your Razorpay Linked Account ID (e.g. acc_...)', { id: toastId });
+          setIsSubmittingRoute(false);
+          return;
+        }
+      } else {
+        if (!routeForm.businessName || !routeForm.email || !routeForm.phone) {
+          toast.error('Please fill in business name, email, and phone', { id: toastId });
+          setIsSubmittingRoute(false);
+          return;
+        }
+      }
+
+      const res = await axios.post(`${API_URL}/payments/account/register`, payload, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (res.data?.success) {
+        toast.success('Razorpay Route payment account linked successfully!', { id: toastId });
+        setRouteAccount(res.data.razorpay);
+        if (onSave) {
+          onSave({ razorpay: res.data.razorpay });
+        }
+      } else {
+        throw new Error(res.data?.error || 'Failed to connect');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to connect payment account', { id: toastId });
+    } finally {
+      setIsSubmittingRoute(false);
+    }
+  };
+
+  const handleUnlinkRouteAccount = async () => {
+    if (!window.confirm('Are you sure you want to unlink your Razorpay payment account? Online customer payments will be held on the master account until reconnected.')) {
+      return;
+    }
+    const toastId = toast.loading('Unlinking payment account...');
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('user_token');
+      const res = await axios.post(`${API_URL}/payments/account/unlink`, {
+        tenantId: tenantInfo?._id
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.data?.success) {
+        toast.success('Razorpay Route account unlinked.', { id: toastId });
+        setRouteAccount(null);
+        setRouteForm(prev => ({ ...prev, accountId: '' }));
+        if (onSave) {
+          onSave({ razorpay: { accountId: null, accountStatus: 'unlinked' } });
+        }
+      }
+    } catch (err) {
+      toast.error('Failed to unlink account', { id: toastId });
+    }
+  };
 
   // Audio Notification Settings State
   const [audioSettings, setAudioSettings] = useState(() => getAudioSettings());
@@ -181,6 +303,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     enableNightMenu: tenantInfo?.settings?.enableNightMenu || false,
     nightMenuStart: tenantInfo?.settings?.nightMenuStart || '22:00',
     nightMenuEnd: tenantInfo?.settings?.nightMenuEnd || '05:00',
+    upiId: tenantInfo?.settings?.upiId || '',
+    upiPayeeName: tenantInfo?.settings?.upiPayeeName || tenantInfo?.name || '',
+    enableDirectUpi: tenantInfo?.settings?.enableDirectUpi !== false,
     language: tenantInfo?.settings?.language || 'en',
     operatingHours: tenantInfo?.settings?.operatingHours || [
       { day: 'Monday', enabled: true, open: '09:00 AM', close: '10:00 PM' },
@@ -205,6 +330,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         profitMargin: tenantInfo.settings?.profitMargin !== undefined ? tenantInfo.settings.profitMargin : prev.profitMargin,
         enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime !== undefined ? tenantInfo.settings.enableEstimatedPrepTime : false,
         enableKhata: tenantInfo.settings?.enableKhata !== undefined ? tenantInfo.settings.enableKhata : false,
+        upiId: tenantInfo.settings?.upiId || '',
+        upiPayeeName: tenantInfo.settings?.upiPayeeName || tenantInfo.name || '',
+        enableDirectUpi: tenantInfo.settings?.enableDirectUpi !== false,
         operatingHours: tenantInfo.settings?.operatingHours || prev.operatingHours,
       }));
       if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
@@ -309,6 +437,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         profitMargin: Number(form.profitMargin) || 40,
         enableEstimatedPrepTime: form.enableEstimatedPrepTime,
         enableKhata: form.enableKhata,
+        upiId: form.upiId,
+        upiPayeeName: form.upiPayeeName,
+        enableDirectUpi: form.enableDirectUpi,
         operatingHours: form.operatingHours
       });
     } else {
@@ -404,10 +535,11 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     { id: 'all', label: 'All Settings', icon: Sliders },
     { id: 'general', label: 'General Identity', icon: Building2 },
     { id: 'operations', label: 'Operations & Hours', icon: Clock },
+    { id: 'payment', label: 'Payment & Razorpay Route', icon: CreditCard },
     { id: 'whatsapp', label: 'WhatsApp E-Bills', icon: MessageSquare },
     { id: 'language', label: 'Language & Display', icon: Globe },
     { id: 'audio', label: 'Audio & Chimes', icon: Volume2 },
-    { id: 'subscription', label: 'Subscription & Plan', icon: CreditCard }
+    { id: 'subscription', label: 'Subscription & Plan', icon: ShieldCheck }
   ];
 
   const renderGeneral = () => (
@@ -1040,6 +1172,485 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     </section>
   );
 
+  const renderPayment = () => {
+    const isLinked = Boolean(routeAccount?.isLinked || routeAccount?.accountId || tenantInfo?.razorpay?.accountId);
+    const accountId = routeAccount?.accountId || tenantInfo?.razorpay?.accountId;
+    const status = routeAccount?.accountStatus || tenantInfo?.razorpay?.accountStatus || 'created';
+    const isLive = status === 'activated';
+
+    return (
+      <section className={styles.sectionCard} id="payment">
+        <div className={styles.cardHeader}>
+          <div className={styles.headerTitleWrap}>
+            <div className={styles.headerIconBox} style={{ background: '#e0f2fe', color: '#0284c7' }}>
+              <CreditCard size={16} />
+            </div>
+            <div>
+              <h3 className={styles.cardTitle}>Payment Gateway &amp; Razorpay Route</h3>
+              <p className={styles.cardSubtitle}>
+                Connect your café bank account to receive customer order payouts directly via Razorpay Route
+              </p>
+            </div>
+          </div>
+          {isLinked && (
+            <span className={isLive ? styles.statusPillActive : styles.statusPillReview}>
+              {isLive ? '● ROUTE ACTIVE' : `● ${status.toUpperCase().replace('_', ' ')}`}
+            </span>
+          )}
+        </div>
+
+        <div className={styles.cardBody}>
+          {/* ── 1. DIRECT CAFE UPI (INSTANT 0-SECOND BANK SETTLEMENT) ── */}
+          <div style={{
+            background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+            border: '1.5px solid #86efac',
+            borderRadius: '12px',
+            padding: '1.25rem',
+            marginBottom: '1.5rem',
+            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.06)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Smartphone size={18} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#065f46' }}>
+                    Direct Café UPI (Instant Bank Settlement &amp; 0% Fee)
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#047857' }}>
+                    Customer payments via Google Pay, PhonePe, Paytm, or Dynamic QR go 100% directly into your bank account!
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <GPayIcon size={22} />
+                <PhonePeIcon size={22} />
+                <PaytmIcon size={18} />
+                <BhimIcon size={22} />
+                <span style={{
+                  background: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? '#d1fae5' : '#fef3c7',
+                  color: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? '#065f46' : '#92400e',
+                  border: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? '1px solid #6ee7b7' : '1px solid #fde68a',
+                  padding: '3px 10px',
+                  borderRadius: '100px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  marginLeft: '4px'
+                }}>
+                  {(form.upiId && !form.upiId.endsWith('@gmail.com')) ? '● UPI ACTIVE' : '● ENTER UPI ID'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) auto', gap: '1.25rem', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div className={styles.inputGroup}>
+                  <label style={{ color: '#065f46', fontWeight: 700 }}>Your Café UPI ID / VPA</label>
+                  <div className={styles.inputWrapper}>
+                    <Smartphone size={14} className={styles.inputIcon} />
+                    <input
+                      type="text"
+                      placeholder="e.g. 9351862675@paytm or 9351862675@ybl or naveen935186@okaxis"
+                      value={form.upiId}
+                      onChange={(e) => setForm({ ...form, upiId: e.target.value.trim() })}
+                      className={styles.textInput}
+                      style={{
+                        borderColor: form.upiId.endsWith('@gmail.com') ? '#ef4444' : '#a7f3d0',
+                        background: '#ffffff'
+                      }}
+                    />
+                  </div>
+
+                  {/* Warning if email was entered */}
+                  {form.upiId.endsWith('@gmail.com') && (
+                    <div style={{
+                      marginTop: '5px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fca5a5',
+                      color: '#b91c1c',
+                      fontSize: '0.74rem',
+                      lineHeight: 1.4
+                    }}>
+                      <strong>❌ Attention:</strong> &quot;{form.upiId}&quot; is an email address, NOT a UPI ID. PhonePe and Google Pay will show &quot;Invalid QR code&quot; when scanned. A UPI ID must end with a bank handle like <code>@paytm</code>, <code>@ybl</code>, or <code>@okaxis</code>.
+                    </div>
+                  )}
+
+                  {/* Helpful Quick Pick Suggestions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '5px' }}>
+                    <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 600 }}>Quick suggestions:</span>
+                    {['9351862675@paytm', '9351862675@ybl', 'naveen935186@okaxis'].map(sugg => (
+                      <button
+                        key={sugg}
+                        type="button"
+                        onClick={() => setForm({ ...form, upiId: sugg })}
+                        style={{
+                          fontSize: '0.66rem',
+                          padding: '2px 7px',
+                          borderRadius: '6px',
+                          border: form.upiId === sugg ? '1px solid #059669' : '1px solid #cbd5e1',
+                          background: form.upiId === sugg ? '#dcfce7' : '#ffffff',
+                          color: form.upiId === sugg ? '#065f46' : '#334155',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace',
+                          fontWeight: 700
+                        }}
+                      >
+                        {sugg}
+                      </button>
+                    ))}
+                  </div>
+
+                  <small style={{ color: '#047857', fontSize: '0.72rem', marginTop: '3px' }}>
+                    Accepts any UPI ID (PhonePe, Google Pay, Paytm, BHIM, Bank VPA).
+                  </small>
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label style={{ color: '#065f46', fontWeight: 600 }}>Payee Name (Shown in Customer's UPI App)</label>
+                  <div className={styles.inputWrapper}>
+                    <Building2 size={14} className={styles.inputIcon} />
+                    <input
+                      type="text"
+                      placeholder="e.g. Cafee Delight"
+                      value={form.upiPayeeName}
+                      onChange={(e) => setForm({ ...form, upiPayeeName: e.target.value })}
+                      className={styles.textInput}
+                      style={{ borderColor: '#a7f3d0', background: '#ffffff' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className={styles.saveBtn}
+                    style={{ background: 'linear-gradient(135deg, #059669, #047857)', alignSelf: 'flex-start' }}
+                  >
+                    <Check size={13} /> Save UPI Settings
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic QR Live Test Preview */}
+              <div style={{
+                background: '#ffffff',
+                border: '1.5px solid #d1fae5',
+                borderRadius: '12px',
+                padding: '14px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                minWidth: '170px'
+              }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#065f46', marginBottom: '8px' }}>
+                  Live Dynamic QR Preview
+                </span>
+                <QRCodeSVG
+                  value={buildUpiUri({
+                    upiId: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? form.upiId : '9351862675@paytm',
+                    payeeName: form.upiPayeeName || form.restaurantName || 'Cafee',
+                    amount: 100,
+                    note: 'Sample Bill'
+                  })}
+                  size={125}
+                  level="M"
+                />
+                <span style={{ fontSize: '0.7rem', color: '#334155', marginTop: '8px', fontWeight: 600 }}>
+                  Pre-filled: <strong style={{ color: '#059669' }}>₹100.00</strong>
+                </span>
+                <span style={{ fontSize: '0.64rem', color: '#059669', fontWeight: 700, marginTop: '2px' }}>
+                  ✓ Locks amount in GPay &amp; PhonePe
+                </span>
+                <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                  <GPayIcon size={16} />
+                  <PhonePeIcon size={16} />
+                  <PaytmIcon size={14} />
+                  <BhimIcon size={16} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 2. RAZORPAY ROUTE MULTI-VENDOR GATEWAY (CARDS & NETBANKING) ── */}
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '0.88rem', fontWeight: 700, color: '#334155' }}>
+              Razorpay Route (Optional: Cards, NetBanking &amp; Commission)
+            </h4>
+            <p style={{ margin: '0 0 12px 0', fontSize: '0.74rem', color: '#64748b' }}>
+              Connect your Razorpay Linked Account ID to accept Credit/Debit cards and NetBanking with automated platform commission deduction.
+            </p>
+          </div>
+
+          {isLinked ? (
+            /* Connected Account View */
+            <div className={styles.connectedCard}>
+              <div className={styles.connectedCardHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldCheck size={20} color="#059669" />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
+                      {routeAccount?.businessName || tenantInfo?.name || 'Connected Café Account'}
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
+                      Linked ID: {accountId}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => fetchRouteStatus(false)}
+                    disabled={isCheckingRouteStatus}
+                    className={styles.routeBtnSecondary}
+                    title="Refresh live status from Razorpay Route"
+                  >
+                    <RefreshCw size={13} className={isCheckingRouteStatus ? 'animate-spin' : ''} />
+                    <span>{isCheckingRouteStatus ? 'Checking...' : 'Check Status'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleUnlinkRouteAccount}
+                    className={styles.routeBtnDanger}
+                    title="Disconnect this Razorpay account"
+                  >
+                    <Trash2 size={13} />
+                    <span>Unlink</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Account Details Grid */}
+              <div className={styles.subStatsGrid} style={{ marginTop: '1rem' }}>
+                <div className={styles.subStatCard}>
+                  <span className={styles.subStatLabel}>Razorpay Account ID</span>
+                  <div className={styles.subStatValue} style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                    {accountId}
+                  </div>
+                </div>
+
+                <div className={styles.subStatCard}>
+                  <span className={styles.subStatLabel}>Bank Account</span>
+                  <div className={styles.subStatValue} style={{ fontSize: '0.85rem' }}>
+                    {routeAccount?.bankAccountNumber ? `•••• ${routeAccount.bankAccountNumber}` : 'Verified via Razorpay'}
+                  </div>
+                  {routeAccount?.bankIfsc && (
+                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>IFSC: {routeAccount.bankIfsc}</span>
+                  )}
+                </div>
+
+                <div className={styles.subStatCard}>
+                  <span className={styles.subStatLabel}>Settlement Schedule</span>
+                  <div className={styles.subStatValueGreen} style={{ fontSize: '0.85rem' }}>
+                    Auto-Route T+1/T+2
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Direct to Bank Account</span>
+                </div>
+              </div>
+
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem 1rem',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                color: '#166534',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <CheckCircle2 size={16} color="#16a34a" />
+                <span>
+                  <strong>Active Route Account:</strong> Online customer payments made from the menu/cart are automatically routed to your connected bank account after platform commission deduction.
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* Unconnected Form */
+            <div>
+              <div style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '10px',
+                padding: '0.85rem 1rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                fontSize: '0.78rem',
+                color: '#1e40af'
+              }}>
+                <Info size={16} color="#2563eb" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <div>
+                  <strong>Connect your Bank Account via Razorpay Route:</strong>
+                  <p style={{ margin: '4px 0 0 0', color: '#1e3a8a', lineHeight: 1.4 }}>
+                    Link your café's Razorpay Account ID to receive order payments directly. Each café operates its own linked account so customer payments are safely segregated and routed directly.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div className={styles.routeTabGroup}>
+                <button
+                  type="button"
+                  className={`${styles.routeTabBtn} ${routeFormMode === 'connect_id' ? styles.routeTabBtnActive : ''}`}
+                  onClick={() => setRouteFormMode('connect_id')}
+                >
+                  <Zap size={13} />
+                  <span>Connect Razorpay Account ID (Quick / Test Mode)</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.routeTabBtn} ${routeFormMode === 'register_api' ? styles.routeTabBtnActive : ''}`}
+                  onClick={() => setRouteFormMode('register_api')}
+                >
+                  <Building2 size={13} />
+                  <span>Register Linked Account via API</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleConnectRouteAccount}>
+                {routeFormMode === 'connect_id' ? (
+                  <div className={styles.inputGroup} style={{ marginBottom: '1.25rem' }}>
+                    <label>Razorpay Route Linked Account ID</label>
+                    <div className={styles.inputWrapper}>
+                      <CreditCard size={14} className={styles.inputIcon} />
+                      <input
+                        type="text"
+                        placeholder="e.g. acc_K0xxxxxxxxx or acc_test_123"
+                        value={routeForm.accountId}
+                        onChange={(e) => setRouteForm({ ...routeForm, accountId: e.target.value })}
+                        className={styles.textInput}
+                        required
+                      />
+                    </div>
+                    <small style={{ color: '#64748b', fontSize: '0.72rem', marginTop: '4px', display: 'block' }}>
+                      Found in your Razorpay Dashboard under <strong>Route &gt; Accounts</strong> (e.g. acc_xxxxxxxxxxxxxx).
+                    </small>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.25rem' }}>
+                    <div className={styles.inputRow}>
+                      <div className={styles.inputGroup}>
+                        <label>Business / Trade Name</label>
+                        <div className={styles.inputWrapper}>
+                          <Building2 size={14} className={styles.inputIcon} />
+                          <input
+                            type="text"
+                            placeholder="e.g. Blue Tokai Coffee"
+                            value={routeForm.businessName}
+                            onChange={(e) => setRouteForm({ ...routeForm, businessName: e.target.value })}
+                            className={styles.textInput}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.inputGroup}>
+                        <label>Legal Business Entity Type</label>
+                        <select
+                          value={routeForm.businessType}
+                          onChange={(e) => setRouteForm({ ...routeForm, businessType: e.target.value })}
+                          className={styles.textInput}
+                          style={{ height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                        >
+                          <option value="individual">Individual / Proprietorship</option>
+                          <option value="partnership">Partnership</option>
+                          <option value="private_limited">Private Limited</option>
+                          <option value="llp">LLP</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className={styles.inputRow}>
+                      <div className={styles.inputGroup}>
+                        <label>Contact Email</label>
+                        <div className={styles.inputWrapper}>
+                          <Mail size={14} className={styles.inputIcon} />
+                          <input
+                            type="email"
+                            placeholder="cafe@example.com"
+                            value={routeForm.email}
+                            onChange={(e) => setRouteForm({ ...routeForm, email: e.target.value })}
+                            className={styles.textInput}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.inputGroup}>
+                        <label>Contact Phone (10 digits)</label>
+                        <div className={styles.inputWrapper}>
+                          <Phone size={14} className={styles.inputIcon} />
+                          <input
+                            type="tel"
+                            placeholder="9876543210"
+                            value={routeForm.phone}
+                            onChange={(e) => setRouteForm({ ...routeForm, phone: e.target.value })}
+                            className={styles.textInput}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.inputRow}>
+                      <div className={styles.inputGroup}>
+                        <label>Bank Account Number</label>
+                        <div className={styles.inputWrapper}>
+                          <CreditCard size={14} className={styles.inputIcon} />
+                          <input
+                            type="text"
+                            placeholder="e.g. 50100234567890"
+                            value={routeForm.accountNumber}
+                            onChange={(e) => setRouteForm({ ...routeForm, accountNumber: e.target.value })}
+                            className={styles.textInput}
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.inputGroup}>
+                        <label>Bank IFSC Code</label>
+                        <div className={styles.inputWrapper}>
+                          <Building2 size={14} className={styles.inputIcon} />
+                          <input
+                            type="text"
+                            placeholder="e.g. HDFC0000123"
+                            value={routeForm.ifscCode}
+                            onChange={(e) => setRouteForm({ ...routeForm, ifscCode: e.target.value.toUpperCase() })}
+                            className={styles.textInput}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRoute}
+                    className={styles.routeBtnPrimary}
+                  >
+                    <CheckCircle size={14} />
+                    <span>{isSubmittingRoute ? 'Connecting...' : 'Connect Payment Account'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
+
   return (
     <div className={styles.settingsContainer}>
       {/* Top Header */}
@@ -1129,6 +1740,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               >
                 {renderGeneral()}
                 {renderOperations()}
+                {renderPayment()}
                 {renderWhatsApp()}
                 {renderLanguage()}
                 {renderAudio()}
@@ -1157,6 +1769,18 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 transition={{ duration: 0.2 }}
               >
                 {renderOperations()}
+              </motion.div>
+            )}
+
+            {activeSection === 'payment' && (
+              <motion.div
+                key="payment"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderPayment()}
               </motion.div>
             )}
 

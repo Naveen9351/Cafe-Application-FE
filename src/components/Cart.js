@@ -15,8 +15,19 @@ import {
   Utensils,
   FileText,
   Edit3,
-  X
+  X,
+  CreditCard,
+  CheckCircle2,
+  QrCode,
+  Smartphone,
+  Check,
+  Copy,
+  ExternalLink,
+  ShieldCheck,
+  Zap
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, buildUpiUri } from "./common/UpiBrandLogos";
 import TableBadge from "./common/TableBadge";
 import TrackOrderBadge from "./common/TrackOrderBadge";
 import CustomerBottomNav from "./common/CustomerBottomNav";
@@ -24,6 +35,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import CustomerVerificationModal from "./CustomerVerificationModal";
 import { FssaiDietaryBadge } from "./DishDetailsModal";
 import { decodeTableToken } from "../utils/tableToken";
+import { loadRazorpayScript } from "../utils/loadRazorpay";
 import styles from "./Cart.module.css";
 import { API_URL as API } from "../config/api";
 
@@ -44,6 +56,9 @@ export default function Cart() {
   const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
   const [isPlacing, setIsPlacing] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('direct_upi'); // 'direct_upi' (Zomato/Swiggy Direct) | 'razorpay' | 'counter'
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
+  const [upiCountdown, setUpiCountdown] = useState(300);
 
   // Cooking / preparation instructions notes state
   const [editingNoteItemId, setEditingNoteItemId] = useState(null);
@@ -206,18 +221,255 @@ export default function Cart() {
     }
   };
 
+  const executeRazorpayCheckout = async (activeCustomer) => {
+    if (items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    if (!tableNumber) {
+      toast.error("Please enter a table number");
+      return;
+    }
+
+    const tenantId = localStorage.getItem("tenantId");
+    if (!tenantId) {
+      toast.error("Invalid Cafe session. Please rescan QR code.");
+      return;
+    }
+
+    setIsPlacing(true);
+    const toastId = toast.loading("Initializing secure Razorpay payment...");
+
+    try {
+      // 1. Ensure Razorpay Checkout SDK is loaded
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !window.Razorpay) {
+        toast.error("Could not load Razorpay payment gateway. Please check your internet connection.", { id: toastId });
+        setIsPlacing(false);
+        return;
+      }
+
+      // 2. Prepare order payload and create payment order on backend
+      const payload = {
+        items: items.map((i) => {
+          let cleanId = i.itemId || i._id;
+          if (!cleanId && typeof i.id === 'string') {
+            cleanId = i.id.includes('_') ? i.id.split('_')[0] : i.id;
+          }
+          return {
+            id: cleanId,
+            itemId: cleanId,
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            variant: i.variant || null,
+            addons: i.addons || [],
+            specialNotes: i.specialNotes || i.notes || ''
+          };
+        }),
+        tenantId,
+        tableNumber: tableNumber || "Online Order",
+        customerDetails: {
+          name: activeCustomer?.name || "Guest",
+          phone: activeCustomer?.phone || "",
+          email: activeCustomer?.email || "",
+          isPhoneVerified: Boolean(activeCustomer?.verified)
+        },
+        notes: orderGeneralNote || ''
+      };
+
+      const { data } = await axios.post(`${API}/payments/create-order`, payload);
+
+      if (!data.success || !data.orderId) {
+        throw new Error(data.error || "Failed to initialize payment");
+      }
+
+      toast.dismiss(toastId);
+
+      // 3. Launch Razorpay Checkout Modal
+      const options = {
+        key: data.keyId,
+        amount: data.amount, // in paise
+        currency: data.currency || "INR",
+        name: data.cafeName || tenantInfo?.name || "Cafe Order",
+        description: `Order #${data.orderNumber} - ${items.length} items`,
+        order_id: data.orderId,
+        prefill: {
+          name: activeCustomer?.name || "",
+          contact: activeCustomer?.phone || "",
+          email: activeCustomer?.email || ""
+        },
+        theme: {
+          color: theme.accent || "#ea580c"
+        },
+        modal: {
+          ondismiss: function () {
+            toast("Payment window closed. You can retry anytime.", { icon: "ℹ️" });
+            setIsPlacing(false);
+          }
+        },
+        handler: async function (response) {
+          // response = { razorpay_order_id, razorpay_payment_id, razorpay_signature }
+          const verifyToastId = toast.loading("Verifying payment signature with server...");
+          try {
+            const verifyRes = await axios.post(`${API}/payments/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              dbOrderId: data.dbOrderId
+            });
+
+            if (verifyRes.data?.success) {
+              toast.success("Payment verified! Order placed successfully 🎉", { id: verifyToastId });
+
+              const confirmedOrder = verifyRes.data.order;
+              try {
+                localStorage.setItem('serviq_last_order_id', confirmedOrder._id);
+                localStorage.setItem('serviq_last_table', String(tableNumber || ''));
+                const prevSession = JSON.parse(localStorage.getItem('serviq_session_orders') || '[]');
+                if (!prevSession.includes(confirmedOrder._id)) {
+                  prevSession.push(confirmedOrder._id);
+                }
+                localStorage.setItem('serviq_session_orders', JSON.stringify(prevSession));
+
+                const prevHistory = JSON.parse(localStorage.getItem('serviq_order_history') || '[]');
+                const updatedHistory = [confirmedOrder, ...prevHistory.filter(o => o && o._id !== confirmedOrder._id)];
+                localStorage.setItem('serviq_order_history', JSON.stringify(updatedHistory));
+              } catch (e) {}
+
+              setItems([]);
+              localStorage.removeItem("cartItems");
+              navigate(`/order/status/${confirmedOrder._id}`, { replace: true });
+            } else {
+              throw new Error(verifyRes.data?.error || "Payment verification failed");
+            }
+          } catch (verifyErr) {
+            console.error("Verification error:", verifyErr);
+            toast.error(verifyErr.response?.data?.error || verifyErr.message || "Payment verification failed", { id: verifyToastId });
+            setIsPlacing(false);
+          }
+        }
+      };
+
+      const razorpayInstance = new window.Razorpay(options);
+      razorpayInstance.on("payment.failed", function (failResponse) {
+        console.error("Payment failed:", failResponse.error);
+        toast.error(`Payment failed: ${failResponse.error?.description || "Transaction declined"}`);
+        setIsPlacing(false);
+      });
+
+      razorpayInstance.open();
+    } catch (err) {
+      console.error("Razorpay order initiation error:", err);
+      toast.error(err.response?.data?.error || err.message || "Failed to start online payment", { id: toastId });
+      setIsPlacing(false);
+    }
+  };
+
+  // UPI Countdown Timer
+  useEffect(() => {
+    let timer;
+    if (isUpiModalOpen && upiCountdown > 0) {
+      timer = setInterval(() => {
+        setUpiCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isUpiModalOpen, upiCountdown]);
+
+  // Execute Direct UPI Order (Zomato/Swiggy Direct to Cafe Bank Account)
+  const executeDirectUpiOrder = async (activeCustomer = customer) => {
+    setIsPlacing(true);
+    const toastId = toast.loading("Confirming your order with kitchen...");
+    try {
+      const payload = {
+        items: items.map((i) => {
+          let cleanId = i.itemId || i._id;
+          if (!cleanId && typeof i.id === 'string') {
+            cleanId = i.id.includes('_') ? i.id.split('_')[0] : i.id;
+          }
+          return {
+            id: cleanId,
+            itemId: cleanId,
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            variant: i.variant || null,
+            addons: i.addons || [],
+            specialNotes: i.specialNotes || i.notes || ''
+          };
+        }),
+        tenantId: localStorage.getItem("tenantId"),
+        tableNumber: tableNumber || "Online Order",
+        status: "confirmed",
+        paymentStatus: "paid",
+        paymentMethod: "UPI",
+        customerDetails: {
+          name: activeCustomer?.name || "Guest",
+          phone: activeCustomer?.phone || "",
+          email: activeCustomer?.email || "",
+          isPhoneVerified: Boolean(activeCustomer?.verified)
+        },
+        notes: orderGeneralNote || ''
+      };
+
+      const { data } = await axios.post(`${API}/orders`, payload);
+
+      toast.success("UPI Order Placed & Confirmed 🎉", { id: toastId });
+
+      try {
+        localStorage.setItem('serviq_last_order_id', data._id);
+        localStorage.setItem('serviq_last_table', String(tableNumber || ''));
+        const prevSession = JSON.parse(localStorage.getItem('serviq_session_orders') || '[]');
+        if (!prevSession.includes(data._id)) {
+          prevSession.push(data._id);
+        }
+        localStorage.setItem('serviq_session_orders', JSON.stringify(prevSession));
+
+        const prevHistory = JSON.parse(localStorage.getItem('serviq_order_history') || '[]');
+        const updatedHistory = [data, ...prevHistory.filter(o => o && o._id !== data._id)];
+        localStorage.setItem('serviq_order_history', JSON.stringify(updatedHistory));
+      } catch (e) {}
+
+      setIsUpiModalOpen(false);
+      setItems([]);
+      localStorage.removeItem("cartItems");
+      navigate(`/order/status/${data._id}`, { replace: true });
+    } catch (err) {
+      console.error("Direct UPI order error:", err);
+      toast.error(err.response?.data?.error || "Failed to place order.", { id: toastId });
+    } finally {
+      setIsPlacing(false);
+    }
+  };
+
   const handlePlaceOrder = () => {
     if (!customer?.verified) {
       setIsVerificationOpen(true);
       return;
     }
-    executeOrderPlacement(customer);
+    if (paymentMethod === 'direct_upi') {
+      setUpiCountdown(300);
+      setIsUpiModalOpen(true);
+    } else if (paymentMethod === 'razorpay') {
+      executeRazorpayCheckout(customer);
+    } else {
+      executeOrderPlacement(customer);
+    }
   };
 
   const handleVerificationSuccess = (verifiedUser) => {
     setCustomer(verifiedUser);
     setIsVerificationOpen(false);
-    executeOrderPlacement(verifiedUser);
+    if (paymentMethod === 'direct_upi') {
+      setUpiCountdown(300);
+      setIsUpiModalOpen(true);
+    } else if (paymentMethod === 'razorpay') {
+      executeRazorpayCheckout(verifiedUser);
+    } else {
+      executeOrderPlacement(verifiedUser);
+    }
   };
 
   const total = getCartTotal();
@@ -652,6 +904,84 @@ export default function Cart() {
                   </span>
                 </div>
 
+                {/* Payment Option Selector */}
+                <div style={{ marginTop: '14px', marginBottom: '14px', borderTop: `1px dashed ${theme.border}`, paddingTop: '12px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.textMain, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CreditCard size={14} color={theme.accent} />
+                    <span>Choose Payment Method</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('direct_upi')}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        border: paymentMethod === 'direct_upi' ? `2px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                        backgroundColor: paymentMethod === 'direct_upi' ? (isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed') : theme.bgCard,
+                        color: paymentMethod === 'direct_upi' ? theme.accent : theme.textMain,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s ease',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+                        <Smartphone size={14} color={theme.accent} />
+                        <span>UPI &amp; QR</span>
+                      </div>
+                      <span style={{ fontSize: '0.67rem', color: theme.textMuted }}>GPay / PhonePe / QR</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('counter')}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        border: paymentMethod === 'counter' ? `2px solid ${theme.accent}` : `1px solid ${theme.border}`,
+                        backgroundColor: paymentMethod === 'counter' ? (isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed') : theme.bgCard,
+                        color: paymentMethod === 'counter' ? theme.accent : theme.textMain,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s ease',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+                        <Utensils size={14} />
+                        <span>Pay at Counter</span>
+                      </div>
+                      <span style={{ fontSize: '0.67rem', color: theme.textMuted }}>Cash / Dine-in</span>
+                    </button>
+                  </div>
+
+                  <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('razorpay')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: paymentMethod === 'razorpay' ? theme.accent : theme.textMuted,
+                        fontSize: '0.68rem',
+                        cursor: 'pointer',
+                        textDecoration: paymentMethod === 'razorpay' ? 'underline' : 'none',
+                        fontWeight: 600
+                      }}
+                    >
+                      {paymentMethod === 'razorpay' ? '✓ Card/Netbanking Mode Active' : 'Need Cards or Netbanking? Click here'}
+                    </button>
+                  </div>
+                </div>
+
                 <motion.button
                   whileHover={!isPlacing ? { scale: 1.02 } : {}}
                   whileTap={!isPlacing ? { scale: 0.96 } : {}}
@@ -664,8 +994,14 @@ export default function Cart() {
                     cursor: isPlacing ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  <Utensils size={18} />
-                  <span>{isPlacing ? "Placing Your Order..." : `Place Order • ₹${Math.round(total)}`}</span>
+                  {paymentMethod === 'direct_upi' ? <Smartphone size={18} /> : (paymentMethod === 'razorpay' ? <CreditCard size={18} /> : <Utensils size={18} />)}
+                  <span>
+                    {isPlacing
+                      ? "Processing Your Order..."
+                      : (paymentMethod === 'direct_upi'
+                          ? `Pay via UPI • ₹${Math.round(total)}`
+                          : (paymentMethod === 'razorpay' ? `Pay with Card • ₹${Math.round(total)}` : `Place Order (Pay at Counter) • ₹${Math.round(total)}`))}
+                  </span>
                 </motion.button>
               </div>
             </motion.div>
@@ -688,6 +1024,336 @@ export default function Cart() {
         onVerified={handleVerificationSuccess}
         initialName={customer?.name || ''}
       />
+
+      {/* ── ZOMATO / SWIGGY STYLE DIRECT DYNAMIC UPI MODAL ── */}
+      <AnimatePresence>
+        {isUpiModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center'
+            }}
+            onClick={() => setIsUpiModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              style={{
+                width: '100%',
+                maxWidth: '480px',
+                backgroundColor: theme.bgContainer,
+                color: theme.textMain,
+                borderTopLeftRadius: '24px',
+                borderTopRightRadius: '24px',
+                padding: '1.25rem 1.25rem 2rem',
+                boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.3)',
+                border: `1px solid ${theme.border}`,
+                maxHeight: '92vh',
+                overflowY: 'auto',
+                boxSizing: 'border-box'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag Handle */}
+              <div style={{ width: 44, height: 4, borderRadius: 100, backgroundColor: isDarkMode ? '#3f3f46' : '#cbd5e1', margin: '0 auto 12px' }} />
+
+              {/* UPI Header (Matching Professional Spec) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.3px' }}>
+                      UPI
+                    </h3>
+                    <span style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '100px',
+                      background: '#dcfce7',
+                      color: '#15803d',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      Instant • 0% Fee
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.84rem', color: theme.textMuted, margin: '2px 0 0 0' }}>
+                    Pay by any UPI app
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '100px',
+                    background: '#fef3c7',
+                    color: '#92400e',
+                    fontFamily: 'monospace'
+                  }}>
+                    ⏱️ {Math.floor(upiCountdown / 60)}:{('0' + (upiCountdown % 60)).slice(-2)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsUpiModalOpen(false)}
+                    style={{
+                      background: isDarkMode ? '#27272a' : '#f1f5f9',
+                      border: 'none',
+                      color: theme.textMuted,
+                      cursor: 'pointer',
+                      borderRadius: '50%',
+                      width: 28,
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Amount Display & Dynamic Setup */}
+              {(() => {
+                const rawUpi = tenantInfo?.settings?.upiId || '';
+                const isEmail = rawUpi.endsWith('@gmail.com') || rawUpi.endsWith('@yahoo.com');
+                const cleanUpiId = (!isEmail && rawUpi) ? rawUpi : '9351862675@paytm';
+                const payeeName = tenantInfo?.settings?.upiPayeeName || tenantInfo?.name || 'Cafee';
+                const upiUri = buildUpiUri({
+                  upiId: cleanUpiId,
+                  payeeName: payeeName,
+                  amount: total,
+                  note: `Order Table ${tableNumber || 'Takeaway'}`
+                });
+
+                return (
+                  <>
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '8px 0 10px',
+                      borderBottom: `1px dashed ${theme.border}`
+                    }}>
+                      <span style={{ fontSize: '0.7rem', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Payable Amount
+                      </span>
+                      <div style={{ fontSize: '2rem', fontWeight: 900, color: theme.accent, marginTop: '1px', lineHeight: 1.1 }}>
+                        ₹{Math.round(total)}
+                      </div>
+                      <div style={{ marginTop: '4px' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.68rem',
+                          color: '#16a34a',
+                          background: '#dcfce7',
+                          padding: '3px 10px',
+                          borderRadius: '100px',
+                          fontWeight: 700
+                        }}>
+                          <ShieldCheck size={13} /> Amount pre-filled in your UPI app
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2x2 Official UPI App Selection Grid (Matching User Screenshot Spec) */}
+                    <div style={{ margin: '14px 0 12px' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: theme.textMuted, marginBottom: '8px', display: 'block' }}>
+                        Pay directly with installed app:
+                      </span>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                        {/* GPay */}
+                        <a
+                          href={upiUri}
+                          style={{
+                            padding: '11px 14px',
+                            borderRadius: '12px',
+                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            textDecoration: 'none',
+                            color: theme.textMain,
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <GPayIcon size={26} />
+                          <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>GPay</span>
+                        </a>
+
+                        {/* PhonePe */}
+                        <a
+                          href={upiUri}
+                          style={{
+                            padding: '11px 14px',
+                            borderRadius: '12px',
+                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            textDecoration: 'none',
+                            color: theme.textMain,
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <PhonePeIcon size={26} />
+                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#5f259f' }}>PhonePe</span>
+                        </a>
+
+                        {/* Paytm */}
+                        <a
+                          href={upiUri}
+                          style={{
+                            padding: '11px 14px',
+                            borderRadius: '12px',
+                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            textDecoration: 'none',
+                            color: theme.textMain,
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <PaytmIcon size={22} />
+                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#002970' }}>PayTM</span>
+                        </a>
+
+                        {/* BHIM */}
+                        <a
+                          href={upiUri}
+                          style={{
+                            padding: '11px 14px',
+                            borderRadius: '12px',
+                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            textDecoration: 'none',
+                            color: theme.textMain,
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <BhimIcon size={26} />
+                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#008450' }}>BHIM</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Dynamic QR Code Card */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      margin: '10px 0 14px',
+                      padding: '12px',
+                      backgroundColor: isDarkMode ? '#1e1814' : '#f8fafc',
+                      borderRadius: '16px',
+                      border: `1px solid ${theme.border}`
+                    }}>
+                      <div style={{
+                        backgroundColor: '#ffffff',
+                        padding: '10px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        border: '1.5px solid #e2e8f0'
+                      }}>
+                        <QRCodeSVG
+                          value={upiUri}
+                          size={155}
+                          level="M"
+                        />
+                      </div>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 800, marginTop: '8px', color: theme.textMain }}>
+                        Scan with GPay, PhonePe, Paytm, or CRED
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '0.68rem', color: theme.textMuted, fontFamily: 'monospace' }}>
+                          UPI: <strong>{cleanUpiId}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(cleanUpiId);
+                            toast.success('UPI ID copied!');
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.accent, padding: 0 }}
+                          title="Copy UPI ID"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </div>
+
+                      {isEmail && (
+                        <div style={{
+                          fontSize: '0.65rem',
+                          color: '#dc2626',
+                          background: '#fef2f2',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          marginTop: '6px',
+                          textAlign: 'center'
+                        }}>
+                          ⚠️ Note: An email was configured. Using standard UPI {cleanUpiId} to ensure PhonePe/GPay scanner works.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Single Checkmark Confirmation Button */}
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      disabled={isPlacing}
+                      onClick={() => executeDirectUpiOrder(customer)}
+                      style={{
+                        width: '100%',
+                        padding: '14px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                        color: '#ffffff',
+                        fontSize: '0.98rem',
+                        fontWeight: 800,
+                        cursor: isPlacing ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)'
+                      }}
+                    >
+                      <Check size={18} strokeWidth={2.5} />
+                      <span>{isPlacing ? "Confirming Order..." : `I Have Paid • ₹${Math.round(total)}`}</span>
+                    </motion.button>
+                  </>
+                );
+              })()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Customer Bottom Navigation Bar */}
       <CustomerBottomNav

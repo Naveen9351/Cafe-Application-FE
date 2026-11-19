@@ -796,7 +796,9 @@ export default function TableOperationsHub({
           const cashGivenNum = Number(cashTendered) || 0;
           const cashChange = cashGivenNum > 0 ? cashGivenNum - grandTotal : 0;
 
-          const upiUri = `upi://pay?pa=${encodeURIComponent(tenantInfo?.upiId || 'cafe@upi')}&pn=${encodeURIComponent(tenantInfo?.name || 'Cafe Order')}&am=${grandTotal}&cu=INR&tn=Table%20${selectedTableForPayment.table.tableNumber}%20Bill`;
+          const effectiveUpi = (tenantInfo?.settings?.upiId || tenantInfo?.upiId || '9351862675@paytm').trim();
+          const effectivePayee = (tenantInfo?.settings?.upiPayeeName || tenantInfo?.name || 'Cafe Order').trim();
+          const upiUri = `upi://pay?pa=${effectiveUpi}&pn=${encodeURIComponent(effectivePayee)}&am=${grandTotal}&cu=INR&tn=Table${selectedTableForPayment.table.tableNumber}Bill`;
 
           return (
             <div style={{

@@ -9,6 +9,7 @@ import {
   GripVertical, ArrowRight
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
+import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getValidFoodImage, getCustomerFirstName } from '../AdminPanel';
@@ -18,6 +19,7 @@ import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioCh
 import { printOrderBill } from '../../utils/billPrinter';
 import { openWhatsappBill } from '../../utils/whatsappBillSender';
 import WhatsAppConnectModal from '../WhatsAppConnectModal';
+import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, buildUpiUri } from '../common/UpiBrandLogos';
 
 // Smart table name formatter:
 // Converts "1" -> "T 1", "Table 1" -> "T 1", "Ground" -> "T Ground", matching QR Code screens
@@ -152,6 +154,7 @@ export default function POSTerminal({
   const [selectedItemKeys, setSelectedItemKeys] = useState(new Set());
   const [showPayItemsModal, setShowPayItemsModal] = useState(false);
   const [payItemsMethod, setPayItemsMethod] = useState('Cash');
+  const [isUpiAmountLocked, setIsUpiAmountLocked] = useState(true);
   const [isSubmittingItemPay, setIsSubmittingItemPay] = useState(false);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [clearTablePaymentMethod, setClearTablePaymentMethod] = useState('Cash');
@@ -3943,12 +3946,171 @@ export default function POSTerminal({
                     </div>
                   )}
 
-                  {/* If UPI */}
-                  {currentMethod === 'UPI / GPay' && (
-                    <div style={{ marginTop: '5px', fontSize: '0.68rem', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Smartphone size={13} /> Collect ₹{formatAmount(finalPayable)} via Store QR / Soundbox
-                    </div>
-                  )}
+                  {/* If UPI / GPay */}
+                  {currentMethod === 'UPI / GPay' && (() => {
+                    const rawUpi = tenantInfo?.settings?.upiId || '';
+                    const isEmail = rawUpi.endsWith('@gmail.com') || rawUpi.endsWith('@yahoo.com');
+                    const cleanUpiId = (!isEmail && rawUpi) ? rawUpi : '9351862675@paytm';
+                    const upiPayee = tenantInfo?.settings?.upiPayeeName || tenantInfo?.name || 'Cafee';
+                    const upiString = buildUpiUri({
+                      upiId: cleanUpiId,
+                      payeeName: upiPayee,
+                      amount: finalPayable,
+                      note: `Bill Table ${tableNumber}`,
+                      includeAmount: isUpiAmountLocked
+                    });
+
+                    return (
+                      <div style={{
+                        marginTop: '9px',
+                        padding: '12px 14px',
+                        background: 'linear-gradient(145deg, #ffffff, #f0fdf4)',
+                        border: '1.5px solid #86efac',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 16px rgba(16, 185, 129, 0.08)'
+                      }}>
+                        {/* Header & Amount Lock Tag */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Smartphone size={15} color="#059669" /> Dynamic UPI Table QR
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsUpiAmountLocked(!isUpiAmountLocked)}
+                            title="Click to toggle amount lock in QR"
+                            style={{
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              color: isUpiAmountLocked ? '#15803d' : '#475569',
+                              background: isUpiAmountLocked ? '#dcfce7' : '#f1f5f9',
+                              padding: '3px 8px',
+                              borderRadius: '100px',
+                              border: isUpiAmountLocked ? '1px solid #bbf7d0' : '1px solid #cbd5e1',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Lock size={10} /> {isUpiAmountLocked ? `Pre-filled: ₹${formatAmount(finalPayable)}` : 'Open Amount'}
+                          </button>
+                        </div>
+
+                        {/* QR Code and Brand Logos */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                          <div style={{
+                            background: '#ffffff',
+                            padding: '8px',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                            border: '1.5px solid #e2e8f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <QRCodeSVG
+                              value={upiString}
+                              size={120}
+                              level="M"
+                            />
+                          </div>
+
+                          <div style={{ textAlign: 'left', flex: 1, minWidth: '165px' }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                              Accepting all UPI payment apps:
+                            </div>
+
+                            {/* Official Brand Logo Badges */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 6px',
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                              }}>
+                                <GPayIcon size={20} />
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#1e293b' }}>GPay</span>
+                              </div>
+
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 6px',
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                              }}>
+                                <PhonePeIcon size={20} />
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#5f259f' }}>PhonePe</span>
+                              </div>
+
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 6px',
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                              }}>
+                                <PaytmIcon size={18} />
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#002970' }}>PayTM</span>
+                              </div>
+
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 6px',
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                              }}>
+                                <BhimIcon size={20} />
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#008450' }}>BHIM</span>
+                              </div>
+                            </div>
+
+                            {/* VPA Display & Status */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '7px' }}>
+                              <span style={{ fontSize: '0.65rem', color: '#64748b', fontFamily: 'monospace' }}>
+                                UPI: <strong>{cleanUpiId}</strong>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(cleanUpiId);
+                                  toast.success('UPI ID copied!');
+                                }}
+                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#059669' }}
+                                title="Copy UPI ID"
+                              >
+                                <Tag size={11} />
+                              </button>
+                            </div>
+
+                            <div style={{ fontSize: '0.65rem', color: '#059669', fontWeight: 700, marginTop: '3px' }}>
+                              ✓ Amount locks in customer's phone automatically
+                            </div>
+
+                            {isEmail && (
+                              <div style={{ fontSize: '0.62rem', color: '#dc2626', marginTop: '4px', fontWeight: 600 }}>
+                                ⚠️ Settings has an email ({rawUpi}). Using default UPI {cleanUpiId}. Update in Restaurant Settings.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* If Card */}
                   {currentMethod === 'Card' && (

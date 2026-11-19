@@ -3757,8 +3757,8 @@ export default function KhataLedger({ menuItems = [], tenantId }) {
         const amountNum = Number(settleAmount) || 0;
         const remainingAfterPay = Math.max(0, currentDue - amountNum);
 
-        const merchantUpi = tenantInfo?.settings?.upiId || tenantInfo?.upiId || 'cafe@upi';
-        const upiUri = `upi://pay?pa=${encodeURIComponent(merchantUpi)}&pn=${encodeURIComponent(tenantInfo?.name || 'Cafe Khata')}&am=${amountNum}&cu=INR&tn=${encodeURIComponent(`Khata Settlement - ${custName}`)}`;
+        const merchantUpi = (tenantInfo?.settings?.upiId || tenantInfo?.upiId || '9351862675@paytm').trim();
+        const upiUri = `upi://pay?pa=${merchantUpi}&pn=${encodeURIComponent(tenantInfo?.name || 'Cafe Khata')}&am=${amountNum}&cu=INR&tn=${encodeURIComponent(`Khata - ${custName}`)}`;
 
         return (
           <div className={styles.modalOverlay} onClick={() => { setSelectedRecord(null); setSelectedCustomerAccount(null); }}>
