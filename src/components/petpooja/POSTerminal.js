@@ -4612,21 +4612,29 @@ export default function POSTerminal({
               </div>
             </div>
 
-            {/* Two Interactive Selection Columns */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+            {/* Two Interactive Selection Columns with Independent Scrolling */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
 
               {/* Left Column: Tables With Active Orders (Draggable Source) */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                     1. Move From (Drag/Click)
                   </span>
-                  <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px' }}>
                     {activeOccupiedTables.length} active
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  paddingRight: '6px',
+                  scrollbarWidth: 'thin'
+                }}>
                   {activeOccupiedTables.length === 0 ? (
                     <div style={{ padding: '24px 12px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: '0.78rem' }}>
                       No tables currently have running orders to merge.
@@ -4700,17 +4708,25 @@ export default function POSTerminal({
               </div>
 
               {/* Right Column: Destination Tables (Drop Target / Click) */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                     2. Merge Into (Drop / Click)
                   </span>
-                  <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px' }}>
                     {dbTables.length} tables
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  paddingRight: '6px',
+                  scrollbarWidth: 'thin'
+                }}>
                   {dbTables.map(tbl => {
                     const tStr = String(tbl.tableNumber).trim();
                     const ords = getOrdersForTableObj(tbl);
