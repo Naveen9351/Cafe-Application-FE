@@ -57,14 +57,19 @@ export default function POSTerminal({
 }) {
   const activeOperatingMode = tenantInfo?.operatingMode
     || tenantInfo?.settings?.operatingMode
+    || tenantInfo?.businessOperatingArchitecture
     || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode)
+    || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId?.operatingMode)
     || 'dine_in';
   const isCounterBillingOnly = activeOperatingMode === 'counter_billing'
-    || tenantInfo?.settings?.businessMode === 'quick_billing';
+    || activeOperatingMode === 'quick_billing'
+    || tenantInfo?.settings?.businessMode === 'quick_billing'
+    || tenantInfo?.settings?.operatingMode === 'counter_billing'
+    || tenantInfo?.operatingMode === 'counter_billing';
 
-  // View mode: 'tables' (Petpooja table matrix) or 'terminal' (POS billing)
-  const [viewMode, setViewMode] = useState(initialTable ? 'terminal' : 'tables');
-  const [tableNumber, setTableNumber] = useState(initialTable || '1');
+  // View mode: In counter billing, ALWAYS 'terminal' (no floor tables). In dine-in, 'terminal' if initialTable provided, else 'tables'
+  const [viewMode, setViewMode] = useState(isCounterBillingOnly ? 'terminal' : (initialTable ? 'terminal' : 'tables'));
+  const [tableNumber, setTableNumber] = useState(isCounterBillingOnly ? 'Walk-in' : (initialTable || '1'));
   const [selectedZone, setSelectedZone] = useState('all');
   const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all', 'free', 'occupied', 'paid'
   const [tableSearch, setTableSearch] = useState('');
@@ -210,11 +215,14 @@ export default function POSTerminal({
   }, [fetchDbTables]);
 
   useEffect(() => {
-    if (initialTable) {
+    if (isCounterBillingOnly) {
+      setTableNumber('Walk-in');
+      setViewMode('terminal');
+    } else if (initialTable) {
       setTableNumber(initialTable);
       setViewMode('terminal');
     }
-  }, [initialTable]);
+  }, [initialTable, isCounterBillingOnly]);
 
   // Real-time active uncompleted orders
   const activeOrdersList = useMemo(() => {
@@ -1142,8 +1150,8 @@ export default function POSTerminal({
         toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
-        setTableNumber('');
-        setViewMode('tables');
+        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
         if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
         if (onOrderCreated) onOrderCreated(res.data.order || res.data);
       } else {
@@ -1154,8 +1162,8 @@ export default function POSTerminal({
         toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
-        setTableNumber('');
-        setViewMode('tables');
+        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
         if (onOrderPlaced) onOrderPlaced(res.data);
         if (onOrderCreated) onOrderCreated(res.data);
       }
@@ -1239,8 +1247,8 @@ export default function POSTerminal({
         toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
-        setTableNumber('');
-        setViewMode('tables');
+        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
         if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
         if (onOrderCreated) onOrderCreated(res.data.order || res.data);
       } else {
@@ -1251,8 +1259,8 @@ export default function POSTerminal({
         toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
-        setTableNumber('');
-        setViewMode('tables');
+        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
         if (onOrderPlaced) onOrderPlaced(res.data);
         if (onOrderCreated) onOrderCreated(res.data);
       }
@@ -1512,7 +1520,8 @@ export default function POSTerminal({
         setCustomerName('');
         setCustomerPhone('');
         setSelectedItemKeys(new Set());
-        setViewMode('tables');
+        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
       }
       if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
@@ -1611,8 +1620,9 @@ export default function POSTerminal({
         if (onSettleTable) onSettleTable(tNum);
       });
 
-      // Return to table matrix view
-      setViewMode('tables');
+      // Return to table matrix view (or stay in terminal for counter billing)
+      setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+      setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
     } catch (err) {
       console.error('Settle table error:', err);
       toast.error('Settlement error: ' + (err.response?.data?.error || err.message));
@@ -1716,8 +1726,9 @@ export default function POSTerminal({
         if (onSettleTable) onSettleTable(tNum);
       });
 
-      // Crucial: Clear view and return to tables matrix
-      setViewMode('tables');
+      // Crucial: Clear view and return to tables matrix (or stay in terminal for counter billing)
+      setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+      setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
     } catch (err) {
       console.error('Khata settlement error:', err);
       toast.error('Failed to record Khata: ' + (err.response?.data?.error || err.message));
@@ -1873,9 +1884,9 @@ export default function POSTerminal({
     <div className={styles.terminalWrapper}>
 
       {/* ========================================================= */}
-      {/* 1. FLOOR & TABLES MATRIX VIEW (Petpooja Reference Style)  */}
+      {/* 1. FLOOR & TABLES MATRIX VIEW (Dine-in only)               */}
       {/* ========================================================= */}
-      {viewMode === 'tables' && (
+      {!isCounterBillingOnly && viewMode === 'tables' && (
         <div className={styles.floorContainer}>
 
           {/* Streamlined Top Control Toolbar */}
@@ -2256,7 +2267,7 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 2. POS BILLING & ORDER VIEW (High-Speed Terminal)         */}
       {/* ========================================================= */}
-      {viewMode === 'terminal' && (
+      {(isCounterBillingOnly || viewMode === 'terminal') && (
         <div className={styles.terminalContainerWrap}>
 
           {/* POS Two-Column Grid */}
@@ -2295,15 +2306,17 @@ export default function POSTerminal({
               {/* 2. Right Side: Main Column (Search/Toggle Bar on Top + Dishes Grid Below) */}
               <div className={styles.menuMainColumn}>
                 <div className={styles.menuFilterBar}>
-                  {/* Inline Back Arrow Button to return to Floor Tables */}
-                  <button
-                    type="button"
-                    className={styles.backIconBtn}
-                    onClick={() => setViewMode('tables')}
-                    title="Back to Floor Tables"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
+                  {/* Inline Back Arrow Button to return to Floor Tables (Dine-in only) */}
+                  {!isCounterBillingOnly && (
+                    <button
+                      type="button"
+                      className={styles.backIconBtn}
+                      onClick={() => setViewMode('tables')}
+                      title="Back to Floor Tables"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                  )}
 
                   {/* Dish Search input right after back button */}
                   <div className={styles.searchBox}>
@@ -2617,7 +2630,22 @@ export default function POSTerminal({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       <h4 className={styles.drawerTitle} style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        {tableNumber === 'Walk-in' ? (
+                        {isCounterBillingOnly ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#ecfdf5',
+                            color: '#059669',
+                            border: '1px solid #a7f3d0',
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            fontSize: '0.78rem',
+                            fontWeight: 800
+                          }}>
+                            ⚡ COUNTER POS
+                          </span>
+                        ) : tableNumber === 'Walk-in' ? (
                           'Walk-in'
                         ) : /^temp/i.test(tableNumber) ? (
                           <>
@@ -2638,7 +2666,7 @@ export default function POSTerminal({
                           `Table ${formatTableOnlyNumber(tableNumber)}`
                         )}
                       </h4>
-                      {mergedTables.map(mTable => (
+                      {!isCounterBillingOnly && mergedTables.map(mTable => (
                         <span
                           key={mTable}
                           style={{
@@ -2665,7 +2693,7 @@ export default function POSTerminal({
                           </button>
                         </span>
                       ))}
-                      {tableNumber !== 'Walk-in' && (
+                      {!isCounterBillingOnly && tableNumber !== 'Walk-in' && (
                         <button
                           type="button"
                           onClick={() => {
@@ -3537,8 +3565,9 @@ export default function POSTerminal({
                   if (onSettleTable) onSettleTable(tNum);
                 });
 
-                // Return to table matrix view - table is completely clear
-                setViewMode('tables');
+                // Return to table matrix view - table is completely clear (or stay in terminal for counter billing)
+                setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
+                setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
               }
             } catch (err) {
               console.error('Khata settlement error:', err);

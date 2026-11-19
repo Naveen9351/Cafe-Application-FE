@@ -308,10 +308,12 @@ export default function AdminPanel() {
 
   const activeOperatingMode = tenantInfo?.operatingMode
     || tenantInfo?.settings?.operatingMode
+    || tenantInfo?.businessOperatingArchitecture
     || user?.operatingMode
     || user?.tenantId?.operatingMode
+    || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode)
     || 'dine_in';
-  const isCounterBillingOnly = activeOperatingMode === 'counter_billing';
+  const isCounterBillingOnly = activeOperatingMode === 'counter_billing' || activeOperatingMode === 'quick_billing';
 
   // Compute strictly allowed tabs for current user based on permission bucket and operating mode
   const allowedTabs = useMemo(() => {
@@ -5879,7 +5881,7 @@ export default function AdminPanel() {
                     tenantInfo={tenantInfo}
                     menuItems={items}
                     orders={orders}
-                    initialTable={posSelectedTable}
+                    initialTable={isCounterBillingOnly ? 'Walk-in' : posSelectedTable}
                     isMainSidebarOpen={!sidebarCollapsed}
                     onRefreshTables={fetchTables}
                     onRefreshOrders={fetchOrders}
