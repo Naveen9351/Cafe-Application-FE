@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -25,7 +25,9 @@ import {
   UtensilsCrossed,
   Clock,
   ArrowDownRight,
-  Filter
+  Filter,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -64,6 +66,27 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [isExecutiveReportOpen, setIsExecutiveReportOpen] = useState(false);
+
+  // Modern Custom Table Dropdown & Category Dropdown State
+  const [isTableFilterOpen, setIsTableFilterOpen] = useState(false);
+  const [tableSearchText, setTableSearchText] = useState('');
+  const tableFilterRef = useRef(null);
+
+  const [isCategoryFilterOpen, setIsCategoryFilterOpen] = useState(false);
+  const categoryFilterRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (tableFilterRef.current && !tableFilterRef.current.contains(e.target)) {
+        setIsTableFilterOpen(false);
+      }
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(e.target)) {
+        setIsCategoryFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Pagination State for Orders
   const [reportsPage, setReportsPage] = useState(1);
@@ -604,27 +627,105 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                 ))}
               </div>
 
-              <select
-                value={itemCategoryFilter}
-                onChange={(e) => setItemCategoryFilter(e.target.value)}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '7px',
-                  padding: '0.34rem 0.65rem',
-                  fontSize: '0.74rem',
-                  fontWeight: 600,
-                  color: '#334155',
-                  outline: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                {availableCategories.map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </option>
-                ))}
-              </select>
+              {/* Modern Custom Category Dropdown */}
+              <div style={{ position: 'relative' }} ref={categoryFilterRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryFilterOpen(prev => !prev)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: itemCategoryFilter !== 'all' ? '#eef2ff' : '#ffffff',
+                    border: itemCategoryFilter !== 'all' ? '1.5px solid #6366f1' : '1px solid #cbd5e1',
+                    borderRadius: '7px',
+                    padding: '0.34rem 0.65rem',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    color: itemCategoryFilter !== 'all' ? '#4338ca' : '#334155',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    boxShadow: isCategoryFilterOpen ? '0 0 0 3px rgba(99, 102, 241, 0.15)' : 'none'
+                  }}
+                >
+                  <UtensilsCrossed size={12} color={itemCategoryFilter !== 'all' ? '#4f46e5' : '#64748b'} />
+                  <span>
+                    {itemCategoryFilter === 'all'
+                      ? 'All Categories'
+                      : itemCategoryFilter.charAt(0).toUpperCase() + itemCategoryFilter.slice(1)}
+                  </span>
+                  <ChevronDown
+                    size={11}
+                    style={{
+                      transform: isCategoryFilterOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s ease',
+                      color: '#94a3b8'
+                    }}
+                  />
+                </button>
+
+                {isCategoryFilterOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 5px)',
+                      left: 0,
+                      minWidth: '180px',
+                      background: '#ffffff',
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 10px 25px -4px rgba(15, 23, 42, 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.08)',
+                      zIndex: 9999,
+                      padding: '6px',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}
+                  >
+                    {availableCategories.map(cat => {
+                      const isSelected = itemCategoryFilter === cat;
+                      const label = cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1);
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setItemCategoryFilter(cat);
+                            setIsCategoryFilterOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: isSelected ? '#eef2ff' : 'transparent',
+                            color: isSelected ? '#4338ca' : '#334155',
+                            fontSize: '0.74rem',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <span>{label}</span>
+                          {isSelected && <Check size={12} color="#4f46e5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -863,24 +964,264 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                       )}
                     </div>
 
-                    <select
-                      value={tableFilter}
-                      onChange={(e) => setTableFilter(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        fontSize: '0.8rem',
-                        backgroundColor: '#ffffff',
-                        outline: 'none',
-                        fontWeight: 600
-                      }}
-                    >
-                      <option value="all">All Tables</option>
-                      {uniqueTables.map(tNum => (
-                        <option key={tNum} value={tNum}>{formatCleanTableNumber(tNum)}</option>
-                      ))}
-                    </select>
+                    {/* Modern Custom Table Filter Dropdown */}
+                    <div style={{ position: 'relative' }} ref={tableFilterRef}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsTableFilterOpen(prev => !prev);
+                          setTableSearchText('');
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '7px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: tableFilter !== 'all' ? '1.5px solid #6366f1' : '1px solid #cbd5e1',
+                          backgroundColor: tableFilter !== 'all' ? '#eef2ff' : '#ffffff',
+                          color: tableFilter !== 'all' ? '#4338ca' : '#334155',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          outline: 'none',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isTableFilterOpen ? '0 0 0 3px rgba(99, 102, 241, 0.15)' : 'none'
+                        }}
+                      >
+                        <Filter size={13} color={tableFilter !== 'all' ? '#4f46e5' : '#64748b'} />
+                        <span>
+                          {tableFilter === 'all'
+                            ? 'All Tables'
+                            : `Table ${formatCleanTableNumber(tableFilter)}`}
+                        </span>
+
+                        {tableFilter !== 'all' ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTableFilter('all');
+                              setIsTableFilterOpen(false);
+                            }}
+                            title="Reset to All Tables"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#c7d2fe',
+                              color: '#312e81',
+                              marginLeft: '2px',
+                              fontSize: '10px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✕
+                          </span>
+                        ) : (
+                          <ChevronDown
+                            size={13}
+                            style={{
+                              transform: isTableFilterOpen ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.2s ease',
+                              color: '#94a3b8'
+                            }}
+                          />
+                        )}
+                      </button>
+
+                      {/* Floating Dropdown Popover */}
+                      {isTableFilterOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 6px)',
+                            right: 0,
+                            width: '240px',
+                            background: '#ffffff',
+                            borderRadius: '12px',
+                            border: '1px solid #e2e8f0',
+                            boxShadow: '0 12px 28px -4px rgba(15, 23, 42, 0.18), 0 4px 10px -2px rgba(15, 23, 42, 0.08)',
+                            zIndex: 9999,
+                            padding: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}
+                        >
+                          {/* Header with Search if many tables */}
+                          <div style={{ padding: '4px 6px 6px 6px', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: uniqueTables.length > 5 ? '6px' : '0' }}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Filter by Table
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
+                                {uniqueTables.length} tables
+                              </span>
+                            </div>
+
+                            {uniqueTables.length > 5 && (
+                              <div style={{ position: 'relative', marginTop: '4px' }}>
+                                <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                <input
+                                  type="text"
+                                  placeholder="Search table number..."
+                                  value={tableSearchText}
+                                  onChange={(e) => setTableSearchText(e.target.value)}
+                                  autoFocus
+                                  style={{
+                                    width: '100%',
+                                    padding: '5px 8px 5px 26px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #e2e8f0',
+                                    fontSize: '0.75rem',
+                                    outline: 'none',
+                                    boxSizing: 'border-box'
+                                  }}
+                                />
+                                {tableSearchText && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTableSearchText('')}
+                                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}
+                                  >
+                                    <X size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* "All Tables" option */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTableFilter('all');
+                              setIsTableFilterOpen(false);
+                            }}
+                            style={{
+                              width: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '7px 10px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: tableFilter === 'all' ? '#eef2ff' : 'transparent',
+                              color: tableFilter === 'all' ? '#4338ca' : '#1e293b',
+                              fontSize: '0.8rem',
+                              fontWeight: tableFilter === 'all' ? 700 : 500,
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              transition: 'background 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (tableFilter !== 'all') e.currentTarget.style.background = '#f8fafc';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (tableFilter !== 'all') e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <Layers size={13} color={tableFilter === 'all' ? '#4f46e5' : '#64748b'} />
+                              <span>All Tables</span>
+                            </div>
+                            {tableFilter === 'all' && <Check size={14} color="#4f46e5" />}
+                          </button>
+
+                          <div style={{ height: '1px', background: '#f1f5f9', margin: '2px 0' }} />
+
+                          {/* Scrollable Table List */}
+                          <div
+                            style={{
+                              maxHeight: '220px',
+                              overflowY: 'auto',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px',
+                              paddingRight: '2px'
+                            }}
+                          >
+                            {uniqueTables
+                              .filter(tNum => {
+                                if (!tableSearchText) return true;
+                                const clean = formatCleanTableNumber(tNum).toLowerCase();
+                                return clean.includes(tableSearchText.toLowerCase()) || String(tNum).toLowerCase().includes(tableSearchText.toLowerCase());
+                              })
+                              .map(tNum => {
+                                const cleanName = formatCleanTableNumber(tNum);
+                                const isSelected = String(tableFilter).toLowerCase() === String(tNum).toLowerCase();
+                                return (
+                                  <button
+                                    key={tNum}
+                                    type="button"
+                                    onClick={() => {
+                                      setTableFilter(tNum);
+                                      setIsTableFilterOpen(false);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      padding: '7px 10px',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      background: isSelected ? '#eef2ff' : 'transparent',
+                                      color: isSelected ? '#4338ca' : '#334155',
+                                      fontSize: '0.8rem',
+                                      fontWeight: isSelected ? 700 : 500,
+                                      cursor: 'pointer',
+                                      textAlign: 'left',
+                                      transition: 'background 0.15s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <div
+                                        style={{
+                                          width: '22px',
+                                          height: '22px',
+                                          borderRadius: '6px',
+                                          background: isSelected ? '#c7d2fe' : '#f1f5f9',
+                                          color: isSelected ? '#3730a3' : '#64748b',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 800,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                      >
+                                        {cleanName.length <= 3 ? cleanName : cleanName.slice(0, 2).toUpperCase()}
+                                      </div>
+                                      <span>Table {cleanName}</span>
+                                    </div>
+                                    {isSelected && <Check size={14} color="#4f46e5" />}
+                                  </button>
+                                );
+                              })}
+                            {uniqueTables.filter(tNum => {
+                              if (!tableSearchText) return true;
+                              const clean = formatCleanTableNumber(tNum).toLowerCase();
+                              return clean.includes(tableSearchText.toLowerCase()) || String(tNum).toLowerCase().includes(tableSearchText.toLowerCase());
+                            }).length === 0 && (
+                              <div style={{ padding: '12px 8px', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8' }}>
+                                No tables matching "{tableSearchText}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
