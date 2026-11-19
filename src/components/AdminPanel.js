@@ -1166,6 +1166,7 @@ export default function AdminPanel() {
 
     // Payment Method Breakdown (UPI, Cash, Card, Khata - matching ReportsSuite)
     const paymentBreakdown = { UPI: 0, Cash: 0, Card: 0, Khata: 0 };
+    const paymentCounts = { UPI: 0, Cash: 0, Card: 0, Khata: 0 };
 
     validOrders.forEach(o => {
       const amt = getOrderAmount(o);
@@ -1181,12 +1182,16 @@ export default function AdminPanel() {
 
       if (method.includes('upi') || method.includes('gpay') || method.includes('phonepe') || method.includes('paytm') || method.includes('qr') || method.includes('online')) {
         paymentBreakdown.UPI += amt;
+        paymentCounts.UPI += 1;
       } else if (method.includes('card') || method.includes('debit') || method.includes('credit')) {
         paymentBreakdown.Card += amt;
+        paymentCounts.Card += 1;
       } else if (method.includes('khata') || method.includes('borrow') || method.includes('ledger')) {
         paymentBreakdown.Khata += amt;
+        paymentCounts.Khata += 1;
       } else {
         paymentBreakdown.Cash += amt;
+        paymentCounts.Cash += 1;
       }
     });
 
@@ -1531,6 +1536,7 @@ export default function AdminPanel() {
       grossSales,
       netSales,
       paymentBreakdown,
+      paymentCounts,
       onlineSales,
       onlineOrdersCount,
       cashSales,
@@ -4352,122 +4358,299 @@ export default function AdminPanel() {
                     </div>
                   </div>
 
-                  {/* 6.5. PAYMENT METHOD BREAKDOWN & SALES CHANNEL TELEMETRY (Matching ReportsSuite / Image 2) */}
+                  {/* 6.5. PAYMENT METHOD BREAKDOWN WITH EXECUTIVE DONUT GRAPH */}
                   <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                    gap: '1rem',
+                    background: '#ffffff',
+                    borderRadius: '16px',
+                    border: '1px solid #e2e8f0',
+                    padding: '1.25rem 1.5rem',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     marginBottom: '1.25rem'
                   }}>
-                    {/* Card 1: Payment Method Breakdown (Matching Image 2) */}
-                    <div style={{
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0',
-                      padding: '1.15rem 1.25rem',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <CreditCard size={17} color="#4f46e5" />
-                          <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
-                            {isHindi ? 'भुगतान विधि विश्लेषण' : 'Payment Method Breakdown'}
-                          </h3>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+                          color: '#4f46e5',
+                          padding: '8px',
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <CreditCard size={18} />
                         </div>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
-                          {isHindi ? 'सकल शेयर' : 'Gross Share'}
-                        </span>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                            {isHindi ? 'भुगतान विधि एवं संग्रह विश्लेषण' : 'Payment Methods & Collections Breakdown'}
+                          </h3>
+                          <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 500 }}>
+                            {isHindi ? 'वास्तविक समय में प्राप्त भुगतान का वितरण' : 'Real-time revenue split across registered settlement instruments'}
+                          </span>
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {[
-                          { name: 'UPI / GPay / QR', amt: metrics.paymentBreakdown?.UPI || 0, color: '#2563eb' },
-                          { name: 'Cash in Register', amt: metrics.paymentBreakdown?.Cash || 0, color: '#16a34a' },
-                          { name: 'Debit / Credit Card', amt: metrics.paymentBreakdown?.Card || 0, color: '#8b5cf6' },
-                          { name: 'Khata / Borrow Credit', amt: metrics.paymentBreakdown?.Khata || 0, color: '#d97706' }
-                        ].map(item => {
-                          const pct = (metrics.grossSales || 0) > 0 ? Math.round((item.amt / metrics.grossSales) * 100) : 0;
-                          return (
-                            <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#334155' }}>
-                                <span>{item.name}</span>
-                                <span style={{ color: '#0f172a', fontWeight: 700 }}>₹{item.amt.toLocaleString('en-IN')} ({pct}%)</span>
-                              </div>
-                              <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
-                                <div
-                                  style={{
-                                    width: `${pct}%`,
-                                    height: '100%',
-                                    background: item.color,
-                                    borderRadius: '6px',
-                                    transition: 'width 0.4s ease'
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        color: '#0f172a'
+                      }}>
+                        <span style={{ color: '#64748b' }}>{isHindi ? 'कुल संग्रह:' : 'Total Settled:'}</span>
+                        <span style={{ color: '#16a34a', fontWeight: 800 }}>₹{(metrics.grossSales || 0).toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 
-                    {/* Card 2: Sales Channel Telemetry (Counter POS vs Online QR) */}
-                    <div style={{
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0',
-                      padding: '1.15rem 1.25rem',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Globe size={17} color="#059669" />
-                          <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
-                            {isHindi ? 'बिक्री चैनल विश्लेषण' : 'Sales Channel Breakdown'}
-                          </h3>
-                        </div>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
-                          {isHindi ? 'चैनल शेयर' : 'Channel Share'}
-                        </span>
-                      </div>
+                    {/* Interactive Donut Graph & Detailed Metrics Layout */}
+                    {(() => {
+                      const totalSales = metrics.grossSales || 0;
+                      const methods = [
+                        {
+                          id: 'cash',
+                          name: isHindi ? 'कैश (रोकड़)' : 'Cash in Register',
+                          shortName: 'Cash',
+                          amt: metrics.paymentBreakdown?.Cash || 0,
+                          orders: metrics.paymentCounts?.Cash || 0,
+                          color: '#10b981',
+                          bgLight: '#ecfdf5',
+                          Icon: Banknote
+                        },
+                        {
+                          id: 'upi',
+                          name: isHindi ? 'यूपीआई / ऑनलाइन' : 'UPI / GPay / QR',
+                          shortName: 'UPI / QR',
+                          amt: metrics.paymentBreakdown?.UPI || 0,
+                          orders: metrics.paymentCounts?.UPI || 0,
+                          color: '#3b82f6',
+                          bgLight: '#eff6ff',
+                          Icon: Smartphone
+                        },
+                        {
+                          id: 'card',
+                          name: isHindi ? 'कार्ड (डेबिट/क्रेडिट)' : 'Debit / Credit Card',
+                          shortName: 'Card',
+                          amt: metrics.paymentBreakdown?.Card || 0,
+                          orders: metrics.paymentCounts?.Card || 0,
+                          color: '#8b5cf6',
+                          bgLight: '#f5f3ff',
+                          Icon: CreditCard
+                        },
+                        {
+                          id: 'khata',
+                          name: isHindi ? 'खाता (उधार लेजर)' : 'Khata / Borrow Credit',
+                          shortName: 'Khata',
+                          amt: metrics.paymentBreakdown?.Khata || 0,
+                          orders: metrics.paymentCounts?.Khata || 0,
+                          color: '#f59e0b',
+                          bgLight: '#fffbeb',
+                          Icon: BookOpen
+                        }
+                      ];
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {[
-                          {
-                            name: isHindi ? 'काउंटर पीओएस (कैश इन रजिस्टर)' : 'Cash in Register (Counter POS)',
-                            amt: metrics.cashSales || 0,
-                            orders: metrics.cashOrdersCount || 0,
-                            color: '#16a34a'
-                          },
-                          {
-                            name: isHindi ? 'ऑपरेशनल / ऑनलाइन (क्यूआर डाइन-इन)' : 'Operational / Online (QR Dine-in)',
-                            amt: metrics.onlineSales || 0,
-                            orders: metrics.onlineOrdersCount || 0,
-                            color: '#2563eb'
-                          }
-                        ].map(item => {
-                          const pct = (metrics.grossSales || 0) > 0 ? Math.round((item.amt / metrics.grossSales) * 100) : 0;
-                          return (
-                            <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#334155' }}>
-                                <span>{item.name} <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>({item.orders} {isHindi ? 'ऑर्डर्स' : 'orders'})</span></span>
-                                <span style={{ color: '#0f172a', fontWeight: 700 }}>₹{item.amt.toLocaleString('en-IN')} ({pct}%)</span>
-                              </div>
-                              <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
-                                <div
-                                  style={{
-                                    width: `${pct}%`,
-                                    height: '100%',
-                                    background: item.color,
-                                    borderRadius: '6px',
-                                    transition: 'width 0.4s ease'
-                                  }}
+                      // Compute SVG donut arcs
+                      const radius = 54;
+                      const circumference = 2 * Math.PI * radius; // ~339.29
+                      let accumulatedPct = 0;
+
+                      return (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(240px, 280px) 1fr',
+                          gap: '1.5rem',
+                          alignItems: 'center'
+                        }}>
+                          {/* 1. Donut Graph Left Panel */}
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#f8fafc',
+                            borderRadius: '14px',
+                            border: '1px solid #f1f5f9',
+                            padding: '1.25rem 1rem',
+                            position: 'relative'
+                          }}>
+                            <div style={{ position: 'relative', width: '150px', height: '150px' }}>
+                              <svg width="150" height="150" viewBox="0 0 140 140" style={{ transform: 'rotate(-90deg)' }}>
+                                {/* Base track ring */}
+                                <circle
+                                  cx="70"
+                                  cy="70"
+                                  r={radius}
+                                  fill="transparent"
+                                  stroke="#e2e8f0"
+                                  strokeWidth="14"
                                 />
+
+                                {/* Data segment rings */}
+                                {totalSales > 0 ? (
+                                  methods.map((m) => {
+                                    if (m.amt <= 0) return null;
+                                    const pct = m.amt / totalSales;
+                                    const strokeDasharray = `${pct * circumference} ${circumference}`;
+                                    const strokeDashoffset = -(accumulatedPct * circumference);
+                                    accumulatedPct += pct;
+
+                                    return (
+                                      <circle
+                                        key={m.id}
+                                        cx="70"
+                                        cy="70"
+                                        r={radius}
+                                        fill="transparent"
+                                        stroke={m.color}
+                                        strokeWidth="14"
+                                        strokeDasharray={strokeDasharray}
+                                        strokeDashoffset={strokeDashoffset}
+                                        strokeLinecap="round"
+                                        style={{ transition: 'stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease' }}
+                                      />
+                                    );
+                                  })
+                                ) : (
+                                  <circle
+                                    cx="70"
+                                    cy="70"
+                                    r={radius}
+                                    fill="transparent"
+                                    stroke="#cbd5e1"
+                                    strokeWidth="14"
+                                    strokeDasharray="4 6"
+                                  />
+                                )}
+                              </svg>
+
+                              {/* Center Data Display */}
+                              <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center',
+                                pointerEvents: 'none'
+                              }}>
+                                <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  {isHindi ? 'कुल संग्रह' : 'Total Settled'}
+                                </span>
+                                <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+                                  ₹{totalSales.toLocaleString('en-IN')}
+                                </span>
+                                <span style={{ fontSize: '0.62rem', color: '#16a34a', fontWeight: 700, marginTop: '2px' }}>
+                                  100% Settled
+                                </span>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+
+                            {/* Mini indicator chips below donut */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginTop: '12px' }}>
+                              {methods.map(m => {
+                                const pct = totalSales > 0 ? Math.round((m.amt / totalSales) * 100) : 0;
+                                return (
+                                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#475569', fontWeight: 600 }}>
+                                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: m.color }} />
+                                    <span>{m.shortName}: <strong>{pct}%</strong></span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* 2. Detailed Method Tiles Right Panel (2x2 Grid) */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: '12px'
+                          }}>
+                            {methods.map(m => {
+                              const pct = totalSales > 0 ? Math.round((m.amt / totalSales) * 100) : 0;
+                              const IconComponent = m.Icon;
+
+                              return (
+                                <div
+                                  key={m.id}
+                                  style={{
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '12px',
+                                    padding: '12px 14px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                                  }}
+                                >
+                                  {/* Top Row: Icon + Name + Percentage Badge */}
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <div style={{
+                                        background: m.bgLight,
+                                        color: m.color,
+                                        width: '28px',
+                                        height: '28px',
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                      }}>
+                                        <IconComponent size={15} />
+                                      </div>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b' }}>
+                                        {m.name}
+                                      </span>
+                                    </div>
+
+                                    <span style={{
+                                      fontSize: '0.72rem',
+                                      fontWeight: 800,
+                                      background: m.bgLight,
+                                      color: m.color,
+                                      padding: '2px 8px',
+                                      borderRadius: '10px'
+                                    }}>
+                                      {pct}%
+                                    </span>
+                                  </div>
+
+                                  {/* Middle Row: Amount & Orders */}
+                                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '2px' }}>
+                                    <span style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
+                                      ₹{m.amt.toLocaleString('en-IN')}
+                                    </span>
+                                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                                      {m.orders} {m.orders === 1 ? 'order' : 'orders'}
+                                    </span>
+                                  </div>
+
+                                  {/* Progress Bar */}
+                                  <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div
+                                      style={{
+                                        width: `${pct}%`,
+                                        height: '100%',
+                                        background: m.color,
+                                        borderRadius: '4px',
+                                        transition: 'width 0.4s ease'
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX (Dine-in Only) */}
