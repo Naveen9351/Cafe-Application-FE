@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { buildTableMenuUrl } from '../utils/tableToken';
+import { consolidateOrderItems } from '../utils/orderConsolidation';
 
 export default function TableOperationsHub({
   tables = [],
@@ -772,7 +773,7 @@ export default function TableOperationsHub({
       <AnimatePresence>
         {selectedTableForPayment && (() => {
           const activeOrder = selectedTableForPayment.activeOrder;
-          const items = activeOrder?.items || [];
+          const items = consolidateOrderItems(activeOrder?.items || []);
           const subtotal = Number(activeOrder?.subtotal || activeOrder?.total || 0);
           const tax = Math.round(subtotal * 0.05);
 

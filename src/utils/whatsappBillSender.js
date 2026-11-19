@@ -7,6 +7,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config/api';
+import { consolidateOrderItems } from './orderConsolidation';
 
 export const generateWhatsappBillText = (order, tenantInfo = null) => {
   if (!order) return '';
@@ -46,12 +47,12 @@ export const generateWhatsappBillText = (order, tenantInfo = null) => {
   const payMethod = (order.paymentMethod || 'Cash').toUpperCase();
   const payStatus = (order.paymentStatus || 'Paid').toUpperCase();
 
-  const itemsList = (order.items || []).map(it => {
+  const itemsList = consolidateOrderItems(order.items || []).map(it => {
     const qty = Number(it.quantity) || 1;
     const price = Number(it.price || it.item?.price || 0);
     const itemTotal = qty * price;
     const itemName = it.name || it.item?.name || 'Dish Item';
-    const variantStr = it.variant?.name ? ` (${it.variant.name})` : '';
+    const variantStr = it.modifier ? ` (${it.modifier})` : (it.variant?.name ? ` (${it.variant.name})` : '');
     return `• ${qty}x ${itemName}${variantStr} - ₹${itemTotal}`;
   }).join('\n');
 

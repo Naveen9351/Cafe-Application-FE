@@ -10,6 +10,7 @@ import styles from './InvoiceModal.module.css';
 import { printOrderBill } from '../utils/billPrinter';
 import { openWhatsappBill, generateWhatsappBillText } from '../utils/whatsappBillSender';
 import { formatTableBadge } from './common/TableBadge';
+import { consolidateOrderItems } from '../utils/orderConsolidation';
 
 export default function InvoiceModal({ order, tenantInfo, onClose }) {
   const [invoice, setInvoice] = useState(null);
@@ -152,12 +153,12 @@ export default function InvoiceModal({ order, tenantInfo, onClose }) {
                 </tr>
               </thead>
               <tbody>
-                {(order.items || []).map((it, idx) => {
+                {consolidateOrderItems(order.items || []).map((it, idx) => {
                   const qty = Number(it.quantity) || 1;
                   const rate = Number(it.price || it.item?.price || 0);
                   const lineTotal = qty * rate;
                   const name = it.name || it.item?.name || 'Dish Item';
-                  const variantStr = it.variant?.name ? ` (${it.variant.name})` : '';
+                  const variantStr = it.modifier ? ` (${it.modifier})` : (it.variant?.name ? ` (${it.variant.name})` : '');
 
                   return (
                     <tr key={idx}>

@@ -40,6 +40,7 @@ import { openWhatsappBill } from '../utils/whatsappBillSender';
 import ExecutiveReportModal from './ExecutiveReportModal';
 import InvoiceModal from './InvoiceModal';
 import { formatTableBadge } from './common/TableBadge';
+import { consolidateOrderItems } from '../utils/orderConsolidation';
 
 const formatCleanTableNumber = (num) => {
   if (num === null || num === undefined || num === '') return '';
@@ -1940,7 +1941,7 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
 
               {/* Item Breakdown */}
               <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
-                Item Breakdown ({selectedOrder.items?.length || 0})
+                Item Breakdown ({consolidateOrderItems(selectedOrder.items || []).length})
               </h4>
               <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
@@ -1953,13 +1954,14 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedOrder.items || []).map((it, idx) => {
-                      const itemPrice = Number(it.price) || 0;
+                    {consolidateOrderItems(selectedOrder.items || []).map((it, idx) => {
+                      const itemPrice = Number(it.price || it.item?.price || 0);
                       const qty = Number(it.quantity) || 1;
+                      const modifier = it.modifier ? ` (${it.modifier})` : (it.variant?.name ? ` (${it.variant.name})` : '');
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '6px 10px', fontWeight: 700, color: '#0f172a' }}>{it.name || it.item?.name}</td>
-                          <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 800 }}>{qty}</td>
+                          <td style={{ padding: '6px 10px', fontWeight: 700, color: '#0f172a' }}>{it.name || it.item?.name}{modifier}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 800 }}>x{qty}</td>
                           <td style={{ padding: '6px 10px', textAlign: 'right' }}>₹{itemPrice}</td>
                           <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800 }}>₹{itemPrice * qty}</td>
                         </tr>

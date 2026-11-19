@@ -306,10 +306,10 @@ export default function AdminPanel() {
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
   ], []);
 
-  const activeOperatingMode = tenantInfo?.operatingMode 
-    || tenantInfo?.settings?.operatingMode 
-    || user?.operatingMode 
-    || user?.tenantId?.operatingMode 
+  const activeOperatingMode = tenantInfo?.operatingMode
+    || tenantInfo?.settings?.operatingMode
+    || user?.operatingMode
+    || user?.tenantId?.operatingMode
     || 'dine_in';
   const isCounterBillingOnly = activeOperatingMode === 'counter_billing';
 
@@ -2231,9 +2231,9 @@ export default function AdminPanel() {
       const enriched = rawItems.map((item, idx) => {
         const rawCat = (item.category || '').trim();
         // Check if this category exists in categories (by id or by name, case-insensitive)
-        const matchedCat = categories.find(c => 
+        const matchedCat = categories.find(c =>
           c.id !== 'all' && (
-            (c.id && c.id.toLowerCase() === rawCat.toLowerCase()) || 
+            (c.id && c.id.toLowerCase() === rawCat.toLowerCase()) ||
             (c.name && c.name.toLowerCase() === rawCat.toLowerCase()) ||
             (c.aliases && c.aliases.some(a => String(a).toLowerCase() === rawCat.toLowerCase()))
           )
@@ -2479,9 +2479,9 @@ export default function AdminPanel() {
       return item;
     }));
 
-    const updated = categories.filter(c => 
-      c.id !== catId && 
-      String(c.id).toLowerCase() !== String(catId).toLowerCase() && 
+    const updated = categories.filter(c =>
+      c.id !== catId &&
+      String(c.id).toLowerCase() !== String(catId).toLowerCase() &&
       String(c.name || '').toLowerCase() !== String(catName).toLowerCase()
     );
     setCategories(updated);
@@ -5982,7 +5982,7 @@ export default function AdminPanel() {
                       justifyContent: 'center',
                       fontSize: '16px'
                     }}>
-                      ⚡
+
                     </div>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: drawerForm.isOpenMenu ? '#86198f' : '#1e293b' }}>

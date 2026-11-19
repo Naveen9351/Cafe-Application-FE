@@ -368,14 +368,14 @@ export default function POSTerminal({
     const map = {};
     filteredFloorTables.forEach(t => {
       const isTemp = t.isTemporary || /^temp/i.test(String(t.tableNumber || ''));
-      const sec = isTemp ? '⚡ Temporary Tables (Open Tabs)' : (t.section || t.zone || 'Main Hall').trim();
+      const sec = isTemp ? 'Temporary Tables' : (t.section || t.zone || 'Main Hall').trim();
       if (!map[sec]) map[sec] = [];
       map[sec].push(t);
     });
 
-    // Ensure '⚡ Temporary Tables (Open Tabs)' is always the FIRST section in the returned map
+    // Ensure 'Temporary Tables' is always the FIRST section in the returned map
     const orderedMap = {};
-    const tempKey = '⚡ Temporary Tables (Open Tabs)';
+    const tempKey = 'Temporary Tables';
     if (map[tempKey]) {
       orderedMap[tempKey] = map[tempKey];
       delete map[tempKey];

@@ -4,6 +4,8 @@
  * preventing printing of the application UI / dashboard.
  */
 
+import { consolidateOrderItems } from './orderConsolidation';
+
 export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
   if (!order) return;
 
@@ -39,12 +41,12 @@ export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
   const payMethod = (order.paymentMethod || 'Cash').toUpperCase();
   const payStatus = (order.paymentStatus || 'Paid').toUpperCase();
 
-  const itemsHtml = (order.items || []).map(it => {
+  const itemsHtml = consolidateOrderItems(order.items || []).map(it => {
     const qty = Number(it.quantity) || 1;
     const price = Number(it.price || it.item?.price || 0);
     const itemTotal = qty * price;
     const itemName = it.name || it.item?.name || 'Dish';
-    const variantStr = it.variant?.name ? ` (${it.variant.name})` : '';
+    const variantStr = it.modifier ? ` (${it.modifier})` : (it.variant?.name ? ` (${it.variant.name})` : '');
 
     return `
       <tr>

@@ -14,6 +14,8 @@ import styles from './OrdersManagement.module.css';
 import { API_URL as API } from '../../config/api';
 import { printOrderBill } from '../../utils/billPrinter';
 import { getWhatsappBillUrl as generateWhatsappBillUrl } from '../../utils/whatsappBillSender';
+import { consolidateOrderItems } from '../../utils/orderConsolidation';
+export { consolidateOrderItems };
 
 export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus, onNavigateTab }) {
   const [localOrders, setLocalOrders] = useState([]);
@@ -205,7 +207,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
       (o.paymentStatus || 'unpaid').toUpperCase(),
       (o.paymentMethod || 'UPI').toUpperCase(),
       (o.items || []).reduce((s, it) => s + (it.quantity || 1), 0),
-      (o.items || []).map(it => `${it.quantity || 1}x ${it.name || it.item?.name || 'Item'}`).join(', '),
+      consolidateOrderItems(o.items || []).map(it => `${it.quantity || 1}x ${it.name || it.item?.name || 'Item'}`).join(', '),
       Number(o.subTotal || o.subtotal || o.total || 0),
       Number(o.taxAmount || 0),
       Math.round(Number(o.totalAmount || o.finalAmount || o.total || 0)),
@@ -294,11 +296,11 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         parent.totalAmount = parent.total;
         parent.finalAmount = parent.total;
         parent.subTotal = (Number(parent.subTotal || 0) + (Number(o.subTotal) || childTotal));
-        parent.items = [...(parent.items || []), ...(o.items || [])];
+        parent.items = consolidateOrderItems([...(parent.items || []), ...(o.items || [])]);
         if (o.status === 'completed' || parent.status === 'completed') parent.status = 'completed';
         if (o.paymentStatus === 'paid' || parent.paymentStatus === 'paid') parent.paymentStatus = 'paid';
       } else {
-        const clone = { ...o, items: [...(o.items || [])] };
+        const clone = { ...o, items: consolidateOrderItems(o.items || []) };
         sessionMap.set(groupKey, clone);
         consolidatedList.push(clone);
       }
@@ -1087,7 +1089,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                   <span>Itemized Bill Receipt</span>
                                 </h5>
                                 <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>
-                                  {selectedOrder.items?.length || 0} items
+                                  {consolidateOrderItems(selectedOrder.items || []).length} items
                                 </span>
                               </div>
 
@@ -1101,12 +1103,12 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {(selectedOrder.items || []).map((it, idx) => {
+                                  {consolidateOrderItems(selectedOrder.items || []).map((it, idx) => {
                                     const itName = it.name || it.item?.name || 'Dish Item';
                                     const itQty = Number(it.quantity) || 1;
                                     const itPrice = Number(it.price || it.item?.price || 0);
                                     const itTotal = itPrice * itQty;
-                                    const modifier = it.variant?.name ? `Size: ${it.variant.name}` : (it.addons && it.addons.length > 0 ? it.addons.map(a => a.name).join(', ') : '');
+                                    const modifier = it.modifier || (it.variant?.name ? `Size: ${it.variant.name}` : (it.addons && it.addons.length > 0 ? it.addons.map(a => a.name).join(', ') : ''));
 
                                     return (
                                       <tr key={idx} className={styles.receiptTr}>
