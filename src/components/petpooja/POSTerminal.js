@@ -714,46 +714,78 @@ export default function POSTerminal({
     return Number(item.salePrice || item.price) || 0;
   };
 
-  // Categories list for POS Menu (food categories only - Open Menu and Night Menu moved to top bar)
+  // Categories list for POS Menu (switches dynamically between Normal Menu and Open Menu)
   const categories = useMemo(() => {
     const cats = ['all'];
-    const regularCats = [...new Set(
-      menuItems
-        .filter(i => !i.isOpenMenu && !i.isPosOnly)
-        .map(item => item.category || 'main-courses')
+    const targetItems = menuItems.filter(item => {
+      const isOpen = Boolean(
+        item.isOpenMenu ||
+        item.isPosOnly ||
+        item.isOpenItem ||
+        String(item.category || '').toLowerCase() === 'open items' ||
+        String(item.category || '').toLowerCase() === 'open_menu' ||
+        String(item.category || '').toLowerCase() === '⚡ open item'
+      );
+      return isOpenItemModeEnabled ? isOpen : !isOpen;
+    });
+
+    const dynamicCats = [...new Set(
+      targetItems.map(item => item.category || (isOpenItemModeEnabled ? 'Open Items' : 'main-courses'))
     )];
-    return [...cats, ...regularCats];
-  }, [menuItems]);
+    return [...cats, ...dynamicCats];
+  }, [menuItems, isOpenItemModeEnabled]);
 
   // Dish counts per category for the left category sidebar
   const categoryDishCounts = useMemo(() => {
-    const map = { all: menuItems.filter(i => !i.isOpenMenu && !i.isPosOnly).length };
-    menuItems.forEach(item => {
-      if (item.isOpenMenu || item.isPosOnly) return;
-      const c = item.category || 'main-courses';
+    const targetItems = menuItems.filter(item => {
+      const isOpen = Boolean(
+        item.isOpenMenu ||
+        item.isPosOnly ||
+        item.isOpenItem ||
+        String(item.category || '').toLowerCase() === 'open items' ||
+        String(item.category || '').toLowerCase() === 'open_menu' ||
+        String(item.category || '').toLowerCase() === '⚡ open item'
+      );
+      return isOpenItemModeEnabled ? isOpen : !isOpen;
+    });
+
+    const map = { all: targetItems.length };
+    targetItems.forEach(item => {
+      const c = item.category || (isOpenItemModeEnabled ? 'Open Items' : 'main-courses');
       map[c] = (map[c] || 0) + 1;
     });
     return map;
-  }, [menuItems]);
+  }, [menuItems, isOpenItemModeEnabled]);
 
   const filteredMenuItems = useMemo(() => {
     return menuItems.filter(item => {
+      const isOpen = Boolean(
+        item.isOpenMenu ||
+        item.isPosOnly ||
+        item.isOpenItem ||
+        String(item.category || '').toLowerCase() === 'open items' ||
+        String(item.category || '').toLowerCase() === 'open_menu' ||
+        String(item.category || '').toLowerCase() === '⚡ open item'
+      );
+
+      // Crucial: When Open Item mode is toggled ON, ONLY show Open Menu dishes!
+      // When Open Item mode is toggled OFF, ONLY show regular normal dishes!
+      if (isOpenItemModeEnabled) {
+        if (!isOpen) return false;
+      } else {
+        if (isOpen) return false;
+      }
+
       let matchesCat = false;
       if (selectedCategory === 'all') {
         matchesCat = true;
-      } else if (selectedCategory === '⚡ Open Item' || selectedCategory === '⚡ Open Menu') {
-        matchesCat = Boolean(item.isOpenMenu || item.isPosOnly);
-        /* Night Menu Commented out as per request
-        } else if (selectedCategory === '🌙 Night Menu') {
-          matchesCat = Boolean(item.shiftAvailability === 'night_only' || item.isNightMenu || (item.nightPrice && Number(item.nightPrice) > 0));
-        */
       } else {
         matchesCat = item.category === selectedCategory;
       }
       const matchesSearch = !dishSearch || item.name.toLowerCase().includes(dishSearch.toLowerCase());
       return matchesCat && matchesSearch;
     });
-  }, [menuItems, selectedCategory, dishSearch]);
+  }, [menuItems, selectedCategory, dishSearch, isOpenItemModeEnabled]);
 
   // Cart operations
   const handleQuickAdd = (item) => {
@@ -2163,7 +2195,7 @@ export default function POSTerminal({
               ) : (
                 <div className={styles.categorySidebar}>
                   <div className={styles.categorySidebarHeader}>
-                    <span>Categories</span>
+                    <span>{isOpenItemModeEnabled ? '⚡ Open Menu' : 'Categories'}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span className={styles.categorySidebarTotalCount}>{categories.length}</span>
                       <button
@@ -2186,10 +2218,12 @@ export default function POSTerminal({
                           type="button"
                           className={`${styles.categoryListItem} ${isActive ? styles.categoryListItemActive : ''}`}
                           onClick={() => setSelectedCategory(cat)}
-                          title={cat === 'all' ? 'All Dishes' : cat}
+                          title={cat === 'all' ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes') : cat}
                         >
                           <span className={styles.categoryItemName}>
-                            {cat === 'all' ? 'All Dishes' : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                            {cat === 'all'
+                              ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes')
+                              : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
                           </span>
                           <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
                             {count}
@@ -2219,7 +2253,7 @@ export default function POSTerminal({
                     <Search size={13} color="#94a3b8" />
                     <input
                       type="text"
-                      placeholder="Search dish..."
+                      placeholder={isOpenItemModeEnabled ? "Search open items..." : "Search dish..."}
                       value={dishSearch}
                       onChange={(e) => setDishSearch(e.target.value)}
                       className={styles.searchInput}
@@ -2238,7 +2272,14 @@ export default function POSTerminal({
                   {/* Open Item Interactive Toggle Switch & Add Button */}
                   <div className={styles.specialFilterGroup}>
                     <div
-                      onClick={() => setIsOpenItemModeEnabled(prev => !prev)}
+                      onClick={() => {
+                        setIsOpenItemModeEnabled(prev => {
+                          const next = !prev;
+                          setSelectedCategory('all');
+                          setDishSearch('');
+                          return next;
+                        });
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -2252,7 +2293,7 @@ export default function POSTerminal({
                         transition: 'all 0.2s ease',
                         boxShadow: isOpenItemModeEnabled ? '0 1px 4px rgba(59, 130, 246, 0.2)' : 'none'
                       }}
-                      title="Toggle Open Item mode"
+                      title={isOpenItemModeEnabled ? "Switch back to Normal Menu" : "Switch to Open Menu"}
                     >
                       <div style={{
                         width: '18px',
@@ -2271,7 +2312,7 @@ export default function POSTerminal({
                         fontWeight: 700,
                         color: isOpenItemModeEnabled ? '#1d4ed8' : '#475569'
                       }}>
-                        Open Item
+                        {isOpenItemModeEnabled ? 'Open Menu Active' : 'Open Item'}
                       </span>
                       {/* Toggle Pill */}
                       <div style={{
@@ -2349,7 +2390,69 @@ export default function POSTerminal({
                       : 'repeat(4, minmax(0, 1fr))'
                   }}
                 >
-                {filteredMenuItems.map((item, idx) => {
+                {filteredMenuItems.length === 0 ? (
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '3rem 1.5rem',
+                    background: '#f8fafc',
+                    borderRadius: '16px',
+                    border: '1.5px dashed #cbd5e1',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '260px'
+                  }}>
+                    <div style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '12px',
+                      background: isOpenItemModeEnabled ? '#eff6ff' : '#f1f5f9',
+                      color: isOpenItemModeEnabled ? '#2563eb' : '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '10px'
+                    }}>
+                      {isOpenItemModeEnabled ? <Zap size={22} /> : <Search size={22} />}
+                    </div>
+                    <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
+                      {isOpenItemModeEnabled
+                        ? (dishSearch ? `No open items match "${dishSearch}"` : 'No Open Menu items cataloged yet')
+                        : (dishSearch ? `No dishes match "${dishSearch}"` : 'No dishes found')}
+                    </h4>
+                    <p style={{ margin: '6px 0 16px', color: '#64748b', fontSize: '0.8rem', maxWidth: '340px' }}>
+                      {isOpenItemModeEnabled
+                        ? 'Quickly punch emergency off-menu items, custom charges or cigarettes using the button below.'
+                        : 'Switch category or clear search to browse menu.'}
+                    </p>
+                    {isOpenItemModeEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => setShowOpenItemModal(true)}
+                        style={{
+                          padding: '9px 18px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)'
+                        }}
+                      >
+                        <Plus size={15} />
+                        <span>+ Add Open Item</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  filteredMenuItems.map((item, idx) => {
                   const imgUrl = getValidFoodImage(item);
                   const price = getItemEffectivePrice(item);
                   const cartQty = cart
@@ -2457,7 +2560,7 @@ export default function POSTerminal({
                       </div>
                     </motion.div>
                   );
-                })}
+                }))}
               </div>
             </div>
           </div>
@@ -2527,6 +2630,22 @@ export default function POSTerminal({
                             setShowMergeModal(true);
                           }}
                           className={styles.mergeTablesBtn}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '3px 8px',
+                            height: '24px',
+                            borderRadius: '6px',
+                            border: '1px solid #c7d2fe',
+                            background: '#eef2ff',
+                            color: '#4338ca',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            lineHeight: 1
+                          }}
                           title="Merge another table into this bill"
                         >
                           <GitMerge size={12} />

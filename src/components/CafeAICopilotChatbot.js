@@ -484,9 +484,11 @@ export default function CafeAICopilotChatbot({
         >
           <div className={styles.pulseRingCircle} />
           <div className={styles.circleBaseBackdrop} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: '#ffffff' }}>
-            <Sparkles size={22} />
-          </div>
+          <img
+            src={KHUSHI_AVATAR_URL}
+            alt="DineviQ AI Assistant"
+            className={styles.launcherAvatarImg}
+          />
         </button>
       )}
 
@@ -496,8 +498,12 @@ export default function CafeAICopilotChatbot({
           {/* Header */}
           <div className={styles.drawerHeader}>
             <div className={styles.headerInfo}>
-              <div className={styles.headerAvatarWrapper} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)', color: '#ffffff' }}>
-                <Sparkles size={16} />
+              <div className={styles.headerAvatarWrapper}>
+                <img
+                  src={KHUSHI_AVATAR_URL}
+                  alt="DineviQ AI Assistant"
+                  className={styles.headerAvatarImg}
+                />
               </div>
               <div>
                 <div className={styles.headerTitleRow}>

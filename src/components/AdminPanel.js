@@ -2712,19 +2712,14 @@ export default function AdminPanel() {
                 title="DineviQ AI Assistant"
                 style={{
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-                  color: '#ffffff',
-                  boxShadow: '0 2px 6px rgba(124, 58, 237, 0.35)',
                   position: 'relative'
                 }}
               >
-                <Sparkles size={16} />
+                <img
+                  src={KHUSHI_AVATAR_URL}
+                  alt="DineviQ AI Assistant"
+                  className={styles.khushiSidebarImg}
+                />
                 <span className={styles.khushiOnlineDot} />
               </div>
             )}
