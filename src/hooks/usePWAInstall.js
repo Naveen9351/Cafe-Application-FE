@@ -38,6 +38,9 @@ export function usePWAInstall() {
       setIsStandalone(isStandaloneMode);
       if (isStandaloneMode) {
         setIsInstalled(true);
+        try {
+          localStorage.setItem('dineviq_pwa_installed', 'true');
+        } catch (e) {}
       }
     };
 
@@ -63,6 +66,9 @@ export function usePWAInstall() {
       setIsInstallable(false);
       setDeferredPrompt(null);
       setIsModalOpen(false);
+      try {
+        localStorage.setItem('dineviq_pwa_installed', 'true');
+      } catch (e) {}
     };
 
     // Online / Offline tracking

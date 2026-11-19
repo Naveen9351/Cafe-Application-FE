@@ -1,0 +1,293 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  padding: 1.25rem;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  padding: 1.75rem 1.75rem 1.5rem 1.75rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.closeBtn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.closeBtn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+  transform: rotate(90deg);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.logoWrap {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  border: 1px solid #f1f5f9;
+}
+
+.logoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.onlineBadge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onlinePulse {
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.badgeRow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.installedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+
+.title {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.45;
+  max-width: 380px;
+}
+
+.optionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.optionTile {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  position: relative;
+}
+
+.optionTile:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+
+.optionTilePrimary {
+  border-color: #c7d2fe;
+  background: linear-gradient(to right, #faf5ff 0%, #f5f3ff 100%);
+}
+
+.optionTilePrimary:hover {
+  border-color: #818cf8;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+}
+
+.tileIconWrapApp {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+}
+
+.tileIconWrapBrowser {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+
+.tileContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.tileTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tileTitle {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.recommendedBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: #4f46e5;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.2px;
+}
+
+.tileDesc {
+  margin: 3px 0 0 0;
+  font-size: 0.74rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.tileArrow {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding-left: 4px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.optionTile:hover .tileArrow {
+  transform: translateX(3px);
+  color: #4f46e5;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.rememberLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: #64748b;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rememberCheckbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #4f46e5;
+  cursor: pointer;
+  border-radius: 4px;
+}

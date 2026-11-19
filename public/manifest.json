@@ -3,7 +3,7 @@
   "short_name": "DINEVIQ Admin",
   "description": "Complete Cloud & Offline POS, Kitchen Display System (KDS), QR Ordering, and Live Operations Management for Cafes and Restaurants.",
   "start_url": "/admin/dashboard",
-  "scope": "/",
+  "scope": "/admin",
   "id": "/admin/dashboard",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
@@ -13,6 +13,13 @@
   "lang": "en",
   "dir": "ltr",
   "categories": ["business", "food", "productivity", "utilities"],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "/manifest.json",
+      "id": "/admin/dashboard"
+    }
+  ],
   "icons": [
     {
       "src": "favicon-32x32.png",

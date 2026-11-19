@@ -11,6 +11,7 @@ import LandingChatbot from './components/LandingChatbot';
 import LeadCaptureModal from './components/interactive/LeadCaptureModal';
 import AuthCallback from './components/AuthCallback';
 import { isBillingOrAdminSubdomain } from './utils/subdomain';
+import PWAOpenChooserModal from './components/pwa/PWAOpenChooserModal';
 
 // Route-level code splitting for non-landing pages (reduces initial JS payload by ~70%)
 const Menu = lazy(() => import('./components/Menu'));
@@ -345,6 +346,7 @@ function App() {
           <ScrollToTop />
           <AppRoutes />
           <PublicChatbotWrapper />
+          <PWAOpenChooserModal />
         </Router>
       </CartProvider>
     </AuthProvider>
