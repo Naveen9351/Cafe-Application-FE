@@ -4403,7 +4403,7 @@ export default function AdminPanel() {
                         fontWeight: 500,
                         color: '#0f172a'
                       }}>
-                        <span style={{ color: '#64748b' }}>{isHindi ? 'कुल संग्रह:' : 'Total Settled:'}</span>
+                        <span style={{ color: '#64748b' }}>{isHindi ? 'कुल संग्रह:' : 'Total:'}</span>
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>₹{(metrics.grossSales || 0).toLocaleString('en-IN')}</span>
                       </div>
                     </div>

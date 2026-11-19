@@ -979,50 +979,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
                           {/* Drawer Body */}
                           <div className={styles.drawerBody}>
-                            {/* 1. Current Step Status Chip */}
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '10px 14px',
-                              background: '#f8fafc',
-                              borderRadius: '12px',
-                              border: '1px solid #e2e8f0',
-                              marginBottom: '1rem'
-                            }}>
-                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
-                                Order Status
-                              </span>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '4px 12px',
-                                borderRadius: '100px',
-                                fontSize: '12px',
-                                fontWeight: 800,
-                                textTransform: 'capitalize',
-                                background: (selectedOrder.status === 'completed' || selectedOrder.status === 'served') ? '#f0fdf4' :
-                                  selectedOrder.status === 'cancelled' ? '#fef2f2' :
-                                  selectedOrder.status === 'ready' ? '#eff6ff' :
-                                    selectedOrder.status === 'preparing' ? '#fffbeb' : '#f1f5f9',
-                                color: (selectedOrder.status === 'completed' || selectedOrder.status === 'served') ? '#15803d' :
-                                  selectedOrder.status === 'cancelled' ? '#dc2626' :
-                                  selectedOrder.status === 'ready' ? '#2563eb' :
-                                    selectedOrder.status === 'preparing' ? '#b45309' : '#475569',
-                                border: '1px solid currentColor'
-                              }}>
-                                <span style={{
-                                  width: 6,
-                                  height: 6,
-                                  borderRadius: '50%',
-                                  background: 'currentColor'
-                                }} />
-                                {selectedOrder.status || 'Pending'}
-                              </span>
-                            </div>
-
-                            {/* 2. Customer Snapshot */}
+                            {/* 1. Customer Snapshot */}
                             <div className={styles.customerSnapshotCard}>
                               <div className={styles.customerSnapshotLeft}>
                                 <div className={styles.identityText}>
@@ -1131,7 +1088,14 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                               )}
 
                               {/* Financial Bill Ledger Breakdown */}
-                              <div className={styles.calculationCard} style={{ marginTop: '0.5rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px' }}>
+                              <div style={{
+                                background: '#f8fafc',
+                                borderTop: '1px solid #e2e8f0',
+                                padding: '1rem 1.15rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.45rem'
+                              }}>
                                 <div className={styles.calcRow}>
                                   <span>Items Subtotal</span>
                                   <span>{formatCurrency(selectedOrder.subTotal || selectedOrder.subtotal || selectedOrder.items?.reduce((s, i) => s + ((Number(i.price) || 0) * (Number(i.quantity) || 1)), 0) || selectedOrder.totalAmount || 0)}</span>
@@ -1153,15 +1117,15 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                     <span>₹0 (Inclusive in menu price)</span>
                                   </div>
                                 )}
-                                <div className={`${styles.calcRow} ${styles.calcRowHighlight}`} style={{ borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '6px' }}>
-                                  <span style={{ fontWeight: 800, color: '#0f172a' }}>Grand Total Payable</span>
-                                  <span style={{ color: '#4f46e5', fontWeight: 900, fontSize: '1.05rem' }}>
+                                <div className={`${styles.calcRow} ${styles.calcRowHighlight}`} style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '6px' }}>
+                                  <span style={{ fontWeight: 700, color: '#0f172a' }}>Grand Total Payable</span>
+                                  <span style={{ color: '#4f46e5', fontWeight: 800, fontSize: '1.05rem' }}>
                                     {formatCurrency(selectedOrder.totalAmount || selectedOrder.finalAmount || selectedOrder.total || 0)}
                                   </span>
                                 </div>
                                 <div className={styles.calcRow} style={{ marginTop: '4px', fontSize: '0.72rem' }}>
                                   <span>Payment Status</span>
-                                  <span style={{ fontWeight: '800', color: (selectedOrder.paymentStatus || '').toLowerCase() === 'paid' ? '#059669' : '#dc2626' }}>
+                                  <span style={{ fontWeight: 700, color: (selectedOrder.paymentStatus || '').toLowerCase() === 'paid' ? '#059669' : '#dc2626' }}>
                                     {(selectedOrder.paymentStatus || '').toLowerCase() === 'paid'
                                       ? `PAID • ${(selectedOrder.paymentMethod || 'UPI').toUpperCase()}`
                                       : 'UNPAID'}
@@ -1169,6 +1133,9 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                                 </div>
                               </div>
                             </div>
+
+                            {/* Bottom spacer to prevent any content from ever being cut off */}
+                            <div style={{ height: '20px', flexShrink: 0 }} />
                           </div>
 
                           {/* Drawer Footer Actions */}
