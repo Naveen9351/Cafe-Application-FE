@@ -69,9 +69,8 @@ export default function POSTerminal({
   const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all', 'free', 'occupied', 'paid'
   const [tableSearch, setTableSearch] = useState('');
 
-  // Category sidebar collapse state
-  const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(true);
-  const isBothSidebarsOpen = isMainSidebarOpen && isCategorySidebarOpen;
+  // POS Layout state
+  const isBothSidebarsOpen = isMainSidebarOpen;
 
   // Cart & Settlement state for POS Terminal
   const [cart, setCart] = useState([]);
@@ -2253,74 +2252,33 @@ export default function POSTerminal({
 
             {/* Left: Menu Catalog & Categories */}
             <div className={styles.menuSection}>
-              {/* 1. Left Side: Vertical Category List starting from TOP */}
-              {!isCategorySidebarOpen ? (
-                <div
-                  className={styles.collapsedCategoryRail}
-                  onClick={() => setIsCategorySidebarOpen(true)}
-                  title="Click to expand Categories"
-                >
-                  <button
-                    type="button"
-                    className={styles.collapsedCategoryExpandBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsCategorySidebarOpen(true);
-                    }}
-                    title="Expand Categories"
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-                  <div className={styles.collapsedCategoryIconWrap}>
-                    <Layers size={15} color="#475569" />
-                    <span className={styles.collapsedCategoryBadge}>{categories.length}</span>
-                  </div>
-                  <div className={styles.collapsedCategoryVerticalLabel}>
-                    <span>CATEGORIES</span>
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.categorySidebar}>
-                  <div className={styles.categorySidebarHeader}>
-                    <span>{isOpenItemModeEnabled ? '⚡ Open Menu' : 'Categories'}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span className={styles.categorySidebarTotalCount}>{categories.length}</span>
+              {/* 1. Left Side: Clean Vertical Category List starting from TOP */}
+              <div className={styles.categorySidebar}>
+                <div className={styles.categoryListContainer}>
+                  {categories.map(cat => {
+                    const isActive = selectedCategory === cat;
+                    const count = categoryDishCounts[cat] !== undefined ? categoryDishCounts[cat] : 0;
+                    return (
                       <button
+                        key={cat}
                         type="button"
-                        onClick={() => setIsCategorySidebarOpen(false)}
-                        className={styles.catSidebarToggleBtn}
-                        title="Collapse Categories"
+                        className={`${styles.categoryListItem} ${isActive ? styles.categoryListItemActive : ''}`}
+                        onClick={() => setSelectedCategory(cat)}
+                        title={cat === 'all' ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes') : cat}
                       >
-                        <ChevronLeft size={13} />
+                        <span className={styles.categoryItemName}>
+                          {cat === 'all'
+                            ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes')
+                            : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                        </span>
+                        <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
+                          {count}
+                        </span>
                       </button>
-                    </div>
-                  </div>
-                  <div className={styles.categoryListContainer}>
-                    {categories.map(cat => {
-                      const isActive = selectedCategory === cat;
-                      const count = categoryDishCounts[cat] !== undefined ? categoryDishCounts[cat] : 0;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          className={`${styles.categoryListItem} ${isActive ? styles.categoryListItemActive : ''}`}
-                          onClick={() => setSelectedCategory(cat)}
-                          title={cat === 'all' ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes') : cat}
-                        >
-                          <span className={styles.categoryItemName}>
-                            {cat === 'all'
-                              ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes')
-                              : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-                          </span>
-                          <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
-                            {count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
 
               {/* 2. Right Side: Main Column (Search/Toggle Bar on Top + Dishes Grid Below) */}
               <div className={styles.menuMainColumn}>
@@ -2449,20 +2407,6 @@ export default function POSTerminal({
                       >
                         <Plus size={14} />
                         <span>Add Open Item</span>
-                      </button>
-                    )}
-
-                    {/* Quick toggle pill in filter bar if category sidebar is collapsed */}
-                    {!isCategorySidebarOpen && (
-                      <button
-                        type="button"
-                        className={styles.openCategoriesHeaderPill}
-                        onClick={() => setIsCategorySidebarOpen(true)}
-                        title="Expand Categories Sidebar"
-                      >
-                        <Layers size={13} />
-                        <span>Categories ({categories.length})</span>
-                        <ChevronRight size={13} />
                       </button>
                     )}
                   </div>
