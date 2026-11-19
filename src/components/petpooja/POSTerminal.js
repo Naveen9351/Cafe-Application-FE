@@ -246,11 +246,6 @@ export default function POSTerminal({
 
   // Helper: Get active orders for a specific table object (combining merged tables and clearing merged-in tables)
   const getOrdersForTableObj = useCallback((tbl) => {
-    // If this table is merged into another table, its orders now belong to the primary table; return empty so it shows cleared
-    if (tbl.status === 'merged' || tbl.mergedInto) {
-      return [];
-    }
-
     const tStr = String(tbl.tableNumber || tbl.table || '').trim();
     const numOnly = tStr.replace(/^Table\s*/i, '').trim();
     let res = activeOrdersByTable[tStr]
@@ -414,12 +409,6 @@ export default function POSTerminal({
   const handleOpenTableInPOS = (tblNum) => {
     const tStr = String(tblNum).trim();
     const tblObj = dbTables.find(t => String(t.tableNumber).trim() === tStr);
-
-    // If this table was merged into another table, navigate directly to primary table
-    if (tblObj && tblObj.mergedInto) {
-      toast.info(`Table ${formatTableOnlyNumber(tStr)} is merged into Table ${formatTableOnlyNumber(tblObj.mergedInto)}. Viewing combined bill.`);
-      return handleOpenTableInPOS(tblObj.mergedInto);
-    }
 
     setTableNumber(tStr);
     setViewMode('terminal');
@@ -1941,38 +1930,7 @@ export default function POSTerminal({
                       const isTemp = tbl.isTemporary || /^temp/i.test(String(tbl.tableNumber || ''));
                       const tempCustLabel = tbl.customerName || custName || (tbl.tableNumber ? String(tbl.tableNumber).replace(/^temp\s*-\s*/i, '') : 'Tab');
 
-                      // 0. MERGED TABLE CARD (Cleared from Floor / Linked to Primary Table)
-                      if (tbl.status === 'merged' || tbl.mergedInto) {
-                        const targetT = tbl.mergedInto;
-                        return (
-                          <div
-                            key={tbl._id || tbl.tableNumber}
-                            className={styles.tableTile}
-                            onClick={() => handleOpenTableInPOS(targetT || tbl.tableNumber)}
-                            style={{
-                              borderColor: '#c7d2fe',
-                              background: '#f8fafc',
-                              opacity: 0.88,
-                              cursor: 'pointer',
-                              borderStyle: 'dashed'
-                            }}
-                            title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} is merged into Table ${formatTableOnlyNumber(targetT)}. All orders combined.`}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.62rem', fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '2px 6px', borderRadius: '4px', marginBottom: '4px' }}>
-                              <GitMerge size={10} />
-                              <span>MERGED → T{formatTableOnlyNumber(targetT)}</span>
-                            </div>
-                            <span className={styles.tileName} style={{ color: '#64748b' }}>
-                              Table {formatTableOnlyNumber(tbl.tableNumber)}
-                            </span>
-                            <span style={{ fontSize: '0.68rem', color: '#6366f1', fontWeight: 700 }}>
-                              Orders on T{formatTableOnlyNumber(targetT)}
-                            </span>
-                          </div>
-                        );
-                      }
-
-                      // 1. FREE / EMPTY CARD
+                      // 1. FREE / EMPTY CARD (Unoccupied or Merged/Cleared Table)
                       if (!isOccupied) {
                         return (
                           <div
