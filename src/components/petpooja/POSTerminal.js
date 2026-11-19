@@ -500,7 +500,7 @@ export default function POSTerminal({
         headers: token ? { 'x-auth-token': token } : {}
       });
       toast.success(res.data.message || `Table ${cleanMergeList.join(', ')} moved into Table ${cleanPrimary}`);
-      
+
       setMergedTables(prev => Array.from(new Set([...prev, ...cleanMergeList])));
 
       // Immediate local state update in POSTerminal
@@ -1931,8 +1931,10 @@ export default function POSTerminal({
               <button
                 type="button"
                 onClick={() => {
-                  const defaultPrimary = tableNumber || (dbTables.find(t => (activeOrdersByTable[String(t.tableNumber).trim()] || []).length > 0)?.tableNumber) || '1';
-                  setPrimaryMergeTable(defaultPrimary);
+                  const curTbl = tableNumber ? String(tableNumber).replace(/^Table\s*/i, '').trim() : '';
+                  setPrimaryMergeTable(curTbl);
+                  setMergeTargetTable(curTbl);
+                  setMergeSourceTable('');
                   setShowMergeModal(true);
                 }}
                 style={{
@@ -2712,7 +2714,10 @@ export default function POSTerminal({
                         <button
                           type="button"
                           onClick={() => {
-                            setPrimaryMergeTable(tableNumber);
+                            const curTbl = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
+                            setPrimaryMergeTable(curTbl);
+                            setMergeTargetTable(curTbl);
+                            setMergeSourceTable('');
                             setShowMergeModal(true);
                           }}
                           className={styles.mergeTablesBtn}
@@ -2735,7 +2740,7 @@ export default function POSTerminal({
                           title="Merge another table into this bill"
                         >
                           <GitMerge size={12} />
-                          <span>+ Merge</span>
+                          <span>Merge</span>
                         </button>
                       )}
                     </div>
@@ -4658,7 +4663,7 @@ export default function POSTerminal({
 
             {/* Two Interactive Selection Columns */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
-              
+
               {/* Left Column: Tables With Active Orders (Draggable Source) */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -4693,7 +4698,8 @@ export default function POSTerminal({
                           }}
                           onClick={() => {
                             if (isDestination) {
-                              toast.info(`Table ${tStr} is already selected as the destination.`);
+                              setMergeTargetTable('');
+                              setMergeSourceTable(tStr);
                               return;
                             }
                             setMergeSourceTable(isSelected ? '' : tStr);
@@ -4784,7 +4790,8 @@ export default function POSTerminal({
                         }}
                         onClick={() => {
                           if (isSource) {
-                            toast.info(`Cannot merge a table into itself.`);
+                            setMergeSourceTable('');
+                            setMergeTargetTable(tStr);
                             return;
                           }
                           setMergeTargetTable(isSelected ? '' : tStr);
