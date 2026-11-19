@@ -23,7 +23,7 @@ const AVAILABLE_PLANS = [
 ];
 
 export default function RestaurantSettings({ tenantInfo, onSave }) {
-  const [activeSection, setActiveSection] = useState('general');
+  const [activeSection, setActiveSection] = useState('all');
   const [logoPreview, setLogoPreview] = useState(tenantInfo?.logo || '');
 
   // In-App Upgrade Modal & Payment State
@@ -401,13 +401,13 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   };
 
   const SECTIONS = [
+    { id: 'all', label: 'All Settings', icon: Sliders },
     { id: 'general', label: 'General Identity', icon: Building2 },
     { id: 'operations', label: 'Operations & Hours', icon: Clock },
     { id: 'whatsapp', label: 'WhatsApp E-Bills', icon: MessageSquare },
     { id: 'language', label: 'Language & Display', icon: Globe },
     { id: 'audio', label: 'Audio & Chimes', icon: Volume2 },
-    { id: 'subscription', label: 'Subscription & Plan', icon: CreditCard },
-    { id: 'all', label: 'All Settings', icon: Sliders }
+    { id: 'subscription', label: 'Subscription & Plan', icon: CreditCard }
   ];
 
   const renderGeneral = () => (
