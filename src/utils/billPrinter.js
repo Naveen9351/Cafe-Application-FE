@@ -50,12 +50,12 @@ export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
 
     return `
       <tr>
-        <td style="padding: 5px 0; text-align: left; vertical-align: top;">
+        <td style="padding: 5px 4px 5px 0; text-align: left; vertical-align: top; word-break: break-word;">
           <div style="font-weight: 600;">${itemName}${variantStr}</div>
         </td>
-        <td style="padding: 5px 0; text-align: center; vertical-align: top;">${qty}</td>
-        <td style="padding: 5px 0; text-align: right; vertical-align: top;">₹${price}</td>
-        <td style="padding: 5px 0; text-align: right; vertical-align: top; font-weight: 700;">₹${itemTotal}</td>
+        <td style="padding: 5px 3px; text-align: center; vertical-align: top; font-weight: 700;">${qty}</td>
+        <td style="padding: 5px 6px; text-align: right; vertical-align: top; white-space: nowrap;">₹${price}</td>
+        <td style="padding: 5px 0 5px 6px; text-align: right; vertical-align: top; font-weight: 700; white-space: nowrap;">₹${itemTotal}</td>
       </tr>
     `;
   }).join('');
@@ -95,7 +95,7 @@ export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
           .text-right { text-align: right; }
           .divider { border-top: 1px dashed #9ca3af; margin: 8px 0; }
           .double-divider { border-top: 1.5px solid #111827; margin: 8px 0; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; table-layout: fixed; }
           .bold { font-weight: 700; }
           .flex-between { display: flex; justify-content: space-between; align-items: center; margin: 2px 0; }
           .brand-name { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 2px 0; text-transform: uppercase; }
@@ -134,10 +134,10 @@ export const printOrderBill = (order, tenantName = 'DINEVIQ CAFE & BISTRO') => {
         <table>
           <thead>
             <tr style="border-bottom: 1px dashed #9ca3af; font-size: 10.5px; color: #4b5563;">
-              <th style="text-align: left; padding-bottom: 4px;">Item</th>
-              <th style="text-align: center; padding-bottom: 4px;">Qty</th>
-              <th style="text-align: right; padding-bottom: 4px;">Rate</th>
-              <th style="text-align: right; padding-bottom: 4px;">Total</th>
+              <th style="text-align: left; padding: 2px 4px 4px 0; width: 44%;">Item</th>
+              <th style="text-align: center; padding: 2px 3px 4px 3px; width: 12%;">Qty</th>
+              <th style="text-align: right; padding: 2px 6px 4px 6px; width: 22%;">Rate</th>
+              <th style="text-align: right; padding: 2px 0 4px 6px; width: 22%;">Total</th>
             </tr>
           </thead>
           <tbody>

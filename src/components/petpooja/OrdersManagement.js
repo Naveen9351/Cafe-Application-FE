@@ -967,6 +967,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                           exit={{ x: '100%' }}
                           transition={{ type: 'spring', damping: 25, stiffness: 220 }}
                           className={styles.drawerPanel}
+                          style={{ height: '100vh', maxHeight: '100vh', display: 'flex', flexDirection: 'column' }}
                         >
                           {/* Drawer Header */}
                           <div className={styles.drawerHeader}>
