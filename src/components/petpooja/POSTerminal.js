@@ -1931,9 +1931,8 @@ export default function POSTerminal({
               <button
                 type="button"
                 onClick={() => {
-                  const curTbl = tableNumber ? String(tableNumber).replace(/^Table\s*/i, '').trim() : '';
-                  setPrimaryMergeTable(curTbl);
-                  setMergeTargetTable(curTbl);
+                  setPrimaryMergeTable('');
+                  setMergeTargetTable('');
                   setMergeSourceTable('');
                   setShowMergeModal(true);
                 }}
@@ -4545,7 +4544,11 @@ export default function POSTerminal({
       {/* 4B. MERGE TABLE MODAL (Drag & Drop / 1-Click Interactive)   */}
       {/* ========================================================= */}
       {showMergeModal && (
-        <div className={styles.splitModalOverlay} onClick={() => setShowMergeModal(false)}>
+        <div className={styles.splitModalOverlay} onClick={() => {
+          setMergeSourceTable('');
+          setMergeTargetTable('');
+          setShowMergeModal(false);
+        }}>
           <div
             className={styles.splitModalContent}
             onClick={(e) => e.stopPropagation()}
@@ -4575,7 +4578,11 @@ export default function POSTerminal({
               </div>
               <button
                 type="button"
-                onClick={() => setShowMergeModal(false)}
+                onClick={() => {
+                  setMergeSourceTable('');
+                  setMergeTargetTable('');
+                  setShowMergeModal(false);
+                }}
                 style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
               >
                 <X size={16} />
