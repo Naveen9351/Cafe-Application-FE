@@ -1152,6 +1152,9 @@ export default function AdminPanel() {
     let cashSales = 0;
     let cashOrdersCount = 0;
 
+    // Payment Method Breakdown (UPI, Cash, Card, Khata - matching ReportsSuite)
+    const paymentBreakdown = { UPI: 0, Cash: 0, Card: 0, Khata: 0 };
+
     validOrders.forEach(o => {
       const amt = getOrderAmount(o);
       const method = String(o.paymentMethod || '').toLowerCase();
@@ -1162,6 +1165,16 @@ export default function AdminPanel() {
       } else {
         cashSales += amt;
         cashOrdersCount += 1;
+      }
+
+      if (method.includes('upi') || method.includes('gpay') || method.includes('phonepe') || method.includes('paytm') || method.includes('qr') || method.includes('online')) {
+        paymentBreakdown.UPI += amt;
+      } else if (method.includes('card') || method.includes('debit') || method.includes('credit')) {
+        paymentBreakdown.Card += amt;
+      } else if (method.includes('khata') || method.includes('borrow') || method.includes('ledger')) {
+        paymentBreakdown.Khata += amt;
+      } else {
+        paymentBreakdown.Cash += amt;
       }
     });
 
@@ -1505,6 +1518,7 @@ export default function AdminPanel() {
     return {
       grossSales,
       netSales,
+      paymentBreakdown,
       onlineSales,
       onlineOrdersCount,
       cashSales,
@@ -3577,71 +3591,6 @@ export default function AdminPanel() {
                     return null;
                   })()}
 
-                  {/* Sales Channel Metric Breakdown (operational_online vs cash - Point 4) */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    background: '#ffffff',
-                    borderRadius: '12px',
-                    padding: '10px 16px',
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                    marginBottom: '1rem',
-                    flexWrap: 'wrap'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        📊 {isHindi ? 'बिक्री चैनल (माध्यम):' : 'Sales Channel Telemetry:'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe'
-                      }}>
-                        <Globe size={14} color="#2563eb" />
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e40af' }}>
-                          Operational / Online:
-                        </span>
-                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#1d4ed8' }}>
-                          ₹{Math.round(metrics.onlineSales || 0).toLocaleString('en-IN')}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 600 }}>
-                          ({metrics.onlineOrdersCount || 0} {isHindi ? 'ऑर्डर्स' : 'orders'})
-                        </span>
-                      </div>
-
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        background: '#ecfdf5',
-                        border: '1px solid #a7f3d0'
-                      }}>
-                        <Banknote size={14} color="#059669" />
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#065f46' }}>
-                          Cash (Counter POS):
-                        </span>
-                        <span style={{ fontSize: '0.92rem', fontWeight: 900, color: '#047857' }}>
-                          ₹{Math.round(metrics.cashSales || 0).toLocaleString('en-IN')}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>
-                          ({metrics.cashOrdersCount || 0} {isHindi ? 'ऑर्डर्स' : 'orders'})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
                   <div className={styles.kpiGridModern}>
                     {/* Card 1: Gross Revenue */}
@@ -4387,6 +4336,124 @@ export default function AdminPanel() {
                             <span style={{ fontSize: '0.72rem' }}>{isHindi ? 'क्यूआर कोड या पीओएस से नए ऑर्डर तुरंत यहां दिखाई देंगे।' : 'New orders from QR codes or POS will appear here instantly.'}</span>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6.5. PAYMENT METHOD BREAKDOWN & SALES CHANNEL TELEMETRY (Matching ReportsSuite / Image 2) */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                    gap: '1rem',
+                    marginBottom: '1.25rem'
+                  }}>
+                    {/* Card 1: Payment Method Breakdown (Matching Image 2) */}
+                    <div style={{
+                      background: '#ffffff',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      padding: '1.15rem 1.25rem',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <CreditCard size={17} color="#4f46e5" />
+                          <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
+                            {isHindi ? 'भुगतान विधि विश्लेषण' : 'Payment Method Breakdown'}
+                          </h3>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                          {isHindi ? 'सकल शेयर' : 'Gross Share'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {[
+                          { name: 'UPI / GPay / QR', amt: metrics.paymentBreakdown?.UPI || 0, color: '#2563eb' },
+                          { name: 'Cash in Register', amt: metrics.paymentBreakdown?.Cash || 0, color: '#16a34a' },
+                          { name: 'Debit / Credit Card', amt: metrics.paymentBreakdown?.Card || 0, color: '#8b5cf6' },
+                          { name: 'Khata / Borrow Credit', amt: metrics.paymentBreakdown?.Khata || 0, color: '#d97706' }
+                        ].map(item => {
+                          const pct = (metrics.grossSales || 0) > 0 ? Math.round((item.amt / metrics.grossSales) * 100) : 0;
+                          return (
+                            <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#334155' }}>
+                                <span>{item.name}</span>
+                                <span style={{ color: '#0f172a', fontWeight: 700 }}>₹{item.amt.toLocaleString('en-IN')} ({pct}%)</span>
+                              </div>
+                              <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    width: `${pct}%`,
+                                    height: '100%',
+                                    background: item.color,
+                                    borderRadius: '6px',
+                                    transition: 'width 0.4s ease'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Card 2: Sales Channel Telemetry (Counter POS vs Online QR) */}
+                    <div style={{
+                      background: '#ffffff',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      padding: '1.15rem 1.25rem',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Globe size={17} color="#059669" />
+                          <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
+                            {isHindi ? 'बिक्री चैनल विश्लेषण' : 'Sales Channel Breakdown'}
+                          </h3>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                          {isHindi ? 'चैनल शेयर' : 'Channel Share'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {[
+                          {
+                            name: isHindi ? 'काउंटर पीओएस (कैश इन रजिस्टर)' : 'Cash in Register (Counter POS)',
+                            amt: metrics.cashSales || 0,
+                            orders: metrics.cashOrdersCount || 0,
+                            color: '#16a34a'
+                          },
+                          {
+                            name: isHindi ? 'ऑपरेशनल / ऑनलाइन (क्यूआर डाइन-इन)' : 'Operational / Online (QR Dine-in)',
+                            amt: metrics.onlineSales || 0,
+                            orders: metrics.onlineOrdersCount || 0,
+                            color: '#2563eb'
+                          }
+                        ].map(item => {
+                          const pct = (metrics.grossSales || 0) > 0 ? Math.round((item.amt / metrics.grossSales) * 100) : 0;
+                          return (
+                            <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#334155' }}>
+                                <span>{item.name} <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>({item.orders} {isHindi ? 'ऑर्डर्स' : 'orders'})</span></span>
+                                <span style={{ color: '#0f172a', fontWeight: 700 }}>₹{item.amt.toLocaleString('en-IN')} ({pct}%)</span>
+                              </div>
+                              <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    width: `${pct}%`,
+                                    height: '100%',
+                                    background: item.color,
+                                    borderRadius: '6px',
+                                    transition: 'width 0.4s ease'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
