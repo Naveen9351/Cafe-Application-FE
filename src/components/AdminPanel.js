@@ -4382,10 +4382,10 @@ export default function AdminPanel() {
                           <CreditCard size={18} />
                         </div>
                         <div>
-                          <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                          <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 600, color: '#0f172a', letterSpacing: '-0.01em' }}>
                             {isHindi ? 'भुगतान विधि एवं संग्रह विश्लेषण' : 'Payment Methods & Collections Breakdown'}
                           </h3>
-                          <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 500 }}>
+                          <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 400 }}>
                             {isHindi ? 'वास्तविक समय में प्राप्त भुगतान का वितरण' : 'Real-time revenue split across registered settlement instruments'}
                           </span>
                         </div>
@@ -4400,11 +4400,11 @@ export default function AdminPanel() {
                         padding: '4px 10px',
                         borderRadius: '20px',
                         fontSize: '0.78rem',
-                        fontWeight: 700,
+                        fontWeight: 500,
                         color: '#0f172a'
                       }}>
                         <span style={{ color: '#64748b' }}>{isHindi ? 'कुल संग्रह:' : 'Total Settled:'}</span>
-                        <span style={{ color: '#16a34a', fontWeight: 800 }}>₹{(metrics.grossSales || 0).toLocaleString('en-IN')}</span>
+                        <span style={{ color: '#16a34a', fontWeight: 600 }}>₹{(metrics.grossSales || 0).toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 
@@ -4535,17 +4535,18 @@ export default function AdminPanel() {
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
+                                justifyCenter: 'center',
                                 justifyContent: 'center',
                                 textAlign: 'center',
                                 pointerEvents: 'none'
                               }}>
-                                <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <span style={{ fontSize: '0.66rem', fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   {isHindi ? 'कुल संग्रह' : 'Total Settled'}
                                 </span>
-                                <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+                                <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
                                   ₹{totalSales.toLocaleString('en-IN')}
                                 </span>
-                                <span style={{ fontSize: '0.62rem', color: '#16a34a', fontWeight: 700, marginTop: '2px' }}>
+                                <span style={{ fontSize: '0.62rem', color: '#16a34a', fontWeight: 500, marginTop: '2px' }}>
                                   100% Settled
                                 </span>
                               </div>
@@ -4556,9 +4557,9 @@ export default function AdminPanel() {
                               {methods.map(m => {
                                 const pct = totalSales > 0 ? Math.round((m.amt / totalSales) * 100) : 0;
                                 return (
-                                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#475569', fontWeight: 600 }}>
+                                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#475569', fontWeight: 500 }}>
                                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: m.color }} />
-                                    <span>{m.shortName}: <strong>{pct}%</strong></span>
+                                    <span>{m.shortName}: <span style={{ fontWeight: 600 }}>{pct}%</span></span>
                                   </div>
                                 );
                               })}
@@ -4605,14 +4606,14 @@ export default function AdminPanel() {
                                       }}>
                                         <IconComponent size={15} />
                                       </div>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b' }}>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1e293b' }}>
                                         {m.name}
                                       </span>
                                     </div>
 
                                     <span style={{
                                       fontSize: '0.72rem',
-                                      fontWeight: 800,
+                                      fontWeight: 600,
                                       background: m.bgLight,
                                       color: m.color,
                                       padding: '2px 8px',
@@ -4624,10 +4625,10 @@ export default function AdminPanel() {
 
                                   {/* Middle Row: Amount & Orders */}
                                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '2px' }}>
-                                    <span style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
+                                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
                                       ₹{m.amt.toLocaleString('en-IN')}
                                     </span>
-                                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 400 }}>
                                       {m.orders} {m.orders === 1 ? 'order' : 'orders'}
                                     </span>
                                   </div>
