@@ -507,12 +507,20 @@ export default function POSTerminal({
     }
   };
 
-  // Emergency Open Item Quick Puncher (All fields optional per user request)
+  // Emergency Open Item Quick Puncher (Item name & price are mandatory)
   const handleAddOpenItem = async (e) => {
     e?.preventDefault();
-    const finalName = openItemForm.name.trim() || 'Open Item';
-    const priceNum = openItemForm.price !== '' && !isNaN(Number(openItemForm.price)) ? Math.max(0, Number(openItemForm.price)) : 0;
-    const qty = Math.max(1, Number(openItemForm.quantity) || 1);
+    const finalName = openItemForm.name.trim();
+    if (!finalName) {
+      toast.error('Item name is mandatory');
+      return;
+    }
+    const priceNum = Number(openItemForm.price);
+    if (openItemForm.price === '' || isNaN(priceNum) || priceNum < 0) {
+      toast.error('Valid price is mandatory');
+      return;
+    }
+    const qty = 1;
 
     const customId = 'open-' + Date.now();
     const newItem = {
@@ -524,8 +532,6 @@ export default function POSTerminal({
       quantity: qty,
       category: '⚡ Open Item',
       isOpenItem: true,
-      notes: (openItemForm.notes || '').trim(),
-      specialNotes: (openItemForm.notes || '').trim(),
       image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500&auto=format&fit=crop&q=60'
     };
 
@@ -543,7 +549,7 @@ export default function POSTerminal({
       try {
         const token = localStorage.getItem('token');
         await axios.post(`${API}/menu`, {
-          name: openItemForm.name.trim(),
+          name: finalName,
           price: priceNum,
           category: 'Open Items',
           isOpenMenu: true,
@@ -551,9 +557,9 @@ export default function POSTerminal({
           isVeg: true,
           image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500&auto=format&fit=crop&q=60'
         }, {
-          headers: token ? { 'x-auth-token': token } : {}
+          headers: token ? { 'x-auth-token': token, 'Authorization': `Bearer ${token}` } : {}
         });
-        toast.success(`Saved "${openItemForm.name.trim()}" to menu catalog`);
+        toast.success(`Saved "${finalName}" to menu catalog`);
       } catch (err) {
         console.warn('Could not persist open item to menu:', err.message);
       }
@@ -806,7 +812,8 @@ export default function POSTerminal({
           price: getItemEffectivePrice(item),
           quantity: 1,
           variant: null,
-          addons: []
+          addons: [],
+          isOpenItem: Boolean(item.isOpenMenu || item.isPosOnly || item.isOpenItem || item.category === 'Open Items')
         }]);
       }
       toast.success(`Added ${item.name}`);
@@ -991,6 +998,9 @@ export default function POSTerminal({
         quantity: it.quantity,
         variant: it.variant ? it.variant : null,
         addons: (it.addons || []),
+        specialNotes: it.specialNotes || it.notes || '',
+        isOpenItem: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
+        isCustom: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
         itemStatus: 'preparing',
         isPaid: false
       })),
@@ -1009,6 +1019,8 @@ export default function POSTerminal({
           variant: it.variant ? it.variant : null,
           addons: (it.addons || []),
           specialNotes: it.specialNotes || it.notes || '',
+          isOpenItem: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
+          isCustom: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
           itemStatus: 'preparing',
           isPaid: false
         }));
@@ -1081,6 +1093,9 @@ export default function POSTerminal({
         quantity: it.quantity,
         variant: it.variant ? it.variant : null,
         addons: (it.addons || []),
+        specialNotes: it.specialNotes || it.notes || '',
+        isOpenItem: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
+        isCustom: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
         isDirect: true,
         itemStatus: 'served',
         isPaid: false
@@ -1099,6 +1114,9 @@ export default function POSTerminal({
           quantity: it.quantity,
           variant: it.variant ? it.variant : null,
           addons: (it.addons || []),
+          specialNotes: it.specialNotes || it.notes || '',
+          isOpenItem: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
+          isCustom: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
           isDirect: true,
           itemStatus: 'served',
           isPaid: false
@@ -2312,7 +2330,7 @@ export default function POSTerminal({
                         fontWeight: 700,
                         color: isOpenItemModeEnabled ? '#1d4ed8' : '#475569'
                       }}>
-                        {isOpenItemModeEnabled ? 'Open Menu Active' : 'Open Item'}
+                        {isOpenItemModeEnabled ? 'Open Menu' : 'Open Item'}
                       </span>
                       {/* Toggle Pill */}
                       <div style={{
@@ -2390,116 +2408,116 @@ export default function POSTerminal({
                       : 'repeat(4, minmax(0, 1fr))'
                   }}
                 >
-                {filteredMenuItems.length === 0 ? (
-                  <div style={{
-                    gridColumn: '1 / -1',
-                    textAlign: 'center',
-                    padding: '3rem 1.5rem',
-                    background: '#f8fafc',
-                    borderRadius: '16px',
-                    border: '1.5px dashed #cbd5e1',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '260px'
-                  }}>
+                  {filteredMenuItems.length === 0 ? (
                     <div style={{
-                      width: '46px',
-                      height: '46px',
-                      borderRadius: '12px',
-                      background: isOpenItemModeEnabled ? '#eff6ff' : '#f1f5f9',
-                      color: isOpenItemModeEnabled ? '#2563eb' : '#64748b',
+                      gridColumn: '1 / -1',
+                      textAlign: 'center',
+                      padding: '3rem 1.5rem',
+                      background: '#f8fafc',
+                      borderRadius: '16px',
+                      border: '1.5px dashed #cbd5e1',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: '10px'
+                      minHeight: '260px'
                     }}>
-                      {isOpenItemModeEnabled ? <Zap size={22} /> : <Search size={22} />}
-                    </div>
-                    <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
-                      {isOpenItemModeEnabled
-                        ? (dishSearch ? `No open items match "${dishSearch}"` : 'No Open Menu items cataloged yet')
-                        : (dishSearch ? `No dishes match "${dishSearch}"` : 'No dishes found')}
-                    </h4>
-                    <p style={{ margin: '6px 0 16px', color: '#64748b', fontSize: '0.8rem', maxWidth: '340px' }}>
-                      {isOpenItemModeEnabled
-                        ? 'Quickly punch emergency off-menu items, custom charges or cigarettes using the button below.'
-                        : 'Switch category or clear search to browse menu.'}
-                    </p>
-                    {isOpenItemModeEnabled && (
-                      <button
-                        type="button"
-                        onClick={() => setShowOpenItemModal(true)}
-                        style={{
-                          padding: '9px 18px',
-                          borderRadius: '10px',
-                          border: 'none',
-                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                          fontSize: '0.82rem',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)'
-                        }}
-                      >
-                        <Plus size={15} />
-                        <span>+ Add Open Item</span>
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  filteredMenuItems.map((item, idx) => {
-                  const imgUrl = getValidFoodImage(item);
-                  const price = getItemEffectivePrice(item);
-                  const cartQty = cart
-                    .filter(c => c.id === item._id || c._id === item._id || c.name === item.name)
-                    .reduce((sum, c) => sum + (c.quantity || 1), 0);
-
-                  return (
-                    <motion.div
-                      key={item._id}
-                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.22, delay: Math.min(idx * 0.025, 0.3) }}
-                      className={`${styles.dishCard} ${cartQty > 0 ? styles.dishCardInCart : ''}`}
-                      onClick={() => handleQuickAdd(item)}
-                    >
-                      <div className={styles.dishImgWrap}>
-                        <img
-                          src={imgUrl}
-                          alt={item.name}
-                          className={styles.dishImg}
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400';
-                          }}
-                        />
-                        <div className={styles.vegBadge}>
-                          <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
-                        </div>
-                        {(item.isOpenMenu || item.isPosOnly) && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 6,
-                            left: 6,
-                            background: 'rgba(192, 38, 211, 0.92)',
+                      <div style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '12px',
+                        background: isOpenItemModeEnabled ? '#eff6ff' : '#f1f5f9',
+                        color: isOpenItemModeEnabled ? '#2563eb' : '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '10px'
+                      }}>
+                        {isOpenItemModeEnabled ? <Zap size={22} /> : <Search size={22} />}
+                      </div>
+                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
+                        {isOpenItemModeEnabled
+                          ? (dishSearch ? `No open items match "${dishSearch}"` : 'No Open Menu items cataloged yet')
+                          : (dishSearch ? `No dishes match "${dishSearch}"` : 'No dishes found')}
+                      </h4>
+                      <p style={{ margin: '6px 0 16px', color: '#64748b', fontSize: '0.8rem', maxWidth: '340px' }}>
+                        {isOpenItemModeEnabled
+                          ? 'Quickly punch emergency off-menu items, custom charges or cigarettes using the button below.'
+                          : 'Switch category or clear search to browse menu.'}
+                      </p>
+                      {isOpenItemModeEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => setShowOpenItemModal(true)}
+                          style={{
+                            padding: '9px 18px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                             color: '#ffffff',
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            letterSpacing: '0.3px',
-                            backdropFilter: 'blur(4px)',
-                            zIndex: 2
-                          }}>
-                            ⚡ Open Item
-                          </div>
-                        )}
-                        {/* NIGHT MENU BADGE COMMENTED OUT AS PER REQUEST
+                            fontWeight: 800,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)'
+                          }}
+                        >
+                          <Plus size={15} />
+                          <span>+ Add Open Item</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    filteredMenuItems.map((item, idx) => {
+                      const imgUrl = getValidFoodImage(item);
+                      const price = getItemEffectivePrice(item);
+                      const cartQty = cart
+                        .filter(c => c.id === item._id || c._id === item._id || c.name === item.name)
+                        .reduce((sum, c) => sum + (c.quantity || 1), 0);
+
+                      return (
+                        <motion.div
+                          key={item._id}
+                          initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ duration: 0.22, delay: Math.min(idx * 0.025, 0.3) }}
+                          className={`${styles.dishCard} ${cartQty > 0 ? styles.dishCardInCart : ''}`}
+                          onClick={() => handleQuickAdd(item)}
+                        >
+                          <div className={styles.dishImgWrap}>
+                            <img
+                              src={imgUrl}
+                              alt={item.name}
+                              className={styles.dishImg}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400';
+                              }}
+                            />
+                            <div className={styles.vegBadge}>
+                              <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
+                            </div>
+                            {(item.isOpenMenu || item.isPosOnly) && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: 6,
+                                left: 6,
+                                background: 'rgba(192, 38, 211, 0.92)',
+                                color: '#ffffff',
+                                fontSize: '9px',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                letterSpacing: '0.3px',
+                                backdropFilter: 'blur(4px)',
+                                zIndex: 2
+                              }}>
+                                ⚡ Open Item
+                              </div>
+                            )}
+                            {/* NIGHT MENU BADGE COMMENTED OUT AS PER REQUEST
                         {!(item.isOpenMenu || item.isPosOnly) && (item.shiftAvailability === 'night_only' || item.isNightMenu) && (
                           <div style={{
                             position: 'absolute',
@@ -2519,51 +2537,51 @@ export default function POSTerminal({
                           </div>
                         )}
                         */}
-                      </div>
-
-                      <div className={styles.dishInfo}>
-                        <h4>{item.name}</h4>
-                      </div>
-
-                      <div className={styles.dishPriceRow}>
-                        <span className={styles.dishPrice}>₹{formatAmount(price)}</span>
-                        {cartQty > 0 ? (
-                          <div className={styles.dishQtyStepper} onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className={styles.dishStepperBtn}
-                              onClick={(e) => handleDecrementItem(item, e)}
-                              title="Decrease quantity"
-                            >
-                              <Minus size={11} />
-                            </button>
-                            <span className={styles.dishStepperQty}>{cartQty}</span>
-                            <button
-                              type="button"
-                              className={styles.dishStepperBtn}
-                              onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
-                              title="Increase quantity"
-                            >
-                              <Plus size={11} />
-                            </button>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className={styles.dishAddBtn}
-                            onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
-                            title="Add to order"
-                          >
-                            <Plus size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                }))}
+
+                          <div className={styles.dishInfo}>
+                            <h4>{item.name}</h4>
+                          </div>
+
+                          <div className={styles.dishPriceRow}>
+                            <span className={styles.dishPrice}>₹{formatAmount(price)}</span>
+                            {cartQty > 0 ? (
+                              <div className={styles.dishQtyStepper} onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  className={styles.dishStepperBtn}
+                                  onClick={(e) => handleDecrementItem(item, e)}
+                                  title="Decrease quantity"
+                                >
+                                  <Minus size={11} />
+                                </button>
+                                <span className={styles.dishStepperQty}>{cartQty}</span>
+                                <button
+                                  type="button"
+                                  className={styles.dishStepperBtn}
+                                  onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
+                                  title="Increase quantity"
+                                >
+                                  <Plus size={11} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className={styles.dishAddBtn}
+                                onClick={(e) => { e.stopPropagation(); handleQuickAdd(item); }}
+                                title="Add to order"
+                              >
+                                <Plus size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    }))}
+                </div>
               </div>
             </div>
-          </div>
 
             {/* Right: Order Slip & Settlement Drawer */}
             <div className={styles.orderDrawer}>
@@ -4672,71 +4690,27 @@ export default function POSTerminal({
               </button>
             </div>
 
-            {/* 1-Tap Quick Presets */}
-            <div style={{ marginBottom: '1.1rem' }}>
-              <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                ⚡ 1-Tap Quick Presets:
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {[
-                  { label: '💧 Water', name: 'Mineral Water', price: 20 },
-                  { label: '🚬 Cigarette', name: 'Cigarette Pack', price: 20 },
-                  { label: '🥤 Cold Drink', name: 'Cold Drink 300ml', price: 40 },
-                  { label: '🍟 Quick Snack', name: 'Quick Snack', price: 50 },
-                  { label: '⚡ Custom ₹100', name: 'Custom Charge', price: 100 }
-                ].map((preset) => {
-                  const isSelected = openItemForm.name === preset.name && Number(openItemForm.price) === preset.price;
-                  return (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => setOpenItemForm(prev => ({
-                        ...prev,
-                        name: preset.name,
-                        price: preset.price
-                      }))}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '16px',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
-                        background: isSelected ? '#eff6ff' : '#f8fafc',
-                        color: isSelected ? '#1d4ed8' : '#334155',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <form onSubmit={handleAddOpenItem} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Item Name Input */}
+            <form onSubmit={handleAddOpenItem} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '6px' }}>
+              {/* Item Name Input (Mandatory) */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
-                    Item Name
-                  </label>
-                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Optional (defaults to 'Open Item')</span>
-                </div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', display: 'block', marginBottom: '6px' }}>
+                  Item Name <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '8px 12px',
+                  padding: '10px 12px',
                   borderRadius: '10px',
                   border: '1.5px solid #cbd5e1',
                   background: '#f8fafc',
                   transition: 'border-color 0.15s ease'
                 }}>
-                  <Tag size={15} color="#94a3b8" />
+                  <Tag size={16} color="#64748b" />
                   <input
                     type="text"
-                    placeholder="e.g. Special Hookah, Off-menu Dish, Extra Pack"
+                    required
+                    placeholder="Enter item name (e.g. Special Hookah, Off-menu Dish)"
                     value={openItemForm.name}
                     onChange={(e) => setOpenItemForm(prev => ({ ...prev, name: e.target.value }))}
                     autoFocus
@@ -4745,7 +4719,7 @@ export default function POSTerminal({
                       background: 'transparent',
                       outline: 'none',
                       width: '100%',
-                      fontSize: '0.86rem',
+                      fontSize: '0.88rem',
                       fontWeight: 600,
                       color: '#0f172a'
                     }}
@@ -4753,179 +4727,36 @@ export default function POSTerminal({
                 </div>
               </div>
 
-              {/* Price & Quantity Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '10px' }}>
-                {/* Price */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
-                      Price (₹)
-                    </label>
-                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Optional</span>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    border: '1.5px solid #cbd5e1',
-                    background: '#f8fafc'
-                  }}>
-                    <span style={{ fontWeight: 800, color: '#2563eb', fontSize: '0.95rem' }}>₹</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="0"
-                      value={openItemForm.price}
-                      onChange={(e) => setOpenItemForm(prev => ({ ...prev, price: e.target.value }))}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        outline: 'none',
-                        width: '100%',
-                        fontSize: '0.92rem',
-                        fontWeight: 800,
-                        color: '#0f172a'
-                      }}
-                    />
-                  </div>
-                  {/* Quick price bump buttons */}
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '5px' }}>
-                    {[10, 20, 50, 100].map(addVal => (
-                      <button
-                        key={addVal}
-                        type="button"
-                        onClick={() => {
-                          const cur = Number(openItemForm.price) || 0;
-                          setOpenItemForm(prev => ({ ...prev, price: cur + addVal }));
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '2px 0',
-                          borderRadius: '6px',
-                          border: '1px solid #e2e8f0',
-                          background: '#ffffff',
-                          color: '#475569',
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        +{addVal}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quantity */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
-                      Quantity
-                    </label>
-                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Optional</span>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 8px',
-                    borderRadius: '10px',
-                    border: '1.5px solid #cbd5e1',
-                    background: '#f8fafc',
-                    height: '38px',
-                    boxSizing: 'border-box'
-                  }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cur = Math.max(1, (Number(openItemForm.quantity) || 1) - 1);
-                        setOpenItemForm(prev => ({ ...prev, quantity: cur }));
-                      }}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        color: '#475569'
-                      }}
-                    >
-                      <Minus size={11} />
-                    </button>
-                    <input
-                      type="number"
-                      min="1"
-                      value={openItemForm.quantity}
-                      onChange={(e) => setOpenItemForm(prev => ({ ...prev, quantity: e.target.value }))}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        outline: 'none',
-                        width: '36px',
-                        textAlign: 'center',
-                        fontSize: '0.9rem',
-                        fontWeight: 800,
-                        color: '#0f172a'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cur = (Number(openItemForm.quantity) || 1) + 1;
-                        setOpenItemForm(prev => ({ ...prev, quantity: cur }));
-                      }}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        color: '#475569'
-                      }}
-                    >
-                      <Plus size={11} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chef Note / Description */}
+              {/* Price (Mandatory) */}
               <div>
-                <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
-                  Cooking Note / Instructions (Optional)
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', display: 'block', marginBottom: '6px' }}>
+                  Price (₹) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '7px 12px',
+                  padding: '10px 12px',
                   borderRadius: '10px',
                   border: '1.5px solid #cbd5e1',
                   background: '#f8fafc'
                 }}>
-                  <StickyNote size={14} color="#94a3b8" />
+                  <span style={{ fontWeight: 800, color: '#2563eb', fontSize: '1rem' }}>₹</span>
                   <input
-                    type="text"
-                    placeholder="e.g. Less sugar, extra spicy, no onion"
-                    value={openItemForm.notes}
-                    onChange={(e) => setOpenItemForm(prev => ({ ...prev, notes: e.target.value }))}
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    placeholder="0"
+                    value={openItemForm.price}
+                    onChange={(e) => setOpenItemForm(prev => ({ ...prev, price: e.target.value }))}
                     style={{
                       border: 'none',
                       background: 'transparent',
                       outline: 'none',
                       width: '100%',
-                      fontSize: '0.82rem',
+                      fontSize: '0.96rem',
+                      fontWeight: 800,
                       color: '#0f172a'
                     }}
                   />
