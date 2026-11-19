@@ -1074,6 +1074,16 @@ export default function AdminPanel() {
 
         fetchTables();
       });
+
+      socket.on('tablesUpdated', () => {
+        fetchTables();
+        fetchOrders();
+      });
+
+      socket.on('ordersRefresh', () => {
+        fetchOrders();
+        fetchTables();
+      });
     }
 
     return () => {
@@ -1081,6 +1091,8 @@ export default function AdminPanel() {
         socket.off('newOrder');
         socket.off('orderUpdate');
         socket.off('tableServiceAlert');
+        socket.off('tablesUpdated');
+        socket.off('ordersRefresh');
       }
     };
   }, [user, tenantId, socket]);
@@ -5685,10 +5697,78 @@ export default function AdminPanel() {
                     orders={orders}
                     initialTable={posSelectedTable}
                     isMainSidebarOpen={!sidebarCollapsed}
+                    onRefreshTables={fetchTables}
+                    onRefreshOrders={fetchOrders}
                     onOrderPlaced={(newOrd) => {
                       setPosSelectedTable(null);
                       if (newOrd?._refreshAll) {
-                        if (newOrd.status === 'completed' && newOrd.tableNumber) {
+                        if (newOrd.action === 'merge' && newOrd.primaryTable && newOrd.mergedTables) {
+                          const primary = String(newOrd.primaryTable).replace(/^Table\s*/i, '').trim().toLowerCase();
+                          const merged = (newOrd.mergedTables || []).map(t => String(t).replace(/^Table\s*/i, '').trim().toLowerCase());
+
+                          // Optimistically reassign active orders of merged tables to primary table
+                          setOrders(prev => prev.map(o => {
+                            if (o.status === 'completed' || o.status === 'cancelled') return o;
+                            const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (merged.includes(oTbl)) {
+                              return {
+                                ...o,
+                                tableNumber: newOrd.primaryTable,
+                                table: newOrd.primaryTable,
+                                mergedInto: newOrd.primaryTable,
+                                originalTable: o.originalTable || o.tableNumber || o.table
+                              };
+                            }
+                            return o;
+                          }));
+
+                          // Optimistically update tables in AdminPanel
+                          setTables(prev => prev.map(t => {
+                            const tNum = String(t.tableNumber || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (tNum === primary) {
+                              const curr = Array.isArray(t.mergedWith) ? t.mergedWith : [];
+                              return {
+                                ...t,
+                                mergedWith: Array.from(new Set([...curr, ...(newOrd.mergedTables || [])]))
+                              };
+                            }
+                            if (merged.includes(tNum)) {
+                              return {
+                                ...t,
+                                status: 'available',
+                                mergedInto: null,
+                                mergedAt: null,
+                                currentOrder: null
+                              };
+                            }
+                            return t;
+                          }));
+                        } else if (newOrd.action === 'demerge' && newOrd.demergedTable) {
+                          const demerged = String(newOrd.demergedTable).replace(/^Table\s*/i, '').trim().toLowerCase();
+                          setOrders(prev => prev.map(o => {
+                            if (o.status === 'completed' || o.status === 'cancelled') return o;
+                            const orig = String(o.originalTable || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (orig === demerged) {
+                              return {
+                                ...o,
+                                tableNumber: newOrd.demergedTable,
+                                table: newOrd.demergedTable,
+                                mergedInto: null
+                              };
+                            }
+                            return o;
+                          }));
+                          setTables(prev => prev.map(t => {
+                            const tNum = String(t.tableNumber || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (tNum === demerged) {
+                              return { ...t, status: 'available', mergedInto: null, mergedAt: null };
+                            }
+                            return {
+                              ...t,
+                              mergedWith: Array.isArray(t.mergedWith) ? t.mergedWith.filter(m => String(m).replace(/^Table\s*/i, '').trim().toLowerCase() !== demerged) : []
+                            };
+                          }));
+                        } else if (newOrd.status === 'completed' && newOrd.tableNumber) {
                           setOrders(prev => prev.map(o => {
                             const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
                             const targetTbl = String(newOrd.tableNumber).replace(/^Table\s*/i, '').trim().toLowerCase();
@@ -5712,6 +5792,7 @@ export default function AdminPanel() {
                           }));
                         }
                         fetchOrders();
+                        fetchTables();
                         return;
                       }
                       setOrders(prev => {
@@ -5722,6 +5803,7 @@ export default function AdminPanel() {
                         return [newOrd, ...prev];
                       });
                       fetchOrders();
+                      fetchTables();
                     }}
                     onOrderCreated={(newOrd) => {
                       setPosSelectedTable(null);
@@ -5736,6 +5818,7 @@ export default function AdminPanel() {
                         }));
                       }
                       fetchOrders();
+                      fetchTables();
                     }}
                   />
                 </motion.div>

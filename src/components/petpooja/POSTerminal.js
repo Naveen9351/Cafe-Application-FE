@@ -51,7 +51,9 @@ export default function POSTerminal({
   isMainSidebarOpen = true,
   onOrderCreated,
   onOrderPlaced,
-  onSettleTable
+  onSettleTable,
+  onRefreshTables,
+  onRefreshOrders
 }) {
   const activeOperatingMode = tenantInfo?.operatingMode
     || tenantInfo?.settings?.operatingMode
@@ -476,7 +478,7 @@ export default function POSTerminal({
     toast.success('Opened Counter Walk-in POS');
   };
 
-  // Enterprise Table Merge Handler (Persisted to Database)
+  // Enterprise Table Merge Handler (Persisted to Database & Instant UI Synchronisation)
   const handleMergeTables = async (primaryTbl, tablesToMerge) => {
     if (!primaryTbl) {
       toast.error('Please select a primary table');
@@ -487,37 +489,117 @@ export default function POSTerminal({
       return;
     }
     const token = localStorage.getItem('token');
+    const cleanPrimary = String(primaryTbl).replace(/^Table\s*/i, '').trim();
+    const cleanMergeList = (tablesToMerge || []).map(t => String(t).replace(/^Table\s*/i, '').trim());
+
     try {
       const res = await axios.post(`${API}/tables/merge`, {
-        primaryTable: primaryTbl,
-        tablesToMerge: tablesToMerge
+        primaryTable: cleanPrimary,
+        tablesToMerge: cleanMergeList
       }, {
         headers: token ? { 'x-auth-token': token } : {}
       });
-      toast.success(res.data.message || `Merged tables into Table ${primaryTbl}`);
-      setMergedTables(tablesToMerge);
-      fetchTables();
-      if (onOrderPlaced) onOrderPlaced({ _refreshAll: true });
+      toast.success(res.data.message || `Table ${cleanMergeList.join(', ')} moved into Table ${cleanPrimary}`);
+      
+      setMergedTables(prev => Array.from(new Set([...prev, ...cleanMergeList])));
+
+      // Immediate local state update in POSTerminal
+      setDbTables(prev => prev.map(t => {
+        const tNum = String(t.tableNumber || '').replace(/^Table\s*/i, '').trim();
+        if (tNum === cleanPrimary) {
+          const curr = Array.isArray(t.mergedWith) ? t.mergedWith : [];
+          return {
+            ...t,
+            mergedWith: Array.from(new Set([...curr, ...cleanMergeList]))
+          };
+        }
+        if (cleanMergeList.includes(tNum)) {
+          return {
+            ...t,
+            status: 'available',
+            mergedInto: null,
+            mergedAt: null,
+            currentOrder: null
+          };
+        }
+        return t;
+      }));
+
+      // Re-fetch tables in POSTerminal
+      fetchDbTables();
+
+      // Immediately propagate to parent AdminPanel
+      if (onOrderPlaced) {
+        onOrderPlaced({
+          _refreshAll: true,
+          _refreshTables: true,
+          action: 'merge',
+          primaryTable: cleanPrimary,
+          mergedTables: cleanMergeList
+        });
+      }
+      if (onRefreshTables) onRefreshTables();
+      if (onRefreshOrders) onRefreshOrders();
+
+      // If viewing the merged source table in terminal, auto-switch to primary destination table
+      const activeCurrent = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
+      if (cleanMergeList.includes(activeCurrent)) {
+        setTableNumber(cleanPrimary);
+      }
     } catch (err) {
       console.error('Merge tables error:', err);
       toast.error('Failed to merge tables: ' + (err.response?.data?.error || err.message));
     }
   };
 
-  // Demerge Table Handler (Restores table in Database)
+  // Demerge Table Handler (Restores table in Database & Instant UI Synchronisation)
   const handleDemergeTable = async (primaryTbl, tableToDemerge) => {
     const token = localStorage.getItem('token');
+    const cleanPrimary = String(primaryTbl).replace(/^Table\s*/i, '').trim();
+    const cleanDemerge = String(tableToDemerge).replace(/^Table\s*/i, '').trim();
+
     try {
       const res = await axios.post(`${API}/tables/demerge`, {
-        primaryTable: primaryTbl,
-        tableToDemerge: tableToDemerge
+        primaryTable: cleanPrimary,
+        tableToDemerge: cleanDemerge
       }, {
         headers: token ? { 'x-auth-token': token } : {}
       });
-      toast.success(res.data.message || `Demerged Table ${tableToDemerge}`);
-      setMergedTables(prev => prev.filter(t => t !== tableToDemerge));
-      fetchTables();
-      if (onOrderPlaced) onOrderPlaced({ _refreshAll: true });
+      toast.success(res.data.message || `Demerged Table ${cleanDemerge}`);
+      setMergedTables(prev => prev.filter(t => String(t).replace(/^Table\s*/i, '').trim() !== cleanDemerge));
+
+      // Immediate local state update in POSTerminal
+      setDbTables(prev => prev.map(t => {
+        const tNum = String(t.tableNumber || '').replace(/^Table\s*/i, '').trim();
+        if (tNum === cleanPrimary) {
+          return {
+            ...t,
+            mergedWith: Array.isArray(t.mergedWith) ? t.mergedWith.filter(m => String(m).replace(/^Table\s*/i, '').trim() !== cleanDemerge) : []
+          };
+        }
+        if (tNum === cleanDemerge) {
+          return {
+            ...t,
+            status: 'available',
+            mergedInto: null,
+            mergedAt: null
+          };
+        }
+        return t;
+      }));
+
+      fetchDbTables();
+      if (onOrderPlaced) {
+        onOrderPlaced({
+          _refreshAll: true,
+          _refreshTables: true,
+          action: 'demerge',
+          primaryTable: cleanPrimary,
+          demergedTable: cleanDemerge
+        });
+      }
+      if (onRefreshTables) onRefreshTables();
+      if (onRefreshOrders) onRefreshOrders();
     } catch (err) {
       console.error('Demerge table error:', err);
       toast.error('Failed to demerge table: ' + (err.response?.data?.error || err.message));
