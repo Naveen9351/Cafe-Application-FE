@@ -11,7 +11,7 @@ import {
   FileSpreadsheet,
   SlidersHorizontal, RotateCcw, Check
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CRMLoyalty.module.css';
 import { API_URL as API } from '../../config/api';
@@ -92,7 +92,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.data) setTenantDetails(res.data);
-      } catch {}
+      } catch { }
     };
     fetchTenant();
   }, []);
@@ -954,6 +954,9 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     <div className={styles.page}>
       {/* Local high z-index Toaster for instant front-facing notifications */}
       <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
+      <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }}>
+        {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
+      </Toaster>
 
       {/* ── Top Header Row ── */}
       <div className={styles.headerRow} style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
@@ -1037,1330 +1040,1330 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
       {/* ── Full-Width Maximized Customer Table Card ── */}
       <div className={styles.fullWidthCard}>
         {/* Active Filter Pills Bar (Shown only when filters active) */}
-            {hasActiveFilters && (
-              <div className={styles.activeFilterPillsBar}>
-                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
-                {searchQuery && (
-                  <span className={styles.filterChip}>
-                    Search: "{searchQuery}"
-                    <button type="button" onClick={() => setSearchQuery('')} className={styles.filterChipRemove}>
-                      <X size={10} />
-                    </button>
-                  </span>
-                )}
-                {activeTab !== 'all' && (
-                  <span className={styles.filterChip}>
-                    Segment: {activeTab === 'repeat' ? 'Repeat (2+)' : activeTab === 'single' ? 'Single Visit' : 'Inactive'}
-                    <button type="button" onClick={() => setActiveTab('all')} className={styles.filterChipRemove}>
-                      <X size={10} />
-                    </button>
-                  </span>
-                )}
-                {verificationFilter !== 'all' && (
-                  <span className={styles.filterChip}>
-                    Status: {verificationFilter.toUpperCase()}
-                    <button type="button" onClick={() => setVerificationFilter('all')} className={styles.filterChipRemove}>
-                      <X size={10} />
-                    </button>
-                  </span>
-                )}
-                {sortBy !== 'highest_spend' && (
-                  <span className={styles.filterChip}>
-                    Sort: {sortBy.replace('_', ' ').toUpperCase()}
-                    <button type="button" onClick={() => setSortBy('highest_spend')} className={styles.filterChipRemove}>
-                      <X size={10} />
-                    </button>
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}
+        {hasActiveFilters && (
+          <div className={styles.activeFilterPillsBar}>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
+            {searchQuery && (
+              <span className={styles.filterChip}>
+                Search: "{searchQuery}"
+                <button type="button" onClick={() => setSearchQuery('')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {activeTab !== 'all' && (
+              <span className={styles.filterChip}>
+                Segment: {activeTab === 'repeat' ? 'Repeat (2+)' : activeTab === 'single' ? 'Single Visit' : 'Inactive'}
+                <button type="button" onClick={() => setActiveTab('all')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {verificationFilter !== 'all' && (
+              <span className={styles.filterChip}>
+                Status: {verificationFilter.toUpperCase()}
+                <button type="button" onClick={() => setVerificationFilter('all')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            {sortBy !== 'highest_spend' && (
+              <span className={styles.filterChip}>
+                Sort: {sortBy.replace('_', ' ').toUpperCase()}
+                <button type="button" onClick={() => setSortBy('highest_spend')} className={styles.filterChipRemove}>
+                  <X size={10} />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={resetFilters}
+              style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+
+        {/* Maximized Full-Width Table */}
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.th} style={{ width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={filteredCustomers.length > 0 && selectedCustomerIds.length === filteredCustomers.length}
+                    onChange={toggleSelectAll}
+                    title="Select All Filtered Customers"
+                    style={{ cursor: 'pointer', transform: 'scale(1.15)' }}
+                  />
+                </th>
+                <th
+                  className={styles.th}
+                  onClick={() => handleHeaderSort('customer')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort alphabetically by customer name"
                 >
-                  Clear All
+                  Customer {sortBy === 'name_asc' ? '▲' : sortBy === 'name_desc' ? '▼' : ''}
+                </th>
+                <th className={styles.th}>Mobile Number</th>
+                <th className={styles.th}>Status</th>
+                <th
+                  className={styles.th}
+                  onClick={() => handleHeaderSort('lastVisit')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by date of last visit"
+                >
+                  Last Visit {sortBy === 'recent_visit' ? '▼' : sortBy === 'oldest_visit' ? '▲' : ''}
+                </th>
+                <th
+                  className={styles.th}
+                  onClick={() => handleHeaderSort('visits')}
+                  style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by total visits"
+                >
+                  Visits {sortBy === 'total_visits' ? '▼' : sortBy === 'least_visits' ? '▲' : ''}
+                </th>
+                <th
+                  className={styles.th}
+                  onClick={() => handleHeaderSort('spend')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by lifetime revenue spend"
+                >
+                  Lifetime Spend {sortBy === 'highest_spend' ? '▼' : sortBy === 'lowest_spend' ? '▲' : ''}
+                </th>
+                <th
+                  className={styles.th}
+                  onClick={() => handleHeaderSort('aov')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Average Order Value"
+                >
+                  AOV {sortBy === 'highest_aov' ? '▼' : sortBy === 'lowest_aov' ? '▲' : ''}
+                </th>
+                <th className={styles.th} style={{ textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 8 }).map((_, sIdx) => (
+                  <tr key={sIdx} className={styles.skeletonRow}>
+                    {/* Checkbox */}
+                    <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                      <div className={styles.skeletonLine} style={{ width: '16px', height: '16px', margin: '0 auto', borderRadius: '4px' }} />
+                    </td>
+                    {/* Customer Name + Email subtitle */}
+                    <td className={styles.skeletonCell}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        <div className={styles.skeletonLine} style={{ width: sIdx % 2 === 0 ? '115px' : '95px', height: '13px' }} />
+                        <div className={styles.skeletonLine} style={{ width: '68px', height: '10px', opacity: 0.65 }} />
+                      </div>
+                    </td>
+                    {/* Mobile Number */}
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '92px', height: '12px' }} />
+                    </td>
+                    {/* Status Pill */}
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonPill} style={{ width: '68px', height: '22px' }} />
+                    </td>
+                    {/* Last Visit */}
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '82px', height: '11px' }} />
+                    </td>
+                    {/* Visits Badge */}
+                    <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                      <div className={styles.skeletonLine} style={{ width: '28px', height: '20px', margin: '0 auto', borderRadius: '6px' }} />
+                    </td>
+                    {/* Lifetime Spend */}
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '64px', height: '13px' }} />
+                    </td>
+                    {/* AOV */}
+                    <td className={styles.skeletonCell}>
+                      <div className={styles.skeletonLine} style={{ width: '52px', height: '12px' }} />
+                    </td>
+                    {/* Actions: View Profile */}
+                    <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
+                      <div className={styles.skeletonLine} style={{ width: '84px', height: '26px', margin: '0 auto', borderRadius: '7px' }} />
+                    </td>
+                  </tr>
+                ))
+              ) : filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={9}>
+                    <div className={styles.emptyState}>
+                      <Users size={34} strokeWidth={1.5} />
+                      <p style={{ margin: 0, fontWeight: '400', color: '#64748b' }}>
+                        No customer profiles match your selected search criteria.
+                      </p>
+                      {hasActiveFilters && (
+                        <button className={styles.resetBtn} onClick={resetFilters}>
+                          Clear All Filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedCustomers.map((cust, idx) => {
+                  const validOrders = (cust.orders || []).filter(o => o.status !== 'cancelled');
+                  const spend = (cust.orders && cust.orders.length > 0)
+                    ? validOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
+                    : (Number(cust.lifetimeSpend) || 0);
+                  const visits = (cust.orders && cust.orders.length > 0)
+                    ? validOrders.length
+                    : (Number(cust.totalVisits) || 1);
+                  const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
+                  const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
+                  const isChecked = selectedCustomerIds.includes(cust._id || cust.phone);
+
+                  return (
+                    <motion.tr
+                      key={cust._id || cust.phone}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
+                      className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
+                      onClick={() => setSelectedCustomer(cust)}
+                    >
+                      {/* Selection Checkbox */}
+                      <td className={styles.td} style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleCustomerSelection(cust)}
+                          style={{ cursor: 'pointer', transform: 'scale(1.15)' }}
+                        />
+                      </td>
+
+                      {/* Customer Identity */}
+                      <td className={styles.td}>
+                        <div className={styles.nameRow}>
+                          <span style={{ fontWeight: 600, color: '#0f172a' }}>{cust.name || 'Guest Diner'}</span>
+                        </div>
+                        {cust.email && (
+                          <span className={styles.emailText} style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8' }}>{cust.email}</span>
+                        )}
+                      </td>
+
+                      {/* Mobile Number */}
+                      <td className={styles.td} style={{ color: '#334155' }}>
+                        {cust.phone || 'Not Provided'}
+                      </td>
+
+                      {/* Status */}
+                      <td className={styles.td}>
+                        {cust.isPhoneVerified ? (
+                          <span className={styles.badgeVerified}>
+                            <CheckCircle2 size={11} /> Verified
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.badgeUnverifiedBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenVerifyModal(cust);
+                            }}
+                            title="Click to Verify Customer Mobile via OTP"
+                          >
+                            <XCircle size={11} />
+                            <span>Unverified</span>
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Last Visit */}
+                      <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '400' }}>
+                        {formatDate(cust.lastVisit || cust.firstVisit)}
+                      </td>
+
+                      {/* Visits Count */}
+                      <td className={styles.td} style={{ textAlign: 'center' }}>
+                        <span className={styles.visitsPill}>
+                          {visits}
+                        </span>
+                      </td>
+
+                      {/* Lifetime Spend */}
+                      <td className={styles.td}>
+                        <span className={styles.spendText}>
+                          {formatCurrency(spend)}
+                        </span>
+                      </td>
+
+                      {/* AOV */}
+                      <td className={styles.td}>
+                        <span className={styles.aovText}>
+                          {formatCurrency(aov)}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className={styles.td} style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCustomer(cust);
+                          }}
+                          className={styles.actionBtn}
+                        >
+                          <Eye size={12} />
+                          <span>View Profile</span>
+                        </button>
+                      </td>
+                    </motion.tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Footer with Ellipsis Pagination */}
+        <div className={styles.tableFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '12px 18px' }}>
+          {isLoading ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <RefreshCw size={12} className="animate-spin" color="#059669" />
+              <span>Loading customer directory...</span>
+            </span>
+          ) : (
+            <span style={{ fontSize: '12px', fontWeight: 400, color: '#64748b' }}>
+              Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredCustomers.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} - {Math.min(currentPage * pageSize, filteredCustomers.length)}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredCustomers.length}</span> guests
+            </span>
+          )}
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : '#ffffff', color: currentPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 500, fontSize: '11px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setCurrentPage(p)}
+                  style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: currentPage === p ? '#0f172a' : '#f1f5f9', color: currentPage === p ? '#ffffff' : '#475569', fontWeight: 500, fontSize: '11px', cursor: 'pointer' }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : '#ffffff', color: currentPage === totalPages ? '#cbd5e1' : '#0f172a', fontWeight: 500, fontSize: '11px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Slide-over Modal: Add Customer Record with OTP Verification ── */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div
+            className={styles.modalOverlay}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) resetAddModal();
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className={styles.modalContent}
+            >
+              <div className={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                  <UserPlus size={18} color="#059669" />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
+                    Register New Customer
+                  </h3>
+                </div>
+                <button
+                  onClick={resetAddModal}
+                  className={styles.closeBtn}
+                >
+                  <X size={16} />
                 </button>
               </div>
-            )}
 
-            {/* Maximized Full-Width Table */}
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th className={styles.th} style={{ width: '40px', textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={filteredCustomers.length > 0 && selectedCustomerIds.length === filteredCustomers.length}
-                        onChange={toggleSelectAll}
-                        title="Select All Filtered Customers"
-                        style={{ cursor: 'pointer', transform: 'scale(1.15)' }}
-                      />
-                    </th>
-                    <th
-                      className={styles.th}
-                      onClick={() => handleHeaderSort('customer')}
-                      style={{ cursor: 'pointer', userSelect: 'none' }}
-                      title="Click to sort alphabetically by customer name"
-                    >
-                      Customer {sortBy === 'name_asc' ? '▲' : sortBy === 'name_desc' ? '▼' : ''}
-                    </th>
-                    <th className={styles.th}>Mobile Number</th>
-                    <th className={styles.th}>Status</th>
-                    <th
-                      className={styles.th}
-                      onClick={() => handleHeaderSort('lastVisit')}
-                      style={{ cursor: 'pointer', userSelect: 'none' }}
-                      title="Click to sort by date of last visit"
-                    >
-                      Last Visit {sortBy === 'recent_visit' ? '▼' : sortBy === 'oldest_visit' ? '▲' : ''}
-                    </th>
-                    <th
-                      className={styles.th}
-                      onClick={() => handleHeaderSort('visits')}
-                      style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
-                      title="Click to sort by total visits"
-                    >
-                      Visits {sortBy === 'total_visits' ? '▼' : sortBy === 'least_visits' ? '▲' : ''}
-                    </th>
-                    <th
-                      className={styles.th}
-                      onClick={() => handleHeaderSort('spend')}
-                      style={{ cursor: 'pointer', userSelect: 'none' }}
-                      title="Click to sort by lifetime revenue spend"
-                    >
-                      Lifetime Spend {sortBy === 'highest_spend' ? '▼' : sortBy === 'lowest_spend' ? '▲' : ''}
-                    </th>
-                    <th
-                      className={styles.th}
-                      onClick={() => handleHeaderSort('aov')}
-                      style={{ cursor: 'pointer', userSelect: 'none' }}
-                      title="Click to sort by Average Order Value"
-                    >
-                      AOV {sortBy === 'highest_aov' ? '▼' : sortBy === 'lowest_aov' ? '▲' : ''}
-                    </th>
-                    <th className={styles.th} style={{ textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    Array.from({ length: 8 }).map((_, sIdx) => (
-                      <tr key={sIdx} className={styles.skeletonRow}>
-                        {/* Checkbox */}
-                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
-                          <div className={styles.skeletonLine} style={{ width: '16px', height: '16px', margin: '0 auto', borderRadius: '4px' }} />
-                        </td>
-                        {/* Customer Name + Email subtitle */}
-                        <td className={styles.skeletonCell}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                            <div className={styles.skeletonLine} style={{ width: sIdx % 2 === 0 ? '115px' : '95px', height: '13px' }} />
-                            <div className={styles.skeletonLine} style={{ width: '68px', height: '10px', opacity: 0.65 }} />
-                          </div>
-                        </td>
-                        {/* Mobile Number */}
-                        <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '92px', height: '12px' }} />
-                        </td>
-                        {/* Status Pill */}
-                        <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonPill} style={{ width: '68px', height: '22px' }} />
-                        </td>
-                        {/* Last Visit */}
-                        <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '82px', height: '11px' }} />
-                        </td>
-                        {/* Visits Badge */}
-                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
-                          <div className={styles.skeletonLine} style={{ width: '28px', height: '20px', margin: '0 auto', borderRadius: '6px' }} />
-                        </td>
-                        {/* Lifetime Spend */}
-                        <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '64px', height: '13px' }} />
-                        </td>
-                        {/* AOV */}
-                        <td className={styles.skeletonCell}>
-                          <div className={styles.skeletonLine} style={{ width: '52px', height: '12px' }} />
-                        </td>
-                        {/* Actions: View Profile */}
-                        <td className={styles.skeletonCell} style={{ textAlign: 'center' }}>
-                          <div className={styles.skeletonLine} style={{ width: '84px', height: '26px', margin: '0 auto', borderRadius: '7px' }} />
-                        </td>
-                      </tr>
-                    ))
-                  ) : filteredCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan={9}>
-                        <div className={styles.emptyState}>
-                          <Users size={34} strokeWidth={1.5} />
-                          <p style={{ margin: 0, fontWeight: '400', color: '#64748b' }}>
-                            No customer profiles match your selected search criteria.
-                          </p>
-                          {hasActiveFilters && (
-                            <button className={styles.resetBtn} onClick={resetFilters}>
-                              Clear All Filters
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedCustomers.map((cust, idx) => {
-                      const validOrders = (cust.orders || []).filter(o => o.status !== 'cancelled');
-                      const spend = (cust.orders && cust.orders.length > 0)
-                        ? validOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
-                        : (Number(cust.lifetimeSpend) || 0);
-                      const visits = (cust.orders && cust.orders.length > 0)
-                        ? validOrders.length
-                        : (Number(cust.totalVisits) || 1);
-                      const aov = Number(cust.averageOrderValue || cust.aov || (visits > 0 ? Math.round(spend / visits) : 0));
-                      const isSelected = selectedCustomer?._id === cust._id || selectedCustomer?.phone === cust.phone;
-                      const isChecked = selectedCustomerIds.includes(cust._id || cust.phone);
-
-                      return (
-                        <motion.tr
-                          key={cust._id || cust.phone}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.3) }}
-                          className={`${styles.trHover} ${isSelected ? styles.trActive : ''}`}
-                          onClick={() => setSelectedCustomer(cust)}
-                        >
-                          {/* Selection Checkbox */}
-                          <td className={styles.td} style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleCustomerSelection(cust)}
-                              style={{ cursor: 'pointer', transform: 'scale(1.15)' }}
-                            />
-                          </td>
-
-                          {/* Customer Identity */}
-                          <td className={styles.td}>
-                            <div className={styles.nameRow}>
-                              <span style={{ fontWeight: 600, color: '#0f172a' }}>{cust.name || 'Guest Diner'}</span>
-                            </div>
-                            {cust.email && (
-                              <span className={styles.emailText} style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8' }}>{cust.email}</span>
-                            )}
-                          </td>
-
-                          {/* Mobile Number */}
-                          <td className={styles.td} style={{ color: '#334155' }}>
-                            {cust.phone || 'Not Provided'}
-                          </td>
-
-                          {/* Status */}
-                          <td className={styles.td}>
-                            {cust.isPhoneVerified ? (
-                              <span className={styles.badgeVerified}>
-                                <CheckCircle2 size={11} /> Verified
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                className={styles.badgeUnverifiedBtn}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenVerifyModal(cust);
-                                }}
-                                title="Click to Verify Customer Mobile via OTP"
-                              >
-                                <XCircle size={11} />
-                                <span>Unverified</span>
-                              </button>
-                            )}
-                          </td>
-
-                          {/* Last Visit */}
-                          <td className={styles.td} style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: '400' }}>
-                            {formatDate(cust.lastVisit || cust.firstVisit)}
-                          </td>
-
-                          {/* Visits Count */}
-                          <td className={styles.td} style={{ textAlign: 'center' }}>
-                            <span className={styles.visitsPill}>
-                              {visits}
-                            </span>
-                          </td>
-
-                          {/* Lifetime Spend */}
-                          <td className={styles.td}>
-                            <span className={styles.spendText}>
-                              {formatCurrency(spend)}
-                            </span>
-                          </td>
-
-                          {/* AOV */}
-                          <td className={styles.td}>
-                            <span className={styles.aovText}>
-                              {formatCurrency(aov)}
-                            </span>
-                          </td>
-
-                          {/* Actions */}
-                          <td className={styles.td} style={{ textAlign: 'center' }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCustomer(cust);
-                              }}
-                              className={styles.actionBtn}
-                            >
-                              <Eye size={12} />
-                              <span>View Profile</span>
-                            </button>
-                          </td>
-                        </motion.tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Table Footer with Ellipsis Pagination */}
-            <div className={styles.tableFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '12px 18px' }}>
-              {isLoading ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <RefreshCw size={12} className="animate-spin" color="#059669" />
-                  <span>Loading customer directory...</span>
-                </span>
-              ) : (
-                <span style={{ fontSize: '12px', fontWeight: 400, color: '#64748b' }}>
-                  Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredCustomers.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} - {Math.min(currentPage * pageSize, filteredCustomers.length)}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{filteredCustomers.length}</span> guests
-                </span>
-              )}
-
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+              {/* Prominent Inline Error Banner right in the modal */}
+              {formError && (
+                <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{formError}</span>
                   <button
                     type="button"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f8fafc' : '#ffffff', color: currentPage === 1 ? '#cbd5e1' : '#0f172a', fontWeight: 500, fontSize: '11px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                    onClick={() => setFormError('')}
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
                   >
-                    Prev
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setCurrentPage(p)}
-                      style={{ minWidth: '28px', height: '28px', padding: '0 4px', borderRadius: '6px', border: 'none', background: currentPage === p ? '#0f172a' : '#f1f5f9', color: currentPage === p ? '#ffffff' : '#475569', fontWeight: 500, fontSize: '11px', cursor: 'pointer' }}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f8fafc' : '#ffffff', color: currentPage === totalPages ? '#cbd5e1' : '#0f172a', fontWeight: 500, fontSize: '11px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-                  >
-                    Next
+                    <X size={14} />
                   </button>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* ── Slide-over Modal: Add Customer Record with OTP Verification ── */}
-          <AnimatePresence>
-            {isAddModalOpen && (
-              <div
-                className={styles.modalOverlay}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) resetAddModal();
-                }}
-              >
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0, y: 15 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.95, opacity: 0, y: 15 }}
-                  transition={{ duration: 0.2 }}
-                  className={styles.modalContent}
-                >
-                  <div className={styles.modalHeader}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                      <UserPlus size={18} color="#059669" />
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
-                        Register New Customer
-                      </h3>
-                    </div>
-                    <button
-                      onClick={resetAddModal}
-                      className={styles.closeBtn}
-                    >
-                      <X size={16} />
-                    </button>
+              <form onSubmit={handleRegisterCustomer} className={styles.formWrapper}>
+                {/* 1. Full Name */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    <span>Full Name</span>
+                    <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <div className={styles.inputIconWrap}>
+                    <Users size={15} className={styles.fieldIcon} />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Rahul Kapoor"
+                      value={newCustomer.name}
+                      onChange={(e) => {
+                        setNewCustomer({ ...newCustomer, name: e.target.value });
+                        if (formError) setFormError('');
+                      }}
+                      className={`${styles.formInput} ${formError && !newCustomer.name.trim() ? styles.inputError : ''}`}
+                    />
                   </div>
+                </div>
 
-                  {/* Prominent Inline Error Banner right in the modal */}
-                  {formError && (
-                    <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
-                      <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                      <span>{formError}</span>
+                {/* 2. Mobile Number with OTP Verification trigger */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    <span>Mobile Number</span>
+                    <span style={{ color: '#dc2626' }}>* (10 Digits)</span>
+                  </label>
+                  <div className={styles.inputIconWrap}>
+                    <PhoneCall size={15} className={styles.fieldIcon} />
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      required
+                      maxLength={10}
+                      disabled={isPhoneVerified}
+                      placeholder="e.g. 9876543210"
+                      value={newCustomer.phone}
+                      onKeyDown={(e) => {
+                        if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        setNewCustomer({ ...newCustomer, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                        setIsPhoneVerified(false);
+                        if (formError) setFormError('');
+                      }}
+                      className={`${styles.formInput} ${formError && newCustomer.phone.length !== 10 ? styles.inputError : ''}`}
+                    />
+
+                    {/* Verified Pill or Send OTP Button */}
+                    {isPhoneVerified ? (
+                      <span className={styles.verifiedPhonePill}>
+                        <CheckCircle2 size={12} /> Verified
+                      </span>
+                    ) : (
+                      newCustomer.phone.length === 10 && !isOtpMode && (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isOtpSending}
+                          className={styles.sendOtpPillBtn}
+                        >
+                          <KeyRound size={12} />
+                          <span>{isOtpSending ? 'Sending...' : 'Verify with OTP'}</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. OTP Code Input Section (Visible when OTP Mode is active) */}
+                {isOtpMode && !isPhoneVerified && (
+                  <div className={styles.otpSectionBox}>
+                    <div className={styles.otpHeaderRow}>
+                      <span className={styles.otpPromptTitle}>
+                        <ShieldCheck size={14} color="#059669" />
+                        <span>Enter 6-Digit Verification Code</span>
+                      </span>
                       <button
                         type="button"
-                        onClick={() => setFormError('')}
-                        style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
+                        onClick={() => {
+                          setIsOtpMode(false);
+                          setFormError('');
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
                       >
-                        <X size={14} />
+                        Cancel
                       </button>
                     </div>
-                  )}
 
-                  <form onSubmit={handleRegisterCustomer} className={styles.formWrapper}>
-                    {/* 1. Full Name */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>
-                        <span>Full Name</span>
-                        <span style={{ color: '#dc2626' }}>*</span>
-                      </label>
-                      <div className={styles.inputIconWrap}>
-                        <Users size={15} className={styles.fieldIcon} />
+                    <div className={styles.otpInputsContainer}>
+                      {otpDigits.map((digit, idx) => (
                         <input
+                          key={idx}
+                          ref={(el) => (otpInputsRef.current[idx] = el)}
                           type="text"
-                          required
-                          placeholder="e.g. Rahul Kapoor"
-                          value={newCustomer.name}
-                          onChange={(e) => {
-                            setNewCustomer({ ...newCustomer, name: e.target.value });
-                            if (formError) setFormError('');
-                          }}
-                          className={`${styles.formInput} ${formError && !newCustomer.name.trim() ? styles.inputError : ''}`}
+                          maxLength={1}
+                          inputMode="numeric"
+                          value={digit}
+                          onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          className={styles.otpDigitInput}
                         />
-                      </div>
+                      ))}
                     </div>
 
-                    {/* 2. Mobile Number with OTP Verification trigger */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>
-                        <span>Mobile Number</span>
-                        <span style={{ color: '#dc2626' }}>* (10 Digits)</span>
-                      </label>
-                      <div className={styles.inputIconWrap}>
-                        <PhoneCall size={15} className={styles.fieldIcon} />
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          required
-                          maxLength={10}
-                          disabled={isPhoneVerified}
-                          placeholder="e.g. 9876543210"
-                          value={newCustomer.phone}
-                          onKeyDown={(e) => {
-                            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
-                              e.preventDefault();
-                            }
-                          }}
-                          onChange={(e) => {
-                            setNewCustomer({ ...newCustomer, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
-                            setIsPhoneVerified(false);
-                            if (formError) setFormError('');
-                          }}
-                          className={`${styles.formInput} ${formError && newCustomer.phone.length !== 10 ? styles.inputError : ''}`}
-                        />
-
-                        {/* Verified Pill or Send OTP Button */}
-                        {isPhoneVerified ? (
-                          <span className={styles.verifiedPhonePill}>
-                            <CheckCircle2 size={12} /> Verified
-                          </span>
+                    <div className={styles.otpActionsRow}>
+                      <div>
+                        {countdown > 0 ? (
+                          <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Resend in <strong>{countdown}s</strong></span>
                         ) : (
-                          newCustomer.phone.length === 10 && !isOtpMode && (
-                            <button
-                              type="button"
-                              onClick={handleSendOtp}
-                              disabled={isOtpSending}
-                              className={styles.sendOtpPillBtn}
-                            >
-                              <KeyRound size={12} />
-                              <span>{isOtpSending ? 'Sending...' : 'Verify with OTP'}</span>
-                            </button>
-                          )
+                          <button
+                            type="button"
+                            disabled={!canResend || isOtpSending}
+                            onClick={handleSendOtp}
+                            className={styles.resendBtn}
+                          >
+                            Resend OTP Code
+                          </button>
                         )}
                       </div>
-                    </div>
 
-                    {/* 3. OTP Code Input Section (Visible when OTP Mode is active) */}
-                    {isOtpMode && !isPhoneVerified && (
-                      <div className={styles.otpSectionBox}>
-                        <div className={styles.otpHeaderRow}>
-                          <span className={styles.otpPromptTitle}>
-                            <ShieldCheck size={14} color="#059669" />
-                            <span>Enter 6-Digit Verification Code</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsOtpMode(false);
-                              setFormError('');
-                            }}
-                            style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-
-                        <div className={styles.otpInputsContainer}>
-                          {otpDigits.map((digit, idx) => (
-                            <input
-                              key={idx}
-                              ref={(el) => (otpInputsRef.current[idx] = el)}
-                              type="text"
-                              maxLength={1}
-                              inputMode="numeric"
-                              value={digit}
-                              onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
-                              onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                              className={styles.otpDigitInput}
-                            />
-                          ))}
-                        </div>
-
-                        <div className={styles.otpActionsRow}>
-                          <div>
-                            {countdown > 0 ? (
-                              <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Resend in <strong>{countdown}s</strong></span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={!canResend || isOtpSending}
-                                onClick={handleSendOtp}
-                                className={styles.resendBtn}
-                              >
-                                Resend OTP Code
-                              </button>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={isOtpVerifying || otpDigits.join('').length < 6}
-                            onClick={handleConfirmOtp}
-                            className={styles.verifyOtpConfirmBtn}
-                          >
-                            <CheckCircle2 size={13} />
-                            <span>{isOtpVerifying ? 'Verifying...' : 'Confirm OTP'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 4. Email Address */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>
-                        <span>Email Address</span>
-                        <span style={{ color: '#94a3b8', fontWeight: '600' }}>Optional</span>
-                      </label>
-                      <div className={styles.inputIconWrap}>
-                        <Mail size={15} className={styles.fieldIcon} />
-                        <input
-                          type="email"
-                          placeholder="rahul@domain.com"
-                          value={newCustomer.email}
-                          onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                          className={styles.formInput}
-                        />
-                      </div>
-                    </div>
-
-                    {/* 5. Submit Button */}
-                    <button type="submit" disabled={isSubmitting} className={styles.submitBtn}>
-                      <Plus size={15} />
-                      <span>
-                        {isSubmitting
-                          ? 'Registering...'
-                          : isPhoneVerified
-                            ? 'Save Verified Customer Profile'
-                            : 'Register Customer Profile'}
-                      </span>
-                    </button>
-
-                    <div className={styles.infoBanner}>
-                      <Info size={15} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
-                      <p className={styles.infoText}>
-                        <strong>Smart Sync:</strong> Orders placed via Dine-in QR or POS Terminal using this mobile number will automatically sync to this CRM profile.
-                      </p>
-                    </div>
-                  </form>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Modal: Verify Customer Mobile via OTP ── */}
-          <AnimatePresence>
-            {verifyingCustomer && (
-              <div
-                className={styles.modalOverlay}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setVerifyingCustomer(null);
-                }}
-              >
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0, y: 15 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.95, opacity: 0, y: 15 }}
-                  transition={{ duration: 0.2 }}
-                  className={styles.modalContent}
-                >
-                  <div className={styles.modalHeader}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                      <ShieldCheck size={20} color="#059669" />
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
-                        Verify Customer Mobile
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setVerifyingCustomer(null)}
-                      className={styles.closeBtn}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  {/* Prominent Error Banner */}
-                  {verifyFormError && (
-                    <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
-                      <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                      <span>{verifyFormError}</span>
                       <button
                         type="button"
-                        onClick={() => setVerifyFormError('')}
-                        style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
+                        disabled={isOtpVerifying || otpDigits.join('').length < 6}
+                        onClick={handleConfirmOtp}
+                        className={styles.verifyOtpConfirmBtn}
                       >
-                        <X size={14} />
+                        <CheckCircle2 size={13} />
+                        <span>{isOtpVerifying ? 'Verifying...' : 'Confirm OTP'}</span>
                       </button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {/* Customer Snapshot Card */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                      <div
-                        className={styles.avatar}
-                        style={{ background: getAvatarGradient(verifyingCustomer.name), width: '40px', height: '40px', fontSize: '0.95rem' }}
-                      >
-                        {getInitials(verifyingCustomer.name)}
+                {/* 4. Email Address */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    <span>Email Address</span>
+                    <span style={{ color: '#94a3b8', fontWeight: '600' }}>Optional</span>
+                  </label>
+                  <div className={styles.inputIconWrap}>
+                    <Mail size={15} className={styles.fieldIcon} />
+                    <input
+                      type="email"
+                      placeholder="rahul@domain.com"
+                      value={newCustomer.email}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                      className={styles.formInput}
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Submit Button */}
+                <button type="submit" disabled={isSubmitting} className={styles.submitBtn}>
+                  <Plus size={15} />
+                  <span>
+                    {isSubmitting
+                      ? 'Registering...'
+                      : isPhoneVerified
+                        ? 'Save Verified Customer Profile'
+                        : 'Register Customer Profile'}
+                  </span>
+                </button>
+
+                <div className={styles.infoBanner}>
+                  <Info size={15} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <p className={styles.infoText}>
+                    <strong>Smart Sync:</strong> Orders placed via Dine-in QR or POS Terminal using this mobile number will automatically sync to this CRM profile.
+                  </p>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal: Verify Customer Mobile via OTP ── */}
+      <AnimatePresence>
+        {verifyingCustomer && (
+          <div
+            className={styles.modalOverlay}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setVerifyingCustomer(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className={styles.modalContent}
+            >
+              <div className={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                  <ShieldCheck size={20} color="#059669" />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
+                    Verify Customer Mobile
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setVerifyingCustomer(null)}
+                  className={styles.closeBtn}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Prominent Error Banner */}
+              {verifyFormError && (
+                <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{verifyFormError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setVerifyFormError('')}
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Customer Snapshot Card */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.85rem 1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                  <div
+                    className={styles.avatar}
+                    style={{ background: getAvatarGradient(verifyingCustomer.name), width: '40px', height: '40px', fontSize: '0.95rem' }}
+                  >
+                    {getInitials(verifyingCustomer.name)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
+                      {verifyingCustomer.name || 'Guest Diner'}
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 500, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      📱 +91 {verifyingCustomer.phone || 'Not Provided'}
+                    </span>
+                  </div>
+                </div>
+
+                {!verifyOtpMode ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '400', lineHeight: 1.4 }}>
+                      Send a 6-digit verification passcode (OTP) to <strong>+91 {verifyingCustomer.phone}</strong> to authenticate this guest.
+                    </p>
+
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      onClick={handleSendVerifyCustomerOtp}
+                      disabled={isVerifySending}
+                    >
+                      {isVerifySending ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Sending OTP Code...</span>
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound size={15} />
+                          <span>Send 6-Digit OTP to Customer</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', border: '1px solid #cbd5e1' }}
+                      onClick={handleDirectAdminVerify}
+                      disabled={isVerifyLoading}
+                    >
+                      <CheckCircle2 size={15} color="#059669" />
+                      <span>Instant Direct Verify (Counter / Manual)</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.otpSection}>
+                    <div className={styles.otpHeaderRow}>
+                      <div className={styles.otpLabel}>
+                        <KeyRound size={14} color="#059669" />
+                        <span>Enter 6-Digit OTP Code</span>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
-                          {verifyingCustomer.name || 'Guest Diner'}
-                        </span>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 500, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          📱 +91 {verifyingCustomer.phone || 'Not Provided'}
-                        </span>
-                      </div>
+                      <span className={styles.otpPhoneBadge}>+91 {verifyingCustomer.phone}</span>
                     </div>
 
-                    {!verifyOtpMode ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '400', lineHeight: 1.4 }}>
-                          Send a 6-digit verification passcode (OTP) to <strong>+91 {verifyingCustomer.phone}</strong> to authenticate this guest.
-                        </p>
+                    <div className={styles.otpInputsWrap}>
+                      {verifyOtpDigits.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          ref={el => verifyOtpInputsRef.current[idx] = el}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleVerifyOtpDigitChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleVerifyOtpKeyDown(idx, e)}
+                          className={styles.otpDigitInput}
+                          autoFocus={idx === 0}
+                        />
+                      ))}
+                    </div>
 
-                        <button
-                          type="button"
-                          className={styles.submitBtn}
-                          onClick={handleSendVerifyCustomerOtp}
-                          disabled={isVerifySending}
-                        >
-                          {isVerifySending ? (
-                            <>
-                              <RefreshCw size={14} className="animate-spin" />
-                              <span>Sending OTP Code...</span>
-                            </>
-                          ) : (
-                            <>
-                              <KeyRound size={15} />
-                              <span>Send 6-Digit OTP to Customer</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          className={styles.btnSecondary}
-                          style={{ width: '100%', justifyContent: 'center', padding: '0.65rem', border: '1px solid #cbd5e1' }}
-                          onClick={handleDirectAdminVerify}
-                          disabled={isVerifyLoading}
-                        >
-                          <CheckCircle2 size={15} color="#059669" />
-                          <span>Instant Direct Verify (Counter / Manual)</span>
-                        </button>
+                    <div className={styles.otpActionsRow}>
+                      <div>
+                        {verifyCountdown > 0 ? (
+                          <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Resend in <strong>{verifyCountdown}s</strong></span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!verifyCanResend || isVerifySending}
+                            onClick={handleSendVerifyCustomerOtp}
+                            className={styles.resendBtn}
+                          >
+                            Resend OTP Code
+                          </button>
+                        )}
                       </div>
-                    ) : (
-                      <div className={styles.otpSection}>
-                        <div className={styles.otpHeaderRow}>
-                          <div className={styles.otpLabel}>
-                            <KeyRound size={14} color="#059669" />
-                            <span>Enter 6-Digit OTP Code</span>
-                          </div>
-                          <span className={styles.otpPhoneBadge}>+91 {verifyingCustomer.phone}</span>
+
+                      <button
+                        type="button"
+                        disabled={isVerifyLoading || verifyOtpDigits.join('').length < 6}
+                        onClick={handleConfirmVerifyCustomerOtp}
+                        className={styles.verifyOtpConfirmBtn}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>{isVerifyLoading ? 'Verifying...' : 'Confirm OTP'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Right Slide-Over Side Drawer: Customer 360° Profile & Date-Grouped Timeline ── */}
+      <AnimatePresence>
+        {selectedCustomer && (
+          <div
+            className={styles.drawerOverlay}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedCustomer(null);
+            }}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className={styles.drawerPanel}
+            >
+              {/* Drawer Header */}
+              <div className={styles.drawerHeader}>
+                <div className={styles.drawerProfile}>
+                  <div
+                    className={styles.drawerAvatar}
+                    style={{ background: getAvatarGradient(selectedCustomer.name) }}
+                  >
+                    {getInitials(selectedCustomer.name)}
+                  </div>
+                  <div>
+                    <div className={styles.drawerName}>
+                      <span>{selectedCustomer.name}</span>
+                    </div>
+                    <div className={styles.drawerContactRow}>
+                      <span>📞 {selectedCustomer.phone}</span>
+                      <span>•</span>
+                      {selectedCustomer.isPhoneVerified ? (
+                        <span className={styles.drawerVerifiedText}>✅ Verified</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.drawerVerifyTrigger}
+                          onClick={() => handleOpenVerifyModal(selectedCustomer)}
+                          title="Click to Verify Customer Mobile"
+                        >
+                          ❌ Unverified
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.quickActionBtns}>
+                  {selectedCustomer.phone && selectedCustomer.phone !== 'Not Provided' && (
+                    <>
+                      <a
+                        href={`https://wa.me/91${selectedCustomer.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.contactIconBtn}
+                        title="Chat on WhatsApp"
+                      >
+                        <MessageSquare size={14} color="#16a34a" />
+                      </a>
+                      <a
+                        href={`tel:${selectedCustomer.phone}`}
+                        className={styles.contactIconBtn}
+                        title="Call Customer"
+                      >
+                        <Phone size={14} />
+                      </a>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setSelectedCustomer(null)}
+                    className={styles.closeDrawerBtn}
+                    title="Close Drawer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawer Body */}
+              <div className={styles.drawerBody}>
+                {/* Metrics Summary Strip (Excluding Cancelled Orders) */}
+                {(() => {
+                  const validDrawerOrders = (selectedCustomer.orders || []).filter(o => o.status !== 'cancelled');
+                  const activeVisits = (selectedCustomer.orders && selectedCustomer.orders.length > 0)
+                    ? validDrawerOrders.length
+                    : (Number(selectedCustomer.totalVisits) || 1);
+                  const activeSpend = (selectedCustomer.orders && selectedCustomer.orders.length > 0)
+                    ? validDrawerOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
+                    : (Number(selectedCustomer.lifetimeSpend) || 0);
+                  const activeAov = activeVisits > 0 ? Math.round(activeSpend / activeVisits) : 0;
+
+                  return (
+                    <div className={styles.drawerMetricsGrid}>
+                      <div>
+                        <div className={styles.drawerMetricLabel}>Total Visits</div>
+                        <div className={styles.drawerMetricVal}>
+                          {activeVisits}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={styles.drawerMetricLabel}>Lifetime Spend</div>
+                        <div className={styles.drawerMetricVal} style={{ color: '#059669' }}>
+                          {formatCurrency(activeSpend)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={styles.drawerMetricLabel}>Avg Bill Value (AOV)</div>
+                        <div className={styles.drawerMetricVal}>
+                          {formatCurrency(activeAov)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 🎁 Instant WhatsApp Festival & Offer Section */}
+                <div style={{ margin: '14px 0', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Sparkles size={14} color="#16a34a" /> Instant WhatsApp Offer & Festival Send
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    {CAMPAIGN_TEMPLATES.slice(0, 6).map(t => (
+                      <a
+                        key={t.id}
+                        href={getCustomerWhatsappUrl(selectedCustomer, t.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          color: '#334155',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <span>{t.icon}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 📅 Date-Grouped Order History Timeline */}
+                <div className={styles.timelineSection}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: '600', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={15} color="#059669" />
+                      <span>Order History Timeline ({selectedCustomer.orders?.length || 0})</span>
+                    </h4>
+                  </div>
+
+                  {(!selectedCustomer.orders || selectedCustomer.orders.length === 0) ? (
+                    <div className={styles.emptyState} style={{ padding: '2rem 1rem' }}>
+                      <Receipt size={30} />
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '400' }}>
+                        No past order records found for this guest.
+                      </p>
+                    </div>
+                  ) : (
+                    Object.entries(groupedOrders).map(([dateLabel, dateOrders]) => (
+                      <div key={dateLabel} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {/* Date Header Badge */}
+                        <div className={styles.dateGroupHeader}>
+                          <Calendar size={13} color="#059669" />
+                          <span>{dateLabel}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: 'auto', fontWeight: '500' }}>
+                            {dateOrders.length} {dateOrders.length === 1 ? 'order' : 'orders'}
+                          </span>
                         </div>
 
-                        <div className={styles.otpInputsWrap}>
-                          {verifyOtpDigits.map((digit, idx) => (
-                            <input
-                              key={idx}
-                              ref={el => verifyOtpInputsRef.current[idx] = el}
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={1}
-                              value={digit}
-                              onChange={(e) => handleVerifyOtpDigitChange(idx, e.target.value)}
-                              onKeyDown={(e) => handleVerifyOtpKeyDown(idx, e)}
-                              className={styles.otpDigitInput}
-                              autoFocus={idx === 0}
-                            />
-                          ))}
-                        </div>
+                        {/* Orders under this date */}
+                        <div className={styles.dateGroupOrders}>
+                          {dateOrders.map((ord, idx) => {
+                            const isCancelled = (ord.status || '').toLowerCase() === 'cancelled';
+                            const isCompleted = ['completed', 'served'].includes((ord.status || '').toLowerCase());
+                            const amountColor = isCancelled ? '#dc2626' : (isCompleted ? '#059669' : '#0f172a');
 
-                        <div className={styles.otpActionsRow}>
-                          <div>
-                            {verifyCountdown > 0 ? (
-                              <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Resend in <strong>{verifyCountdown}s</strong></span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={!verifyCanResend || isVerifySending}
-                                onClick={handleSendVerifyCustomerOtp}
-                                className={styles.resendBtn}
+                            return (
+                              <div
+                                key={ord._id || idx}
+                                className={styles.orderCardDrawer}
+                                style={isCancelled ? { borderColor: '#fca5a5', background: '#fffafa' } : {}}
                               >
-                                Resend OTP Code
-                              </button>
+                                <div className={styles.orderCardHeader}>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <span className={styles.orderNumber}>
+                                      Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
+                                    </span>
+                                    <span className={styles.tableTag}>
+                                      {ord.tableNumber ? formatTableBadge(ord.tableNumber) : (ord.orderType || 'Dine-In')}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={styles.orderAmount}
+                                    style={{
+                                      color: amountColor,
+                                      textDecoration: isCancelled ? 'line-through' : 'none'
+                                    }}
+                                  >
+                                    {formatCurrency(ord.settledAmount || ord.finalAmount || ord.totalAmount || ord.total || 0)}
+                                  </span>
+                                </div>
+
+                                <div className={styles.orderMetaRow}>
+                                  <span>{new Date(ord.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                  <span>•</span>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    Status:{' '}
+                                    <strong style={{
+                                      textTransform: 'capitalize',
+                                      color: isCancelled ? '#dc2626' : (isCompleted ? '#059669' : '#0f172a'),
+                                      background: isCancelled ? '#fef2f2' : (isCompleted ? '#f0fdf4' : '#f1f5f9'),
+                                      border: `1px solid ${isCancelled ? '#fecaca' : (isCompleted ? '#bbf7d0' : '#e2e8f0')}`,
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.74rem'
+                                    }}>
+                                      {ord.status || 'completed'}
+                                    </strong>
+                                  </span>
+                                  {ord.paymentMethod && (
+                                    <>
+                                      <span>•</span>
+                                      <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '500' }}>
+                                        {ord.paymentMethod}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Items list */}
+                                {ord.items && ord.items.length > 0 && (
+                                  <div className={styles.itemsContainer}>
+                                    {ord.items.map((it, itIdx) => (
+                                      <div key={itIdx} className={styles.itemRow}>
+                                        <span>{it.quantity}x {it.name || it.item?.name || 'Menu Item'}</span>
+                                        <span style={{ fontWeight: '600' }}>₹{(it.price || 0) * (it.quantity || 1)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Filter & Search Modal Popup ── */}
+      <AnimatePresence>
+        {isFilterModalOpen && (
+          <div className={styles.filterModalOverlay} onClick={() => setIsFilterModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className={styles.filterModalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.filterModalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Filter size={16} color="#2563eb" />
+                  <h3 className={styles.filterModalTitle}>Filter Customers</h3>
+                  {activeFilterCount > 0 && (
+                    <span className={styles.filterBadgeCount}>{activeFilterCount} active</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className={styles.modalCloseBtn}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className={styles.filterModalBody}>
+                {/* Search Field */}
+                <div className={styles.filterGroup}>
+                  <label className={styles.filterLabel}>Search Guests</label>
+                  <div className={styles.modalSearchWrap}>
+                    <Search size={14} color="#94a3b8" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or mobile number..."
+                      value={draftSearchQuery}
+                      onChange={(e) => setDraftSearchQuery(e.target.value)}
+                      className={styles.modalSearchInput}
+                    />
+                    {draftSearchQuery && (
+                      <button type="button" onClick={() => setDraftSearchQuery('')} className={styles.clearBtn}>
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.filterGrid}>
+                  {/* Segment Tab */}
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Guest Segment</label>
+                    <select
+                      value={draftActiveTab}
+                      onChange={(e) => setDraftActiveTab(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Guests ({tabCounts.all})</option>
+                      <option value="repeat">Repeat Diners (2+) ({tabCounts.repeat})</option>
+                      <option value="single">Single Visit ({tabCounts.single})</option>
+                      {tabCounts.inactive > 0 && (
+                        <option value="inactive">Inactive (&gt;30d) ({tabCounts.inactive})</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Verification Status */}
+                  <div className={styles.filterGroup}>
+                    <label className={styles.filterLabel}>Verification Status</label>
+                    <select
+                      value={draftVerificationFilter}
+                      onChange={(e) => setDraftVerificationFilter(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="all">All Verification</option>
+                      <option value="verified">Verified Only</option>
+                      <option value="unverified">Unverified Only</option>
+                    </select>
+                  </div>
+
+                  {/* Sorting */}
+                  <div className={styles.filterGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.filterLabel}>Sort By</label>
+                    <select
+                      value={draftSortBy}
+                      onChange={(e) => setDraftSortBy(e.target.value)}
+                      className={styles.modalSelectField}
+                    >
+                      <option value="recent_visit">Recent Visit Date</option>
+                      <option value="highest_spend">Highest Lifetime Spend</option>
+                      <option value="highest_aov">Highest Average Order Value (AOV)</option>
+                      <option value="total_visits">Total Visit Frequency</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.filterModalFooter}>
+                <button
+                  type="button"
+                  onClick={handleResetDraftFilters}
+                  className={styles.filterResetBtn}
+                >
+                  Reset Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyFilter}
+                  className={styles.filterApplyBtn}
+                >
+                  Apply Filter
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 📢 Floating Bulk Action Bar */}
+      {selectedCustomerIds.length > 0 && (
+        <div className={styles.floatingActionBar}>
+          <span>📢 <strong>{selectedCustomerIds.length}</strong> customer{selectedCustomerIds.length > 1 ? 's' : ''} selected</span>
+          <button
+            type="button"
+            className={styles.floatingActionBtn}
+            onClick={() => {
+              setBroadcastQueueIndex(0);
+              setIsCampaignModalOpen(true);
+            }}
+          >
+            <Send size={14} /> Send WhatsApp Offer / Festival
+          </button>
+          <button
+            type="button"
+            className={styles.floatingClearBtn}
+            onClick={() => setSelectedCustomerIds([])}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* 🪔 WhatsApp Offer & Festival Campaign Modal */}
+      <AnimatePresence>
+        {isCampaignModalOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsCampaignModalOpen(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className={styles.campaignModal}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className={styles.modalHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={18} color="#16a34a" />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    WhatsApp Festival & Offer Campaign
+                  </h3>
+                </div>
+                <button onClick={() => setIsCampaignModalOpen(false)} className={styles.closeBtn}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div style={{ padding: '20px', overflowY: 'auto' }}>
+                {/* Target Audience Pill */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 600 }}>Target Audience:</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '2px 10px', borderRadius: '20px' }}>
+                    {selectedCustomersList.length} Selected Customer{selectedCustomersList.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* Template Selector */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>
+                    Select Festival / Offer Template:
+                  </label>
+                  <div className={styles.templatePillGrid}>
+                    {CAMPAIGN_TEMPLATES.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className={`${styles.templatePill} ${selectedCampaignTemplate === t.id ? styles.templatePillActive : ''}`}
+                        onClick={() => setSelectedCampaignTemplate(t.id)}
+                      >
+                        <span>{t.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Message Body Editor (Editable for all templates) */}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                    Message Body (Customize greetings or offer — placeholders: {'{name}'}, {'{cafe}'}):
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editableCampaignMessage}
+                    onChange={(e) => setEditableCampaignMessage(e.target.value)}
+                    placeholder="Write or customize campaign message..."
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* Live WhatsApp Preview */}
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>
+                  WhatsApp Message Preview:
+                </label>
+                <div className={styles.whatsappPreviewBox}>
+                  <div className={styles.whatsappBubble}>
+                    {getFormattedCampaignMessage(
+                      selectedCampaignTemplate,
+                      selectedCustomersList[broadcastQueueIndex] || selectedCustomersList[0] || { name: 'Rahul' }
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'right', marginTop: 4 }}>
+                    12:30 PM • WhatsApp Preview
+                  </div>
+                </div>
+
+                {/* Broadcast Queue & Send Controls */}
+                {selectedCustomersList.length > 0 && (
+                  <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: '0.8rem' }}>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                        Customer Queue ({broadcastQueueIndex + 1} of {selectedCustomersList.length}):
+                      </span>
+                      <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                        {sentBroadcastIds.size} Sent
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className={styles.queueProgressBar}>
+                      <div
+                        className={styles.queueProgressFill}
+                        style={{ width: `${Math.round(((broadcastQueueIndex) / selectedCustomersList.length) * 100)}%` }}
+                      />
+                    </div>
+
+                    {(() => {
+                      const currentCust = selectedCustomersList[broadcastQueueIndex] || selectedCustomersList[0];
+                      const hasPhone = currentCust?.phone && currentCust.phone !== 'Not Provided';
+                      const isSent = currentCust ? sentBroadcastIds.has(currentCust._id || currentCust.phone) : false;
+
+                      return (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                                {currentCust?.name || 'Guest Diner'}
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                📞 {currentCust?.phone || 'No phone number'}
+                              </div>
+                            </div>
+                            {isSent && (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '12px' }}>
+                                ✅ Sent
+                              </span>
                             )}
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={isVerifyLoading || verifyOtpDigits.join('').length < 6}
-                            onClick={handleConfirmVerifyCustomerOtp}
-                            className={styles.verifyOtpConfirmBtn}
-                          >
-                            <CheckCircle2 size={13} />
-                            <span>{isVerifyLoading ? 'Verifying...' : 'Confirm OTP'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Right Slide-Over Side Drawer: Customer 360° Profile & Date-Grouped Timeline ── */}
-          <AnimatePresence>
-            {selectedCustomer && (
-              <div
-                className={styles.drawerOverlay}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setSelectedCustomer(null);
-                }}
-              >
-                <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                  className={styles.drawerPanel}
-                >
-                  {/* Drawer Header */}
-                  <div className={styles.drawerHeader}>
-                    <div className={styles.drawerProfile}>
-                      <div
-                        className={styles.drawerAvatar}
-                        style={{ background: getAvatarGradient(selectedCustomer.name) }}
-                      >
-                        {getInitials(selectedCustomer.name)}
-                      </div>
-                      <div>
-                        <div className={styles.drawerName}>
-                          <span>{selectedCustomer.name}</span>
-                        </div>
-                        <div className={styles.drawerContactRow}>
-                          <span>📞 {selectedCustomer.phone}</span>
-                          <span>•</span>
-                          {selectedCustomer.isPhoneVerified ? (
-                            <span className={styles.drawerVerifiedText}>✅ Verified</span>
-                          ) : (
+                          <div style={{ display: 'flex', gap: '8px' }}>
                             <button
                               type="button"
-                              className={styles.drawerVerifyTrigger}
-                              onClick={() => handleOpenVerifyModal(selectedCustomer)}
-                              title="Click to Verify Customer Mobile"
+                              disabled={!hasPhone}
+                              onClick={() => {
+                                const url = getCustomerWhatsappUrl(currentCust, selectedCampaignTemplate);
+                                if (url && url !== '#') {
+                                  window.open(url, '_blank', 'noopener,noreferrer');
+                                  setSentBroadcastIds(prev => new Set([...prev, currentCust._id || currentCust.phone]));
+                                  toast.success(`WhatsApp opened for ${currentCust.name || 'guest'}!`);
+                                  if (broadcastQueueIndex < selectedCustomersList.length - 1) {
+                                    setBroadcastQueueIndex(i => i + 1);
+                                  }
+                                }
+                              }}
+                              style={{
+                                flex: 2,
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: '#16a34a',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: hasPhone ? 'pointer' : 'not-allowed',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
                             >
-                              ❌ Unverified
+                              <MessageSquare size={16} />
+                              {selectedCustomersList.length > 1
+                                ? `Send to ${currentCust?.name?.split(' ')[0] || 'Guest'} & Next ➡️`
+                                : `Send on WhatsApp 💬`}
                             </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className={styles.quickActionBtns}>
-                      {selectedCustomer.phone && selectedCustomer.phone !== 'Not Provided' && (
-                        <>
-                          <a
-                            href={`https://wa.me/91${selectedCustomer.phone.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={styles.contactIconBtn}
-                            title="Chat on WhatsApp"
-                          >
-                            <MessageSquare size={14} color="#16a34a" />
-                          </a>
-                          <a
-                            href={`tel:${selectedCustomer.phone}`}
-                            className={styles.contactIconBtn}
-                            title="Call Customer"
-                          >
-                            <Phone size={14} />
-                          </a>
-                        </>
-                      )}
-                      <button
-                        onClick={() => setSelectedCustomer(null)}
-                        className={styles.closeDrawerBtn}
-                        title="Close Drawer"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Drawer Body */}
-                  <div className={styles.drawerBody}>
-                    {/* Metrics Summary Strip (Excluding Cancelled Orders) */}
-                    {(() => {
-                      const validDrawerOrders = (selectedCustomer.orders || []).filter(o => o.status !== 'cancelled');
-                      const activeVisits = (selectedCustomer.orders && selectedCustomer.orders.length > 0)
-                        ? validDrawerOrders.length
-                        : (Number(selectedCustomer.totalVisits) || 1);
-                      const activeSpend = (selectedCustomer.orders && selectedCustomer.orders.length > 0)
-                        ? validDrawerOrders.reduce((sum, o) => sum + Number(o.settledAmount || o.finalAmount || o.totalAmount || o.total || 0), 0)
-                        : (Number(selectedCustomer.lifetimeSpend) || 0);
-                      const activeAov = activeVisits > 0 ? Math.round(activeSpend / activeVisits) : 0;
-
-                      return (
-                        <div className={styles.drawerMetricsGrid}>
-                          <div>
-                            <div className={styles.drawerMetricLabel}>Total Visits</div>
-                            <div className={styles.drawerMetricVal}>
-                              {activeVisits}
-                            </div>
-                          </div>
-                          <div>
-                            <div className={styles.drawerMetricLabel}>Lifetime Spend</div>
-                            <div className={styles.drawerMetricVal} style={{ color: '#059669' }}>
-                              {formatCurrency(activeSpend)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className={styles.drawerMetricLabel}>Avg Bill Value (AOV)</div>
-                            <div className={styles.drawerMetricVal}>
-                              {formatCurrency(activeAov)}
-                            </div>
+                            {selectedCustomersList.length > 1 && broadcastQueueIndex < selectedCustomersList.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setBroadcastQueueIndex(i => i + 1)}
+                                style={{
+                                  flex: 1,
+                                  padding: '10px 12px',
+                                  borderRadius: '8px',
+                                  border: '1px solid #cbd5e1',
+                                  background: '#ffffff',
+                                  color: '#475569',
+                                  fontWeight: 700,
+                                  fontSize: '0.82rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Skip ⏩
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
                     })()}
-
-                    {/* 🎁 Instant WhatsApp Festival & Offer Section */}
-                    <div style={{ margin: '14px 0', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <Sparkles size={14} color="#16a34a" /> Instant WhatsApp Offer & Festival Send
-                        </span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                        {CAMPAIGN_TEMPLATES.slice(0, 6).map(t => (
-                          <a
-                            key={t.id}
-                            href={getCustomerWhatsappUrl(selectedCustomer, t.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '6px 8px',
-                              borderRadius: '6px',
-                              background: '#ffffff',
-                              border: '1px solid #cbd5e1',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              color: '#334155',
-                              textDecoration: 'none'
-                            }}
-                          >
-                            <span>{t.icon}</span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 📅 Date-Grouped Order History Timeline */}
-                    <div className={styles.timelineSection}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h4 style={{ fontSize: '0.92rem', fontWeight: '600', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={15} color="#059669" />
-                          <span>Order History Timeline ({selectedCustomer.orders?.length || 0})</span>
-                        </h4>
-                      </div>
-
-                      {(!selectedCustomer.orders || selectedCustomer.orders.length === 0) ? (
-                        <div className={styles.emptyState} style={{ padding: '2rem 1rem' }}>
-                          <Receipt size={30} />
-                          <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', fontWeight: '400' }}>
-                            No past order records found for this guest.
-                          </p>
-                        </div>
-                      ) : (
-                        Object.entries(groupedOrders).map(([dateLabel, dateOrders]) => (
-                          <div key={dateLabel} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {/* Date Header Badge */}
-                            <div className={styles.dateGroupHeader}>
-                              <Calendar size={13} color="#059669" />
-                              <span>{dateLabel}</span>
-                              <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: 'auto', fontWeight: '500' }}>
-                                {dateOrders.length} {dateOrders.length === 1 ? 'order' : 'orders'}
-                              </span>
-                            </div>
-
-                            {/* Orders under this date */}
-                            <div className={styles.dateGroupOrders}>
-                              {dateOrders.map((ord, idx) => {
-                                const isCancelled = (ord.status || '').toLowerCase() === 'cancelled';
-                                const isCompleted = ['completed', 'served'].includes((ord.status || '').toLowerCase());
-                                const amountColor = isCancelled ? '#dc2626' : (isCompleted ? '#059669' : '#0f172a');
-
-                                return (
-                                  <div
-                                    key={ord._id || idx}
-                                    className={styles.orderCardDrawer}
-                                    style={isCancelled ? { borderColor: '#fca5a5', background: '#fffafa' } : {}}
-                                  >
-                                    <div className={styles.orderCardHeader}>
-                                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span className={styles.orderNumber}>
-                                          Order #{ord.orderNumber || ord._id?.slice(-6) || idx + 1}
-                                        </span>
-                                        <span className={styles.tableTag}>
-                                          {ord.tableNumber ? formatTableBadge(ord.tableNumber) : (ord.orderType || 'Dine-In')}
-                                        </span>
-                                      </div>
-                                      <span
-                                        className={styles.orderAmount}
-                                        style={{
-                                          color: amountColor,
-                                          textDecoration: isCancelled ? 'line-through' : 'none'
-                                        }}
-                                      >
-                                        {formatCurrency(ord.settledAmount || ord.finalAmount || ord.totalAmount || ord.total || 0)}
-                                      </span>
-                                    </div>
-
-                                    <div className={styles.orderMetaRow}>
-                                      <span>{new Date(ord.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                                      <span>•</span>
-                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                        Status:{' '}
-                                        <strong style={{
-                                          textTransform: 'capitalize',
-                                          color: isCancelled ? '#dc2626' : (isCompleted ? '#059669' : '#0f172a'),
-                                          background: isCancelled ? '#fef2f2' : (isCompleted ? '#f0fdf4' : '#f1f5f9'),
-                                          border: `1px solid ${isCancelled ? '#fecaca' : (isCompleted ? '#bbf7d0' : '#e2e8f0')}`,
-                                          padding: '1px 6px',
-                                          borderRadius: '4px',
-                                          fontSize: '0.74rem'
-                                        }}>
-                                          {ord.status || 'completed'}
-                                        </strong>
-                                      </span>
-                                      {ord.paymentMethod && (
-                                        <>
-                                          <span>•</span>
-                                          <span style={{ textTransform: 'uppercase', fontSize: '0.68rem', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px', fontWeight: '500' }}>
-                                            {ord.paymentMethod}
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-
-                                  {/* Items list */}
-                                  {ord.items && ord.items.length > 0 && (
-                                    <div className={styles.itemsContainer}>
-                                      {ord.items.map((it, itIdx) => (
-                                        <div key={itIdx} className={styles.itemRow}>
-                                          <span>{it.quantity}x {it.name || it.item?.name || 'Menu Item'}</span>
-                                          <span style={{ fontWeight: '600' }}>₹{(it.price || 0) * (it.quantity || 1)}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
                   </div>
-                </motion.div>
+                )}
               </div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Filter & Search Modal Popup ── */}
-          <AnimatePresence>
-            {isFilterModalOpen && (
-              <div className={styles.filterModalOverlay} onClick={() => setIsFilterModalOpen(false)}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className={styles.filterModalCard}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className={styles.filterModalHeader}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Filter size={16} color="#2563eb" />
-                      <h3 className={styles.filterModalTitle}>Filter Customers</h3>
-                      {activeFilterCount > 0 && (
-                        <span className={styles.filterBadgeCount}>{activeFilterCount} active</span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsFilterModalOpen(false)}
-                      className={styles.modalCloseBtn}
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-
-                  <div className={styles.filterModalBody}>
-                    {/* Search Field */}
-                    <div className={styles.filterGroup}>
-                      <label className={styles.filterLabel}>Search Guests</label>
-                      <div className={styles.modalSearchWrap}>
-                        <Search size={14} color="#94a3b8" />
-                        <input
-                          type="text"
-                          placeholder="Search by name or mobile number..."
-                          value={draftSearchQuery}
-                          onChange={(e) => setDraftSearchQuery(e.target.value)}
-                          className={styles.modalSearchInput}
-                        />
-                        {draftSearchQuery && (
-                          <button type="button" onClick={() => setDraftSearchQuery('')} className={styles.clearBtn}>
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className={styles.filterGrid}>
-                      {/* Segment Tab */}
-                      <div className={styles.filterGroup}>
-                        <label className={styles.filterLabel}>Guest Segment</label>
-                        <select
-                          value={draftActiveTab}
-                          onChange={(e) => setDraftActiveTab(e.target.value)}
-                          className={styles.modalSelectField}
-                        >
-                          <option value="all">All Guests ({tabCounts.all})</option>
-                          <option value="repeat">Repeat Diners (2+) ({tabCounts.repeat})</option>
-                          <option value="single">Single Visit ({tabCounts.single})</option>
-                          {tabCounts.inactive > 0 && (
-                            <option value="inactive">Inactive (&gt;30d) ({tabCounts.inactive})</option>
-                          )}
-                        </select>
-                      </div>
-
-                      {/* Verification Status */}
-                      <div className={styles.filterGroup}>
-                        <label className={styles.filterLabel}>Verification Status</label>
-                        <select
-                          value={draftVerificationFilter}
-                          onChange={(e) => setDraftVerificationFilter(e.target.value)}
-                          className={styles.modalSelectField}
-                        >
-                          <option value="all">All Verification</option>
-                          <option value="verified">Verified Only</option>
-                          <option value="unverified">Unverified Only</option>
-                        </select>
-                      </div>
-
-                      {/* Sorting */}
-                      <div className={styles.filterGroup} style={{ gridColumn: '1 / -1' }}>
-                        <label className={styles.filterLabel}>Sort By</label>
-                        <select
-                          value={draftSortBy}
-                          onChange={(e) => setDraftSortBy(e.target.value)}
-                          className={styles.modalSelectField}
-                        >
-                          <option value="recent_visit">Recent Visit Date</option>
-                          <option value="highest_spend">Highest Lifetime Spend</option>
-                          <option value="highest_aov">Highest Average Order Value (AOV)</option>
-                          <option value="total_visits">Total Visit Frequency</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.filterModalFooter}>
-                    <button
-                      type="button"
-                      onClick={handleResetDraftFilters}
-                      className={styles.filterResetBtn}
-                    >
-                      Reset Filters
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyFilter}
-                      className={styles.filterApplyBtn}
-                    >
-                      Apply Filter
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-
-          {/* 📢 Floating Bulk Action Bar */}
-          {selectedCustomerIds.length > 0 && (
-            <div className={styles.floatingActionBar}>
-              <span>📢 <strong>{selectedCustomerIds.length}</strong> customer{selectedCustomerIds.length > 1 ? 's' : ''} selected</span>
-              <button
-                type="button"
-                className={styles.floatingActionBtn}
-                onClick={() => {
-                  setBroadcastQueueIndex(0);
-                  setIsCampaignModalOpen(true);
-                }}
-              >
-                <Send size={14} /> Send WhatsApp Offer / Festival
-              </button>
-              <button
-                type="button"
-                className={styles.floatingClearBtn}
-                onClick={() => setSelectedCustomerIds([])}
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
-          {/* 🪔 WhatsApp Offer & Festival Campaign Modal */}
-          <AnimatePresence>
-            {isCampaignModalOpen && (
-              <div className={styles.modalOverlay} onClick={() => setIsCampaignModalOpen(false)}>
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0, y: 15 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.95, opacity: 0, y: 15 }}
-                  className={styles.campaignModal}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Modal Header */}
-                  <div className={styles.modalHeader}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Sparkles size={18} color="#16a34a" />
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                        WhatsApp Festival & Offer Campaign
-                      </h3>
-                    </div>
-                    <button onClick={() => setIsCampaignModalOpen(false)} className={styles.closeBtn}>
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div style={{ padding: '20px', overflowY: 'auto' }}>
-                    {/* Target Audience Pill */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 600 }}>Target Audience:</span>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '2px 10px', borderRadius: '20px' }}>
-                        {selectedCustomersList.length} Selected Customer{selectedCustomersList.length > 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    {/* Template Selector */}
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>
-                        Select Festival / Offer Template:
-                      </label>
-                      <div className={styles.templatePillGrid}>
-                        {CAMPAIGN_TEMPLATES.map(t => (
-                          <button
-                            key={t.id}
-                            type="button"
-                            className={`${styles.templatePill} ${selectedCampaignTemplate === t.id ? styles.templatePillActive : ''}`}
-                            onClick={() => setSelectedCampaignTemplate(t.id)}
-                          >
-                            <span>{t.title}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Message Body Editor (Editable for all templates) */}
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                        Message Body (Customize greetings or offer — placeholders: {'{name}'}, {'{cafe}'}):
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={editableCampaignMessage}
-                        onChange={(e) => setEditableCampaignMessage(e.target.value)}
-                        placeholder="Write or customize campaign message..."
-                        style={{
-                          width: '100%',
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          fontSize: '0.82rem',
-                          outline: 'none',
-                          boxSizing: 'border-box',
-                          fontFamily: 'inherit'
-                        }}
-                      />
-                    </div>
-
-                    {/* Live WhatsApp Preview */}
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>
-                      WhatsApp Message Preview:
-                    </label>
-                    <div className={styles.whatsappPreviewBox}>
-                      <div className={styles.whatsappBubble}>
-                        {getFormattedCampaignMessage(
-                          selectedCampaignTemplate,
-                          selectedCustomersList[broadcastQueueIndex] || selectedCustomersList[0] || { name: 'Rahul' }
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'right', marginTop: 4 }}>
-                        12:30 PM • WhatsApp Preview
-                      </div>
-                    </div>
-
-                    {/* Broadcast Queue & Send Controls */}
-                    {selectedCustomersList.length > 0 && (
-                      <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: '0.8rem' }}>
-                          <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                            Customer Queue ({broadcastQueueIndex + 1} of {selectedCustomersList.length}):
-                          </span>
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                            {sentBroadcastIds.size} Sent
-                          </span>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className={styles.queueProgressBar}>
-                          <div
-                            className={styles.queueProgressFill}
-                            style={{ width: `${Math.round(((broadcastQueueIndex) / selectedCustomersList.length) * 100)}%` }}
-                          />
-                        </div>
-
-                        {(() => {
-                          const currentCust = selectedCustomersList[broadcastQueueIndex] || selectedCustomersList[0];
-                          const hasPhone = currentCust?.phone && currentCust.phone !== 'Not Provided';
-                          const isSent = currentCust ? sentBroadcastIds.has(currentCust._id || currentCust.phone) : false;
-
-                          return (
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                <div>
-                                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
-                                    {currentCust?.name || 'Guest Diner'}
-                                  </div>
-                                  <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                                    📞 {currentCust?.phone || 'No phone number'}
-                                  </div>
-                                </div>
-                                {isSent && (
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '12px' }}>
-                                    ✅ Sent
-                                  </span>
-                                )}
-                              </div>
-
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button
-                                  type="button"
-                                  disabled={!hasPhone}
-                                  onClick={() => {
-                                    const url = getCustomerWhatsappUrl(currentCust, selectedCampaignTemplate);
-                                    if (url && url !== '#') {
-                                      window.open(url, '_blank', 'noopener,noreferrer');
-                                      setSentBroadcastIds(prev => new Set([...prev, currentCust._id || currentCust.phone]));
-                                      toast.success(`WhatsApp opened for ${currentCust.name || 'guest'}!`);
-                                      if (broadcastQueueIndex < selectedCustomersList.length - 1) {
-                                        setBroadcastQueueIndex(i => i + 1);
-                                      }
-                                    }
-                                  }}
-                                  style={{
-                                    flex: 2,
-                                    padding: '10px 14px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: '#16a34a',
-                                    color: '#ffffff',
-                                    fontWeight: 800,
-                                    fontSize: '0.85rem',
-                                    cursor: hasPhone ? 'pointer' : 'not-allowed',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px'
-                                  }}
-                                >
-                                  <MessageSquare size={16} />
-                                  {selectedCustomersList.length > 1
-                                    ? `Send to ${currentCust?.name?.split(' ')[0] || 'Guest'} & Next ➡️`
-                                    : `Send on WhatsApp 💬`}
-                                </button>
-
-                                {selectedCustomersList.length > 1 && broadcastQueueIndex < selectedCustomersList.length - 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setBroadcastQueueIndex(i => i + 1)}
-                                    style={{
-                                      flex: 1,
-                                      padding: '10px 12px',
-                                      borderRadius: '8px',
-                                      border: '1px solid #cbd5e1',
-                                      background: '#ffffff',
-                                      color: '#475569',
-                                      fontWeight: 700,
-                                      fontSize: '0.82rem',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    Skip ⏩
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
-        );
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }

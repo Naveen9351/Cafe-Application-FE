@@ -149,3 +149,26 @@ export function buildUpiUri({ upiId, payeeName = 'Cafee', amount, note = 'Order 
 
   return uri;
 }
+
+/**
+ * Builds app-specific deep links for direct 1-tap app launch on Android/iOS
+ * Falls back to generic upi:// if app is unknown
+ */
+export function buildAppSpecificUpiUri(appKey, { upiId, payeeName = 'Cafee', amount, note = 'Order Payment' }) {
+  const baseUri = buildUpiUri({ upiId, payeeName, amount, note });
+  if (!baseUri) return '';
+  const queryString = baseUri.replace(/^upi:\/\/pay\?/, '');
+  
+  switch (appKey) {
+    case 'gpay':
+      return `tez://upi/pay?${queryString}`;
+    case 'phonepe':
+      return `phonepe://pay?${queryString}`;
+    case 'paytm':
+      return `paytmmp://pay?${queryString}`;
+    case 'bhim':
+      return `bhim://pay?${queryString}`;
+    default:
+      return baseUri;
+  }
+}

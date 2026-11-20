@@ -10,7 +10,7 @@ import {
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
   Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCodeComponent from './QRCodeComponent';
 import TableOperationsHub from './TableOperationsHub';
@@ -1030,6 +1030,10 @@ export default function AdminPanel() {
         fetchNotifications();
       });
       socket.on('orderUpdate', (updatedOrder) => {
+        setOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
+        setDashboardOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
+      });
+      socket.on('orderUpdated', (updatedOrder) => {
         setOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
         setDashboardOrders((prev) => prev.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)));
       });
@@ -2560,7 +2564,9 @@ export default function AdminPanel() {
 
   return (
     <div className={styles.adminLayout}>
-      <Toaster position="top-right" containerStyle={{ zIndex: 9999999 }} toastOptions={{ style: { zIndex: 9999999 } }} />
+      <Toaster position="top-right" containerStyle={{ zIndex: 9999999 }} toastOptions={{ style: { zIndex: 9999999 } }}>
+        {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
+      </Toaster>
 
       {/* 1. FIXED LEFT SIDEBAR - ONLY RENDERED FOR ADMIN */}
       {isAdmin && (
@@ -4546,7 +4552,7 @@ export default function AdminPanel() {
                                 pointerEvents: 'none'
                               }}>
                                 <span style={{ fontSize: '0.66rem', fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  {isHindi ? 'कुल संग्रह' : 'Total Settled'}
+                                  {isHindi ? 'कुल संग्रह' : 'Total'}
                                 </span>
                                 <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
                                   ₹{totalSales.toLocaleString('en-IN')}

@@ -27,7 +27,7 @@ import {
   Zap
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, buildUpiUri } from "./common/UpiBrandLogos";
+import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, buildUpiUri, buildAppSpecificUpiUri } from "./common/UpiBrandLogos";
 import TableBadge from "./common/TableBadge";
 import TrackOrderBadge from "./common/TrackOrderBadge";
 import CustomerBottomNav from "./common/CustomerBottomNav";
@@ -59,6 +59,7 @@ export default function Cart() {
   const [paymentMethod, setPaymentMethod] = useState('direct_upi'); // 'direct_upi' (Zomato/Swiggy Direct) | 'razorpay' | 'counter'
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [upiCountdown, setUpiCountdown] = useState(300);
+  const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
 
   // Cooking / preparation instructions notes state
   const [editingNoteItemId, setEditingNoteItemId] = useState(null);
@@ -416,7 +417,8 @@ export default function Cart() {
 
       const { data } = await axios.post(`${API}/orders`, payload);
 
-      toast.success("UPI Order Placed & Confirmed 🎉", { id: toastId });
+      setIsPaymentSuccess(true);
+      toast.success("Payment Received & Confirmed 🎉", { id: toastId });
 
       try {
         localStorage.setItem('serviq_last_order_id', data._id);
@@ -432,10 +434,14 @@ export default function Cart() {
         localStorage.setItem('serviq_order_history', JSON.stringify(updatedHistory));
       } catch (e) {}
 
-      setIsUpiModalOpen(false);
       setItems([]);
       localStorage.removeItem("cartItems");
-      navigate(`/order/status/${data._id}`, { replace: true });
+
+      setTimeout(() => {
+        setIsUpiModalOpen(false);
+        setIsPaymentSuccess(false);
+        navigate(`/order/status/${data._id}`, { replace: true });
+      }, 1800);
     } catch (err) {
       console.error("Direct UPI order error:", err);
       toast.error(err.response?.data?.error || "Failed to place order.", { id: toastId });
@@ -1038,318 +1044,394 @@ export default function Cart() {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              backgroundColor: 'rgba(0, 0, 0, 0.78)',
               backdropFilter: 'blur(8px)',
               zIndex: 9999,
               display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'center'
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px'
             }}
-            onClick={() => setIsUpiModalOpen(false)}
+            onClick={() => {
+              if (!isPlacing) {
+                setIsUpiModalOpen(false);
+                setIsPaymentSuccess(false);
+              }
+            }}
           >
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 320 }}
               style={{
                 width: '100%',
-                maxWidth: '480px',
+                maxWidth: '400px',
                 backgroundColor: theme.bgContainer,
                 color: theme.textMain,
-                borderTopLeftRadius: '24px',
-                borderTopRightRadius: '24px',
-                padding: '1.25rem 1.25rem 2rem',
-                boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.3)',
+                borderRadius: '20px',
+                padding: '0.85rem 1rem 1rem',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35)',
                 border: `1px solid ${theme.border}`,
-                maxHeight: '92vh',
-                overflowY: 'auto',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
               }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Drag Handle */}
-              <div style={{ width: 44, height: 4, borderRadius: 100, backgroundColor: isDarkMode ? '#3f3f46' : '#cbd5e1', margin: '0 auto 12px' }} />
+              <div style={{ width: 36, height: 3, borderRadius: 100, backgroundColor: isDarkMode ? '#3f3f46' : '#cbd5e1', margin: '0 auto 8px' }} />
 
-              {/* UPI Header (Matching Professional Spec) */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.3px' }}>
-                      UPI
-                    </h3>
-                    <span style={{
-                      fontSize: '0.66rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '100px',
-                      background: '#dcfce7',
-                      color: '#15803d',
-                      border: '1px solid #bbf7d0'
-                    }}>
-                      Instant • 0% Fee
-                    </span>
+              {/* Thank You Celebration View */}
+              {isPaymentSuccess ? (
+                <div style={{
+                  padding: '1.25rem 0.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 24px rgba(16, 185, 129, 0.35)'
+                  }}>
+                    <Check size={32} strokeWidth={3} />
                   </div>
-                  <p style={{ fontSize: '0.84rem', color: theme.textMuted, margin: '2px 0 0 0' }}>
-                    Pay by any UPI app
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: theme.textMain }}>
+                      Thank You! Payment Confirmed 🎉
+                    </h3>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: theme.textMuted }}>
+                      Received <strong>₹{Math.round(total)}</strong> via UPI • Table {tableNumber || 'Takeaway'}
+                    </p>
+                  </div>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '100px',
+                    padding: '4px 12px',
                     fontSize: '0.72rem',
                     fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '100px',
-                    background: '#fef3c7',
-                    color: '#92400e',
-                    fontFamily: 'monospace'
+                    color: '#047857'
                   }}>
-                    ⏱️ {Math.floor(upiCountdown / 60)}:{('0' + (upiCountdown % 60)).slice(-2)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsUpiModalOpen(false)}
-                    style={{
-                      background: isDarkMode ? '#27272a' : '#f1f5f9',
-                      border: 'none',
-                      color: theme.textMuted,
-                      cursor: 'pointer',
-                      borderRadius: '50%',
-                      width: 28,
-                      height: 28,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
+                    <Zap size={13} /> Sending your order directly to kitchen...
+                  </div>
                 </div>
-              </div>
+              ) : (
+                (() => {
+                  const rawUpi = tenantInfo?.settings?.upiId || '';
+                  const isEmail = rawUpi.endsWith('@gmail.com') || rawUpi.endsWith('@yahoo.com');
+                  const cleanUpiId = (!isEmail && rawUpi) ? rawUpi : '9351862675@paytm';
+                  const payeeName = tenantInfo?.settings?.upiPayeeName || tenantInfo?.name || 'Cafee';
+                  const upiUri = buildUpiUri({
+                    upiId: cleanUpiId,
+                    payeeName: payeeName,
+                    amount: total,
+                    note: `Order Table ${tableNumber || 'Takeaway'}`
+                  });
 
-              {/* Amount Display & Dynamic Setup */}
-              {(() => {
-                const rawUpi = tenantInfo?.settings?.upiId || '';
-                const isEmail = rawUpi.endsWith('@gmail.com') || rawUpi.endsWith('@yahoo.com');
-                const cleanUpiId = (!isEmail && rawUpi) ? rawUpi : '9351862675@paytm';
-                const payeeName = tenantInfo?.settings?.upiPayeeName || tenantInfo?.name || 'Cafee';
-                const upiUri = buildUpiUri({
-                  upiId: cleanUpiId,
-                  payeeName: payeeName,
-                  amount: total,
-                  note: `Order Table ${tableNumber || 'Takeaway'}`
-                });
+                  const handleUpiAppClick = (e, appKey, appName) => {
+                    e.preventDefault();
+                    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+                    if (!isMobile) {
+                      try {
+                        navigator.clipboard.writeText(cleanUpiId);
+                        toast.success(`📱 Scan QR code below with ${appName}, or use copied UPI ID!`, { icon: '💳', duration: 3200 });
+                      } catch (err) {}
+                      return;
+                    }
+                    const appUri = buildAppSpecificUpiUri(appKey, {
+                      upiId: cleanUpiId,
+                      payeeName,
+                      amount: total,
+                      note: `Table ${tableNumber || 'Takeaway'}`
+                    });
+                    window.location.href = appUri;
+                    setTimeout(() => {
+                      window.location.href = upiUri;
+                    }, 1200);
+                  };
 
-                return (
-                  <>
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '8px 0 10px',
-                      borderBottom: `1px dashed ${theme.border}`
-                    }}>
-                      <span style={{ fontSize: '0.7rem', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        Payable Amount
-                      </span>
-                      <div style={{ fontSize: '2rem', fontWeight: 900, color: theme.accent, marginTop: '1px', lineHeight: 1.1 }}>
-                        ₹{Math.round(total)}
+                  return (
+                    <>
+                      {/* Compact Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: theme.textMain, letterSpacing: '-0.3px' }}>
+                            UPI Payment
+                          </h3>
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '100px',
+                            background: '#dcfce7',
+                            color: '#15803d',
+                            border: '1px solid #bbf7d0'
+                          }}>
+                            Instant • 0% Fee
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '100px',
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            fontFamily: 'monospace'
+                          }}>
+                            ⏱️ {Math.floor(upiCountdown / 60)}:{('0' + (upiCountdown % 60)).slice(-2)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsUpiModalOpen(false)}
+                            style={{
+                              background: isDarkMode ? '#27272a' : '#f1f5f9',
+                              border: 'none',
+                              color: theme.textMuted,
+                              cursor: 'pointer',
+                              borderRadius: '50%',
+                              width: 24,
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0
+                            }}
+                            title="Close"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ marginTop: '4px' }}>
+
+                      {/* Compact Amount Banner */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        background: isDarkMode ? '#1f1913' : '#f8fafc',
+                        border: `1px solid ${theme.border}`,
+                        borderRadius: '10px',
+                        marginBottom: '8px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: theme.textMuted, textTransform: 'uppercase' }}>
+                            Payable:
+                          </span>
+                          <span style={{ fontSize: '1.2rem', fontWeight: 900, color: theme.accent, lineHeight: 1 }}>
+                            ₹{Math.round(total)}
+                          </span>
+                        </div>
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '4px',
-                          fontSize: '0.68rem',
+                          fontSize: '0.65rem',
                           color: '#16a34a',
-                          background: '#dcfce7',
-                          padding: '3px 10px',
-                          borderRadius: '100px',
                           fontWeight: 700
                         }}>
-                          <ShieldCheck size={13} /> Amount pre-filled in your UPI app
+                          <ShieldCheck size={12} /> Auto-filled in app
                         </span>
                       </div>
-                    </div>
 
-                    {/* 2x2 Official UPI App Selection Grid (Matching User Screenshot Spec) */}
-                    <div style={{ margin: '14px 0 12px' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: theme.textMuted, marginBottom: '8px', display: 'block' }}>
-                        Pay directly with installed app:
-                      </span>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                        {/* GPay */}
-                        <a
-                          href={upiUri}
-                          style={{
-                            padding: '11px 14px',
-                            borderRadius: '12px',
-                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
-                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            textDecoration: 'none',
-                            color: theme.textMain,
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <GPayIcon size={26} />
-                          <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>GPay</span>
-                        </a>
-
-                        {/* PhonePe */}
-                        <a
-                          href={upiUri}
-                          style={{
-                            padding: '11px 14px',
-                            borderRadius: '12px',
-                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
-                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            textDecoration: 'none',
-                            color: theme.textMain,
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <PhonePeIcon size={26} />
-                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#5f259f' }}>PhonePe</span>
-                        </a>
-
-                        {/* Paytm */}
-                        <a
-                          href={upiUri}
-                          style={{
-                            padding: '11px 14px',
-                            borderRadius: '12px',
-                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
-                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            textDecoration: 'none',
-                            color: theme.textMain,
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <PaytmIcon size={22} />
-                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#002970' }}>PayTM</span>
-                        </a>
-
-                        {/* BHIM */}
-                        <a
-                          href={upiUri}
-                          style={{
-                            padding: '11px 14px',
-                            borderRadius: '12px',
-                            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
-                            backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            textDecoration: 'none',
-                            color: theme.textMain,
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <BhimIcon size={26} />
-                          <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#008450' }}>BHIM</span>
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Dynamic QR Code Card */}
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      margin: '10px 0 14px',
-                      padding: '12px',
-                      backgroundColor: isDarkMode ? '#1e1814' : '#f8fafc',
-                      borderRadius: '16px',
-                      border: `1px solid ${theme.border}`
-                    }}>
-                      <div style={{
-                        backgroundColor: '#ffffff',
-                        padding: '10px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                        border: '1.5px solid #e2e8f0'
-                      }}>
-                        <QRCodeSVG
-                          value={upiUri}
-                          size={155}
-                          level="M"
-                        />
-                      </div>
-                      <span style={{ fontSize: '0.74rem', fontWeight: 800, marginTop: '8px', color: theme.textMain }}>
-                        Scan with GPay, PhonePe, Paytm, or CRED
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                        <span style={{ fontSize: '0.68rem', color: theme.textMuted, fontFamily: 'monospace' }}>
-                          UPI: <strong>{cleanUpiId}</strong>
+                      {/* 2x2 Clickable UPI App Buttons */}
+                      <div style={{ marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: theme.textMuted, marginBottom: '5px', display: 'block' }}>
+                          Pay directly with installed app:
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(cleanUpiId);
-                            toast.success('UPI ID copied!');
-                          }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.accent, padding: 0 }}
-                          title="Copy UPI ID"
-                        >
-                          <Copy size={12} />
-                        </button>
-                      </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                          {/* GPay */}
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={(e) => handleUpiAppClick(e, 'gpay', 'Google Pay')}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                              backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              color: theme.textMain,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <GPayIcon size={20} />
+                            <span style={{ fontSize: '0.82rem', fontWeight: 800 }}>GPay</span>
+                          </motion.button>
 
-                      {isEmail && (
-                        <div style={{
-                          fontSize: '0.65rem',
-                          color: '#dc2626',
-                          background: '#fef2f2',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          marginTop: '6px',
-                          textAlign: 'center'
-                        }}>
-                          ⚠️ Note: An email was configured. Using standard UPI {cleanUpiId} to ensure PhonePe/GPay scanner works.
+                          {/* PhonePe */}
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={(e) => handleUpiAppClick(e, 'phonepe', 'PhonePe')}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                              backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              color: theme.textMain,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <PhonePeIcon size={20} />
+                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#5f259f' }}>PhonePe</span>
+                          </motion.button>
+
+                          {/* Paytm */}
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={(e) => handleUpiAppClick(e, 'paytm', 'PayTM')}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                              backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              color: theme.textMain,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <PaytmIcon size={17} />
+                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#002970' }}>PayTM</span>
+                          </motion.button>
+
+                          {/* BHIM */}
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={(e) => handleUpiAppClick(e, 'bhim', 'BHIM UPI')}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0',
+                              backgroundColor: isDarkMode ? '#1f1913' : '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              color: theme.textMain,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <BhimIcon size={20} />
+                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#008450' }}>BHIM</span>
+                          </motion.button>
                         </div>
-                      )}
-                    </div>
+                      </div>
 
-                    {/* Single Checkmark Confirmation Button */}
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      disabled={isPlacing}
-                      onClick={() => executeDirectUpiOrder(customer)}
-                      style={{
-                        width: '100%',
-                        padding: '14px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                        color: '#ffffff',
-                        fontSize: '0.98rem',
-                        fontWeight: 800,
-                        cursor: isPlacing ? 'not-allowed' : 'pointer',
+                      {/* Dynamic QR Code Card (Compact, Zero-Scroll) */}
+                      <div style={{
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)'
-                      }}
-                    >
-                      <Check size={18} strokeWidth={2.5} />
-                      <span>{isPlacing ? "Confirming Order..." : `I Have Paid • ₹${Math.round(total)}`}</span>
-                    </motion.button>
-                  </>
-                );
-              })()}
+                        padding: '6px 8px',
+                        backgroundColor: isDarkMode ? '#1e1814' : '#f8fafc',
+                        borderRadius: '12px',
+                        border: `1px solid ${theme.border}`,
+                        marginBottom: '8px'
+                      }}>
+                        <div style={{
+                          backgroundColor: '#ffffff',
+                          padding: '6px',
+                          borderRadius: '8px',
+                          boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                          border: '1px solid #e2e8f0',
+                          lineHeight: 0
+                        }}>
+                          <QRCodeSVG
+                            value={upiUri}
+                            size={116}
+                            level="M"
+                          />
+                        </div>
+                        <span style={{ fontSize: '0.67rem', fontWeight: 700, marginTop: '4px', color: theme.textMain }}>
+                          Scan with GPay, PhonePe, Paytm, or CRED
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                          <span style={{ fontSize: '0.64rem', color: theme.textMuted, fontFamily: 'monospace' }}>
+                            UPI: <strong>{cleanUpiId}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                navigator.clipboard.writeText(cleanUpiId);
+                                toast.success('UPI ID copied!');
+                              } catch (err) {}
+                            }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.accent, padding: 0, display: 'flex', alignItems: 'center' }}
+                            title="Copy UPI ID"
+                          >
+                            <Copy size={11} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Single Checkmark Confirmation Button */}
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        disabled={isPlacing}
+                        onClick={() => executeDirectUpiOrder(customer)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                          color: '#ffffff',
+                          fontSize: '0.92rem',
+                          fontWeight: 800,
+                          cursor: isPlacing ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
+                        }}
+                      >
+                        <Check size={16} strokeWidth={2.5} />
+                        <span>{isPlacing ? "Confirming Order..." : `I Have Paid • ₹${Math.round(total)}`}</span>
+                      </motion.button>
+                    </>
+                  );
+                })()
+              )}
             </motion.div>
           </motion.div>
         )}

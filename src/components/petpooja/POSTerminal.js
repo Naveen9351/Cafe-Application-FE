@@ -10,7 +10,16 @@ import {
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { QRCodeSVG } from 'qrcode.react';
-import toast from 'react-hot-toast';
+import rawToast from 'react-hot-toast';
+
+// Only error toasts are permitted: completely suppress all action/success notifications
+const toast = {
+  ...rawToast,
+  success: () => '',
+  loading: () => '',
+  custom: () => '',
+  error: (msg, opts) => rawToast.error(msg, opts)
+};
 import { motion, AnimatePresence } from 'framer-motion';
 import { getValidFoodImage, getCustomerFirstName } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
@@ -469,13 +478,11 @@ export default function POSTerminal({
       setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || tblObj?.customerPhone || '');
       if (firstOrd.paymentMethod) setPaymentMethod(firstOrd.paymentMethod);
       const displayLabel = isTemp ? `Tab: ${tStr.replace(/^temp\s*[-_:]\s*/i, '')}` : `Table ${formatTableOnlyNumber(tStr)}`;
-      toast.success(`Opened ${displayLabel} (${ordersForTable.length} running ${ordersForTable.length === 1 ? 'round' : 'rounds'})`);
     } else {
       const defaultCustName = tblObj?.customerName || (isTemp ? tStr.replace(/^temp\s*[-_:]\s*/i, '') : '');
       setCustomerName(defaultCustName);
       setCustomerPhone(tblObj?.customerPhone || '');
       const displayLabel = isTemp ? `Tab: ${defaultCustName || tStr}` : `Table ${formatTableOnlyNumber(tStr)}`;
-      toast.success(`Selected ${displayLabel}`);
     }
   };
 
@@ -485,7 +492,6 @@ export default function POSTerminal({
     setCustomerName('Walk-in Guest');
     setCustomerPhone('');
     setViewMode('terminal');
-    toast.success('Opened Counter Walk-in POS');
   };
 
   // Enterprise Table Merge Handler (Persisted to Database & Instant UI Synchronisation)
@@ -509,7 +515,6 @@ export default function POSTerminal({
       }, {
         headers: token ? { 'x-auth-token': token } : {}
       });
-      toast.success(res.data.message || `Table ${cleanMergeList.join(', ')} moved into Table ${cleanPrimary}`);
 
       setMergedTables(prev => Array.from(new Set([...prev, ...cleanMergeList])));
 
@@ -575,7 +580,6 @@ export default function POSTerminal({
       }, {
         headers: token ? { 'x-auth-token': token } : {}
       });
-      toast.success(res.data.message || `Demerged Table ${cleanDemerge}`);
       setMergedTables(prev => prev.filter(t => String(t).replace(/^Table\s*/i, '').trim() !== cleanDemerge));
 
       // Immediate local state update in POSTerminal
@@ -652,7 +656,6 @@ export default function POSTerminal({
       return [...prev, newItem];
     });
 
-    toast.success(`⚡ Added "${newItem.name}" (₹${priceNum}) to cart!`);
 
     if (openItemForm.saveToMenu) {
       try {
@@ -668,7 +671,6 @@ export default function POSTerminal({
         }, {
           headers: token ? { 'x-auth-token': token, 'Authorization': `Bearer ${token}` } : {}
         });
-        toast.success(`Saved "${finalName}" to menu catalog`);
       } catch (err) {
         console.warn('Could not persist open item to menu:', err.message);
       }
@@ -713,7 +715,15 @@ export default function POSTerminal({
 
   // Running orders total
   const runningOrdersTotal = useMemo(() => {
-    const sum = currentTableOrders.reduce((acc, o) => acc + (Number(o.total || o.totalAmount) || 0), 0);
+    const sum = currentTableOrders.reduce((acc, o) => {
+      const itemsSum = Array.isArray(o.items) && o.items.length > 0
+        ? o.items.reduce((s, it) => s + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0)
+        : null;
+      const discount = Number(o.discountAmount) || 0;
+      const tax = Number(o.taxAmount) || 0;
+      const orderTotal = itemsSum !== null ? Math.max(0, itemsSum - discount + tax) : (Number(o.total || o.totalAmount) || 0);
+      return acc + orderTotal;
+    }, 0);
     return Math.round(sum * 100) / 100;
   }, [currentTableOrders]);
 
@@ -732,7 +742,12 @@ export default function POSTerminal({
     let sum = 0;
     currentTableOrders.forEach(ord => {
       if (ord.paymentStatus === 'paid') {
-        sum += (Number(ord.total || ord.totalAmount) || 0);
+        const ordItemsSum = Array.isArray(ord.items) && ord.items.length > 0
+          ? ord.items.reduce((s, it) => s + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0)
+          : (Number(ord.total || ord.totalAmount) || 0);
+        const discount = Number(ord.discountAmount) || 0;
+        const tax = Number(ord.taxAmount) || 0;
+        sum += Math.max(0, ordItemsSum - discount + tax);
       } else if (Array.isArray(ord.items)) {
         ord.items.forEach(it => {
           if (it.isPaid) {
@@ -937,7 +952,6 @@ export default function POSTerminal({
           isOpenItem: Boolean(item.isOpenMenu || item.isPosOnly || item.isOpenItem || item.category === 'Open Items')
         }]);
       }
-      toast.success(`Added ${item.name}`);
     }
   };
 
@@ -992,7 +1006,6 @@ export default function POSTerminal({
     setCustomizingItem(null);
     setCustomNotes('');
     setCustomQty(1);
-    toast.success(`Added ${addQty}x ${customizingItem.name}${variantName ? ` (${variantName})` : ''}`);
   };
 
   const updateCartQty = (idx, delta) => {
@@ -1031,16 +1044,17 @@ export default function POSTerminal({
         await axios.delete(`${API}/orders/${orderId}`, {
           headers: token ? { 'x-auth-token': token } : {}
         });
-        toast.success('Unpaid item removed (order cleared)');
       } else {
-        await axios.put(`${API}/orders/${orderId}`, {
+        const res = await axios.put(`${API}/orders/${orderId}`, {
           items: newItems,
-          totalAmount: newTotal
+          total: newTotal,
+          totalAmount: newTotal,
+          subTotal: newTotal
         }, {
           headers: token ? { 'x-auth-token': token } : {}
         });
-        toast.success(delta < 0 ? 'Decreased item quantity' : 'Increased item quantity');
       }
+      if (onRefreshOrders) onRefreshOrders();
       if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
     } catch (err) {
@@ -1066,16 +1080,17 @@ export default function POSTerminal({
         await axios.delete(`${API}/orders/${orderId}`, {
           headers: token ? { 'x-auth-token': token } : {}
         });
-        toast.success(`Removed ${removedItemName}`);
       } else {
         await axios.put(`${API}/orders/${orderId}`, {
           items: newItems,
-          totalAmount: newTotal
+          total: newTotal,
+          totalAmount: newTotal,
+          subTotal: newTotal
         }, {
           headers: token ? { 'x-auth-token': token } : {}
         });
-        toast.success(`Removed ${removedItemName}`);
       }
+      if (onRefreshOrders) onRefreshOrders();
       if (onOrderPlaced) onOrderPlaced({ tableNumber, _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber, _refreshAll: true });
     } catch (err) {
@@ -1150,7 +1165,6 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
-        toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
         setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
@@ -1162,7 +1176,6 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
-        toast.success(`✓ Order sent to Kitchen for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
         setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
@@ -1247,7 +1260,6 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
-        toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
         setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
@@ -1259,7 +1271,6 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
-        toast.success(`⚡ Direct items handed over & served for Table ${tableNumber}!`);
         setCart([]);
         setDishSearch('');
         setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
@@ -1330,7 +1341,6 @@ export default function POSTerminal({
 
         const createdOrder = res.data?.order || res.data;
         const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount applied)` : '';
-        toast.success(`✓ Order #${createdOrder.orderNumber || ''} paid ₹${formatAmount(finalPaid)}${discountMsg} via ${effectiveMethod}! Bill generated.`);
 
         // Auto print bill
         try {
@@ -1369,9 +1379,10 @@ export default function POSTerminal({
             name: customerName.trim() || 'Guest',
             phone: customerPhone.trim()
           },
-          paymentMethod: customMethod || payItemsMethod || 'Cash',
+          paymentMethod: customMethod || (payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod) || 'Cash',
           paymentStatus: 'paid',
           status: 'served',
+          isDirect: true,
           items: cart.map(it => ({
             id: it.id,
             itemId: it.id,
@@ -1380,14 +1391,22 @@ export default function POSTerminal({
             quantity: it.quantity,
             variant: it.variant || null,
             addons: (it.addons || []),
+            specialNotes: it.specialNotes || it.notes || '',
+            isOpenItem: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
+            isCustom: Boolean(it.isOpenItem || String(it.id || '').startsWith('open')),
+            isDirect: true,
             itemStatus: 'served',
             isPaid: true
           })),
+          subTotal: draftCartTotal,
+          total: draftCartTotal,
           totalAmount: draftCartTotal
         };
-        await axios.post(`${API}/orders`, orderPayload, {
+        const res = await axios.post(`${API}/orders`, orderPayload, {
           headers: token ? { 'x-auth-token': token } : {}
         });
+        if (onOrderPlaced) onOrderPlaced(res.data?.order || res.data);
+        if (onOrderCreated) onOrderCreated(res.data?.order || res.data);
         setCart([]);
       }
 
@@ -1399,7 +1418,7 @@ export default function POSTerminal({
       const isFullTable = itemsToPay.length === 0 || selectedItemsSummary.count === 0 || selectedItemsSummary.count === currentTableOrders.flatMap(o => (o.items || []).filter(it => !it.isPaid)).length;
       const allSettleTables = [String(tableNumber).trim(), ...mergedTables.map(t => String(t).trim())];
 
-      const tenderAmount = selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue;
+      const tenderAmount = selectedItemsSummary.count > 0 ? selectedItemsSummary.total : (balanceDue > 0 ? balanceDue : draftCartTotal);
       const effectiveMethod = customMethod || (payItemsMethod === 'Settlement' ? (settlementSubMethod || 'Cash') : payItemsMethod);
       const finalPaid = customPayable !== null ? Number(customPayable) : (actualAmountReceived !== '' && !isNaN(Number(actualAmountReceived)) ? Number(actualAmountReceived) : tenderAmount);
       const finalDiscount = customDiscount > 0 ? Number(customDiscount) : Math.max(0, tenderAmount - finalPaid);
@@ -1423,7 +1442,6 @@ export default function POSTerminal({
         );
 
         const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount applied)` : '';
-        toast.success(`✓ Table ${tableNumber} paid for ₹${formatAmount(finalPaid)}${discountMsg}! Table is marked Paid. Click 'Clear Table' when customer vacates.`);
         setActualAmountReceived('');
         setSettlementDiscount('');
         setCashTenderGiven('');
@@ -1461,7 +1479,6 @@ export default function POSTerminal({
         );
 
         const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount)` : '';
-        toast.success(`✓ Marked items as paid (₹${formatAmount(finalPaid)})${discountMsg} via ${effectiveMethod}!`);
         setShowPayItemsModal(false);
         setSelectedItemKeys(new Set());
         setActualAmountReceived('');
@@ -1512,7 +1529,6 @@ export default function POSTerminal({
         },
         { headers: token ? { 'x-auth-token': token } : {} }
       );
-      toast.success(`Table ${tNum} cleared and is now free!`);
       // Auto-remove any temporary table or mark permanent table available in dbTables immediately
       setDbTables(prev => prev
         .filter(t => !(t.isTemporary && String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase()))
@@ -1602,7 +1618,6 @@ export default function POSTerminal({
       }
 
       const tableLabel = allSettleTables.length > 1 ? `Tables ${allSettleTables.join(', ')}` : `Table ${tableNumber}`;
-      toast.success(`✓ ${tableLabel} cleared & fully settled (₹${formatAmount(finalSettledAmount)})! Table is now free.`);
       // Auto-remove any settled temporary table and reset permanent tables to available in dbTables state
       setDbTables(prev => prev
         .filter(t => !(t.isTemporary && allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase())))
@@ -1711,7 +1726,6 @@ export default function POSTerminal({
         );
       }
 
-      toast.success(`✓ Khata recorded for ${customerName} (Paid: ₹${paidNum}, Borrow: ₹${borrowNum}). Table ${tableNumber} cleared!`);
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
@@ -1743,10 +1757,6 @@ export default function POSTerminal({
   // Quick Thermal Print Receipt simulation
   const handlePrintReceipt = (e, tblNum, amount) => {
     if (e) e.stopPropagation();
-    toast.success(`🖨️ Printing receipt for Table ${tblNum} (₹${amount})`, {
-      icon: '🖨️',
-      style: { background: '#0f172a', color: '#ffffff' }
-    });
   };
 
   // Create new table
@@ -1777,7 +1787,6 @@ export default function POSTerminal({
 
       setShowAddTableModal(false);
       setNewTableNum('');
-      toast.success(`✓ Table ${newTableNum} created!`);
     } catch (err) {
       // Local fallback
       setDbTables(prev => [...prev, {
@@ -1788,7 +1797,6 @@ export default function POSTerminal({
       }]);
       setShowAddTableModal(false);
       setNewTableNum('');
-      toast.success(`✓ Table ${newTableNum} added`);
     }
   };
 
@@ -1822,7 +1830,6 @@ export default function POSTerminal({
         return [createdTable, ...filtered];
       });
 
-      toast.success(`Created Temporary Tab: ${cleanName}`);
       setShowTempTableModal(false);
       setTempCustomerName('');
       setTempCustomerPhone('');
@@ -1848,7 +1855,6 @@ export default function POSTerminal({
         status: 'available'
       };
       setDbTables(prev => [localTable, ...prev]);
-      toast.success(`Created Temporary Tab: ${cleanName}`);
       setShowTempTableModal(false);
       setTempCustomerName('');
       setTempCustomerPhone('');
@@ -1875,11 +1881,9 @@ export default function POSTerminal({
         });
       }
       setDbTables(prev => prev.filter(t => t._id !== tableObj._id && t.tableNumber !== tableObj.tableNumber));
-      toast.success(`Removed tab "${tableObj.customerName || tableObj.tableNumber}"`);
     } catch (err) {
       console.error('Delete temp table error:', err);
       setDbTables(prev => prev.filter(t => t._id !== tableObj._id && t.tableNumber !== tableObj.tableNumber));
-      toast.success(`Removed tab`);
     }
   };
 
@@ -3180,21 +3184,12 @@ export default function POSTerminal({
                                   <button
                                     type="button"
                                     className={styles.paidOrderBtn}
-                                    onClick={async () => {
-                                      if (!hasActiveOrders && hasDraftItems) {
-                                        // Auto-serve draft items and open payment dialog
-                                        await handleDirectOrder();
-                                        setKhataPaidAmount('0');
-                                        setKhataBorrowAmount(0);
-                                        setActualAmountReceived('');
-                                        setSettlementDiscount('');
-                                        setCashTenderGiven('');
-                                        setSettlementDiscountReason('Customer Concession / Round Off');
-                                        setSettlementSubMethod('Cash');
-                                        setShowPayItemsModal(true);
-                                        return;
-                                      }
-                                      if (selectedItemsSummary.count === 0 && balanceDue <= 0) {
+                                    onClick={() => {
+                                      const totalPayable = selectedItemsSummary.count > 0
+                                        ? selectedItemsSummary.total
+                                        : (balanceDue > 0 ? balanceDue : draftCartTotal);
+
+                                      if (totalPayable <= 0 && !hasDraftItems) {
                                         toast.error('All active items on this table are already paid!');
                                         return;
                                       }
@@ -3216,7 +3211,7 @@ export default function POSTerminal({
                                         ? `Pay Selected (${selectedItemsSummary.count} - ₹${formatAmount(selectedItemsSummary.total)})`
                                         : (balanceDue > 0
                                           ? `Pay (₹${formatAmount(balanceDue)})`
-                                          : (hasDraftItems ? `Quick Pay (₹${formatAmount(draftCartTotal)})` : 'Paid Order'))}
+                                          : (hasDraftItems ? `Pay (₹${formatAmount(draftCartTotal)})` : 'Paid Order'))}
                                     </span>
                                   </button>
                                 )}
@@ -3231,7 +3226,6 @@ export default function POSTerminal({
                                         handleClearTableClick();
                                       } else {
                                         setCart([]);
-                                        toast.success(`Cleared draft items for Table ${formatTableOnlyNumber(tableNumber)}`);
                                       }
                                     }}
                                     disabled={isSettling}
@@ -3362,7 +3356,7 @@ export default function POSTerminal({
       {showPayItemsModal && (() => {
         const tenderAmount = (isCounterBillingOnly && tableNumber === 'Walk-in')
           ? draftCartTotal
-          : (selectedItemsSummary.count > 0 ? selectedItemsSummary.total : balanceDue);
+          : (selectedItemsSummary.count > 0 ? selectedItemsSummary.total : (balanceDue > 0 ? balanceDue : draftCartTotal));
 
         // Calculate settlement discount and payable amount
         const discountVal = Math.max(0, Number(settlementDiscount) || 0);
@@ -3449,7 +3443,6 @@ export default function POSTerminal({
                 });
                 const createdOrder = res.data?.order || res.data;
 
-                toast.success(`✓ Recorded in Khata: Borrow ₹${formatAmount(borrowDueNum)}${paidNowNum > 0 ? `, Paid ₹${formatAmount(paidNowNum)}` : ''}`);
                 setCart([]);
                 setCustomerName('');
                 setCustomerPhone('');
@@ -3515,7 +3508,6 @@ export default function POSTerminal({
                   { headers: token ? { 'x-auth-token': token, Authorization: `Bearer ${token}` } : {} }
                 );
 
-                toast.success(`✓ Recorded ₹${finalPayable} in Khata (${effName})! ${allUnpaidItems.length - selectedItemsSummary.count} unpaid item(s) remain on Table ${tableNumber}.`);
                 setShowPayItemsModal(false);
                 setSelectedItemKeys(new Set());
                 setKhataPaidAmount('0');
@@ -3548,7 +3540,6 @@ export default function POSTerminal({
                   );
                 }
 
-                toast.success(`✓ Khata recorded for ${effName} (Paid: ₹${paidNowNum}, Borrow: ₹${borrowDueNum}). Table ${tableNumber} cleared!`);
                 setCart([]);
                 setCustomerName('');
                 setCustomerPhone('');
@@ -4088,7 +4079,6 @@ export default function POSTerminal({
                                 type="button"
                                 onClick={() => {
                                   navigator.clipboard.writeText(cleanUpiId);
-                                  toast.success('UPI ID copied!');
                                 }}
                                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#059669' }}
                                 title="Copy UPI ID"
