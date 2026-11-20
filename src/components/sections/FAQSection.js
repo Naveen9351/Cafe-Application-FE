@@ -25,35 +25,38 @@ export default function FAQSection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header Animation — start 90% (fires sooner)
-      gsap.fromTo(
-        headerRef.current,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: headerRef.current,
-            start: "top 90%",
-            toggleActions: "play none none reverse"
+      // Header Animation with blur-to-focus reveal
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { opacity: 0, y: 32, filter: "blur(10px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.85,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: headerRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
           }
-        }
-      );
+        );
+      }
 
-      // Filter Buttons
+      // Filter Buttons staggered spring entrance
       if (filterRef.current) {
         gsap.fromTo(
           filterRef.current.children,
-          { opacity: 0, y: 15, scale: 0.95 },
+          { opacity: 0, y: 18, scale: 0.92 },
           {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 0.5,
-            stagger: 0.08,
-            ease: "back.out(1.4)",
+            duration: 0.6,
+            stagger: 0.07,
+            ease: "back.out(1.6)",
             scrollTrigger: {
               trigger: filterRef.current,
               start: "top 90%",
@@ -63,21 +66,22 @@ export default function FAQSection({ onOpenDemo }) {
         );
       }
 
-      // FAQ List Items
+      // FAQ List Items staggered entrance
       if (faqListRef.current) {
         gsap.fromTo(
           faqListRef.current.children,
-          { opacity: 0, y: 25, scale: 0.98 },
+          { opacity: 0, y: 28, scale: 0.98, filter: "blur(4px)" },
           {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 0.6,
-            stagger: 0.1,
+            filter: "blur(0px)",
+            duration: 0.65,
+            stagger: 0.08,
             ease: "power2.out",
             scrollTrigger: {
               trigger: faqListRef.current,
-              start: "top 90%",
+              start: "top 88%",
               toggleActions: "play none none reverse"
             }
           }

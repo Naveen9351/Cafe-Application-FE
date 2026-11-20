@@ -19,13 +19,78 @@ gsap.registerPlugin(ScrollTrigger);
 
 export default function ScrollScrubVisuals() {
   const containerRef = useRef(null);
+  const mainHeaderRef = useRef(null);
   const stage1Ref = useRef(null);
+  const stage1InfoRef = useRef(null);
   const stage1ImgRef = useRef(null);
   const stage2Ref = useRef(null);
+  const stage2InfoRef = useRef(null);
   const stage2ImgRef = useRef(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
+      // Main section header blur reveal
+      if (mainHeaderRef.current) {
+        gsap.fromTo(
+          mainHeaderRef.current,
+          { opacity: 0, y: 32, filter: "blur(8px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.85,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: mainHeaderRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // Stage 1 text & stat pills cascade
+      if (stage1InfoRef.current?.children) {
+        gsap.fromTo(
+          stage1InfoRef.current.children,
+          { opacity: 0, y: 22, filter: "blur(5px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.7,
+            stagger: 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: stage1Ref.current,
+              start: "top 85%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // Stage 2 text & stat pills cascade
+      if (stage2InfoRef.current?.children) {
+        gsap.fromTo(
+          stage2InfoRef.current.children,
+          { opacity: 0, y: 22, filter: "blur(5px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.7,
+            stagger: 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: stage2Ref.current,
+              start: "top 85%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
       const mm = gsap.matchMedia();
 
       // Desktop Viewport (>= 769px): Full 3D Tilt Scrub
@@ -33,12 +98,13 @@ export default function ScrollScrubVisuals() {
         if (stage1ImgRef.current && stage1Ref.current) {
           gsap.fromTo(
             stage1ImgRef.current,
-            { rotateY: -18, rotateX: 10, scale: 0.9, opacity: 0.5 },
+            { rotateY: -18, rotateX: 10, scale: 0.9, opacity: 0.45, filter: "blur(6px)" },
             {
               rotateY: 0,
               rotateX: 0,
               scale: 1,
               opacity: 1,
+              filter: "blur(0px)",
               ease: 'none',
               scrollTrigger: {
                 trigger: stage1Ref.current,
@@ -53,12 +119,13 @@ export default function ScrollScrubVisuals() {
         if (stage2ImgRef.current && stage2Ref.current) {
           gsap.fromTo(
             stage2ImgRef.current,
-            { rotateY: 18, rotateX: 10, scale: 0.9, opacity: 0.5 },
+            { rotateY: 18, rotateX: 10, scale: 0.9, opacity: 0.45, filter: "blur(6px)" },
             {
               rotateY: 0,
               rotateX: 0,
               scale: 1,
               opacity: 1,
+              filter: "blur(0px)",
               ease: 'none',
               scrollTrigger: {
                 trigger: stage2Ref.current,
@@ -124,7 +191,7 @@ export default function ScrollScrubVisuals() {
       <div className="container">
 
         {/* Small & Crisp Section Header */}
-        <div className={styles.mainHeader}>
+        <div ref={mainHeaderRef} className={styles.mainHeader}>
           <div className="badge-pill badge-blue" style={{ padding: '3px 10px', fontSize: 10.5 }}>
             <Zap style={{ width: 12, height: 12 }} />
             <span>Autonomous Connected Flywheel</span>
@@ -141,7 +208,7 @@ export default function ScrollScrubVisuals() {
 
         {/* ── STAGE 1: Guest Scan & POS Floorplan ── */}
         <div ref={stage1Ref} className={styles.stageBlock}>
-          <div className={styles.stageInfo}>
+          <div ref={stage1InfoRef} className={styles.stageInfo}>
             <div className={styles.stepBadge}>
               <span>01 • FRONT OF HOUSE</span>
             </div>
@@ -182,7 +249,7 @@ export default function ScrollScrubVisuals() {
 
         {/* ── STAGE 2: Real-Time Kitchen KDS Queue ── */}
         <div ref={stage2Ref} className={`${styles.stageBlock} ${styles.stageBlockReverse}`}>
-          <div className={styles.stageInfo}>
+          <div ref={stage2InfoRef} className={styles.stageInfo}>
             <div className={styles.stepBadge}>
               <span>02 • BACK OF HOUSE</span>
             </div>

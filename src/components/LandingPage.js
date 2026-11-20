@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Lenis from 'lenis';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
 import HeroSection from './sections/HeroSection';
@@ -12,11 +15,58 @@ import FAQSection from './sections/FAQSection';
 import CTASection from './sections/CTASection';
 import LeadCaptureModal from './interactive/LeadCaptureModal';
 
+gsap.registerPlugin(ScrollTrigger);
+
 export default function LandingPage() {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   const handleOpenDemo = () => setIsDemoModalOpen(true);
   const handleCloseDemo = () => setIsDemoModalOpen(false);
+
+  // Initialize Lenis Ultra-Smooth Inertia Scroll synced with GSAP ScrollTrigger
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    let lenis;
+    try {
+      lenis = new Lenis({
+        duration: 1.15,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        orientation: 'vertical',
+        gestureOrientation: 'vertical',
+        smoothWheel: true,
+        wheelMultiplier: 1,
+        touchMultiplier: 1.25,
+        infinite: false,
+      });
+
+      // Synchronize ScrollTrigger with Lenis scroll updates
+      lenis.on('scroll', ScrollTrigger.update);
+
+      const updateTicker = (time) => {
+        lenis.raf(time * 1000);
+      };
+
+      gsap.ticker.add(updateTicker);
+      gsap.ticker.lagSmoothing(0);
+
+      // Refresh ScrollTrigger once DOM layout stabilizes
+      const refreshTimeout = setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 350);
+
+      return () => {
+        clearTimeout(refreshTimeout);
+        gsap.ticker.remove(updateTicker);
+        lenis?.destroy();
+      };
+    } catch (err) {
+      console.warn('Lenis initialization notice:', err?.message);
+    }
+  }, []);
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--bg-main)", color: "var(--text-main)", overflowX: "hidden" }}>

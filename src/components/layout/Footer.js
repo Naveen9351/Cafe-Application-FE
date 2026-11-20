@@ -1,22 +1,53 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Phone,
   Mail,
   ShieldCheck
 } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ServiqLogo from "../brand/ServiqLogo";
 import styles from "../../styles/Footer.module.css";
 
+gsap.registerPlugin(ScrollTrigger);
+
 export default function Footer({ onOpenDemoModal, onOpenDemo }) {
   const triggerDemo = onOpenDemo || onOpenDemoModal;
+  const footerRef = useRef(null);
+  const gridRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (gridRef.current?.children) {
+        gsap.fromTo(
+          gridRef.current.children,
+          { opacity: 0, y: 24 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.7,
+            stagger: 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: gridRef.current,
+              start: "top 92%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+    }, footerRef);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <footer className={styles.footer}>
+    <footer ref={footerRef} className={styles.footer}>
       <div className="container">
         
         {/* Main Content Grid */}
-        <div className={styles.footerGrid}>
+        <div ref={gridRef} className={styles.footerGrid}>
           
           {/* Brand & Direct Contact */}
           <div className={styles.brandCol}>

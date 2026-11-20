@@ -85,7 +85,9 @@ export default function VisualAppShowcase() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
   const containerRef = useRef(null);
+  const stepperRef = useRef(null);
   const imageFrameRef = useRef(null);
+  const imageRef = useRef(null);
 
   const currentScreen = APP_SCREENS[activeTab];
 
@@ -101,20 +103,41 @@ export default function VisualAppShowcase() {
   // High-Impact GSAP Scroll Scrub & 3D Perspective
   useEffect(() => {
     const ctx = gsap.context(() => {
+      if (stepperRef.current?.children) {
+        gsap.fromTo(
+          stepperRef.current.children,
+          { opacity: 0, scale: 0.85, y: 16 },
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.6,
+            stagger: 0.05,
+            ease: "back.out(1.8)",
+            scrollTrigger: {
+              trigger: stepperRef.current,
+              start: "top 92%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
       if (imageFrameRef.current && containerRef.current) {
         gsap.fromTo(
           imageFrameRef.current,
-          { rotateX: 10, scale: 0.94, y: 40, opacity: 0.4 },
+          { rotateX: 14, scale: 0.92, y: 50, opacity: 0.3, filter: "blur(10px)" },
           {
             rotateX: 0,
             scale: 1,
             y: 0,
             opacity: 1,
+            filter: "blur(0px)",
             ease: "none",
             scrollTrigger: {
               trigger: containerRef.current,
-              start: "top 85%",
-              end: "top 35%",
+              start: "top 88%",
+              end: "top 30%",
               scrub: 1.2
             }
           }
@@ -125,14 +148,14 @@ export default function VisualAppShowcase() {
     return () => ctx.revert();
   }, []);
 
-  // GSAP animation when activeTab changes
+  // GSAP animation when activeTab changes (cinematic image zoom-in crossfade)
   useEffect(() => {
     const ctx = gsap.context(() => {
-      if (imageFrameRef.current) {
+      if (imageRef.current) {
         gsap.fromTo(
-          imageFrameRef.current,
-          { opacity: 0.4, scale: 0.99 },
-          { opacity: 1, scale: 1, duration: 0.35, ease: 'power2.out' }
+          imageRef.current,
+          { opacity: 0.45, scale: 1.025, filter: "blur(4px)" },
+          { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.45, ease: 'power2.out' }
         );
       }
     }, containerRef);
@@ -175,7 +198,7 @@ export default function VisualAppShowcase() {
         
         {/* Numbered Stepper (Steps 1 to 8) */}
         <div className={styles.stepperWrap}>
-          <div className={styles.stepperTrack}>
+          <div ref={stepperRef} className={styles.stepperTrack}>
             {APP_SCREENS.map((screen, idx) => {
               const stepNumber = idx + 1;
               const isActive = idx === activeTab;
@@ -222,6 +245,7 @@ export default function VisualAppShowcase() {
             {/* Screen Image — Clean & Full-Screen (Tags removed as requested) */}
             <div className={styles.imageViewport}>
               <img
+                ref={imageRef}
                 src={currentScreen.image}
                 alt={currentScreen.name}
                 className={styles.screenImage}

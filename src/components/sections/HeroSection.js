@@ -66,36 +66,67 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
   // High-End GSAP Animations & Scroll Scrub Physics
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // 1. Snappy initial entrance
-      gsap.fromTo(
-        [badgeRef.current, titleRef.current, subtitleRef.current, ctaRef.current, trustRef.current],
-        { opacity: 0, y: 16 },
-        { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power2.out" }
-      );
-      gsap.fromTo(
-        imageRef.current,
-        { opacity: 0, scale: 0.95, y: 20 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "power2.out" }
-      );
+      // 1. Cinematic initial entrance with Blur-to-focus & Stagger
+      if (badgeRef.current) {
+        gsap.fromTo(
+          badgeRef.current,
+          { opacity: 0, scale: 0.9, y: 14 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: "back.out(1.6)" }
+        );
+      }
+      if (titleRef.current) {
+        gsap.fromTo(
+          titleRef.current,
+          { opacity: 0, y: 26, filter: "blur(10px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, delay: 0.1, ease: "power3.out" }
+        );
+      }
+      if (subtitleRef.current) {
+        gsap.fromTo(
+          subtitleRef.current,
+          { opacity: 0, y: 20, filter: "blur(8px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.9, delay: 0.25, ease: "power3.out" }
+        );
+      }
+      if (ctaRef.current?.children) {
+        gsap.fromTo(
+          ctaRef.current.children,
+          { opacity: 0, y: 16, scale: 0.96 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.7, delay: 0.38, stagger: 0.08, ease: "power2.out" }
+        );
+      }
+      if (trustRef.current?.children) {
+        gsap.fromTo(
+          trustRef.current.children,
+          { opacity: 0, y: 12 },
+          { opacity: 1, y: 0, duration: 0.6, delay: 0.52, stagger: 0.08, ease: "power2.out" }
+        );
+      }
+      if (imageRef.current) {
+        gsap.fromTo(
+          imageRef.current,
+          { opacity: 0, scale: 0.9, y: 32, filter: "blur(12px)" },
+          { opacity: 1, scale: 1, y: 0, filter: "blur(0px)", duration: 1.1, delay: 0.18, ease: "power3.out" }
+        );
+      }
 
-      // 2. Continuous floating levitation on the 3D ecosystem visual
+      // 2. Continuous organic floating levitation on the 3D visual & pills
       if (imageRef.current) {
         gsap.to(imageRef.current, {
-          y: -10,
-          rotation: 0.8,
-          duration: 3.6,
+          y: -12,
+          rotation: 0.7,
+          duration: 4.2,
           repeat: -1,
           yoyo: true,
           ease: "sine.inOut"
         });
       }
 
-      // 3. Continuous floating on telemetry badges
       if (pill1Ref.current) {
         gsap.to(pill1Ref.current, {
-          y: -8,
-          x: 4,
-          duration: 2.8,
+          y: -9,
+          x: 5,
+          duration: 3.4,
           repeat: -1,
           yoyo: true,
           ease: "sine.inOut"
@@ -103,36 +134,36 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
       }
       if (pill2Ref.current) {
         gsap.to(pill2Ref.current, {
-          y: 8,
-          x: -4,
-          duration: 3.2,
+          y: 9,
+          x: -5,
+          duration: 3.8,
           repeat: -1,
           yoyo: true,
           ease: "sine.inOut"
         });
       }
 
-      // 4. Smooth scroll scrub parallax on hero 3D visual
+      // 3. Smooth scroll scrub parallax on hero 3D visual
       if (imageRef.current && heroRef.current) {
         gsap.to(imageRef.current, {
-          y: -60,
-          scale: 1.06,
-          rotateY: -8,
+          y: -75,
+          scale: 1.05,
+          rotateY: -7,
           ease: "none",
           scrollTrigger: {
             trigger: heroRef.current,
             start: "top top",
             end: "bottom top",
-            scrub: 1.4
+            scrub: 1.3
           }
         });
       }
 
-      // 5. High-Impact Scroll Scrub 3D Lift on Simulator Box
+      // 4. High-Impact Scroll Scrub 3D Lift on Simulator Box
       if (consoleRef.current) {
         gsap.fromTo(
           consoleRef.current,
-          { opacity: 0.35, y: 80, scale: 0.94, rotateX: 6 },
+          { opacity: 0.28, y: 90, scale: 0.93, rotateX: 7 },
           {
             opacity: 1,
             y: 0,
@@ -142,7 +173,7 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
             scrollTrigger: {
               trigger: consoleRef.current,
               start: "top 95%",
-              end: "top 45%",
+              end: "top 42%",
               scrub: 1.2
             }
           }
@@ -152,6 +183,32 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
 
     return () => ctx.revert();
   }, []);
+
+  // Interactive 3D mouse tilt tracking for hero ecosystem visual
+  const handleHeroMouseMove = (e) => {
+    if (!imageRef.current || !heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    gsap.to(imageRef.current, {
+      rotateY: x * 5.5,
+      rotateX: -y * 4.5,
+      duration: 0.7,
+      ease: 'power2.out',
+      overwrite: 'auto'
+    });
+  };
+
+  const handleHeroMouseLeave = () => {
+    if (!imageRef.current) return;
+    gsap.to(imageRef.current, {
+      rotateY: 0,
+      rotateX: 0,
+      duration: 0.9,
+      ease: 'power2.out',
+      overwrite: 'auto'
+    });
+  };
 
   // Character-by-character typewriter loop
   useEffect(() => {
@@ -193,7 +250,12 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
   };
 
   return (
-    <section ref={heroRef} className={styles.heroSection}>
+    <section
+      ref={heroRef}
+      className={styles.heroSection}
+      onMouseMove={handleHeroMouseMove}
+      onMouseLeave={handleHeroMouseLeave}
+    >
       {/* Ambient Lighting Cones */}
       <div className={styles.ambientCone1} />
       <div className={styles.ambientCone2} />

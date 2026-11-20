@@ -14,20 +14,21 @@ export default function PricingSection({ onOpenDemo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // 1. Header scrub reveal
+      // 1. Header blur-to-focus reveal
       if (headerRef.current) {
         gsap.fromTo(
           headerRef.current,
-          { opacity: 0, y: 30 },
+          { opacity: 0, y: 32, filter: "blur(8px)" },
           {
             opacity: 1,
             y: 0,
-            ease: "power2.out",
+            filter: "blur(0px)",
+            duration: 0.85,
+            ease: "power3.out",
             scrollTrigger: {
-              trigger: sectionRef.current,
-              start: "top 85%",
-              end: "top 55%",
-              scrub: 1
+              trigger: headerRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
             }
           }
         );
@@ -37,16 +38,17 @@ export default function PricingSection({ onOpenDemo }) {
       if (pricingCardRef.current) {
         gsap.fromTo(
           pricingCardRef.current,
-          { opacity: 0.4, y: 60, scale: 0.95 },
+          { opacity: 0.25, y: 60, scale: 0.94, filter: "blur(6px)" },
           {
             opacity: 1,
             y: 0,
             scale: 1,
+            filter: "blur(0px)",
             ease: "none",
             scrollTrigger: {
               trigger: pricingCardRef.current,
-              start: "top 90%",
-              end: "top 45%",
+              start: "top 92%",
+              end: "top 42%",
               scrub: 1.2
             }
           }

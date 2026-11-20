@@ -582,3 +582,109 @@ img, svg {
 .fade-in-up-delay-3 { animation-delay: 0.3s; }
 .fade-in-up-delay-4 { animation-delay: 0.4s; }
 .fade-in-up-delay-5 { animation-delay: 0.5s; }
+
+/* ── 13. Lenis Smooth Scroll Integration ── */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* ── 14. Premium Motion Enhancements & Micro-Interactions ── */
+@keyframes blurReveal {
+  0% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(22px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
+  }
+}
+
+@keyframes starPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.22) rotate(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.22); }
+  30% { transform: scale(1.05); }
+  45% { transform: scale(1.2); }
+  60% { transform: scale(1); }
+}
+
+@keyframes subtleHoverGlow {
+  0%, 100% { box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 20px 40px -8px rgba(16, 185, 129, 0.35); }
+}
+
+/* Smooth Arrow hover motion inside buttons */
+.btn-electric, .btn-white, .btn-secondary-pill, .btn-primary {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, background 0.25s ease;
+  will-change: transform;
+}
+
+.btn-electric:hover, .btn-white:hover, .btn-secondary-pill:hover {
+  transform: translateY(-2px);
+}
+
+.btn-electric:active, .btn-white:active, .btn-secondary-pill:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.btn-electric svg, .btn-white svg, .btn-secondary-pill svg {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-electric:hover svg, .btn-white:hover svg, .btn-secondary-pill:hover svg {
+  transform: translateX(3px);
+}
+
+/* Card lift micro-transition */
+.card-hover-lift {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+  will-change: transform, box-shadow;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.1);
+}
+
+/* ── 15. Accessibility: prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

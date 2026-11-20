@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles, ArrowRight } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { PRICING_TIERS, PRICING_COMPARISON_CATEGORIES } from "../../data/pricingData";
 import styles from "../../styles/Pricing.module.css";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function PricingCalculator({
   showComparison = true,
@@ -10,9 +14,36 @@ export default function PricingCalculator({
 }) {
   const [billingCycle, setBillingCycle] = useState("annual");
   const [comparisonOpen, setComparisonOpen] = useState(false);
+  const gridRef = useRef(null);
 
   const tiers = PRICING_TIERS || [];
   const comparisonCategories = PRICING_COMPARISON_CATEGORIES || [];
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (gridRef.current?.children) {
+        gsap.fromTo(
+          gridRef.current.children,
+          { opacity: 0, y: 28, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.7,
+            stagger: 0.12,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: gridRef.current,
+              start: "top 88%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, []);
 
   return (
     <div className={styles.calculatorWrap}>
@@ -27,7 +58,7 @@ export default function PricingCalculator({
       </div>
 
       {/* Pricing Cards 3-Col Grid */}
-      <div className={styles.pricingGrid}>
+      <div ref={gridRef} className={styles.pricingGrid}>
         {tiers.map((tier) => {
           const featureList = tier?.features || [];
           const hasDiscount = tier?.savings > 0;

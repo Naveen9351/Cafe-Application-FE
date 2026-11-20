@@ -47,38 +47,64 @@ export default function FoundersCasualSection() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
+      // 1. Header blur-to-focus reveal
       if (headerRef.current) {
         gsap.fromTo(
           headerRef.current,
-          { opacity: 0, y: 25 },
+          { opacity: 0, y: 30, filter: "blur(8px)" },
           {
             opacity: 1,
             y: 0,
-            duration: 0.6,
-            ease: "power2.out",
+            filter: "blur(0px)",
+            duration: 0.8,
+            ease: "power3.out",
             scrollTrigger: {
-              trigger: sectionRef.current,
-              start: "top 85%",
-              once: true
+              trigger: headerRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
             }
           }
         );
       }
 
+      // 2. Staggered 3D entrance for 3 founder cards
       if (cardsRef.current && cardsRef.current.children) {
         gsap.fromTo(
           cardsRef.current.children,
-          { opacity: 0, y: 30 },
+          { opacity: 0, y: 36, rotateX: 6, scale: 0.95, filter: "blur(6px)" },
           {
             opacity: 1,
             y: 0,
-            duration: 0.6,
-            stagger: 0.12,
-            ease: "power2.out",
+            rotateX: 0,
+            scale: 1,
+            filter: "blur(0px)",
+            duration: 0.75,
+            stagger: 0.14,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: cardsRef.current,
               start: "top 85%",
-              once: true
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // 3. Friendly banner smooth slide-up
+      if (bannerRef.current) {
+        gsap.fromTo(
+          bannerRef.current,
+          { opacity: 0, y: 24, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.7,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: bannerRef.current,
+              start: "top 92%",
+              toggleActions: "play none none reverse"
             }
           }
         );
@@ -140,7 +166,7 @@ export default function FoundersCasualSection() {
         {/* Casual Friendly Banner */}
         <div ref={bannerRef} className={styles.friendlyBanner}>
           <div className={styles.friendlyText}>
-            <Heart style={{ width: 18, height: 18, color: "var(--color-rose)", flexShrink: 0 }} />
+            <Heart style={{ width: 18, height: 18, color: "var(--color-rose)", flexShrink: 0, animation: "heartPulse 2.4s ease-in-out infinite" }} />
             <span>
               We believe in honest software and direct relationships with cafe operators. Need custom tweaks or have ideas?
             </span>

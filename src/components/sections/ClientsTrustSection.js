@@ -10,60 +10,111 @@ export default function ClientsTrustSection({ onOpenDemo }) {
   const sectionRef = useRef(null);
   const headerRef = useRef(null);
   const featuredRef = useRef(null);
+  const starGroupRef = useRef(null);
+  const metricsRef = useRef(null);
   const secondaryRef = useRef(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
+      // 1. Header blur-to-focus reveal
       if (headerRef.current) {
         gsap.fromTo(
           headerRef.current,
-          { opacity: 0, y: 25 },
+          { opacity: 0, y: 30, filter: "blur(8px)" },
           {
             opacity: 1,
             y: 0,
-            duration: 0.6,
-            ease: "power2.out",
+            filter: "blur(0px)",
+            duration: 0.8,
+            ease: "power3.out",
             scrollTrigger: {
-              trigger: sectionRef.current,
-              start: "top 85%",
-              once: true
+              trigger: headerRef.current,
+              start: "top 90%",
+              toggleActions: "play none none reverse"
             }
           }
         );
       }
 
+      // 2. Featured Card 3D scale-up entrance
       if (featuredRef.current) {
         gsap.fromTo(
           featuredRef.current,
-          { opacity: 0, y: 35 },
+          { opacity: 0, y: 40, scale: 0.95, filter: "blur(6px)" },
           {
             opacity: 1,
             y: 0,
-            duration: 0.7,
-            ease: "power2.out",
+            scale: 1,
+            filter: "blur(0px)",
+            duration: 0.85,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: featuredRef.current,
               start: "top 85%",
-              once: true
+              toggleActions: "play none none reverse"
             }
           }
         );
       }
 
-      if (secondaryRef.current && secondaryRef.current.children) {
+      // 3. Sequential 5-star rating pop-in
+      if (starGroupRef.current?.children) {
         gsap.fromTo(
-          secondaryRef.current.children,
-          { opacity: 0, y: 25 },
+          starGroupRef.current.children,
+          { opacity: 0, scale: 0.3, rotate: -25 },
+          {
+            opacity: 1,
+            scale: 1,
+            rotate: 0,
+            duration: 0.5,
+            stagger: 0.08,
+            ease: "back.out(2.2)",
+            scrollTrigger: {
+              trigger: featuredRef.current,
+              start: "top 80%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // 4. Metric items cascade
+      if (metricsRef.current?.children) {
+        gsap.fromTo(
+          metricsRef.current.children,
+          { opacity: 0, y: 18, scale: 0.95 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.5,
+            scale: 1,
+            duration: 0.6,
+            stagger: 0.09,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: metricsRef.current,
+              start: "top 88%",
+              toggleActions: "play none none reverse"
+            }
+          }
+        );
+      }
+
+      // 5. Secondary Client Testimonial Cards
+      if (secondaryRef.current?.children) {
+        gsap.fromTo(
+          secondaryRef.current.children,
+          { opacity: 0, y: 30, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.7,
             stagger: 0.12,
             ease: "power2.out",
             scrollTrigger: {
               trigger: secondaryRef.current,
               start: "top 88%",
-              once: true
+              toggleActions: "play none none reverse"
             }
           }
         );
@@ -115,7 +166,7 @@ export default function ClientsTrustSection({ onOpenDemo }) {
 
             {/* 5-Star Rating Pill */}
             <div className={styles.ratingWrapper}>
-              <div className={styles.starGroup}>
+              <div ref={starGroupRef} className={styles.starGroup}>
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} style={{ width: 16, height: 16, fill: "#f59e0b", color: "#f59e0b" }} />
                 ))}
@@ -145,7 +196,7 @@ export default function ClientsTrustSection({ onOpenDemo }) {
           </div>
 
           {/* Impact Metrics */}
-          <div className={styles.metricsGrid}>
+          <div ref={metricsRef} className={styles.metricsGrid}>
             <div className={styles.metricItem}>
               <span className={styles.metricValue}>&lt; 15 Sec</span>
               <span className={styles.metricLabel}>Table-to-Kitchen KOT Dispatch</span>

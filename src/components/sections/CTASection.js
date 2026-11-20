@@ -65,6 +65,57 @@ export default function CTASection({ onOpenDemo }) {
           repeat: -1
         });
       }
+
+      // 2. Coordinated text, button & trust prop reveal inside card
+      if (cardRef.current) {
+        const contentTl = gsap.timeline({
+          scrollTrigger: {
+            trigger: cardRef.current,
+            start: "top 80%",
+            toggleActions: "play none none reverse"
+          }
+        });
+
+        if (badgeRef.current) {
+          contentTl.fromTo(
+            badgeRef.current,
+            { opacity: 0, scale: 0.9, y: 12 },
+            { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "back.out(1.6)" }
+          );
+        }
+        if (titleRef.current) {
+          contentTl.fromTo(
+            titleRef.current,
+            { opacity: 0, y: 22, filter: "blur(10px)" },
+            { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.75, ease: "power3.out" },
+            "-=0.4"
+          );
+        }
+        if (subtitleRef.current) {
+          contentTl.fromTo(
+            subtitleRef.current,
+            { opacity: 0, y: 18, filter: "blur(6px)" },
+            { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.65, ease: "power3.out" },
+            "-=0.4"
+          );
+        }
+        if (actionsRef.current?.children) {
+          contentTl.fromTo(
+            actionsRef.current.children,
+            { opacity: 0, y: 16, scale: 0.96 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.1, ease: "power2.out" },
+            "-=0.3"
+          );
+        }
+        if (propsRef.current?.children) {
+          contentTl.fromTo(
+            propsRef.current.children,
+            { opacity: 0, y: 14 },
+            { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power2.out" },
+            "-=0.3"
+          );
+        }
+      }
     }, sectionRef);
 
     return () => ctx.revert();
