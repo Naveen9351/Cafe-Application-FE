@@ -7,32 +7,36 @@ import {
 import { getValidFoodImage } from './AdminPanel';
 
 export function FssaiDietaryBadge({ isVeg = true, size = 16 }) {
+  const isVegetarian = Boolean(isVeg);
+  const color = isVegetarian ? '#16a34a' : '#dc2626';
+  const dotSize = Math.max(5, Math.round(size * 0.46));
   return (
-    <div
+    <span
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        border: `2px solid ${isVeg ? '#16a34a' : '#dc2626'}`,
-        borderRadius: '4px',
+        border: `1.5px solid ${color}`,
+        borderRadius: '3px',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1.5px',
         backgroundColor: '#ffffff',
         flexShrink: 0,
-        boxShadow: `0 2px 6px ${isVeg ? 'rgba(22, 163, 74, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`
+        boxSizing: 'border-box',
+        verticalAlign: 'middle'
       }}
-      title={isVeg ? "Vegetarian" : "Non-Vegetarian"}
+      title={isVegetarian ? "Vegetarian" : "Non-Vegetarian"}
     >
-      <div
+      <span
         style={{
-          width: '100%',
-          height: '100%',
+          width: `${dotSize}px`,
+          height: `${dotSize}px`,
           borderRadius: '50%',
-          backgroundColor: isVeg ? '#16a34a' : '#dc2626'
+          backgroundColor: color,
+          display: 'block'
         }}
       />
-    </div>
+    </span>
   );
 }
 
@@ -408,15 +412,6 @@ export default function DishDetailsModal({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <FssaiDietaryBadge isVeg={isVeg} size={16} />
-                    <span style={{
-                      fontSize: '0.74rem',
-                      textTransform: 'uppercase',
-                      fontWeight: '800',
-                      letterSpacing: '0.05em',
-                      color: isVeg ? '#16a34a' : '#dc2626'
-                    }}>
-                      {isVeg ? 'Veg' : 'Non-Veg'}
-                    </span>
                   </div>
 
                   {activeDish?.category && (

@@ -803,7 +803,7 @@ export default function Menu() {
     if (Array.isArray(categories) && categories.length > 0) {
       categories.forEach(c => {
         const id = c.id || c.name?.toLowerCase().replace(/\s+/g, '-');
-        if (id && id !== 'all' && c.name?.toLowerCase() !== 'all' && c.name?.toLowerCase() !== 'all items' && c.name?.toLowerCase() !== 'all categories') {
+        if (id && id !== 'all' && c.name?.toLowerCase() !== 'all' && c.name?.toLowerCase() !== 'all items' && c.name?.toLowerCase() !== 'all categories' && c.name?.toLowerCase() !== 'open items' && id !== 'open-items') {
           // Never use string icon name directly; map to emoji
           const emoji = (c.icon && /\p{Extended_Pictographic}/u.test(c.icon) && c.icon.length <= 4)
             ? c.icon
@@ -812,17 +812,6 @@ export default function Menu() {
         }
       });
     }
-
-    displayItems.forEach(it => {
-      if (it.category) {
-        const rawCat = String(it.category).trim();
-        const id = rawCat.toLowerCase().replace(/\s+/g, '-');
-        if (!map.has(id) && !map.has(rawCat) && id !== 'all' && rawCat.toLowerCase() !== 'all') {
-          const displayName = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).replace(/[-_]/g, ' ');
-          map.set(id, { id, name: displayName, icon: getCategoryEmoji(displayName), count: 0, image: it.image || null });
-        }
-      }
-    });
 
     const list = Array.from(map.values()).map(cat => {
       const count = displayItems.filter(it => {
@@ -1023,52 +1012,26 @@ export default function Menu() {
   }, [selectedCategory, categorizedGroups, allCategories]);
 
   const FssaiDietaryBadge = ({ isVeg }) => {
-    if (isVeg !== false) {
-      return (
-        <span
-          title="Vegetarian"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 14,
-            height: 14,
-            border: '1.5px solid #16a34a',
-            borderRadius: 3,
-            backgroundColor: 'transparent',
-            flexShrink: 0,
-            marginTop: 2
-          }}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#16a34a' }} />
-        </span>
-      );
-    }
+    const isVegetarian = isVeg !== false;
+    const color = isVegetarian ? '#16a34a' : '#dc2626';
     return (
       <span
-        title="Non-Vegetarian"
+        title={isVegetarian ? "Vegetarian" : "Non-Vegetarian"}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
           width: 14,
           height: 14,
-          border: '1.5px solid #dc2626',
+          border: `1.5px solid ${color}`,
           borderRadius: 3,
-          backgroundColor: 'transparent',
+          backgroundColor: '#ffffff',
           flexShrink: 0,
+          boxSizing: 'border-box',
           marginTop: 2
         }}
       >
-        <span
-          style={{
-            width: 0,
-            height: 0,
-            borderLeft: '3.5px solid transparent',
-            borderRight: '3.5px solid transparent',
-            borderBottom: '6.5px solid #dc2626'
-          }}
-        />
+        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: color, display: 'block' }} />
       </span>
     );
   };

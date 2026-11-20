@@ -56,6 +56,7 @@ export const formatTableOnlyNumber = (num) => {
 export default function POSTerminal({
   tenantId,
   tenantInfo,
+  categories: passedCategories,
   menuItems = [],
   orders = [],
   initialTable = null,
@@ -855,26 +856,37 @@ export default function POSTerminal({
     return s;
   };
 
-  // Categories list for POS Menu (switches dynamically between Normal Menu and Open Menu)
+  // Categories list for POS Menu (Strictly user-created categories only)
   const categories = useMemo(() => {
-    const cats = ['all'];
-    const targetItems = menuItems.filter(item => {
-      const isOpen = Boolean(
-        item.isOpenMenu ||
-        item.isPosOnly ||
-        item.isOpenItem ||
-        String(item.category || '').toLowerCase() === 'open items' ||
-        String(item.category || '').toLowerCase() === 'open_menu' ||
-        String(item.category || '').toLowerCase() === '⚡ open item'
-      );
-      return isOpenItemModeEnabled ? isOpen : !isOpen;
+    const rawUserCats = (Array.isArray(passedCategories) && passedCategories.length > 0)
+      ? passedCategories
+      : (tenantInfo?.settings?.categories || []);
+
+    const userCats = rawUserCats
+      .filter(c => c && (c.id || c.name))
+      .map(c => typeof c === 'object' ? (c.id || c.name) : c)
+      .filter(cId => {
+        const l = String(cId).toLowerCase();
+        return l !== 'all' && l !== 'uncategorized';
+      });
+
+    if (isOpenItemModeEnabled) {
+      // In Open Items mode: show All and Open Items
+      const openCat = userCats.find(c => {
+        const l = String(c).toLowerCase();
+        return l === 'open-items' || l === 'open items' || l === 'open_menu' || l === 'open item';
+      });
+      return openCat ? ['all', openCat] : ['all'];
+    }
+
+    // In normal mode: exclude Open Items from normal category list
+    const normalCats = userCats.filter(c => {
+      const l = String(c).toLowerCase();
+      return l !== 'open-items' && l !== 'open items' && l !== 'open_menu' && l !== 'open item' && l !== '⚡ open item';
     });
 
-    const dynamicCats = [...new Set(
-      targetItems.map(item => normalizeOpenCategory(item.category, isOpenItemModeEnabled))
-    )];
-    return [...cats, ...dynamicCats];
-  }, [menuItems, isOpenItemModeEnabled]);
+    return ['all', ...normalCats];
+  }, [passedCategories, tenantInfo?.settings?.categories, isOpenItemModeEnabled]);
 
   // Dish counts per category for the left category sidebar
   const categoryDishCounts = useMemo(() => {
@@ -891,12 +903,18 @@ export default function POSTerminal({
     });
 
     const map = { all: targetItems.length };
-    targetItems.forEach(item => {
-      const c = normalizeOpenCategory(item.category, isOpenItemModeEnabled);
-      map[c] = (map[c] || 0) + 1;
+    categories.forEach(cat => {
+      if (cat === 'all') return;
+      const catStr = String(cat).toLowerCase().trim();
+      const count = targetItems.filter(item => {
+        const itemCat = String(item.category || '').toLowerCase().trim();
+        const itemCatId = String(item.categoryId || '').toLowerCase().trim();
+        return itemCat === catStr || itemCatId === catStr || itemCat.replace(/\s+/g, '-') === catStr;
+      }).length;
+      map[cat] = count;
     });
     return map;
-  }, [menuItems, isOpenItemModeEnabled]);
+  }, [menuItems, isOpenItemModeEnabled, categories]);
 
   const filteredMenuItems = useMemo(() => {
     return menuItems.filter(item => {
@@ -921,8 +939,10 @@ export default function POSTerminal({
       if (selectedCategory === 'all') {
         matchesCat = true;
       } else {
-        const itemCat = normalizeOpenCategory(item.category, isOpenItemModeEnabled);
-        matchesCat = itemCat.toLowerCase() === selectedCategory.toLowerCase();
+        const targetCat = String(selectedCategory).toLowerCase().trim();
+        const itemCat = String(item.category || '').toLowerCase().trim();
+        const itemCatId = String(item.categoryId || '').toLowerCase().trim();
+        matchesCat = itemCat === targetCat || itemCatId === targetCat || itemCat.replace(/\s+/g, '-') === targetCat;
       }
       const matchesSearch = !dishSearch || item.name.toLowerCase().includes(dishSearch.toLowerCase());
       return matchesCat && matchesSearch;
@@ -2297,9 +2317,14 @@ export default function POSTerminal({
                         title={cat === 'all' ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes') : cat}
                       >
                         <span className={styles.categoryItemName}>
-                          {cat === 'all'
-                            ? (isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes')
-                            : cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                          {(() => {
+                            if (cat === 'all') return isOpenItemModeEnabled ? 'All Open Items' : 'All Dishes';
+                            const allDefs = (Array.isArray(passedCategories) && passedCategories.length > 0)
+                              ? passedCategories
+                              : (tenantInfo?.settings?.categories || []);
+                            const found = allDefs.find(c => (c && (c.id === cat || c.name === cat)));
+                            return found?.name || (typeof cat === 'string' ? (cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')) : String(cat));
+                          })()}
                         </span>
                         <span className={`${styles.categoryItemCount} ${isActive ? styles.categoryItemCountActive : ''}`}>
                           {count}
@@ -2541,7 +2566,7 @@ export default function POSTerminal({
                                 e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400';
                               }}
                             />
-                            <div className={styles.vegBadge}>
+                            <div className={item.isVeg ? styles.vegBadge : styles.nonVegBadge}>
                               <div className={item.isVeg ? styles.vegDot : styles.nonVegDot} />
                             </div>
                             {(item.isOpenMenu || item.isPosOnly) && (

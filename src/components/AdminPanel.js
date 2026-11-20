@@ -13,6 +13,7 @@ import {
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCodeComponent from './QRCodeComponent';
+import VegNonVegBadge from './common/VegNonVegBadge';
 import TableOperationsHub from './TableOperationsHub';
 import POSTerminal from './petpooja/POSTerminal';
 import KOTMonitor from './petpooja/KOTMonitor';
@@ -103,20 +104,9 @@ export const detectCategoryIcon = (name = '') => {
   return 'UtensilsCrossed';
 };
 
-export const LEGACY_DUMMY_CATEGORY_KEYS = new Set([
-  'chai', 'coldcoffee', 'hotcoffee', 'burger', 'burgers', 'pizza', 'pizzas', 'chinese',
-  'sandwich', 'sandwiches', 'snacks', 'snack', 'wraps', 'wrap', 'pasta', 'colddrinks',
-  'drinks', 'drink', 'mocktails', 'mocktail', 'shakes', 'shake', 'desserts', 'dessert',
-  'combos', 'combo', 'maincourses', 'maincourse', 'mains', 'appetizers', 'appetizer',
-  'beverages', 'beverage', 'coffee', 'tea', 'icetea', 'icedtea', 'nafjkfjdkjf', 'dfdfdf'
-]);
+export const LEGACY_DUMMY_CATEGORY_KEYS = new Set([]);
 
-export const isLegacyDummyCategory = (cat) => {
-  if (!cat) return false;
-  const idNorm = String(cat.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
-  const nameNorm = String(cat.name || '').toLowerCase().replace(/[\s\-_]+/g, '');
-  return LEGACY_DUMMY_CATEGORY_KEYS.has(idNorm) || LEGACY_DUMMY_CATEGORY_KEYS.has(nameNorm);
-};
+export const isLegacyDummyCategory = () => false;
 
 export const getCategoryIconComponent = (cat) => {
   if (cat && typeof cat.Component === 'function') {
@@ -405,7 +395,7 @@ export default function AdminPanel() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const filtered = parsed.filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+          const filtered = parsed.filter(c => c && c.id);
           if (filtered.length > 0) return filtered;
         }
       }
@@ -416,49 +406,17 @@ export default function AdminPanel() {
   });
 
   // Alphabetically sorted categories with "All Dishes" always first (A-Z)
-  // Smartly auto-discovers and includes any categories that dishes are tagged with
+  // Strictly user-created categories only: no auto-discovery or hardcoded dummy categories
   const sortedCategories = useMemo(() => {
-    if (!categories || !categories.length) return [];
-    const allCat = categories.find(c => c.id === 'all') || { id: 'all', name: 'All Dishes' };
-    const knownIds = new Set(categories.map(c => (c.id || '').toLowerCase()));
-    const knownNames = new Set(categories.map(c => (c.name || '').toLowerCase()));
-
-    // Auto-discover any categories currently assigned to dishes so dishes never become hidden
-    const autoDiscovered = [];
-    if (Array.isArray(items)) {
-      items.forEach(it => {
-        if (it.category) {
-          const cleanCat = String(it.category).trim();
-          const catId = toCategorySlug(cleanCat);
-          if (catId && catId !== 'all' && catId !== 'uncategorized' && !knownIds.has(catId.toLowerCase()) && !knownNames.has(cleanCat.toLowerCase())) {
-            knownIds.add(catId.toLowerCase());
-            knownNames.add(cleanCat.toLowerCase());
-            const iconKey = detectCategoryIcon(cleanCat);
-            const selectedIconComp = CATEGORY_ICON_MAP[iconKey] || UtensilsCrossed;
-            const newAutoCat = {
-              id: catId,
-              name: cleanCat,
-              icon: iconKey,
-              Component: selectedIconComp,
-              aliases: [catId.toLowerCase(), cleanCat.toLowerCase()],
-              isCustom: true
-            };
-            if (!isLegacyDummyCategory(newAutoCat)) {
-              autoDiscovered.push(newAutoCat);
-            }
-          }
-        }
-      });
+    if (!categories || !categories.length) {
+      return [{ id: 'all', name: 'All Dishes', icon: 'UtensilsCrossed', Component: UtensilsCrossed }];
     }
-
-    const combined = [
-      ...categories.filter(c => c.id !== 'all' && c.id !== 'uncategorized' && (c.name || '').toLowerCase() !== 'uncategorized' && !isLegacyDummyCategory(c)),
-      ...autoDiscovered.filter(c => c.id !== 'uncategorized' && (c.name || '').toLowerCase() !== 'uncategorized')
-    ];
-    const others = combined
+    const allCat = categories.find(c => c.id === 'all') || { id: 'all', name: 'All Dishes', icon: 'UtensilsCrossed', Component: UtensilsCrossed };
+    const userCats = categories
+      .filter(c => c && c.id && c.id !== 'all' && c.id !== 'uncategorized' && (c.name || '').toLowerCase() !== 'uncategorized')
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
-    return [allCat, ...others];
-  }, [categories, items]);
+    return [allCat, ...userCats];
+  }, [categories]);
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState('add'); // 'add' or 'edit'
@@ -988,7 +946,7 @@ export default function AdminPanel() {
             });
             if (fetchedLogo) localStorage.setItem('restaurant_logo', fetchedLogo);
             if (res.data.settings?.categories && Array.isArray(res.data.settings.categories)) {
-              const serverCats = res.data.settings.categories.filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+              const serverCats = res.data.settings.categories.filter(c => c && c.id);
               const finalCats = serverCats.length > 0 ? serverCats : [{ id: 'all', name: 'All Dishes', icon: 'UtensilsCrossed' }];
               setCategories(finalCats);
               localStorage.setItem('serviq_custom_categories', JSON.stringify(finalCats));
@@ -997,22 +955,6 @@ export default function AdminPanel() {
         })
         .catch((err) => console.log('Tenant info fetch error:', err));
     }
-
-    // Scrub any legacy dummy categories from localStorage immediately
-    try {
-      const saved = localStorage.getItem('serviq_custom_categories');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const cleaned = parsed.filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
-          if (cleaned.length !== parsed.length) {
-            const finalClean = cleaned.length > 0 ? cleaned : [{ id: 'all', name: 'All Dishes', icon: 'UtensilsCrossed' }];
-            localStorage.setItem('serviq_custom_categories', JSON.stringify(finalClean));
-            setCategories(finalClean);
-          }
-        }
-      }
-    } catch (e) { }
 
     fetchMenu();
     fetchOrders();
@@ -2071,7 +2013,7 @@ export default function AdminPanel() {
   };
 
   const persistCategories = async (updated) => {
-    const cleanCats = (updated || []).filter(c => c && c.id && (c.id === 'all' || !isLegacyDummyCategory(c)));
+    const cleanCats = (updated || []).filter(c => c && c.id);
     localStorage.setItem('serviq_custom_categories', JSON.stringify(cleanCats));
     try {
       const token = localStorage.getItem('token');
@@ -5454,8 +5396,8 @@ export default function AdminPanel() {
                         )}
                       </div>
 
-                      {/* Select All / Deselect All Button */}
-                      {filteredMenuItems.length > 0 && (
+                      {/* Select All / Deselect All Button - Only visible when at least one item is checked */}
+                      {selectedItemIds.length > 0 && filteredMenuItems.length > 0 && (
                         <button
                           type="button"
                           onClick={handleToggleSelectAll}
@@ -5500,26 +5442,6 @@ export default function AdminPanel() {
                       )}
                       <button
                         type="button"
-                        onClick={handleOpenAddCategoryModal}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          padding: '7px 14px',
-                          borderRadius: '8px',
-                          border: '1px solid #c7d2fe',
-                          background: '#eef2ff',
-                          color: '#4f46e5',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <Plus size={14} /> Add Category
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setIsImportModalOpen(true)}
                         style={{
                           display: 'inline-flex',
@@ -5539,7 +5461,7 @@ export default function AdminPanel() {
                         onMouseEnter={(e) => { e.currentTarget.style.background = '#e0e7ff'; e.currentTarget.style.borderColor = '#a5b4fc'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)'; e.currentTarget.style.borderColor = '#c7d2fe'; }}
                       >
-                        <Sparkles size={14} color="#4f46e5" /> AI Menu Import (Image/PDF)
+                        <Sparkles size={14} color="#4f46e5" /> AI Menu Scan
                       </button>
                       <button
                         type="button"
@@ -5553,6 +5475,28 @@ export default function AdminPanel() {
 
                   {/* Categories Bar (Arranged A-Z) */}
                   <div className={styles.categoriesPillRow}>
+                    <button
+                      type="button"
+                      onClick={handleOpenAddCategoryModal}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '7px 14px',
+                        borderRadius: '100px',
+                        border: '1.5px dashed #4f46e5',
+                        background: '#eef2ff',
+                        color: '#4f46e5',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}
+                      title="Add a new category"
+                    >
+                      <Plus size={14} /> Add Category
+                    </button>
                     {sortedCategories.map((cat) => {
                       const IconComp = getCategoryIconComponent(cat);
                       const isActive = selectedCategory === cat.id;
@@ -5610,27 +5554,6 @@ export default function AdminPanel() {
                         </div>
                       );
                     })}
-                    <button
-                      type="button"
-                      onClick={handleOpenAddCategoryModal}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '7px 14px',
-                        borderRadius: '100px',
-                        border: '1px dashed #4f46e5',
-                        background: '#eef2ff',
-                        color: '#4f46e5',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        flexShrink: 0
-                      }}
-                    >
-                      <Plus size={14} /> Add Category
-                    </button>
                   </div>
 
                   {/* Items Grid or Skeleton Loader */}
@@ -5677,9 +5600,7 @@ export default function AdminPanel() {
                                   {isSelected ? <CheckSquare size={18} color="#4f46e5" /> : <Square size={18} color="#ffffff" />}
                                 </button>
                                 <div className={styles.dishBadges}>
-                                  <span className={item.isVeg ? styles.vegPill : styles.nonVegPill}>
-                                    {item.isVeg ? '● VEG' : '▲ NON-VEG'}
-                                  </span>
+                                  <VegNonVegBadge isVeg={item.isVeg} size={15} />
                                   {hasDiscount && (
                                     <span style={{
                                       background: '#ef4444',
@@ -5888,6 +5809,7 @@ export default function AdminPanel() {
                   <POSTerminal
                     tenantId={tenantId}
                     tenantInfo={tenantInfo}
+                    categories={sortedCategories}
                     menuItems={items}
                     orders={orders}
                     initialTable={isCounterBillingOnly ? 'Walk-in' : posSelectedTable}
@@ -6317,42 +6239,36 @@ export default function AdminPanel() {
                   <button
                     type="button"
                     onClick={() => setDrawerForm({ ...drawerForm, isVeg: true })}
+                    title="Vegetarian"
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
                       border: drawerForm.isVeg ? '2px solid #16a34a' : '1px solid #cbd5e1',
                       background: drawerForm.isVeg ? '#f0fdf4' : '#ffffff',
-                      color: drawerForm.isVeg ? '#16a34a' : '#64748b',
-                      fontWeight: 600,
-                      fontSize: '13px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 6,
                       cursor: 'pointer'
                     }}
                   >
-                    ● Vegetarian (Veg)
+                    <VegNonVegBadge isVeg={true} size={18} />
                   </button>
                   <button
                     type="button"
                     onClick={() => setDrawerForm({ ...drawerForm, isVeg: false })}
+                    title="Non-Vegetarian"
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
                       border: !drawerForm.isVeg ? '2px solid #dc2626' : '1px solid #cbd5e1',
                       background: !drawerForm.isVeg ? '#fef2f2' : '#ffffff',
-                      color: !drawerForm.isVeg ? '#dc2626' : '#64748b',
-                      fontWeight: 600,
-                      fontSize: '13px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 6,
                       cursor: 'pointer'
                     }}
                   >
-                    ▲ Non-Vegetarian
+                    <VegNonVegBadge isVeg={false} size={18} />
                   </button>
                 </div>
               </div>
@@ -8027,20 +7943,20 @@ export default function AdminPanel() {
                           <button
                             type="button"
                             onClick={() => handleUpdateExtractedItem(idx, 'type', item.type === 'veg' ? 'non-veg' : 'veg')}
+                            title={item.type === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}
                             style={{
-                              padding: '5px 9px',
+                              padding: '5px 8px',
                               borderRadius: '8px',
-                              border: item.type === 'veg' ? '1px solid #10b981' : '1px solid #ef4444',
+                              border: item.type === 'veg' ? '1.5px solid #10b981' : '1.5px solid #ef4444',
                               background: item.type === 'veg' ? '#ecfdf5' : '#fef2f2',
-                              color: item.type === 'veg' ? '#059669' : '#dc2626',
-                              fontSize: '11px',
-                              fontWeight: 800,
                               cursor: 'pointer',
-                              flexShrink: 0,
-                              textTransform: 'uppercase'
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
                             }}
                           >
-                            {item.type === 'veg' ? 'Veg' : 'Non-Veg'}
+                            <VegNonVegBadge isVeg={item.type === 'veg'} size={15} />
                           </button>
 
                           {/* Price input */}

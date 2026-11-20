@@ -82,7 +82,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           setWaConnected(res.data.connected);
           setWaPhone(res.data.user?.id || '');
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     checkWa();
     return () => { isMounted = false; };
@@ -535,7 +535,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     { id: 'all', label: 'All Settings', icon: Sliders },
     { id: 'general', label: 'General Identity', icon: Building2 },
     { id: 'operations', label: 'Operations & Hours', icon: Clock },
-    { id: 'payment', label: 'Payment & Razorpay Route', icon: CreditCard },
+    { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'whatsapp', label: 'WhatsApp E-Bills', icon: MessageSquare },
     { id: 'language', label: 'Language & Display', icon: Globe },
     { id: 'audio', label: 'Audio & Chimes', icon: Volume2 },
