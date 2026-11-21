@@ -430,11 +430,37 @@ export default function Menu() {
         ...sessionIds.slice().reverse()
       ])).filter(Boolean);
 
-      // 1. Try checking known order IDs
+      const tokenParam = searchParams.get('t') || searchParams.get('code') || searchParams.get('token');
+      const curTable = tableNumber || (tokenParam ? decodeTableToken(tokenParam) : null) || (searchParams.get('table') ? decodeTableToken(searchParams.get('table')) : null) || localStorage.getItem('tableNumber');
+      const currentTenantId = tenantId || searchParams.get('tenantId') || localStorage.getItem('tenantId');
+      const phone = localStorage.getItem('customer_phone') || localStorage.getItem('verified_customer_phone');
+
+      const isMatchingTable = (ord) => {
+        if (!curTable || curTable === 'Takeaway' || curTable === 'Counter') return true;
+        const cleanCur = String(curTable).replace(/^Table\s*/i, '').trim().toLowerCase();
+        const ordTbl = String(ord?.tableNumber || ord?.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+        const ordMerged = String(ord?.mergedInto || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+        return ordTbl === cleanCur || ordMerged === cleanCur;
+      };
+
+      // 1. Try checking known order IDs placed by this user/device
       for (const ordId of candidateIds) {
         try {
           const res = await axios.get(`${API}/orders/status/${ordId}`);
           if (res.data && ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(res.data.status)) {
+            // Verify order belongs to the currently scanned table
+            if (!isMatchingTable(res.data)) {
+              continue; // Order is for another table
+            }
+            // If user has a phone, verify order belongs to them
+            const currentPhone = localStorage.getItem('customer_phone') || localStorage.getItem('verified_customer_phone');
+            if (currentPhone) {
+              const ordPhone = String(res.data.customerDetails?.phone || '').replace(/[^0-9]/g, '');
+              const cleanP = String(currentPhone).replace(/[^0-9]/g, '');
+              if (ordPhone && cleanP && !ordPhone.endsWith(cleanP.slice(-10)) && !cleanP.endsWith(ordPhone.slice(-10))) {
+                continue; // Order was placed by someone else
+              }
+            }
             setActiveRunningOrder(res.data);
             return;
           }
@@ -443,22 +469,23 @@ export default function Menu() {
         }
       }
 
-      // 2. Try checking active order for table or customer phone via /active-session
-      const tokenParam = searchParams.get('t') || searchParams.get('code') || searchParams.get('token');
-      const curTable = tableNumber || (tokenParam ? decodeTableToken(tokenParam) : null) || (searchParams.get('table') ? decodeTableToken(searchParams.get('table')) : null) || localStorage.getItem('tableNumber');
-      const currentTenantId = tenantId || searchParams.get('tenantId') || localStorage.getItem('tenantId');
-      const phone = localStorage.getItem('customer_phone') || localStorage.getItem('verified_customer_phone');
-
-      if ((curTable && curTable !== 'Takeaway' && curTable !== 'Counter') || phone) {
+      // 2. Try checking active order for customer phone or device session orders via /active-session
+      // Only query active session if user has verified phone or previously placed orders from this device
+      if (phone || (candidateIds && candidateIds.length > 0)) {
         try {
           const res = await axios.get(`${API}/orders/active-session`, {
             params: {
               tableNumber: curTable,
               tenantId: currentTenantId,
-              phone: phone
+              phone: phone || undefined,
+              sessionIds: candidateIds.length > 0 ? candidateIds.join(',') : undefined
             }
           });
           if (res.data && ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(res.data.status)) {
+            if (!isMatchingTable(res.data)) {
+              setActiveRunningOrder(null);
+              return;
+            }
             setActiveRunningOrder(res.data);
             if (res.data._id) {
               localStorage.setItem('serviq_last_order_id', res.data._id);

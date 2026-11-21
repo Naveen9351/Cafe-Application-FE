@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Tag, ArrowLeft, ShoppingCart, IndianRupee,
   Utensils, ChefHat, Eye, CheckCircle2, CheckSquare, AlertCircle, Sparkles, Filter, Layers,
   User, UserPlus, Phone, BookOpen, StickyNote, Volume2, VolumeX, Banknote, Lock, Wallet, Percent, Moon, GitMerge, Link2,
-  GripVertical, ArrowRight
+  GripVertical, ArrowRight, ArrowRightLeft, Move, RotateCcw
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { QRCodeSVG } from 'qrcode.react';
@@ -137,13 +137,26 @@ export default function POSTerminal({
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
 
-  // Merged tables state
+  // Merged & Moved tables state
   const [mergedTables, setMergedTables] = useState([]);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showMoveModal, setShowMoveModal] = useState(false);
   const [primaryMergeTable, setPrimaryMergeTable] = useState('');
   const [mergeSourceTable, setMergeSourceTable] = useState('');
   const [mergeTargetTable, setMergeTargetTable] = useState('');
+  const [moveSourceTable, setMoveSourceTable] = useState('');
+  const [moveTargetTable, setMoveTargetTable] = useState('');
   const [dragOverTargetTable, setDragOverTargetTable] = useState(null);
+  const [gridDragSourceTable, setGridDragSourceTable] = useState(null);
+  const [gridDragOverTable, setGridDragOverTable] = useState(null);
+  const [isDragDropMode, setIsDragDropMode] = useState(false);
+  const [undoAction, setUndoAction] = useState(null); // { type: 'move'|'merge', from, to, timestamp }
+  const undoActionRef = useRef(null);
+  useEffect(() => {
+    undoActionRef.current = undoAction;
+  }, [undoAction]);
+  const isDraggingRef = useRef(false);
+  const floorContainerRef = useRef(null);
   const [showOpenItemModal, setShowOpenItemModal] = useState(false);
   const [isOpenItemModeEnabled, setIsOpenItemModeEnabled] = useState(false);
   const [openItemForm, setOpenItemForm] = useState({
@@ -191,9 +204,11 @@ export default function POSTerminal({
     prevOrdersCountRef.current = orders ? orders.length : 0;
   }, [orders, isMuted]);
 
-  // Fetch dynamic tables from backend DB
-  const fetchDbTables = useCallback(() => {
-    setIsLoadingTables(true);
+  // Fetch dynamic tables from backend DB (supports silent background refresh)
+  const fetchDbTables = useCallback((silent = false) => {
+    if (!silent) {
+      setIsLoadingTables(true);
+    }
     const token = localStorage.getItem('token');
     const url = `${API}/tables${tenantId ? `?tenantId=${tenantId}` : ''}`;
     axios.get(url, { headers: token ? { 'x-auth-token': token } : {} })
@@ -219,7 +234,9 @@ export default function POSTerminal({
         ]);
       })
       .finally(() => {
-        setIsLoadingTables(false);
+        if (!silent) {
+          setIsLoadingTables(false);
+        }
       });
   }, [tenantId]);
 
@@ -431,11 +448,19 @@ export default function POSTerminal({
     };
   }, [allTablesList, getOrdersForTableObj]);
 
-  // Occupied tables with active running orders (eligible to be source of a merge)
+  // Occupied tables with active running orders (eligible to be source of a move or merge)
   const activeOccupiedTables = useMemo(() => {
     return dbTables.filter(tbl => {
       const ords = getOrdersForTableObj(tbl);
-      return ords.length > 0;
+      return ords && ords.length > 0;
+    });
+  }, [dbTables, getOrdersForTableObj]);
+
+  // Clean empty tables with NO active running orders (eligible to be target of a move)
+  const freeEmptyTables = useMemo(() => {
+    return dbTables.filter(tbl => {
+      const ords = getOrdersForTableObj(tbl);
+      return !ords || ords.length === 0;
     });
   }, [dbTables, getOrdersForTableObj]);
 
@@ -541,8 +566,8 @@ export default function POSTerminal({
         return t;
       }));
 
-      // Re-fetch tables in POSTerminal
-      fetchDbTables();
+      // Re-fetch tables in POSTerminal silently (without full skeleton unmount/page jump)
+      fetchDbTables(true);
 
       // Immediately propagate to parent AdminPanel
       if (onOrderPlaced) {
@@ -558,15 +583,174 @@ export default function POSTerminal({
       if (onRefreshOrders) onRefreshOrders();
 
       // If viewing the merged source table in terminal, auto-switch to primary destination table
-      const activeCurrent = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
-      if (cleanMergeList.includes(activeCurrent)) {
-        setTableNumber(cleanPrimary);
+      if (viewMode === 'terminal') {
+        const activeCurrent = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
+        if (cleanMergeList.includes(activeCurrent)) {
+          setTableNumber(cleanPrimary);
+        }
       }
+
+      // Record undo action until bill is paid
+      setUndoAction({
+        type: 'merge',
+        from: cleanMergeList[0] || cleanMergeList,
+        to: cleanPrimary,
+        timestamp: Date.now()
+      });
+      toast.success(`Merged Table ${cleanMergeList.join(', ')} into Table ${cleanPrimary}. (Ctrl+Z to undo)`);
     } catch (err) {
       console.error('Merge tables error:', err);
       toast.error('Failed to merge tables: ' + (err.response?.data?.error || err.message));
     }
   };
+
+  // Move Table Handler (Transfers all active orders from source table to empty target table)
+  const handleMoveTable = async (sourceTbl, targetTbl, isUndo = false) => {
+    if (!sourceTbl) {
+      toast.error('Please select a source table');
+      return;
+    }
+    if (!targetTbl) {
+      toast.error('Please select an empty destination table');
+      return;
+    }
+    const cleanSource = String(sourceTbl).replace(/^Table\s*/i, '').trim();
+    const cleanTarget = String(targetTbl).replace(/^Table\s*/i, '').trim();
+
+    if (cleanSource.toLowerCase() === cleanTarget.toLowerCase()) {
+      toast.error('Source and destination cannot be the same');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      await axios.post(`${API}/tables/move`, {
+        sourceTable: cleanSource,
+        targetTable: cleanTarget
+      }, {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
+
+      // Immediate local state update in POSTerminal
+      setDbTables(prev => prev.map(t => {
+        const tNum = String(t.tableNumber || '').replace(/^Table\s*/i, '').trim();
+        if (tNum.toLowerCase() === cleanSource.toLowerCase()) {
+          return {
+            ...t,
+            status: 'available',
+            mergedInto: null,
+            mergedAt: null,
+            currentOrder: null
+          };
+        }
+        if (tNum.toLowerCase() === cleanTarget.toLowerCase()) {
+          return {
+            ...t,
+            status: 'occupied'
+          };
+        }
+        return t;
+      }));
+
+      // Re-fetch tables in POSTerminal silently (without full skeleton unmount/page jump)
+      fetchDbTables(true);
+
+      // Propagate to parent AdminPanel
+      if (onOrderPlaced) {
+        onOrderPlaced({
+          _refreshAll: true,
+          _refreshTables: true,
+          action: 'move',
+          sourceTable: cleanSource,
+          targetTable: cleanTarget
+        });
+      }
+      if (onRefreshTables) onRefreshTables();
+      if (onRefreshOrders) onRefreshOrders();
+
+      // If viewing the moved source table in terminal, auto-switch to destination table
+      if (viewMode === 'terminal') {
+        const activeCurrent = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
+        if (activeCurrent.toLowerCase() === cleanSource.toLowerCase()) {
+          setTableNumber(cleanTarget);
+        }
+      }
+
+      setShowMoveModal(false);
+      setMoveSourceTable('');
+      setMoveTargetTable('');
+
+      // Record undo action until bill is paid (unless this execution is already an undo)
+      if (!isUndo) {
+        setUndoAction({
+          type: 'move',
+          from: cleanSource,
+          to: cleanTarget,
+          timestamp: Date.now()
+        });
+        toast.success(`Moved Table ${formatTableOnlyNumber(cleanSource)} to Table ${formatTableOnlyNumber(cleanTarget)}. (Ctrl+Z to undo)`);
+      }
+    } catch (err) {
+      console.error('Move table error:', err);
+      toast.error('Failed to move table: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Undo Handler: Allows undoing Move or Merge operations until bill payment is settled (via Ctrl + Z)
+  const handleUndo = async () => {
+    const action = undoActionRef.current;
+    if (!action) return;
+    const { type, from, to } = action;
+
+    // Verify whether the destination table has been paid or settled
+    const targetOrders = activeOrdersByTable[String(to).trim()] || activeOrdersByTable[String(to).replace(/^Table\s*/i, '').trim()] || [];
+    const isPaid = targetOrders.length > 0 && targetOrders.every(o => o.paymentStatus === 'paid');
+    if (isPaid) {
+      toast.error(`Cannot undo: Table ${formatTableOnlyNumber(to)} has already been settled / paid.`);
+      setUndoAction(null);
+      undoActionRef.current = null;
+      return;
+    }
+
+    try {
+      if (type === 'move') {
+        // Reverse Move: move back from target to original source
+        await handleMoveTable(to, from, true);
+        toast.success(`Undone (Ctrl+Z): Restored Table ${formatTableOnlyNumber(from)}!`);
+      } else if (type === 'merge') {
+        // Reverse Merge: demerge original table from target
+        await handleDemergeTable(to, from);
+        toast.success(`Undone (Ctrl+Z): Unmerged Table ${formatTableOnlyNumber(from)} from Table ${formatTableOnlyNumber(to)}!`);
+      }
+      setUndoAction(null);
+      undoActionRef.current = null;
+    } catch (err) {
+      console.error('Undo error:', err);
+      toast.error('Failed to undo action: ' + (err.message || 'Error'));
+    }
+  };
+
+  // Windows-style Ctrl+Z (or Cmd+Z) keyboard shortcut for undoing table moves/merges
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        // If user is currently typing in an input, textarea, or contentEditable, respect native text undo
+        const target = e.target;
+        const tag = (target && target.tagName) ? target.tagName.toUpperCase() : '';
+        if (target && (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) {
+          return;
+        }
+
+        if (undoActionRef.current) {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Demerge Table Handler (Restores table in Database & Instant UI Synchronisation)
   const handleDemergeTable = async (primaryTbl, tableToDemerge) => {
@@ -603,7 +787,7 @@ export default function POSTerminal({
         return t;
       }));
 
-      fetchDbTables();
+      fetchDbTables(true);
       if (onOrderPlaced) {
         onOrderPlaced({
           _refreshAll: true,
@@ -1916,22 +2100,23 @@ export default function POSTerminal({
       {!isCounterBillingOnly && viewMode === 'tables' && (
         <div className={styles.floorContainer}>
 
-          {/* Streamlined Top Control Toolbar */}
+          {/* Streamlined Top Control Toolbar (Pinned Top Header - Never Scrolls Away or Clips) */}
           <div className={styles.floorTopBarClean}>
             {/* Quick Status Filter Tabs (Segmented Control) */}
-            {/* Left Tabs / Quick Filter */}
-            <div className={styles.floorTabsSegment}>
+            <div className={styles.floorTabsSegment} style={{ flexShrink: 0, padding: '3px', gap: '2px' }}>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'all' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('all')}
+                style={{ padding: '4px 9px', fontSize: '0.74rem' }}
               >
-                All Tables ({isLoadingTables ? '...' : tableStats.total})
+                All ({isLoadingTables ? '...' : tableStats.total})
               </button>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'free' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('free')}
+                style={{ padding: '4px 8px', fontSize: '0.74rem' }}
               >
                 <span className={styles.dotFree}>●</span> Free ({isLoadingTables ? '...' : tableStats.free})
               </button>
@@ -1939,44 +2124,75 @@ export default function POSTerminal({
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'occupied' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('occupied')}
+                style={{ padding: '4px 8px', fontSize: '0.74rem' }}
               >
-                <span className={styles.dotOccupied}>●</span> Booked / Running ({isLoadingTables ? '...' : tableStats.occupied})
+                <span className={styles.dotOccupied}>●</span> Booked ({isLoadingTables ? '...' : tableStats.occupied})
               </button>
               <button
                 type="button"
                 className={`${styles.floorTabBtn} ${tableStatusFilter === 'paid' ? styles.floorTabBtnActive : ''}`}
                 onClick={() => setTableStatusFilter('paid')}
+                style={{ padding: '4px 8px', fontSize: '0.74rem' }}
               >
-                <span className={styles.dotPaid}>●</span> Paid / Served ({isLoadingTables ? '...' : tableStats.paid})
+                <span className={styles.dotPaid}>●</span> Paid ({isLoadingTables ? '...' : tableStats.paid})
               </button>
             </div>
 
-            {/* Right: Temp Table Button & Search Box */}
-            <div className={styles.floorRightControls} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Right: Temp Table Button, Move Table, Merge Tables, Drag Mode Toggle Switch & Search Box */}
+            <div className={styles.floorRightControls} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={() => setShowTempTableModal(true)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.42rem 0.85rem',
-                  borderRadius: '8px',
+                  gap: '4px',
+                  padding: '0.38rem 0.65rem',
+                  borderRadius: '7px',
                   background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
                   color: '#ffffff',
                   border: 'none',
-                  fontSize: '0.78rem',
+                  fontSize: '0.74rem',
                   fontWeight: 800,
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)',
+                  boxShadow: '0 1px 4px rgba(124, 58, 237, 0.25)',
                   whiteSpace: 'nowrap'
                 }}
-                title="Create Temporary Table / Open Tab for walk-in or floating customers (e.g. Deepak)"
+                title="Create Temporary Tab"
               >
                 <span>+ Temp Tab</span>
               </button>
 
-              {/* Table Merge Button (near Temp Table per user request) */}
+              {/* Move Table Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMoveSourceTable('');
+                  setMoveTargetTable('');
+                  setShowMoveModal(true);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '0.38rem 0.65rem',
+                  borderRadius: '7px',
+                  background: '#ffffff',
+                  color: '#0284c7',
+                  border: '1.5px solid #bae6fd',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(2, 132, 199, 0.08)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Move Table: Transfer active orders from one table to an empty table"
+              >
+                <ArrowRightLeft size={13} />
+                <span>Move Table</span>
+              </button>
+
+              {/* Table Merge Button */}
               <button
                 type="button"
                 onClick={() => {
@@ -1988,32 +2204,83 @@ export default function POSTerminal({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.42rem 0.85rem',
-                  borderRadius: '8px',
+                  gap: '4px',
+                  padding: '0.38rem 0.65rem',
+                  borderRadius: '7px',
                   background: '#ffffff',
                   color: '#4f46e5',
                   border: '1.5px solid #c7d2fe',
-                  fontSize: '0.78rem',
+                  fontSize: '0.74rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   boxShadow: '0 1px 3px rgba(79, 70, 229, 0.08)',
                   whiteSpace: 'nowrap'
                 }}
-                title="Merge tables: Combine running bills of 2 or more tables into one"
+                title="Merge tables: Combine running bills of 2 occupied tables into one"
               >
-                <GitMerge size={14} />
+                <GitMerge size={13} />
                 <span>Merge Tables</span>
               </button>
 
-              <div className={styles.searchBox}>
-                <Search size={14} color="#94a3b8" />
+              {/* Drag Mode Toggle Switch */}
+              <div
+                onClick={() => setIsDragDropMode(prev => !prev)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.32rem 0.55rem',
+                  borderRadius: '7px',
+                  background: isDragDropMode ? '#ecfdf5' : '#f8fafc',
+                  border: isDragDropMode ? '1.5px solid #10b981' : '1.5px solid #e2e8f0',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isDragDropMode ? '0 1px 4px rgba(16, 185, 129, 0.2)' : 'none'
+                }}
+                title="Toggle Drag & Drop Mode"
+              >
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: isDragDropMode ? '#065f46' : '#64748b',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Drag Mode
+                </span>
+                <div style={{
+                  width: '28px',
+                  height: '16px',
+                  borderRadius: '20px',
+                  background: isDragDropMode ? '#10b981' : '#cbd5e1',
+                  position: 'relative',
+                  transition: 'background 0.2s ease',
+                  flexShrink: 0
+                }}>
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    position: 'absolute',
+                    top: '2px',
+                    left: isDragDropMode ? '14px' : '2px',
+                    transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.25)'
+                  }} />
+                </div>
+              </div>
+
+              {/* Search Box */}
+              <div className={styles.searchBox} style={{ width: '130px', minWidth: '110px', height: '30px', padding: '0 8px' }}>
+                <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="Search table or guest..."
+                  placeholder="Search table..."
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
                   className={styles.searchInput}
+                  style={{ fontSize: '0.74rem' }}
                   disabled={isLoadingTables}
                 />
                 {tableSearch && (
@@ -2022,12 +2289,31 @@ export default function POSTerminal({
                     onClick={() => setTableSearch('')}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
                   >
-                    <X size={12} />
+                    <X size={11} />
                   </button>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Scrollable Floor Tables Grid Area (Tables scroll cleanly under the pinned toolbar) */}
+          <div
+            className={styles.floorScrollableArea}
+            ref={floorContainerRef}
+            onDragOver={(e) => {
+              if (isDragDropMode && gridDragSourceTable) {
+                const el = floorContainerRef.current;
+                if (el) {
+                  const rect = el.getBoundingClientRect();
+                  if (e.clientY < rect.top + 70) {
+                    el.scrollTop -= 12;
+                  } else if (e.clientY > rect.bottom - 70) {
+                    el.scrollTop += 12;
+                  }
+                }
+              }
+            }}
+          >
 
           {/* Tables Grid Layout or Loading Skeleton */}
           {isLoadingTables ? (
@@ -2039,6 +2325,202 @@ export default function POSTerminal({
                   <div className={styles.skeletonShimmer} style={{ width: '56px', height: '14px', margin: '0 auto', borderRadius: '4px' }} />
                 </div>
               ))}
+            </div>
+          ) : isDragDropMode ? (
+            /* COMPACT DRAG & DROP FLOOR OVERVIEW: All tables clustered closely together on 1 screen */
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '12px',
+              padding: '0.85rem',
+              border: '1.5px solid #10b981',
+              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.1)'
+            }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))',
+                gap: '8px'
+              }}>
+                {filteredFloorTables.map(tbl => {
+                  const tableOrders = getOrdersForTableObj(tbl);
+                  const isOccupied = tableOrders.length > 0;
+                  const isAllPaid = isOccupied && tableOrders.every(o => o.paymentStatus === 'paid');
+                  const totalAmt = tableOrders.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
+                  const isTemp = tbl.isTemporary || /^temp/i.test(String(tbl.tableNumber || ''));
+                  const rawCustName = tableOrders[0]?.customerDetails?.name || tableOrders[0]?.customerName || tbl.customerName || '';
+                  const custName = getCustomerFirstName(rawCustName);
+                  const tempCustLabel = tbl.customerName || custName || (tbl.tableNumber ? String(tbl.tableNumber).replace(/^temp\s*-\s*/i, '') : 'Tab');
+                  const secLabel = isTemp ? 'Temp' : (tbl.section || tbl.zone || 'Hall');
+
+                  const isGridDragTarget = gridDragOverTable && String(gridDragOverTable).trim() === String(tbl.tableNumber).trim();
+                  const isDragSource = gridDragSourceTable && String(gridDragSourceTable).trim() === String(tbl.tableNumber).trim();
+
+                  return (
+                    <div
+                      key={tbl._id || tbl.tableNumber}
+                      draggable={isOccupied}
+                      onDragStart={(e) => {
+                        if (!isOccupied) {
+                          e.preventDefault();
+                          return;
+                        }
+                        isDraggingRef.current = true;
+                        e.dataTransfer.setData('gridSourceTable', tbl.tableNumber);
+                        e.dataTransfer.effectAllowed = 'move';
+                        setGridDragSourceTable(tbl.tableNumber);
+                      }}
+                      onDragEnd={() => {
+                        setGridDragSourceTable(null);
+                        setGridDragOverTable(null);
+                        setTimeout(() => {
+                          isDraggingRef.current = false;
+                        }, 250);
+                      }}
+                      onDragOver={(e) => {
+                        if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.dataTransfer.dropEffect = 'move';
+                          if (gridDragOverTable !== tbl.tableNumber) {
+                            setGridDragOverTable(tbl.tableNumber);
+                          }
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget)) return;
+                        if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
+                        setGridDragOverTable(null);
+                        setGridDragSourceTable(null);
+                        setTimeout(() => {
+                          isDraggingRef.current = false;
+                        }, 250);
+                        if (srcTbl && String(srcTbl).trim() !== String(tbl.tableNumber).trim()) {
+                          if (!isOccupied) {
+                            handleMoveTable(srcTbl, tbl.tableNumber);
+                          } else {
+                            handleMergeTables(tbl.tableNumber, [srcTbl]);
+                          }
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      style={{
+                        minHeight: '68px',
+                        padding: '6px 5px',
+                        borderRadius: '8px',
+                        border: isGridDragTarget
+                          ? (isOccupied ? '2px solid #7c3aed' : '2px solid #0284c7')
+                          : (isDragSource
+                            ? '1.5px dashed #94a3b8'
+                            : (isAllPaid
+                              ? '1.5px solid #86efac'
+                              : (isOccupied
+                                ? '1.5px solid #f59e0b'
+                                : '1.5px dashed #cbd5e1'))),
+                        background: isGridDragTarget
+                          ? (isOccupied ? '#f5f3ff' : '#e0f2fe')
+                          : (isDragSource
+                            ? '#f8fafc'
+                            : (isAllPaid
+                              ? '#f0fdf4'
+                              : (isOccupied
+                                ? '#fffbeb'
+                                : '#ffffff'))),
+                        cursor: isOccupied ? 'grab' : 'default',
+                        userSelect: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        boxShadow: isGridDragTarget
+                          ? (isOccupied ? '0 0 0 3px rgba(124, 58, 237, 0.35)' : '0 0 0 3px rgba(2, 132, 199, 0.35)')
+                          : (isOccupied ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'),
+                        opacity: isDragSource ? 0.45 : 1,
+                        transition: 'all 0.12s ease'
+                      }}
+                      title={isGridDragTarget
+                        ? (isOccupied ? `Drop to Merge with Table ${formatTableOnlyNumber(tbl.tableNumber)}` : `Drop to Move to Table ${formatTableOnlyNumber(tbl.tableNumber)}`)
+                        : `Table ${formatTableOnlyNumber(tbl.tableNumber)} (${secLabel})`}
+                    >
+                      <div style={{
+                        pointerEvents: gridDragSourceTable ? 'none' : 'auto',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        height: '100%'
+                      }}>
+                        {isGridDragTarget ? (
+                          <div style={{
+                            color: isOccupied ? '#7c3aed' : '#0284c7',
+                            fontWeight: 800,
+                            fontSize: '0.72rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%'
+                          }}>
+                            <span style={{ fontSize: '0.86rem' }}>T-{formatTableOnlyNumber(tbl.tableNumber)}</span>
+                            <span>{isOccupied ? '↵ Merge' : '↵ Move'}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '0 2px' }}>
+                              <span style={{
+                                fontSize: '0.88rem',
+                                fontWeight: 800,
+                                color: isAllPaid ? '#047857' : (isOccupied ? '#92400e' : '#334155'),
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                maxWidth: '60px'
+                              }}>
+                                {isTemp ? tempCustLabel : formatTableOnlyNumber(tbl.tableNumber)}
+                              </span>
+                              <span style={{
+                                fontSize: '0.56rem',
+                                fontWeight: 700,
+                                color: '#64748b',
+                                background: '#f1f5f9',
+                                padding: '1px 4px',
+                                borderRadius: '3px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {secLabel.length > 5 ? secLabel.substring(0, 5) : secLabel}
+                              </span>
+                            </div>
+
+                            <div style={{ marginTop: 'auto', paddingTop: '3px' }}>
+                              {isAllPaid ? (
+                                <span style={{ fontSize: '0.66rem', fontWeight: 800, color: '#047857' }}>
+                                  ₹{formatAmount(totalAmt)}
+                                </span>
+                              ) : isOccupied ? (
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309' }}>
+                                  ₹{formatAmount(totalAmt)}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#94a3b8' }}>
+                                  + Free
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2092,50 +2574,148 @@ export default function POSTerminal({
 
                       // 1. FREE / EMPTY CARD (Unoccupied or Merged/Cleared Table)
                       if (!isOccupied) {
+                        const isGridDragTarget = gridDragOverTable && String(gridDragOverTable).trim() === String(tbl.tableNumber).trim();
                         return (
                           <div
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tileFree}`}
-                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            style={isTemp ? { borderColor: '#c4b5fd', background: '#faf5ff', boxShadow: '0 1px 4px rgba(124, 58, 237, 0.08)' } : {}}
-                            title={isTemp ? `Temporary Tab: ${tempCustLabel} - Clean & Ready. Click to take order.` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Clean & Ready. Click to take order.`}
+                            onClick={(e) => {
+                              if (isDraggingRef.current) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return;
+                              }
+                              handleOpenTableInPOS(tbl.tableNumber);
+                            }}
+                            onDragOver={(e) => {
+                              if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (gridDragOverTable !== tbl.tableNumber) {
+                                  setGridDragOverTable(tbl.tableNumber);
+                                }
+                              }
+                            }}
+                            onDragLeave={() => {
+                              if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
+                              setGridDragOverTable(null);
+                              setGridDragSourceTable(null);
+                              setTimeout(() => {
+                                isDraggingRef.current = false;
+                              }, 250);
+                              if (srcTbl && String(srcTbl).trim() !== String(tbl.tableNumber).trim()) {
+                                handleMoveTable(srcTbl, tbl.tableNumber);
+                              }
+                            }}
+                            style={{
+                              ...(isTemp ? { borderColor: '#c4b5fd', background: '#faf5ff', boxShadow: '0 1px 4px rgba(124, 58, 237, 0.08)' } : {}),
+                              ...(isGridDragTarget ? { borderColor: '#0284c7', background: '#e0f2fe', boxShadow: '0 0 0 3px rgba(2, 132, 199, 0.35)', transform: 'scale(1.02)' } : {})
+                            }}
+                            title={isGridDragTarget ? `Drop Table ${gridDragSourceTable} here to Move` : (isTemp ? `Temporary Tab: ${tempCustLabel} - Clean & Ready. Click to take order.` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Clean & Ready. Click to take order.`)}
                           >
-                            {isTemp ? (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '2px' }}>
-                                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '4px' }}>
-                                  ⚡ TEMP TAB
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteTempTable(tbl, e)}
-                                  title="Dismiss this empty temporary tab"
-                                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 2px' }}
-                                >
-                                  <X size={12} />
-                                </button>
+                            {isGridDragTarget ? (
+                              <div style={{ textAlign: 'center', color: '#0284c7', fontWeight: 800, padding: '10px 0' }}>
+                                <div style={{ fontSize: '0.86rem' }}>Table {formatTableOnlyNumber(tbl.tableNumber)}</div>
+                                <div style={{ fontSize: '0.72rem', marginTop: '3px' }}>↵ Drop to Move Here</div>
                               </div>
                             ) : (
-                              <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                              <>
+                                {isTemp ? (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '2px' }}>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '4px' }}>
+                                      ⚡ TEMP TAB
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleDeleteTempTable(tbl, e)}
+                                      title="Dismiss this empty temporary tab"
+                                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0 2px' }}
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                                )}
+                                <span className={styles.tileName} style={isTemp ? { color: '#6d28d9', fontWeight: 800 } : {}}>
+                                  {isTemp ? tempCustLabel : formatTableOnlyNumber(tbl.tableNumber)}
+                                </span>
+                                <span style={{ fontSize: '0.68rem', color: isTemp ? '#7c3aed' : '#10b981', fontWeight: 700 }}>
+                                  + Take Order
+                                </span>
+                              </>
                             )}
-                            <span className={styles.tileName} style={isTemp ? { color: '#6d28d9', fontWeight: 800 } : {}}>
-                              {isTemp ? tempCustLabel : formatTableOnlyNumber(tbl.tableNumber)}
-                            </span>
-                            <span style={{ fontSize: '0.68rem', color: isTemp ? '#7c3aed' : '#10b981', fontWeight: 700 }}>
-                              + Take Order
-                            </span>
                           </div>
                         );
                       }
 
                       // 2. PAID / BILLED / SERVED CARD (Soft Green)
                       if (isAllPaid) {
+                        const isGridDragTarget = gridDragOverTable && String(gridDragOverTable).trim() === String(tbl.tableNumber).trim();
                         return (
                           <div
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tilePaid}`}
-                            onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                            style={isTemp ? { borderColor: '#86efac', background: '#f0fdf4' } : {}}
-                            title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Billed/Paid. Click to open POS.`}
+                            draggable={true}
+                            onDragStart={(e) => {
+                              isDraggingRef.current = true;
+                              e.dataTransfer.setData('gridSourceTable', tbl.tableNumber);
+                              e.dataTransfer.effectAllowed = 'move';
+                              setGridDragSourceTable(tbl.tableNumber);
+                            }}
+                            onDragEnd={() => {
+                              setGridDragSourceTable(null);
+                              setGridDragOverTable(null);
+                              setTimeout(() => {
+                                isDraggingRef.current = false;
+                              }, 250);
+                            }}
+                            onDragOver={(e) => {
+                              if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (gridDragOverTable !== tbl.tableNumber) {
+                                  setGridDragOverTable(tbl.tableNumber);
+                                }
+                              }
+                            }}
+                            onDragLeave={() => {
+                              if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
+                              setGridDragOverTable(null);
+                              setGridDragSourceTable(null);
+                              setTimeout(() => {
+                                isDraggingRef.current = false;
+                              }, 250);
+                              if (srcTbl && String(srcTbl).trim() !== String(tbl.tableNumber).trim()) {
+                                handleMergeTables(tbl.tableNumber, [srcTbl]);
+                              }
+                            }}
+                            onClick={(e) => {
+                              if (isDraggingRef.current) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return;
+                              }
+                              handleOpenTableInPOS(tbl.tableNumber);
+                            }}
+                            style={{
+                              cursor: 'grab',
+                              ...(isTemp ? { borderColor: '#86efac', background: '#f0fdf4' } : {}),
+                              ...(isGridDragTarget ? { borderColor: '#7c3aed', background: '#f5f3ff', boxShadow: '0 0 0 3px rgba(124, 58, 237, 0.35)', transform: 'scale(1.02)' } : {})
+                            }}
+                            title={isGridDragTarget ? `Drop Table ${gridDragSourceTable} here to Merge` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Drag to move or merge. Click to open POS.`}
                           >
                             <div className={styles.tileTopMeta}>
                               <Check size={12} /> {elapsedMin || 'Paid'}
@@ -2177,13 +2757,65 @@ export default function POSTerminal({
                       }
 
                       // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
+                      const isGridDragTarget = gridDragOverTable && String(gridDragOverTable).trim() === String(tbl.tableNumber).trim();
                       return (
                         <div
                           key={tbl._id || tbl.tableNumber}
                           className={`${styles.tableTile} ${styles.tileOccupied}`}
-                          onClick={() => handleOpenTableInPOS(tbl.tableNumber)}
-                          style={isTemp ? { borderColor: '#f59e0b', background: '#fffbeb', boxShadow: '0 2px 6px rgba(245, 158, 11, 0.15)' } : {}}
-                          title={`Table ${formatTableOnlyNumber(tbl.tableNumber)} - Running Order ₹${formatAmount(totalAmt)}. Click to open POS.`}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            isDraggingRef.current = true;
+                            e.dataTransfer.setData('gridSourceTable', tbl.tableNumber);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setGridDragSourceTable(tbl.tableNumber);
+                          }}
+                          onDragEnd={() => {
+                            setGridDragSourceTable(null);
+                            setGridDragOverTable(null);
+                            setTimeout(() => {
+                              isDraggingRef.current = false;
+                            }, 250);
+                          }}
+                          onDragOver={(e) => {
+                            if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (gridDragOverTable !== tbl.tableNumber) {
+                                setGridDragOverTable(tbl.tableNumber);
+                              }
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
+                            setGridDragOverTable(null);
+                            setGridDragSourceTable(null);
+                            setTimeout(() => {
+                              isDraggingRef.current = false;
+                            }, 250);
+                            if (srcTbl && String(srcTbl).trim() !== String(tbl.tableNumber).trim()) {
+                              handleMergeTables(tbl.tableNumber, [srcTbl]);
+                            }
+                          }}
+                          onClick={(e) => {
+                            if (isDraggingRef.current) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              return;
+                            }
+                            handleOpenTableInPOS(tbl.tableNumber);
+                          }}
+                          style={{
+                            cursor: 'grab',
+                            ...(isTemp ? { borderColor: '#f59e0b', background: '#fffbeb', boxShadow: '0 2px 6px rgba(245, 158, 11, 0.15)' } : {}),
+                            ...(isGridDragTarget ? { borderColor: '#7c3aed', background: '#f5f3ff', boxShadow: '0 0 0 3px rgba(124, 58, 237, 0.35)', transform: 'scale(1.02)' } : {})
+                          }}
+                          title={isGridDragTarget ? `Drop Table ${gridDragSourceTable} here to Merge` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Drag to move or merge. Click to open POS.`}
                         >
                           <div className={styles.tileTopMeta}>
                             <Clock size={11} /> {elapsedMin || (isTemp ? 'Open Tab' : 'Active')}
@@ -2288,6 +2920,7 @@ export default function POSTerminal({
             </div>
           )}
 
+          </div>
         </div>
       )}
 
@@ -2726,37 +3359,69 @@ export default function POSTerminal({
                         </span>
                       ))}
                       {!isCounterBillingOnly && tableNumber !== 'Walk-in' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const curTbl = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
-                            setPrimaryMergeTable(curTbl);
-                            setMergeTargetTable(curTbl);
-                            setMergeSourceTable('');
-                            setShowMergeModal(true);
-                          }}
-                          className={styles.mergeTablesBtn}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            padding: '3px 8px',
-                            height: '24px',
-                            borderRadius: '6px',
-                            border: '1px solid #c7d2fe',
-                            background: '#eef2ff',
-                            color: '#4338ca',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            lineHeight: 1
-                          }}
-                          title="Merge another table into this bill"
-                        >
-                          <GitMerge size={12} />
-                          <span>Merge</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const curTbl = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
+                              setMoveSourceTable(curTbl);
+                              setMoveTargetTable('');
+                              setShowMoveModal(true);
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '3px 8px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              border: '1.5px solid #bae6fd',
+                              background: '#f0f9ff',
+                              color: '#0284c7',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              lineHeight: 1
+                            }}
+                            title="Move this table's order to an empty table"
+                          >
+                            <ArrowRightLeft size={12} />
+                            <span>Move</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const curTbl = String(tableNumber || '').replace(/^Table\s*/i, '').trim();
+                              setMergeSourceTable(curTbl);
+                              setMergeTargetTable('');
+                              setPrimaryMergeTable('');
+                              setShowMergeModal(true);
+                            }}
+                            className={styles.mergeTablesBtn}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '3px 8px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              border: '1px solid #c7d2fe',
+                              background: '#eef2ff',
+                              color: '#4338ca',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              lineHeight: 1
+                            }}
+                            title="Merge this table's bill into another table"
+                          >
+                            <GitMerge size={12} />
+                            <span>Merge</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -4705,6 +5370,366 @@ export default function POSTerminal({
       {/* ========================================================= */}
       {/* 4B. MERGE TABLE MODAL (Drag & Drop / 1-Click Interactive)   */}
       {/* ========================================================= */}
+      {/* ========================================================= */}
+      {/* 4B-1. MOVE TABLE MODAL (Orders -> Empty Table Only)       */}
+      {/* ========================================================= */}
+      {showMoveModal && (
+        <div className={styles.splitModalOverlay} onClick={() => {
+          setMoveSourceTable('');
+          setMoveTargetTable('');
+          setShowMoveModal(false);
+        }}>
+          <div
+            className={styles.splitModalContent}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '680px',
+              width: '95vw',
+              padding: '1.25rem',
+              borderRadius: '16px',
+              background: '#ffffff',
+              boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.25)'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', color: '#ffffff', padding: '8px', borderRadius: '10px', display: 'flex', boxShadow: '0 2px 6px rgba(2, 132, 199, 0.3)' }}>
+                  <ArrowRightLeft size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#0f172a' }}>
+                    Move Table
+                  </h3>
+
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMoveSourceTable('');
+                  setMoveTargetTable('');
+                  setShowMoveModal(false);
+                }}
+                style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Visual Transfer Connector Banner */}
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: '12px',
+              border: '1.5px solid #e2e8f0',
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              {/* Source Box */}
+              <div style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '10px',
+                background: moveSourceTable ? '#eff6ff' : '#ffffff',
+                border: moveSourceTable ? '1.5px solid #0284c7' : '1.5px dashed #cbd5e1',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 800, color: moveSourceTable ? '#0284c7' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  1. Move Order From
+                </span>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: moveSourceTable ? '#0f172a' : '#94a3b8', marginTop: '2px' }}>
+                  {moveSourceTable ? `Table ${formatTableOnlyNumber(moveSourceTable)}` : 'Select / Drag Table'}
+                </div>
+              </div>
+
+              {/* Transfer Arrow Indicator */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <div style={{ background: '#0284c7', color: '#ffffff', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(2, 132, 199, 0.3)' }}>
+                  <ArrowRight size={14} />
+                </div>
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#0284c7' }}>Moves into</span>
+              </div>
+
+              {/* Target Box */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOverTargetTable('banner-move-target'); }}
+                onDragLeave={() => setDragOverTargetTable(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const src = e.dataTransfer.getData('moveSourceTable');
+                  if (src && moveTargetTable && src !== moveTargetTable) {
+                    setMoveSourceTable(src);
+                  }
+                  setDragOverTargetTable(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  background: moveTargetTable ? '#f0fdf4' : '#ffffff',
+                  border: moveTargetTable ? '1.5px solid #22c55e' : (dragOverTargetTable === 'banner-move-target' ? '2px dashed #22c55e' : '1.5px dashed #cbd5e1'),
+                  textAlign: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '0.65rem', fontWeight: 800, color: moveTargetTable ? '#15803d' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  2. Move Into Table (Empty)
+                </span>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: moveTargetTable ? '#0f172a' : '#94a3b8', marginTop: '2px' }}>
+                  {moveTargetTable ? `Table ${formatTableOnlyNumber(moveTargetTable)}` : 'Drop or Select Empty Table'}
+                </div>
+              </div>
+            </div>
+
+            {/* Two Columns: Left (Tables With Orders), Right (ONLY Empty Tables) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              {/* Left Column: Tables with Orders */}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    1. Move From (Active)
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px' }}>
+                    {activeOccupiedTables.length} active
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  paddingRight: '6px',
+                  scrollbarWidth: 'thin'
+                }}>
+                  {activeOccupiedTables.length === 0 ? (
+                    <div style={{ padding: '24px 12px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: '0.78rem' }}>
+                      No active tables with orders to move.
+                    </div>
+                  ) : (
+                    activeOccupiedTables.map(tbl => {
+                      const tStr = String(tbl.tableNumber).trim();
+                      const isSelected = moveSourceTable === tStr;
+
+                      return (
+                        <div
+                          key={tbl._id || tStr}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('moveSourceTable', tStr);
+                            setMoveSourceTable(tStr);
+                          }}
+                          onClick={() => {
+                            setMoveSourceTable(isSelected ? '' : tStr);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            background: isSelected ? '#eff6ff' : '#ffffff',
+                            border: isSelected ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                            cursor: 'grab',
+                            boxShadow: isSelected ? '0 2px 8px rgba(2, 132, 199, 0.15)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title={`Click or drag Table ${tStr}`}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <GripVertical size={14} color={isSelected ? '#0284c7' : '#94a3b8'} />
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isSelected ? '#0369a1' : '#0f172a' }}>
+                                Table {formatTableOnlyNumber(tStr)}
+                                {tbl.customerName ? ` (${tbl.customerName})` : ''}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            {isSelected ? (
+                              <span style={{ fontSize: '0.65rem', color: '#0284c7', fontWeight: 800, background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
+                                SOURCE ✓
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
+                                Select ➔
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: ONLY Empty / Free Tables */}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    2. Move Into (Empty Tables Only)
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px' }}>
+                    {freeEmptyTables.length} empty
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  paddingRight: '6px',
+                  scrollbarWidth: 'thin'
+                }}>
+                  {freeEmptyTables.length === 0 ? (
+                    <div style={{ padding: '24px 12px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: '0.78rem' }}>
+                      No empty tables available.
+                    </div>
+                  ) : (
+                    freeEmptyTables.map(tbl => {
+                      const tStr = String(tbl.tableNumber).trim();
+                      const isSelected = moveTargetTable === tStr;
+                      const isDragOver = dragOverTargetTable === `move-${tStr}`;
+
+                      return (
+                        <div
+                          key={tbl._id || tStr}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverTargetTable(`move-${tStr}`);
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverTargetTable === `move-${tStr}`) setDragOverTargetTable(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOverTargetTable(null);
+                            const src = e.dataTransfer.getData('moveSourceTable');
+                            if (src && src !== tStr) {
+                              setMoveSourceTable(src);
+                              setMoveTargetTable(tStr);
+                            }
+                          }}
+                          onClick={() => {
+                            setMoveTargetTable(isSelected ? '' : tStr);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            background: isDragOver ? '#dcfce7' : (isSelected ? '#f0fdf4' : '#ffffff'),
+                            border: isDragOver ? '2px dashed #16a34a' : (isSelected ? '2px solid #16a34a' : '1px solid #e2e8f0'),
+                            cursor: 'pointer',
+                            boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.15)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isSelected ? '#15803d' : '#0f172a' }}>
+                              Table {formatTableOnlyNumber(tStr)}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>
+                              Empty / Free
+                            </div>
+                          </div>
+                          <div>
+                            {isDragOver ? (
+                              <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 800 }}>
+                                Drop Here ↵
+                              </span>
+                            ) : isSelected ? (
+                              <span style={{ fontSize: '0.65rem', color: '#15803d', fontWeight: 800, background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
+                                DESTINATION ✓
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
+                                Select ➔
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMoveSourceTable('');
+                  setMoveTargetTable('');
+                  setShowMoveModal(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#64748b',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={!moveSourceTable || !moveTargetTable || moveSourceTable === moveTargetTable}
+                onClick={async () => {
+                  if (moveSourceTable && moveTargetTable && moveSourceTable !== moveTargetTable) {
+                    await handleMoveTable(moveSourceTable, moveTargetTable);
+                  }
+                }}
+                style={{
+                  flex: 2,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: (!moveSourceTable || !moveTargetTable || moveSourceTable === moveTargetTable)
+                    ? '#cbd5e1'
+                    : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.84rem',
+                  cursor: (!moveSourceTable || !moveTargetTable || moveSourceTable === moveTargetTable) ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: (!moveSourceTable || !moveTargetTable || moveSourceTable === moveTargetTable) ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.35)'
+                }}
+              >
+                <ArrowRightLeft size={16} />
+                <span>
+                  {moveSourceTable && moveTargetTable && moveSourceTable !== moveTargetTable
+                    ? `Confirm Move: Table ${formatTableOnlyNumber(moveSourceTable)} ➔ Table ${formatTableOnlyNumber(moveTargetTable)}`
+                    : 'Select Source & Empty Destination Table'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4B-2. MERGE TABLE MODAL (Orders -> Occupied Tables Only)   */}
+      {/* ========================================================= */}
       {showMergeModal && (
         <div className={styles.splitModalOverlay} onClick={() => {
           setMergeSourceTable('');
@@ -4731,11 +5756,9 @@ export default function POSTerminal({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#0f172a' }}>
-                    Merge Tables & Transfer Bill
+                    Merge Tables
                   </h3>
-                  <p style={{ margin: 0, fontSize: '0.73rem', color: '#64748b' }}>
-                    Drag an active table onto the target table (or click to select). The source table will be emptied.
-                  </p>
+
                 </div>
               </div>
               <button
@@ -4779,11 +5802,6 @@ export default function POSTerminal({
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: mergeSourceTable ? '#0f172a' : '#94a3b8', marginTop: '2px' }}>
                   {mergeSourceTable ? `Table ${formatTableOnlyNumber(mergeSourceTable)}` : 'Select / Drag Table'}
                 </div>
-                {mergeSourceTable && (
-                  <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 700 }}>
-                    Bill: ₹{formatAmount(sourceTableTotal)} • Will be Emptied
-                  </div>
-                )}
               </div>
 
               {/* Transfer Arrow Indicator */}
@@ -4791,7 +5809,7 @@ export default function POSTerminal({
                 <div style={{ background: '#4f46e5', color: '#ffffff', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.3)' }}>
                   <ArrowRight size={14} />
                 </div>
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#6366f1' }}>Transfers into</span>
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#6366f1' }}>Merges into</span>
               </div>
 
               {/* Target Box */}
@@ -4822,22 +5840,16 @@ export default function POSTerminal({
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: mergeTargetTable ? '#0f172a' : '#94a3b8', marginTop: '2px' }}>
                   {mergeTargetTable ? `Table ${formatTableOnlyNumber(mergeTargetTable)}` : 'Drop or Select Table'}
                 </div>
-                {mergeTargetTable && (
-                  <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
-                    {targetTableTotal > 0 ? `Current: ₹${formatAmount(targetTableTotal)} ➔ Total: ₹${formatAmount(sourceTableTotal + targetTableTotal)}` : `New Bill: ₹${formatAmount(sourceTableTotal)}`}
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Two Interactive Selection Columns with Independent Scrolling */}
+            {/* Two Columns: Both show ONLY tables that contain orders (NO empty tables!) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-
-              {/* Left Column: Tables With Active Orders (Draggable Source) */}
+              {/* Left Column: Tables With Active Orders */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                    1. Move From (Drag/Click)
+                    1. Move Order From (Active)
                   </span>
                   <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px' }}>
                     {activeOccupiedTables.length} active
@@ -4855,13 +5867,11 @@ export default function POSTerminal({
                 }}>
                   {activeOccupiedTables.length === 0 ? (
                     <div style={{ padding: '24px 12px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: '0.78rem' }}>
-                      No tables currently have running orders to merge.
+                      No active tables with orders to merge.
                     </div>
                   ) : (
                     activeOccupiedTables.map(tbl => {
                       const tStr = String(tbl.tableNumber).trim();
-                      const ords = getOrdersForTableObj(tbl);
-                      const total = ords.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
                       const isSelected = mergeSourceTable === tStr;
                       const isDestination = mergeTargetTable === tStr;
 
@@ -4894,7 +5904,7 @@ export default function POSTerminal({
                             boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
                             transition: 'all 0.15s ease'
                           }}
-                          title={`Drag Table ${tStr} onto destination table or click to select`}
+                          title={`Click or drag Table ${tStr}`}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <GripVertical size={14} color={isSelected ? '#2563eb' : '#94a3b8'} />
@@ -4903,19 +5913,17 @@ export default function POSTerminal({
                                 Table {formatTableOnlyNumber(tStr)}
                                 {tbl.customerName ? ` (${tbl.customerName})` : ''}
                               </div>
-                              <div style={{ fontSize: '0.68rem', color: '#b45309', fontWeight: 700 }}>
-                                {ords.length} running order{ords.length > 1 ? 's' : ''}
-                              </div>
                             </div>
                           </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontWeight: 800, fontSize: '0.84rem', color: '#0f172a' }}>
-                              ₹{formatAmount(total)}
-                            </span>
-                            {isSelected && (
-                              <div style={{ fontSize: '0.62rem', color: '#2563eb', fontWeight: 800 }}>
+                          <div>
+                            {isSelected ? (
+                              <span style={{ fontSize: '0.65rem', color: '#2563eb', fontWeight: 800, background: '#eff6ff', padding: '2px 6px', borderRadius: '4px' }}>
                                 SOURCE ✓
-                              </div>
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
+                                Select ➔
+                              </span>
                             )}
                           </div>
                         </div>
@@ -4925,14 +5933,14 @@ export default function POSTerminal({
                 </div>
               </div>
 
-              {/* Right Column: Destination Tables (Drop Target / Click) */}
+              {/* Right Column: Other Active Tables ONLY (No Empty Tables!) */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                    2. Merge Into (Drop / Click)
+                    2. Merge Into (Active Tables Only)
                   </span>
                   <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '1px 6px', borderRadius: '6px' }}>
-                    {dbTables.length} tables
+                    {activeOccupiedTables.filter(t => String(t.tableNumber).trim() !== String(mergeSourceTable).trim()).length} target tables
                   </span>
                 </div>
 
@@ -4945,170 +5953,149 @@ export default function POSTerminal({
                   paddingRight: '6px',
                   scrollbarWidth: 'thin'
                 }}>
-                  {dbTables.map(tbl => {
-                    const tStr = String(tbl.tableNumber).trim();
-                    const ords = getOrdersForTableObj(tbl);
-                    const total = ords.reduce((s, o) => s + (Number(o.total || o.totalAmount) || 0), 0);
-                    const isSource = mergeSourceTable === tStr;
-                    const isSelected = mergeTargetTable === tStr;
-                    const isDragOver = dragOverTargetTable === tStr;
+                  {activeOccupiedTables.length <= 1 ? (
+                    <div style={{ padding: '24px 12px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: '0.78rem' }}>
+                      At least 2 active tables with orders are required to merge.
+                    </div>
+                  ) : (
+                    activeOccupiedTables
+                      .filter(tbl => String(tbl.tableNumber).trim() !== String(mergeSourceTable).trim())
+                      .map(tbl => {
+                        const tStr = String(tbl.tableNumber).trim();
+                        const isSource = mergeSourceTable === tStr;
+                        const isSelected = mergeTargetTable === tStr;
+                        const isDragOver = dragOverTargetTable === `merge-${tStr}`;
 
-                    return (
-                      <div
-                        key={tbl._id || tStr}
-                        onDragOver={(e) => {
-                          if (isSource) return;
-                          e.preventDefault();
-                          setDragOverTargetTable(tStr);
-                        }}
-                        onDragLeave={() => {
-                          if (dragOverTargetTable === tStr) setDragOverTargetTable(null);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setDragOverTargetTable(null);
-                          const src = e.dataTransfer.getData('sourceTable');
-                          if (src && src !== tStr) {
-                            setMergeSourceTable(src);
-                            setMergeTargetTable(tStr);
-                          }
-                        }}
-                        onClick={() => {
-                          if (isSource) {
-                            setMergeSourceTable('');
-                            setMergeTargetTable(tStr);
-                            return;
-                          }
-                          setMergeTargetTable(isSelected ? '' : tStr);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 10px',
-                          borderRadius: '10px',
-                          background: isDragOver ? '#dcfce7' : (isSelected ? '#f0fdf4' : (isSource ? '#f1f5f9' : '#ffffff')),
-                          border: isDragOver ? '2px dashed #16a34a' : (isSelected ? '2px solid #16a34a' : '1px solid #e2e8f0'),
-                          cursor: isSource ? 'not-allowed' : 'pointer',
-                          opacity: isSource ? 0.45 : 1,
-                          boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.15)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isSelected ? '#15803d' : '#0f172a' }}>
-                            Table {formatTableOnlyNumber(tStr)}
+                        return (
+                          <div
+                            key={tbl._id || tStr}
+                            onDragOver={(e) => {
+                              if (isSource) return;
+                              e.preventDefault();
+                              setDragOverTargetTable(`merge-${tStr}`);
+                            }}
+                            onDragLeave={() => {
+                              if (dragOverTargetTable === `merge-${tStr}`) setDragOverTargetTable(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setDragOverTargetTable(null);
+                              const src = e.dataTransfer.getData('sourceTable');
+                              if (src && src !== tStr) {
+                                setMergeSourceTable(src);
+                                setMergeTargetTable(tStr);
+                              }
+                            }}
+                            onClick={() => {
+                              if (isSource) return;
+                              setMergeTargetTable(isSelected ? '' : tStr);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 10px',
+                              borderRadius: '10px',
+                              background: isDragOver ? '#dcfce7' : (isSelected ? '#f0fdf4' : '#ffffff'),
+                              border: isDragOver ? '2px dashed #16a34a' : (isSelected ? '2px solid #16a34a' : '1px solid #e2e8f0'),
+                              cursor: 'pointer',
+                              boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.15)' : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isSelected ? '#15803d' : '#0f172a' }}>
+                                Table {formatTableOnlyNumber(tStr)}
+                                {tbl.customerName ? ` (${tbl.customerName})` : ''}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#d97706', fontWeight: 700 }}>
+                                Active Order
+                              </div>
+                            </div>
+                            <div>
+                              {isDragOver ? (
+                                <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 800 }}>
+                                  Drop Here ↵
+                                </span>
+                              ) : isSelected ? (
+                                <span style={{ fontSize: '0.65rem', color: '#15803d', fontWeight: 800, background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
+                                  DESTINATION ✓
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
+                                  Select ➔
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.68rem', color: total > 0 ? '#b45309' : '#10b981', fontWeight: 700 }}>
-                            {total > 0 ? `Occupied (₹${formatAmount(total)})` : 'Empty / Free'}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          {isDragOver ? (
-                            <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 800 }}>
-                              Drop Here ↵
-                            </span>
-                          ) : isSelected ? (
-                            <span style={{ fontSize: '0.65rem', color: '#15803d', fontWeight: 800, background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
-                              DESTINATION ✓
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
-                              Select ➔
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Live explanation & Action Buttons */}
-            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-              {mergeSourceTable && mergeTargetTable && mergeSourceTable !== mergeTargetTable && (
-                <div style={{
-                  background: '#fefce8',
-                  border: '1px solid #fef08a',
-                  borderRadius: '8px',
-                  padding: '7px 10px',
-                  marginBottom: '10px',
-                  fontSize: '0.74rem',
-                  color: '#854d0e',
+            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMergeSourceTable('');
+                  setMergeTargetTable('');
+                  setShowMergeModal(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#64748b',
                   fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <Sparkles size={14} color="#ca8a04" />
-                  <span>
-                    Table {formatTableOnlyNumber(mergeSourceTable)}'s order (₹{formatAmount(sourceTableTotal)}) will move to Table {formatTableOnlyNumber(mergeTargetTable)}. Table {formatTableOnlyNumber(mergeSourceTable)} will become 100% EMPTY for new guests.
-                  </span>
-                </div>
-              )}
+                  fontSize: '0.84rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
+              <button
+                type="button"
+                disabled={!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable}
+                onClick={async () => {
+                  if (mergeSourceTable && mergeTargetTable && mergeSourceTable !== mergeTargetTable) {
+                    await handleMergeTables(mergeTargetTable, [mergeSourceTable]);
                     setMergeSourceTable('');
                     setMergeTargetTable('');
                     setShowMergeModal(false);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: '10px',
-                    border: '1px solid #cbd5e1',
-                    background: '#f8fafc',
-                    color: '#64748b',
-                    fontWeight: 700,
-                    fontSize: '0.84rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  disabled={!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable}
-                  onClick={async () => {
-                    if (mergeSourceTable && mergeTargetTable && mergeSourceTable !== mergeTargetTable) {
-                      await handleMergeTables(mergeTargetTable, [mergeSourceTable]);
-                      setMergeSourceTable('');
-                      setMergeTargetTable('');
-                      setShowMergeModal(false);
-                    }
-                  }}
-                  style={{
-                    flex: 2,
-                    padding: '10px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: (!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable)
-                      ? '#cbd5e1'
-                      : 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    fontSize: '0.84rem',
-                    cursor: (!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable) ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    boxShadow: (!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable) ? 'none' : '0 4px 12px rgba(79, 70, 229, 0.35)'
-                  }}
-                >
-                  <GitMerge size={16} />
-                  <span>
-                    {mergeSourceTable && mergeTargetTable && mergeSourceTable !== mergeTargetTable
-                      ? `Merge: Move Table ${formatTableOnlyNumber(mergeSourceTable)} ➔ Table ${formatTableOnlyNumber(mergeTargetTable)}`
-                      : 'Select Source & Destination Table'}
-                  </span>
-                </button>
-              </div>
+                  }
+                }}
+                style={{
+                  flex: 2,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: (!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable)
+                    ? '#cbd5e1'
+                    : 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.84rem',
+                  cursor: (!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable) ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: (!mergeSourceTable || !mergeTargetTable || mergeSourceTable === mergeTargetTable) ? 'none' : '0 4px 12px rgba(79, 70, 229, 0.35)'
+                }}
+              >
+                <GitMerge size={16} />
+                <span>
+                  {mergeSourceTable && mergeTargetTable && mergeSourceTable !== mergeTargetTable
+                    ? `Confirm Merge: Table ${formatTableOnlyNumber(mergeSourceTable)} ➔ Table ${formatTableOnlyNumber(mergeTargetTable)}`
+                    : 'Select Source & Destination Table'}
+                </span>
+              </button>
             </div>
           </div>
         </div>

@@ -69,48 +69,51 @@ export default function OrderHistoryModal({
           }
         } catch (e) {}
 
-        // 1. Try /orders/history/customer
-        try {
-          const res = await axios.get(`${API}/orders/history/customer`, {
-            params: {
-              phone: phone || undefined,
-              tableNumber: tableNumber || undefined,
-              sessionIds: sessionIds.length > 0 ? sessionIds.join(',') : undefined,
-              tenantId: tenantId || localStorage.getItem('tenantId') || undefined
-            },
-            timeout: 4500
-          });
-          if (Array.isArray(res.data)) {
-            res.data.forEach(ord => {
-              if (ord && (ord._id || ord.orderNumber)) {
-                allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
-              }
+        // 1. Try /orders/history/customer (filtered strictly to customer phone / placed session orders)
+        if (phone || (sessionIds && sessionIds.length > 0)) {
+          try {
+            const res = await axios.get(`${API}/orders/history/customer`, {
+              params: {
+                phone: phone || undefined,
+                sessionIds: sessionIds.length > 0 ? sessionIds.join(',') : undefined,
+                tenantId: tenantId || localStorage.getItem('tenantId') || undefined
+              },
+              timeout: 4500
             });
-          }
-        } catch (e) {}
-
-        // 2. Try /orders/active-session
-        try {
-          const activeRes = await axios.get(`${API}/orders/active-session`, {
-            params: {
-              phone: phone || undefined,
-              tableNumber: tableNumber || undefined,
-              tenantId: tenantId || localStorage.getItem('tenantId') || undefined
-            },
-            timeout: 4500
-          });
-          if (activeRes.data) {
-            if (Array.isArray(activeRes.data.sessionOrders)) {
-              activeRes.data.sessionOrders.forEach(ord => {
+            if (Array.isArray(res.data)) {
+              res.data.forEach(ord => {
                 if (ord && (ord._id || ord.orderNumber)) {
                   allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
                 }
               });
-            } else if (activeRes.data._id) {
-              allFoundOrders.set(String(activeRes.data._id), activeRes.data);
             }
-          }
-        } catch (e) {}
+          } catch (e) {}
+        }
+
+        // 2. Try /orders/active-session
+        if (phone || (sessionIds && sessionIds.length > 0)) {
+          try {
+            const activeRes = await axios.get(`${API}/orders/active-session`, {
+              params: {
+                phone: phone || undefined,
+                sessionIds: sessionIds.length > 0 ? sessionIds.join(',') : undefined,
+                tenantId: tenantId || localStorage.getItem('tenantId') || undefined
+              },
+              timeout: 4500
+            });
+            if (activeRes.data) {
+              if (Array.isArray(activeRes.data.sessionOrders)) {
+                activeRes.data.sessionOrders.forEach(ord => {
+                  if (ord && (ord._id || ord.orderNumber)) {
+                    allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
+                  }
+                });
+              } else if (activeRes.data._id) {
+                allFoundOrders.set(String(activeRes.data._id), activeRes.data);
+              }
+            }
+          } catch (e) {}
+        }
 
         // 3. Fallback: query individual session orders
         if (sessionIds.length > 0) {

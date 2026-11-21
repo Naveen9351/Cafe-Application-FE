@@ -127,7 +127,7 @@ export default function ClientsTrustSection({ onOpenDemo }) {
   return (
     <section ref={sectionRef} id="clients" className={styles.clientsSection}>
       <div className="container">
-        
+
         {/* Section Header */}
         <div ref={headerRef} className={styles.sectionHeader}>
           <div className={styles.sectionBadge}>
@@ -178,9 +178,9 @@ export default function ClientsTrustSection({ onOpenDemo }) {
           {/* Primary Review Quote */}
           <div className={styles.quoteContainer}>
             <p className={styles.quoteText}>
-              “Switching to DineviQ has completely transformed floor operations at The Land Mark Cafe Jaipur. 
-              During our busiest evening and weekend hours, orders flow directly from the customer's phone to our kitchen 
-              display in real time. We’ve cut table wait times significantly, eliminated paper ticket confusion, and our 
+              “Switching to DineviQ has completely transformed floor operations at The Land Mark Cafe Jaipur.
+              During our busiest evening and weekend hours, orders flow directly from the customer's phone to our kitchen
+              display in real time. We’ve cut table wait times significantly, eliminated paper ticket confusion, and our
               guests love how modern and effortless the QR ordering feels. The POS billing is rock solid!”
             </p>
 

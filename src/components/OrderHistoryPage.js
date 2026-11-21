@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -91,8 +91,9 @@ export default function OrderHistoryPage() {
       if (lastOrd && !sessionIds.includes(lastOrd)) sessionIds.push(lastOrd);
 
       const allFoundOrders = new Map();
+      const effectivePhone = phone || getResolvedPhone();
 
-      // Preload cached orders from localStorage
+      // Preload cached orders from localStorage (ensuring they match current customer if logged in)
       try {
         const cachedRaw = localStorage.getItem('serviq_order_history');
         if (cachedRaw) {
@@ -100,6 +101,10 @@ export default function OrderHistoryPage() {
           if (Array.isArray(parsed)) {
             parsed.forEach(ord => {
               if (ord && (ord._id || ord.orderNumber)) {
+                if (effectivePhone) {
+                  const ordPhone = String(ord.customerDetails?.phone || ord.customerPhone || ord.customer?.phone || '').replace(/[^0-9]/g, '');
+                  if (ordPhone && !ordPhone.endsWith(effectivePhone.slice(-10))) return;
+                }
                 allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
               }
             });
@@ -107,55 +112,55 @@ export default function OrderHistoryPage() {
         }
       } catch (e) {}
 
-      const effectivePhone = phone || getResolvedPhone();
-
-      // Step A: Attempt /orders/history/customer
-      try {
-        const res = await axios.get(`${API}/orders/history/customer`, {
-          params: {
-            phone: effectivePhone || undefined,
-            tableNumber: tableNumber || undefined,
-            sessionIds: sessionIds.length > 0 ? sessionIds.join(',') : undefined,
-            tenantId: tenantId && tenantId !== 'demo-tenant' ? tenantId : undefined
-          },
-          timeout: 4500
-        });
-        if (Array.isArray(res.data)) {
-          res.data.forEach(ord => {
-            if (ord && (ord._id || ord.orderNumber)) {
-              allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
-            }
+      // Step A: Attempt /orders/history/customer (filtered strictly to customer phone when logged in)
+      if (effectivePhone) {
+        try {
+          const res = await axios.get(`${API}/orders/history/customer`, {
+            params: {
+              phone: effectivePhone,
+              tenantId: tenantId && tenantId !== 'demo-tenant' ? tenantId : undefined
+            },
+            timeout: 4500
           });
-        }
-      } catch (e) {
-        // endpoint fallback
-      }
-
-      // Step B: Attempt /orders/active-session
-      try {
-        const activeRes = await axios.get(`${API}/orders/active-session`, {
-          params: {
-            phone: effectivePhone || undefined,
-            tableNumber: tableNumber || undefined,
-            tenantId: tenantId && tenantId !== 'demo-tenant' ? tenantId : undefined
-          },
-          timeout: 4500
-        });
-        if (activeRes.data) {
-          if (Array.isArray(activeRes.data.sessionOrders)) {
-            activeRes.data.sessionOrders.forEach(ord => {
+          if (Array.isArray(res.data)) {
+            res.data.forEach(ord => {
               if (ord && (ord._id || ord.orderNumber)) {
                 allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
               }
             });
-          } else if (activeRes.data._id) {
-            allFoundOrders.set(String(activeRes.data._id), activeRes.data);
           }
+        } catch (e) {
+          // endpoint fallback
         }
-      } catch (e) {}
+      }
 
-      // Step C: Fetch live status for all session order IDs
-      if (sessionIds.length > 0) {
+      // Step B: Attempt /orders/active-session
+      if (effectivePhone || (sessionIds && sessionIds.length > 0)) {
+        try {
+          const activeRes = await axios.get(`${API}/orders/active-session`, {
+            params: {
+              phone: effectivePhone || undefined,
+              sessionIds: !effectivePhone && sessionIds.length > 0 ? sessionIds.join(',') : undefined,
+              tenantId: tenantId && tenantId !== 'demo-tenant' ? tenantId : undefined
+            },
+            timeout: 4500
+          });
+          if (activeRes.data) {
+            if (Array.isArray(activeRes.data.sessionOrders)) {
+              activeRes.data.sessionOrders.forEach(ord => {
+                if (ord && (ord._id || ord.orderNumber)) {
+                  allFoundOrders.set(String(ord._id || ord.orderNumber), ord);
+                }
+              });
+            } else if (activeRes.data._id) {
+              allFoundOrders.set(String(activeRes.data._id), activeRes.data);
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Step C: Fallback only for unauthenticated guest sessions (do not pollute authenticated customer's account)
+      if (!effectivePhone && sessionIds.length > 0) {
         const promises = sessionIds.map(oid => 
           axios.get(`${API}/orders/status/${oid}`, { timeout: 4500 }).catch(() => null)
         );
@@ -213,20 +218,23 @@ export default function OrderHistoryPage() {
     };
   }, [phone, tableNumber, tenantId]);
 
-  const isOrderActive = (ord) => {
+  const isOrderActive = useCallback((ord) => {
     const s = String(ord?.status || 'pending').toLowerCase();
-    return ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(s);
-  };
+    return ['pending', 'confirmed', 'preparing', 'ready', 'served'].includes(s) && ord?.paymentStatus !== 'paid';
+  }, []);
 
   const activeCount = useMemo(() => {
     return orders.filter(isOrderActive).length;
-  }, [orders]);
+  }, [orders, isOrderActive]);
 
-  // Filtered orders (All Orders vs Active Orders)
+  const allOrdersCount = orders.length;
+
+  // Filtered orders (All Orders vs Active Orders for this customer)
   const filteredOrders = useMemo(() => {
     return orders.filter(ord => {
-      const isActive = isOrderActive(ord);
-      if (filter === 'active' && !isActive) return false;
+      if (filter === 'active') {
+        return isOrderActive(ord);
+      }
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -236,7 +244,7 @@ export default function OrderHistoryPage() {
       }
       return true;
     });
-  }, [orders, filter, searchQuery]);
+  }, [orders, filter, searchQuery, isOrderActive]);
 
   // Group filtered orders by date label
   const groupedOrders = useMemo(() => {
@@ -301,7 +309,18 @@ export default function OrderHistoryPage() {
         icon: ChefHat
       };
     }
-    // pending / confirmed
+    if (s === 'confirmed') {
+      return {
+        step: 1,
+        total: 3,
+        label: 'Confirmed',
+        color: '#0284c7',
+        bg: isDarkMode ? 'rgba(2, 132, 199, 0.15)' : '#eff6ff',
+        border: isDarkMode ? 'rgba(2, 132, 199, 0.3)' : '#bae6fd',
+        icon: CheckCircle2
+      };
+    }
+    // pending
     return {
       step: 1,
       total: 3,
@@ -438,7 +457,7 @@ export default function OrderHistoryPage() {
                   {
                     key: 'all',
                     label: 'All Orders',
-                    count: orders.length,
+                    count: allOrdersCount,
                     icon: Receipt
                   },
                   {
@@ -586,14 +605,14 @@ export default function OrderHistoryPage() {
                   ? "No matching orders found"
                   : filter === 'active'
                   ? "No Active Orders"
-                  : "No Orders Found"}
+                  : "No Past Orders Found"}
               </h3>
               <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: 1.5 }}>
                 {searchQuery
-                  ? "Try checking your query or filter tab."
+                  ? "Try checking your query or dish name."
                   : filter === 'active'
-                  ? "You have no active orders in kitchen right now. Check 'All Orders' for past history."
-                  : "No past orders found for this session or mobile number. Explore the menu and place your first delicious dish!"}
+                  ? "You don't have any active kitchen orders in progress right now."
+                  : "You haven't placed any orders yet. Once you place an order, it will show up here with live status and receipts!"}
               </p>
             </div>
           ) : (

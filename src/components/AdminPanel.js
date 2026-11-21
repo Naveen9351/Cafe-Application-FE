@@ -5885,6 +5885,32 @@ export default function AdminPanel() {
                               mergedWith: Array.isArray(t.mergedWith) ? t.mergedWith.filter(m => String(m).replace(/^Table\s*/i, '').trim().toLowerCase() !== demerged) : []
                             };
                           }));
+                        } else if (newOrd.action === 'move' && newOrd.sourceTable && newOrd.targetTable) {
+                          const src = String(newOrd.sourceTable).replace(/^Table\s*/i, '').trim().toLowerCase();
+                          const tgt = String(newOrd.targetTable).replace(/^Table\s*/i, '').trim().toLowerCase();
+                          setOrders(prev => prev.map(o => {
+                            if (o.status === 'completed' || o.status === 'cancelled') return o;
+                            const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (oTbl === src) {
+                              return {
+                                ...o,
+                                tableNumber: newOrd.targetTable,
+                                table: newOrd.targetTable,
+                                originalTable: o.originalTable || o.tableNumber || o.table
+                              };
+                            }
+                            return o;
+                          }));
+                          setTables(prev => prev.map(t => {
+                            const tNum = String(t.tableNumber || '').replace(/^Table\s*/i, '').trim().toLowerCase();
+                            if (tNum === src) {
+                              return { ...t, status: 'available', currentOrder: null, mergedInto: null };
+                            }
+                            if (tNum === tgt) {
+                              return { ...t, status: 'occupied' };
+                            }
+                            return t;
+                          }));
                         } else if (newOrd.status === 'completed' && newOrd.tableNumber) {
                           setOrders(prev => prev.map(o => {
                             const oTbl = String(o.tableNumber || o.table || '').replace(/^Table\s*/i, '').trim().toLowerCase();
