@@ -458,6 +458,7 @@ const SuperAdminDashboard = () => {
             phone: tenant.adminPhone || tenant.phone || '',
             password: '',
             sendEmailNotification: false,
+            enableCustomerOtp: tenant.settings?.enableCustomerOtp !== false,
             plan: mappedPlan,
             customPrice: sub.price !== undefined ? sub.price : defaultPrice,
             customAddons: currentAddons,
@@ -493,6 +494,7 @@ const SuperAdminDashboard = () => {
                 phone: editUserForm.phone,
                 password: editUserForm.password,
                 sendEmailNotification: editUserForm.sendEmailNotification,
+                enableCustomerOtp: editUserForm.enableCustomerOtp,
                 plan: editUserForm.plan,
                 customPrice: editUserForm.customPrice,
                 customAddons: editUserForm.plan === 'custom'
@@ -3466,6 +3468,40 @@ const SuperAdminDashboard = () => {
                                         )}
                                     </div>
                                 )}
+
+                                {/* Customer Order Verification Toggle (SMS OTP / Google Login) */}
+                                <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                            <ShieldCheck size={14} color="#ea580c" /> Customer Order Verification
+                                            <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: editUserForm.enableCustomerOtp ? '#ecfdf5' : '#fef2f2', color: editUserForm.enableCustomerOtp ? '#059669' : '#dc2626', fontWeight: 700 }}>
+                                                {editUserForm.enableCustomerOtp ? 'SMS OTP & GOOGLE ACTIVE' : 'GUEST ORDERS ALLOWED'}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>
+                                            Require SMS OTP or Google sign-in. Turn OFF to allow instant guest orders without OTP (useful if SMS gateway is experiencing downtime).
+                                        </div>
+                                    </div>
+                                    <label style={{ position: 'relative', display: 'inline-block', width: 38, height: 22, flexShrink: 0, cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(editUserForm.enableCustomerOtp)}
+                                            onChange={(e) => setEditUserForm({ ...editUserForm, enableCustomerOtp: e.target.checked })}
+                                            style={{ opacity: 0, width: 0, height: 0, margin: 0 }}
+                                        />
+                                        <span style={{
+                                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                            background: editUserForm.enableCustomerOtp ? '#10b981' : '#cbd5e1',
+                                            borderRadius: 22, transition: '0.3s'
+                                        }}>
+                                            <span style={{
+                                                position: 'absolute', content: '""', height: 16, width: 16,
+                                                left: editUserForm.enableCustomerOtp ? 19 : 3,
+                                                bottom: 3, background: 'white', borderRadius: '50%', transition: '0.3s'
+                                            }} />
+                                        </span>
+                                    </label>
+                                </div>
 
                                 {/* Password Section */}
                                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginTop: 4 }}>

@@ -144,8 +144,9 @@ export default function Cart() {
   }, [searchParams]);
 
   const executeOrderPlacement = async (activeCustomer = customer) => {
-    // 1. Validate Customer Verification
-    if (!activeCustomer?.verified) {
+    const isVerificationRequired = tenantInfo?.settings?.enableCustomerOtp !== false;
+    // 1. Validate Customer Verification if required
+    if (isVerificationRequired && !activeCustomer?.verified) {
       setIsVerificationOpen(true);
       return;
     }
@@ -162,6 +163,13 @@ export default function Cart() {
       toast.error("Invalid Cafe session. Please rescan QR code.");
       return;
     }
+
+    const effectiveCustomer = (activeCustomer && activeCustomer.verified) ? activeCustomer : {
+      name: activeCustomer?.name || localStorage.getItem('customer_name') || "Guest",
+      phone: activeCustomer?.phone || localStorage.getItem('customer_phone') || "",
+      verified: activeCustomer?.verified || false,
+      isGuest: true
+    };
 
     setIsPlacing(true);
     try {
@@ -187,10 +195,10 @@ export default function Cart() {
         status: "pending",
         paymentStatus: "pending",
         customerDetails: {
-          name: activeCustomer?.name || "Guest",
-          phone: activeCustomer?.phone || "",
-          email: activeCustomer?.email || "",
-          isPhoneVerified: Boolean(activeCustomer?.verified)
+          name: effectiveCustomer.name || "Guest",
+          phone: effectiveCustomer.phone || "",
+          email: effectiveCustomer.email || "",
+          isPhoneVerified: Boolean(effectiveCustomer.verified)
         },
         notes: orderGeneralNote || ''
       };
@@ -222,9 +230,15 @@ export default function Cart() {
     }
   };
 
-  const executeRazorpayCheckout = async (activeCustomer) => {
+  const executeRazorpayCheckout = async (activeCustomer = customer) => {
     if (items.length === 0) {
       toast.error("Your cart is empty");
+      return;
+    }
+
+    const isVerificationRequired = tenantInfo?.settings?.enableCustomerOtp !== false;
+    if (isVerificationRequired && !activeCustomer?.verified) {
+      setIsVerificationOpen(true);
       return;
     }
 
@@ -238,6 +252,13 @@ export default function Cart() {
       toast.error("Invalid Cafe session. Please rescan QR code.");
       return;
     }
+
+    const effectiveCustomer = (activeCustomer && activeCustomer.verified) ? activeCustomer : {
+      name: activeCustomer?.name || localStorage.getItem('customer_name') || "Guest",
+      phone: activeCustomer?.phone || localStorage.getItem('customer_phone') || "",
+      verified: activeCustomer?.verified || false,
+      isGuest: true
+    };
 
     setIsPlacing(true);
     const toastId = toast.loading("Initializing secure Razorpay payment...");
@@ -272,10 +293,10 @@ export default function Cart() {
         tenantId,
         tableNumber: tableNumber || "Online Order",
         customerDetails: {
-          name: activeCustomer?.name || "Guest",
-          phone: activeCustomer?.phone || "",
-          email: activeCustomer?.email || "",
-          isPhoneVerified: Boolean(activeCustomer?.verified)
+          name: effectiveCustomer.name || "Guest",
+          phone: effectiveCustomer.phone || "",
+          email: effectiveCustomer.email || "",
+          isPhoneVerified: Boolean(effectiveCustomer.verified)
         },
         notes: orderGeneralNote || ''
       };
@@ -297,9 +318,9 @@ export default function Cart() {
         description: `Order #${data.orderNumber} - ${items.length} items`,
         order_id: data.orderId,
         prefill: {
-          name: activeCustomer?.name || "",
-          contact: activeCustomer?.phone || "",
-          email: activeCustomer?.email || ""
+          name: effectiveCustomer.name || "",
+          contact: effectiveCustomer.phone || "",
+          email: effectiveCustomer.email || ""
         },
         theme: {
           color: theme.accent || "#ea580c"
@@ -384,6 +405,13 @@ export default function Cart() {
     setIsPlacing(true);
     const toastId = toast.loading("Confirming your order with kitchen...");
     try {
+      const effectiveCustomer = (activeCustomer && activeCustomer.verified) ? activeCustomer : {
+        name: activeCustomer?.name || localStorage.getItem('customer_name') || "Guest",
+        phone: activeCustomer?.phone || localStorage.getItem('customer_phone') || "",
+        verified: activeCustomer?.verified || false,
+        isGuest: true
+      };
+
       const payload = {
         items: items.map((i) => {
           let cleanId = i.itemId || i._id;
@@ -407,10 +435,10 @@ export default function Cart() {
         paymentStatus: "paid",
         paymentMethod: "UPI",
         customerDetails: {
-          name: activeCustomer?.name || "Guest",
-          phone: activeCustomer?.phone || "",
-          email: activeCustomer?.email || "",
-          isPhoneVerified: Boolean(activeCustomer?.verified)
+          name: effectiveCustomer.name || "Guest",
+          phone: effectiveCustomer.phone || "",
+          email: effectiveCustomer.email || "",
+          isPhoneVerified: Boolean(effectiveCustomer.verified)
         },
         notes: orderGeneralNote || ''
       };
@@ -451,17 +479,26 @@ export default function Cart() {
   };
 
   const handlePlaceOrder = () => {
-    if (!customer?.verified) {
+    const isVerificationRequired = tenantInfo?.settings?.enableCustomerOtp !== false;
+    if (isVerificationRequired && !customer?.verified) {
       setIsVerificationOpen(true);
       return;
     }
+
+    const effectiveCustomer = (customer && customer.verified) ? customer : {
+      name: customer?.name || localStorage.getItem('customer_name') || 'Guest',
+      phone: customer?.phone || localStorage.getItem('customer_phone') || '',
+      verified: !isVerificationRequired,
+      isGuest: true
+    };
+
     if (paymentMethod === 'direct_upi') {
       setUpiCountdown(300);
       setIsUpiModalOpen(true);
     } else if (paymentMethod === 'razorpay') {
-      executeRazorpayCheckout(customer);
+      executeRazorpayCheckout(effectiveCustomer);
     } else {
-      executeOrderPlacement(customer);
+      executeOrderPlacement(effectiveCustomer);
     }
   };
 
@@ -1029,6 +1066,7 @@ export default function Cart() {
         onClose={() => setIsVerificationOpen(false)}
         onVerified={handleVerificationSuccess}
         initialName={customer?.name || ''}
+        enableCustomerOtp={tenantInfo?.settings?.enableCustomerOtp !== false}
       />
 
       {/* ── ZOMATO / SWIGGY STYLE DIRECT DYNAMIC UPI MODAL ── */}

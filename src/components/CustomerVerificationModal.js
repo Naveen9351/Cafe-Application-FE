@@ -5,7 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import styles from './CustomerVerificationModal.module.css';
 import { API_URL as API } from '../config/api';
 
-export default function CustomerVerificationModal({ isOpen, onClose, onVerified, initialName = '' }) {
+export default function CustomerVerificationModal({ isOpen, onClose, onVerified, initialName = '', enableCustomerOtp = true }) {
   const [step, setStep] = useState('info'); // 'info' | 'otp'
   const [name, setName] = useState(initialName || localStorage.getItem('customer_name') || '');
   const [phone, setPhone] = useState(localStorage.getItem('customer_phone') || '');
@@ -111,6 +111,24 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
   const handleResendOtp = async () => {
     if (!canResend || isLoading) return;
     await handleSendOtp();
+  };
+
+  // 2b. Guest checkout handler (used when admin disables customer OTP verification)
+  const handleGuestOrder = (e) => {
+    if (e) e.preventDefault();
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const guestProfile = {
+      name: name.trim() || 'Guest',
+      phone: cleanPhone || '',
+      verified: true,
+      isGuest: true
+    };
+    if (name.trim()) localStorage.setItem('customer_name', name.trim());
+    if (cleanPhone) localStorage.setItem('customer_phone', cleanPhone);
+    localStorage.setItem('verifiedCustomer', JSON.stringify(guestProfile));
+    localStorage.setItem('customer_user', JSON.stringify(guestProfile));
+    if (onVerified) onVerified(guestProfile);
+    onClose();
   };
 
   // 3. OTP Digit Input & Paste Handling
@@ -293,19 +311,21 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
             </div>
 
             <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '-0.5rem', marginBottom: '1.25rem' }}>
-              Please enter your name and phone number to verify your table order via OTP.
+              {enableCustomerOtp
+                ? 'Please enter your name and phone number to verify your table order via OTP.'
+                : 'Customer verification is optional. You can enter your details or place order directly as a Guest.'}
             </p>
 
-            <form onSubmit={handleSendOtp}>
+            <form onSubmit={enableCustomerOtp ? handleSendOtp : handleGuestOrder}>
               {/* Full Name */}
               <div className={styles.formGroup}>
                 <label className={styles.fieldLabel}>
-                  Full Name<span className={styles.requiredStar}>*</span>
+                  Full Name{enableCustomerOtp && <span className={styles.requiredStar}>*</span>}
                 </label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Rahul Sharma"
+                  required={enableCustomerOtp}
+                  placeholder={enableCustomerOtp ? "e.g. Rahul Sharma" : "e.g. Rahul Sharma (optional)"}
                   className={styles.textInput}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -316,14 +336,14 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
               {/* Mobile Number with +91 Country Code */}
               <div className={styles.formGroup}>
                 <label className={styles.fieldLabel}>
-                  Mobile Number (for SMS OTP)<span className={styles.requiredStar}>*</span>
+                  Mobile Number {enableCustomerOtp ? '(for SMS OTP)' : '(optional)'}{enableCustomerOtp && <span className={styles.requiredStar}>*</span>}
                 </label>
                 <div className={styles.phoneInputWrapper}>
                   <span className={styles.countryCode}>+91</span>
                   <input
                     type="tel"
                     inputMode="numeric"
-                    required
+                    required={enableCustomerOtp}
                     maxLength={10}
                     placeholder="10-digit mobile number"
                     className={styles.phoneInput}
@@ -338,8 +358,8 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
                 </div>
               </div>
 
-              {/* Google OAuth Option (if configured) */}
-              {hasGoogleClientId && (
+              {/* Google OAuth Option (if configured & OTP mode enabled) */}
+              {enableCustomerOtp && hasGoogleClientId && (
                 <>
                   <button
                     type="button"
@@ -363,14 +383,25 @@ export default function CustomerVerificationModal({ isOpen, onClose, onVerified,
               )}
 
               {/* Action Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={styles.primaryActionBtn}
-                style={{ marginTop: '1rem' }}
-              >
-                {isLoading ? 'Sending SMS OTP...' : 'Get Verification OTP'}
-              </button>
+              {enableCustomerOtp ? (
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={styles.primaryActionBtn}
+                  style={{ marginTop: '1rem' }}
+                >
+                  {isLoading ? 'Sending SMS OTP...' : 'Get Verification OTP'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGuestOrder}
+                  className={styles.primaryActionBtn}
+                  style={{ marginTop: '1rem', background: '#ea580c' }}
+                >
+                  Place Order as Guest
+                </button>
+              )}
             </form>
           </>
         )}

@@ -340,6 +340,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     profitMargin: tenantInfo?.settings?.profitMargin !== undefined ? tenantInfo.settings.profitMargin : 40,
     enableEstimatedPrepTime: tenantInfo?.settings?.enableEstimatedPrepTime || false,
     enableKhata: tenantInfo?.settings?.enableKhata || false,
+    enableCustomerOtp: tenantInfo?.settings?.enableCustomerOtp !== false,
     enableNightMenu: tenantInfo?.settings?.enableNightMenu || false,
     nightMenuStart: tenantInfo?.settings?.nightMenuStart || '22:00',
     nightMenuEnd: tenantInfo?.settings?.nightMenuEnd || '05:00',
@@ -370,6 +371,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         profitMargin: tenantInfo.settings?.profitMargin !== undefined ? tenantInfo.settings.profitMargin : prev.profitMargin,
         enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime !== undefined ? tenantInfo.settings.enableEstimatedPrepTime : false,
         enableKhata: tenantInfo.settings?.enableKhata !== undefined ? tenantInfo.settings.enableKhata : false,
+        enableCustomerOtp: tenantInfo.settings?.enableCustomerOtp !== undefined ? tenantInfo.settings.enableCustomerOtp : true,
         upiId: tenantInfo.settings?.upiId || '',
         upiPayeeName: tenantInfo.settings?.upiPayeeName || tenantInfo.name || '',
         enableDirectUpi: tenantInfo.settings?.enableDirectUpi !== false,
@@ -458,6 +460,31 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     }
   };
 
+  // Instant direct toggle for Customer Order Verification (SMS OTP & Google Login)
+  const handleToggleCustomerOtpDirect = async (checked) => {
+    setForm(prev => ({ ...prev, enableCustomerOtp: checked }));
+    try {
+      const token = localStorage.getItem('token');
+      const tid = tenantInfo?._id || tenantInfo?.id;
+      if (token && tid) {
+        await axios.put(`${API_URL}/tenants/${tid}`, { enableCustomerOtp: checked }, {
+          headers: { 'x-auth-token': token }
+        });
+      }
+      if (onSave) {
+        onSave({ enableCustomerOtp: checked });
+      }
+      if (checked) {
+        toast.success('Customer Verification enabled (SMS OTP & Google Login required for ordering)', { duration: 4000 });
+      } else {
+        toast('Customer Verification disabled. Diners can order as guest without OTP.', { icon: 'ℹ️', duration: 4000 });
+      }
+    } catch (err) {
+      console.error('Error updating customer OTP setting:', err);
+      toast.error('Failed to update verification setting');
+    }
+  };
+
   const handleSave = (e) => {
     if (e) e.preventDefault();
     if (form.primaryPhone && !/^[0-9]{10}$/.test(form.primaryPhone.trim())) {
@@ -477,6 +504,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         profitMargin: Number(form.profitMargin) || 40,
         enableEstimatedPrepTime: form.enableEstimatedPrepTime,
         enableKhata: form.enableKhata,
+        enableCustomerOtp: form.enableCustomerOtp,
         upiId: form.upiId,
         upiPayeeName: form.upiPayeeName,
         enableDirectUpi: form.enableDirectUpi,
@@ -497,6 +525,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         publicEmail: tenantInfo.email || '',
         enableEstimatedPrepTime: tenantInfo.settings?.enableEstimatedPrepTime || false,
         enableKhata: tenantInfo.settings?.enableKhata || false,
+        enableCustomerOtp: tenantInfo.settings?.enableCustomerOtp !== undefined ? tenantInfo.settings.enableCustomerOtp : true,
         operatingHours: tenantInfo.settings?.operatingHours || form.operatingHours
       });
       if (tenantInfo.logo) setLogoPreview(tenantInfo.logo);
@@ -807,6 +836,26 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 type="checkbox"
                 checked={form.enableEstimatedPrepTime}
                 onChange={(e) => handleTogglePrepTimeDirect(e.target.checked)}
+              />
+              <span className={styles.slider}></span>
+            </label>
+          </div>
+
+          <div className={styles.featureRow}>
+            <div className={styles.featureInfo}>
+              <div className={styles.featureTitleWrap}>
+                <span className={styles.featureTitle}>Customer Order Verification</span>
+                <span className={styles.featureBadge} style={{ background: '#fef3c7', color: '#b45309' }}>SMS OTP &amp; GOOGLE</span>
+              </div>
+              <p className={styles.featureDesc}>
+                Require customers to verify via SMS OTP or Google Login before placing table orders. Turn OFF to allow instant guest ordering without OTP (useful if SMS gateway is experiencing downtime).
+              </p>
+            </div>
+            <label className={styles.switch}>
+              <input
+                type="checkbox"
+                checked={form.enableCustomerOtp}
+                onChange={(e) => handleToggleCustomerOtpDirect(e.target.checked)}
               />
               <span className={styles.slider}></span>
             </label>
