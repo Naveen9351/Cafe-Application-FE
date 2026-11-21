@@ -9,6 +9,7 @@ import { API_URL } from '../config/api';
 import styles from './InvoiceModal.module.css';
 import { printOrderBill } from '../utils/billPrinter';
 import { openWhatsappBill, generateWhatsappBillText } from '../utils/whatsappBillSender';
+import { hasModuleAccess, MODULE_KEYS } from '../config/subscriptionPlans';
 import { formatTableBadge } from './common/TableBadge';
 import { consolidateOrderItems } from '../utils/orderConsolidation';
 
@@ -224,10 +225,12 @@ export default function InvoiceModal({ order, tenantInfo, onClose }) {
               <Download size={15} />
               Print / PDF (A4)
             </button>
-            <button className={`${styles.actionBtn} ${styles.whatsappBtn}`} onClick={handleSendWhatsApp} type="button">
-              <MessageSquare size={15} />
-              Send WhatsApp E-Bill
-            </button>
+            {hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.WHATSAPP_SUITE) && (
+              <button className={`${styles.actionBtn} ${styles.whatsappBtn}`} onClick={handleSendWhatsApp} type="button">
+                <MessageSquare size={15} />
+                Send WhatsApp E-Bill
+              </button>
+            )}
           </div>
         </div>
       </div>

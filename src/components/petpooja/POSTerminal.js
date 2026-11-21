@@ -28,6 +28,7 @@ import { playOrderChime, isAudioMuted, setAudioMuted } from '../../utils/audioCh
 import { printOrderBill } from '../../utils/billPrinter';
 import { openWhatsappBill } from '../../utils/whatsappBillSender';
 import WhatsAppConnectModal from '../WhatsAppConnectModal';
+import { hasModuleAccess, MODULE_KEYS } from '../../config/subscriptionPlans';
 import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, buildUpiUri } from '../common/UpiBrandLogos';
 
 // Smart table name formatter:
@@ -73,7 +74,9 @@ export default function POSTerminal({
     || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode)
     || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId?.operatingMode)
     || 'dine_in';
-  const isCounterBillingOnly = activeOperatingMode === 'counter_billing'
+  const hasTableSuite = hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.TABLE_QR);
+  const isCounterBillingOnly = !hasTableSuite
+    || activeOperatingMode === 'counter_billing'
     || activeOperatingMode === 'quick_billing'
     || tenantInfo?.settings?.businessMode === 'quick_billing'
     || tenantInfo?.settings?.operatingMode === 'counter_billing'
@@ -2140,28 +2143,30 @@ export default function POSTerminal({
 
             {/* Right: Temp Table Button, Move Table, Merge Tables, Drag Mode Toggle Switch & Search Box */}
             <div className={styles.floorRightControls} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setShowTempTableModal(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '0.38rem 0.65rem',
-                  borderRadius: '7px',
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.74rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 4px rgba(124, 58, 237, 0.25)',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Create Temporary Tab"
-              >
-                <span>+ Temp Tab</span>
-              </button>
+              {hasTableSuite && (
+                <button
+                  type="button"
+                  onClick={() => setShowTempTableModal(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '0.38rem 0.65rem',
+                    borderRadius: '7px',
+                    background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 4px rgba(124, 58, 237, 0.25)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Create Temporary Tab"
+                >
+                  <span>+ Temp Tab</span>
+                </button>
+              )}
 
               {/* Move Table Button */}
               <button
@@ -3841,8 +3846,8 @@ export default function POSTerminal({
                                 </div>
                               )}
                               <div className={styles.terminalActionBtns}>
-                                {/* 1. Send to Kitchen: Shown whenever draft items exist */}
-                                {hasDraftItems && (
+                                {/* 1. Send to Kitchen: Shown whenever draft items exist and tenant has KDS module */}
+                                {hasDraftItems && hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.LIVE_ORDERS_KDS) && (
                                   <button
                                     type="button"
                                     className={styles.sendKotBtn}
@@ -3979,49 +3984,51 @@ export default function POSTerminal({
                                       <span>Print Bill</span>
                                     </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const billOrder = {
-                                          orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
-                                          tableNumber,
-                                          customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
-                                          customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
-                                          items: [
-                                            ...currentTableOrders.flatMap(o => o.items || []),
-                                            ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
-                                          ],
-                                          subTotal: grandTotal,
-                                          totalAmount: grandTotal,
-                                          paymentMethod: paymentMethod || 'Cash',
-                                          paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
-                                        };
-                                        openWhatsappBill(billOrder, tenantInfo, customerPhone);
-                                      }}
-                                      style={{
-                                        padding: '8px 10px',
-                                        borderRadius: '9px',
-                                        border: 'none',
-                                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                                        color: '#ffffff',
-                                        fontSize: '0.78rem',
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        whiteSpace: 'nowrap',
-                                        boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                      onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
-                                      title="Send WhatsApp Digital E-Bill"
-                                    >
-                                      <FaWhatsapp size={16} />
-                                      <span>WhatsApp E-Bill</span>
-                                    </button>
+                                    {hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.WHATSAPP_SUITE) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const billOrder = {
+                                            orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+                                            tableNumber,
+                                            customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
+                                            customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+                                            items: [
+                                              ...currentTableOrders.flatMap(o => o.items || []),
+                                              ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+                                            ],
+                                            subTotal: grandTotal,
+                                            totalAmount: grandTotal,
+                                            paymentMethod: paymentMethod || 'Cash',
+                                            paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
+                                          };
+                                          openWhatsappBill(billOrder, tenantInfo, customerPhone);
+                                        }}
+                                        style={{
+                                          padding: '8px 10px',
+                                          borderRadius: '9px',
+                                          border: 'none',
+                                          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                          color: '#ffffff',
+                                          fontSize: '0.78rem',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '6px',
+                                          whiteSpace: 'nowrap',
+                                          boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
+                                        title="Send WhatsApp Digital E-Bill"
+                                      >
+                                        <FaWhatsapp size={16} />
+                                        <span>WhatsApp E-Bill</span>
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -4056,7 +4063,7 @@ export default function POSTerminal({
           { id: 'Cash', label: 'Cash', icon: Banknote },
           { id: 'UPI / GPay', label: 'UPI / GPay', icon: Smartphone },
           { id: 'Card', label: 'Card', icon: CreditCard },
-          ...(tenantInfo?.settings?.enableKhata !== false ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
+          ...(tenantInfo?.settings?.enableKhata !== false && hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.KHATA_LEDGER) ? [{ id: 'Khata / Borrow', label: 'Udhar / Khata', icon: BookOpen }] : [])
         ];
 
         const currentMethod = (payItemsMethod === 'Settlement' || !payItemsMethod) ? 'Cash' : payItemsMethod;

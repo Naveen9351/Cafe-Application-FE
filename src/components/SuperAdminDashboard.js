@@ -16,6 +16,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { API_URL as API } from '../config/api';
 import { getSharedAuth } from '../utils/authStorage';
 import { TableRowSkeleton } from './common/SkeletonLoader';
+import { CUSTOM_ADDONS, PLAN_TIERS } from '../config/subscriptionPlans';
 
 const SuperAdminDashboard = () => {
     const [tenants, setTenants] = useState([]);
@@ -129,15 +130,17 @@ const SuperAdminDashboard = () => {
         phone: '',
         address: '',
         logo: '',
-        plan: '1_month',
-        customPrice: 999,
+        plan: 'starter',
+        customPrice: 499,
         operatingMode: 'dine_in'
     });
     const [isOnboarding, setIsOnboarding] = useState(false);
+    const [onboardCustomAddons, setOnboardCustomAddons] = useState([]);
 
     // Plan Management Form State
-    const [selectedPlan, setSelectedPlan] = useState('1_month');
-    const [customPriceVal, setCustomPriceVal] = useState(999);
+    const [selectedPlan, setSelectedPlan] = useState('starter');
+    const [customPriceVal, setCustomPriceVal] = useState(499);
+    const [planModalCustomAddons, setPlanModalCustomAddons] = useState([]);
     const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
     const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
     const [ticketAdminNotes, setTicketAdminNotes] = useState('');
@@ -442,14 +445,23 @@ const SuperAdminDashboard = () => {
 
     const handleOpenEditUserModal = (tenant) => {
         setEditingUserTenant(tenant);
+        const sub = tenant.subscription || {};
+        const planKey = (sub.plan || 'starter').toLowerCase();
+        const mappedPlan = ['1_month', '6_months', '1_year', 'pro'].includes(planKey) ? 'pro' : planKey;
+        const defaultPrice = mappedPlan === 'growth' ? 799 : mappedPlan === 'pro' ? 999 : mappedPlan === 'free_trial' ? 0 : 499;
+        const currentAddons = Array.isArray(sub.customAddons) ? sub.customAddons : [];
+
         setEditUserForm({
             cafeName: tenant.name || '',
             adminName: tenant.adminName || tenant.ownerName || '',
             email: tenant.adminEmail || tenant.email || '',
             phone: tenant.adminPhone || tenant.phone || '',
-            operatingMode: tenant.operatingMode || tenant.settings?.operatingMode || 'dine_in',
             password: '',
-            sendEmailNotification: false
+            sendEmailNotification: false,
+            plan: mappedPlan,
+            customPrice: sub.price !== undefined ? sub.price : defaultPrice,
+            customAddons: currentAddons,
+            trialFeatureMode: (mappedPlan === 'free_trial' && currentAddons.length > 0) ? 'custom' : 'all'
         });
         setShowEditPassword(false);
         setShowEditUserModal(true);
@@ -474,20 +486,26 @@ const SuperAdminDashboard = () => {
         try {
             const { sharedToken } = getSharedAuth();
             const token = sharedToken || localStorage.getItem('token');
-            const res = await axios.put(`${API}/tenants/${editingUserTenant._id}/account`, editUserForm, {
-                headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
-            });
-            toast.success(res.data?.message || 'Cafe and user details updated successfully!');
-            const targetMode = editUserForm.operatingMode || 'dine_in';
-            setTenants(prev => prev.map(t => t._id === editingUserTenant._id ? {
-                ...t,
-                name: editUserForm.cafeName,
+            const payload = {
+                cafeName: editUserForm.cafeName,
+                adminName: editUserForm.adminName,
                 email: editUserForm.email,
                 phone: editUserForm.phone,
-                adminName: editUserForm.adminName,
-                operatingMode: targetMode,
-                settings: { ...(t.settings || {}), operatingMode: targetMode }
-            } : t));
+                password: editUserForm.password,
+                sendEmailNotification: editUserForm.sendEmailNotification,
+                plan: editUserForm.plan,
+                customPrice: editUserForm.customPrice,
+                customAddons: editUserForm.plan === 'custom'
+                    ? editUserForm.customAddons
+                    : (editUserForm.plan === 'free_trial' && editUserForm.trialFeatureMode === 'custom')
+                        ? editUserForm.customAddons
+                        : []
+            };
+
+            const res = await axios.put(`${API}/tenants/${editingUserTenant._id}/account`, payload, {
+                headers: { 'x-auth-token': token, 'Authorization': `Bearer ${token}` }
+            });
+            toast.success(res.data?.message || 'Cafe, plan, and user details updated successfully!');
             setShowEditUserModal(false);
             setEditingUserTenant(null);
             fetchTenantsAndLeads();
@@ -655,12 +673,16 @@ const SuperAdminDashboard = () => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`${API}/tenants/onboard`, onboardForm, {
+            await axios.post(`${API}/tenants/onboard`, {
+                ...onboardForm,
+                customAddons: onboardCustomAddons
+            }, {
                 headers: { 'x-auth-token': token }
             });
 
             toast.success(`Cafe "${onboardForm.businessName}" onboarded successfully!`);
             setShowOnboardModal(false);
+            setOnboardCustomAddons([]);
             setOnboardForm({
                 businessName: '',
                 adminName: '',
@@ -669,8 +691,9 @@ const SuperAdminDashboard = () => {
                 phone: '',
                 address: '',
                 logo: '',
-                plan: '1_month',
-                customPrice: 999
+                plan: 'starter',
+                customPrice: 499,
+                operatingMode: 'dine_in'
             });
             fetchTenantsAndLeads();
         } catch (err) {
@@ -692,6 +715,7 @@ const SuperAdminDashboard = () => {
             await axios.put(`${API}/tenants/${editingTenant._id}/subscription`, {
                 plan: selectedPlan,
                 customPrice: customPriceVal,
+                customAddons: planModalCustomAddons,
                 operatingMode: selectedOperatingMode
             }, {
                 headers: { 'x-auth-token': token }
@@ -705,7 +729,8 @@ const SuperAdminDashboard = () => {
                 subscription: {
                     ...(t.subscription || {}),
                     plan: selectedPlan,
-                    price: customPriceVal
+                    price: customPriceVal,
+                    customAddons: planModalCustomAddons
                 }
             } : t));
             setShowPlanModal(false);
@@ -1272,25 +1297,12 @@ const SuperAdminDashboard = () => {
                                                                 <div style={{ color: '#64748b', fontSize: '11px' }}>{tenant.phone || '—'}</div>
                                                             </td>
                                                             <td>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                                                        <span className={`${styles.badge} ${styles.planBadge}`}>
-                                                                            {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
-                                                                        </span>
-                                                                        <span style={{ fontSize: '11px', fontWeight: 550, color: '#334155' }}>
-                                                                            ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
-                                                                        </span>
-                                                                    </div>
-                                                                    <span style={{
-                                                                        fontSize: '9.5px',
-                                                                        fontWeight: 800,
-                                                                        padding: '1px 6px',
-                                                                        borderRadius: '4px',
-                                                                        background: (tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '#ecfdf5' : '#f5f3ff',
-                                                                        color: (tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '#047857' : '#6d28d9',
-                                                                        border: (tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '1px solid #a7f3d0' : '1px solid #ddd6fe'
-                                                                    }}>
-                                                                        {(tenant.operatingMode || tenant.settings?.operatingMode) === 'counter_billing' ? '⚡ Quick Billing (No QR)' : '🍽️ Full Dine-In & QR'}
+                                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                                    <span className={`${styles.badge} ${styles.planBadge}`}>
+                                                                        {sub.plan ? sub.plan.replace('_', ' ').toUpperCase() : 'NO PLAN'}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#334155' }}>
+                                                                        ₹{sub.price !== undefined ? Number(sub.price).toLocaleString('en-IN') : 0}
                                                                     </span>
                                                                 </div>
                                                             </td>
@@ -1331,33 +1343,9 @@ const SuperAdminDashboard = () => {
                                                                         type="button"
                                                                         className={styles.editUserBtn}
                                                                         onClick={() => handleOpenEditUserModal(tenant)}
-                                                                        title="Edit Cafe Details, Owner Profile & Password"
+                                                                        title="Edit Cafe Details, Plan & Password"
                                                                     >
                                                                         <Edit3 size={13} />
-                                                                    </button>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        className={styles.resetMailBtn}
-                                                                        onClick={() => handleSendResetPasswordEmail(tenant)}
-                                                                        title="Send Password Reset Email to Gmail"
-                                                                    >
-                                                                        <Mail size={13} />
-                                                                    </button>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        className={styles.managePlanBtn}
-                                                                        onClick={() => {
-                                                                            setEditingTenant(tenant);
-                                                                            setSelectedPlan(sub.plan || '1_month');
-                                                                            setCustomPriceVal(sub.price || 999);
-                                                                            setSelectedOperatingMode(tenant.operatingMode || tenant.settings?.operatingMode || 'dine_in');
-                                                                            setShowPlanModal(true);
-                                                                        }}
-                                                                        title="Manage Plan & Pricing"
-                                                                    >
-                                                                        <SlidersHorizontal size={13} />
                                                                     </button>
 
                                                                     {sub.isActive ? (
@@ -1373,13 +1361,8 @@ const SuperAdminDashboard = () => {
                                                                         <button
                                                                             type="button"
                                                                             className={styles.activateIconBtn}
-                                                                            onClick={() => {
-                                                                                setEditingTenant(tenant);
-                                                                                setSelectedPlan(sub.plan || '1_month');
-                                                                                setSelectedOperatingMode(tenant.operatingMode || tenant.settings?.operatingMode || 'dine_in');
-                                                                                setShowPlanModal(true);
-                                                                            }}
-                                                                            title="Activate Plan"
+                                                                            onClick={() => handleOpenEditUserModal(tenant)}
+                                                                            title="Activate / Configure Plan"
                                                                         >
                                                                             <Zap size={13} />
                                                                         </button>
@@ -3339,41 +3322,150 @@ const SuperAdminDashboard = () => {
                                     </div>
                                 </div>
 
-                                {/* Operating Architecture Selector */}
+                                {/* Subscription Plan Tier Selector */}
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                                        Operating Architecture (Feature Access)
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                                        Subscription Plan Tier
                                     </label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                        <div
-                                            onClick={() => setEditUserForm({ ...editUserForm, operatingMode: 'dine_in' })}
-                                            style={{
-                                                padding: '10px 12px',
-                                                borderRadius: '8px',
-                                                border: (editUserForm.operatingMode || 'dine_in') === 'dine_in' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
-                                                background: (editUserForm.operatingMode || 'dine_in') === 'dine_in' ? '#f5f3ff' : '#ffffff',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>🍽️ Full Dine-In & QR</div>
-                                            <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>QR Tables, KDS, CRM, Staff, POS, Menu & Reports</div>
-                                        </div>
+                                    <select
+                                        value={editUserForm.plan}
+                                        onChange={(e) => {
+                                            const p = e.target.value;
+                                            let pr = 499;
+                                            if (p === 'growth') pr = 799;
+                                            if (p === 'pro') pr = 999;
+                                            if (p === 'free_trial') pr = 0;
+                                            if (p === 'custom') {
+                                                pr = 499 + (editUserForm.customAddons || []).reduce((acc, k) => {
+                                                    const ad = CUSTOM_ADDONS.find(a => a.id === k);
+                                                    return acc + (ad?.price || 0);
+                                                }, 0);
+                                            }
+                                            setEditUserForm(prev => ({
+                                                ...prev,
+                                                plan: p,
+                                                customPrice: pr,
+                                                trialFeatureMode: prev.trialFeatureMode || 'all'
+                                            }));
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '9px 12px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '13px',
+                                            fontWeight: 550,
+                                            color: '#0f172a',
+                                            background: '#ffffff'
+                                        }}
+                                    >
+                                        <option value="starter">Starter Plan (₹499/mo) — Counter POS, Menu, Orders, Dashboard, Settings</option>
+                                        <option value="growth">Growth Plan ★ (₹799/mo) — Starter + Table Suite (QR, KDS, Temp, Layout) + Khata + Item Summary</option>
+                                        <option value="pro">Pro Plan ■ (₹999/mo) — All 16 Modules Unlocked</option>
+                                        <option value="custom">Custom Plan (Base ₹499 + Modular Add-ons)</option>
+                                        <option value="free_trial">14-Day Free Trial (₹0)</option>
+                                    </select>
+                                </div>
 
-                                        <div
-                                            onClick={() => setEditUserForm({ ...editUserForm, operatingMode: 'counter_billing' })}
-                                            style={{
-                                                padding: '10px 12px',
-                                                borderRadius: '8px',
-                                                border: editUserForm.operatingMode === 'counter_billing' ? '2px solid #059669' : '1px solid #cbd5e1',
-                                                background: editUserForm.operatingMode === 'counter_billing' ? '#ecfdf5' : '#ffffff',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>⚡ Quick Billing Only</div>
-                                            <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>Only POS, Menu, Orders & Reports (No QR / Floor)</div>
+                                {/* Custom Plan Add-ons Builder if Custom is Selected */}
+                                {editUserForm.plan === 'custom' && (
+                                    <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+                                            Custom Add-ons Builder (Base Starter: ₹499/mo)
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
+                                            {CUSTOM_ADDONS.map(addon => {
+                                                const isChecked = (editUserForm.customAddons || []).includes(addon.id);
+                                                return (
+                                                    <label key={addon.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', color: '#334155', cursor: 'pointer' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={(e) => {
+                                                                const prevList = editUserForm.customAddons || [];
+                                                                const nextList = e.target.checked
+                                                                    ? [...prevList, addon.id]
+                                                                    : prevList.filter(k => k !== addon.id);
+                                                                const newPrice = 499 + nextList.reduce((acc, k) => {
+                                                                    const ad = CUSTOM_ADDONS.find(a => a.id === k);
+                                                                    return acc + (ad?.price || 0);
+                                                                }, 0);
+                                                                setEditUserForm(prev => ({
+                                                                    ...prev,
+                                                                    customAddons: nextList,
+                                                                    customPrice: newPrice
+                                                                }));
+                                                            }}
+                                                        />
+                                                        <span style={{ fontWeight: 600 }}>{addon.name}</span>
+                                                        <span style={{ marginLeft: 'auto', color: '#2563eb', fontWeight: 700 }}>+₹{addon.price}/mo</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                        <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 800, color: '#0f172a', textAlign: 'right' }}>
+                                            Calculated Total: ₹{editUserForm.customPrice}/month
                                         </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {/* 14-Day Free Trial Features Customizer */}
+                                {editUserForm.plan === 'free_trial' && (
+                                    <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+                                            14-Day Free Trial Feature Access
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 14, marginBottom: 10 }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="editTrialFeatureMode"
+                                                    value="all"
+                                                    checked={editUserForm.trialFeatureMode !== 'custom'}
+                                                    onChange={() => setEditUserForm(prev => ({ ...prev, trialFeatureMode: 'all', customAddons: [] }))}
+                                                />
+                                                Full Access (All 16 Modules Unlocked)
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="editTrialFeatureMode"
+                                                    value="custom"
+                                                    checked={editUserForm.trialFeatureMode === 'custom'}
+                                                    onChange={() => setEditUserForm(prev => ({ ...prev, trialFeatureMode: 'custom' }))}
+                                                />
+                                                Custom Trial Features
+                                            </label>
+                                        </div>
+
+                                        {editUserForm.trialFeatureMode === 'custom' && (
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6, paddingTop: 6, borderTop: '1px solid #e2e8f0' }}>
+                                                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: 4 }}>
+                                                    Base starter modules are always included. Select which extra modules to unlock for this trial:
+                                                </span>
+                                                {CUSTOM_ADDONS.map(addon => {
+                                                    const isChecked = (editUserForm.customAddons || []).includes(addon.id);
+                                                    return (
+                                                        <label key={addon.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', color: '#334155', cursor: 'pointer' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={(e) => {
+                                                                    const prevList = editUserForm.customAddons || [];
+                                                                    const nextList = e.target.checked
+                                                                        ? [...prevList, addon.id]
+                                                                        : prevList.filter(k => k !== addon.id);
+                                                                    setEditUserForm(prev => ({ ...prev, customAddons: nextList }));
+                                                                }}
+                                                            />
+                                                            <span style={{ fontWeight: 600 }}>{addon.name}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Password Section */}
                                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginTop: 4 }}>
@@ -3684,54 +3776,64 @@ const SuperAdminDashboard = () => {
                                     value={onboardForm.plan}
                                     onChange={(e) => {
                                         const p = e.target.value;
-                                        let pr = 999;
-                                        if (p === '6_months') pr = 4999;
-                                        if (p === '1_year') pr = 10999;
+                                        let pr = 499;
+                                        if (p === 'growth') pr = 799;
+                                        if (p === 'pro') pr = 999;
+                                        if (p === 'custom') {
+                                            pr = 499 + onboardCustomAddons.reduce((acc, k) => {
+                                                const ad = CUSTOM_ADDONS.find(a => a.id === k);
+                                                return acc + (ad?.price || 0);
+                                            }, 0);
+                                        }
                                         if (p === 'free_trial') pr = 0;
                                         setOnboardForm({ ...onboardForm, plan: p, customPrice: pr });
                                     }}
                                 >
-                                    <option value="1_month">1 Month Starter @ ₹999</option>
-                                    <option value="6_months">6 Months Saver @ ₹4,999</option>
-                                    <option value="1_year">1 Year Ultimate Pro @ ₹10,999</option>
+                                    <option value="starter">Starter Plan @ ₹499/mo (Base Counter POS)</option>
+                                    <option value="growth">Growth Plan ★ @ ₹799/mo (Starter + Table Suite + Khata + Item Summary)</option>
+                                    <option value="pro">Pro Plan ■ @ ₹999/mo (All 16 Modules Unlocked)</option>
+                                    <option value="custom">Custom Plan (Base ₹499 + Selected Add-ons)</option>
                                     <option value="free_trial">14-Day Free Trial @ ₹0</option>
                                 </select>
                             </div>
 
-                            {/* Operating Architecture Selection */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                                    Business Operating Architecture
-                                </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                    <div
-                                        onClick={() => setOnboardForm({ ...onboardForm, operatingMode: 'dine_in' })}
-                                        style={{
-                                            padding: '10px 12px',
-                                            borderRadius: '8px',
-                                            border: (onboardForm.operatingMode || 'dine_in') === 'dine_in' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
-                                            background: (onboardForm.operatingMode || 'dine_in') === 'dine_in' ? '#f5f3ff' : '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>🍽️ Full Dine-In & QR</div>
-                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>QR Tables, KDS, CRM, Staff, POS, Menu & Reports</div>
+                            {/* Custom Plan Add-ons Builder if Custom is Selected */}
+                            {onboardForm.plan === 'custom' && (
+                                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+                                        Select Modular Add-ons (Base Starter: ₹499)
                                     </div>
-                                    <div
-                                        onClick={() => setOnboardForm({ ...onboardForm, operatingMode: 'counter_billing' })}
-                                        style={{
-                                            padding: '10px 12px',
-                                            borderRadius: '8px',
-                                            border: onboardForm.operatingMode === 'counter_billing' ? '2px solid #059669' : '1px solid #cbd5e1',
-                                            background: onboardForm.operatingMode === 'counter_billing' ? '#ecfdf5' : '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>⚡ Quick Billing Only</div>
-                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>Only POS, Menu, Orders & Reports (No QR / Floor)</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
+                                        {CUSTOM_ADDONS.map(addon => {
+                                            const isChecked = onboardCustomAddons.includes(addon.id);
+                                            return (
+                                                <label key={addon.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#334155', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={(e) => {
+                                                            let next;
+                                                            if (e.target.checked) next = [...onboardCustomAddons, addon.id];
+                                                            else next = onboardCustomAddons.filter(k => k !== addon.id);
+                                                            setOnboardCustomAddons(next);
+                                                            const newPr = 499 + next.reduce((acc, k) => {
+                                                                const ad = CUSTOM_ADDONS.find(a => a.id === k);
+                                                                return acc + (ad?.price || 0);
+                                                            }, 0);
+                                                            setOnboardForm(prev => ({ ...prev, customPrice: newPr }));
+                                                        }}
+                                                    />
+                                                    <span style={{ fontWeight: 600 }}>{addon.name}</span>
+                                                    <span style={{ marginLeft: 'auto', color: '#2563eb', fontWeight: 700 }}>+₹{addon.price}/mo</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid #e2e8f0', fontSize: 12, fontWeight: 800, color: '#0f172a', textAlign: 'right' }}>
+                                        Calculated Custom Total: ₹{onboardForm.customPrice}/month
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className={styles.modalActions} style={{ marginTop: 8 }}>
                                 <button type="button" onClick={() => setShowOnboardModal(false)} className={styles.cancelBtn}>Cancel</button>
@@ -3770,53 +3872,64 @@ const SuperAdminDashboard = () => {
                                     onChange={(e) => {
                                         const p = e.target.value;
                                         setSelectedPlan(p);
-                                        if (p === '1_month') setCustomPriceVal(999);
-                                        if (p === '6_months') setCustomPriceVal(4999);
-                                        if (p === '1_year') setCustomPriceVal(10999);
-                                        if (p === 'free_trial') setCustomPriceVal(0);
+                                        let pr = 499;
+                                        if (p === 'growth') pr = 799;
+                                        if (p === 'pro') pr = 999;
+                                        if (p === 'custom') {
+                                            pr = 499 + planModalCustomAddons.reduce((acc, k) => {
+                                                const ad = CUSTOM_ADDONS.find(a => a.id === k);
+                                                return acc + (ad?.price || 0);
+                                            }, 0);
+                                        }
+                                        if (p === 'free_trial') pr = 0;
+                                        setCustomPriceVal(pr);
                                     }}
                                 >
-                                    <option value="1_month">1 Month Starter (₹999)</option>
-                                    <option value="6_months">6 Months Saver (₹4,999)</option>
-                                    <option value="1_year">1 Year Ultimate Pro (₹10,999)</option>
+                                    <option value="starter">Starter Plan (₹499/mo) — Counter POS, Menu, Orders, Dashboard, Settings</option>
+                                    <option value="growth">Growth Plan ★ (₹799/mo) — Starter + Table Suite (QR, KDS, Temp, Layout) + Khata + Item Summary</option>
+                                    <option value="pro">Pro Plan ■ (₹999/mo) — All 16 Modules Unlocked</option>
+                                    <option value="custom">Custom Plan (Base ₹499 + Modular Add-ons)</option>
                                     <option value="free_trial">14-Day Free Trial (₹0)</option>
                                 </select>
                             </div>
 
-                            {/* Operating Architecture Selection */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                                    Business Operating Architecture
-                                </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                    <div
-                                        onClick={() => setSelectedOperatingMode('dine_in')}
-                                        style={{
-                                            padding: '10px 12px',
-                                            borderRadius: '8px',
-                                            border: selectedOperatingMode === 'dine_in' ? '2px solid #7c3aed' : '1px solid #cbd5e1',
-                                            background: selectedOperatingMode === 'dine_in' ? '#f5f3ff' : '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>🍽️ Full Dine-In & QR</div>
-                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>QR Tables, KDS, CRM, Staff, POS, Menu & Reports</div>
+                            {/* Custom Plan Add-ons Builder if Custom is Selected */}
+                            {selectedPlan === 'custom' && (
+                                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+                                        Toggle Add-on Modules (Base Starter: ₹499)
                                     </div>
-                                    <div
-                                        onClick={() => setSelectedOperatingMode('counter_billing')}
-                                        style={{
-                                            padding: '10px 12px',
-                                            borderRadius: '8px',
-                                            border: selectedOperatingMode === 'counter_billing' ? '2px solid #059669' : '1px solid #cbd5e1',
-                                            background: selectedOperatingMode === 'counter_billing' ? '#ecfdf5' : '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>⚡ Quick Billing Only</div>
-                                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 2 }}>Only POS, Menu, Orders & Reports (No QR / Floor)</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
+                                        {CUSTOM_ADDONS.map(addon => {
+                                            const isChecked = planModalCustomAddons.includes(addon.id);
+                                            return (
+                                                <label key={addon.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#334155', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={(e) => {
+                                                            let next;
+                                                            if (e.target.checked) next = [...planModalCustomAddons, addon.id];
+                                                            else next = planModalCustomAddons.filter(k => k !== addon.id);
+                                                            setPlanModalCustomAddons(next);
+                                                            const newPr = 499 + next.reduce((acc, k) => {
+                                                                const ad = CUSTOM_ADDONS.find(a => a.id === k);
+                                                                return acc + (ad?.price || 0);
+                                                            }, 0);
+                                                            setCustomPriceVal(newPr);
+                                                        }}
+                                                    />
+                                                    <span style={{ fontWeight: 600 }}>{addon.name}</span>
+                                                    <span style={{ marginLeft: 'auto', color: '#2563eb', fontWeight: 700 }}>+₹{addon.price}/mo</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid #e2e8f0', fontSize: 12, fontWeight: 800, color: '#0f172a', textAlign: 'right' }}>
+                                        Calculated Price: ₹{customPriceVal}/month
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 550, color: '#334155', marginBottom: 4 }}>

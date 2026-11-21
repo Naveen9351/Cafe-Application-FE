@@ -19,9 +19,49 @@ import { useTranslation } from '../utils/translations';
 import { getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
 
 const AVAILABLE_PLANS = [
-  { id: '1_month', name: '1 Month Starter', price: 999, period: 'Monthly', features: ['Full POS & Dine-in Orders', 'KDS & Live Orders', 'Dynamic QR Generator', 'Email & Ticket Support'] },
-  { id: '6_months', name: '6 Months Saver', price: 4999, period: 'Half-Yearly', popular: true, features: ['Everything in Starter', 'Staff Role Management (RBAC)', 'Customer Khata / Udhari Ledger', 'Full Financial Analytics Suite', 'Priority 24/7 Support'] },
-  { id: '1_year', name: '1 Year Ultimate Pro', price: 8999, period: 'Yearly', features: ['Everything in 6 Months', 'Dedicated Account Manager', 'Custom Domain & White-labeling', 'Zero Transaction Fees', 'Early Beta Features'] }
+  {
+    id: 'starter',
+    name: 'Starter Plan',
+    price: 499,
+    period: 'Monthly',
+    features: [
+      'Fast Counter POS & Walk-in Billing',
+      'Dish & Menu Management with in-stock toggle',
+      'Orders Management & Bill Re-print',
+      'Basic Daily Revenue Dashboard',
+      'Cafe Branding, GST % & Sound Chime'
+    ]
+  },
+  {
+    id: 'growth',
+    name: 'Growth Plan',
+    price: 799,
+    period: 'Monthly',
+    popular: true,
+    features: [
+      'Everything in Starter, plus:',
+      'Table Suite: Dynamic Table QR Ordering',
+      'Live Orders & Kitchen Display Screen (KDS)',
+      'Temporary Tables & Floating Open Tabs',
+      'Multi-Floor & Seating Layout Manager',
+      'Customer Khata (Udhari) Credit Ledger',
+      'Dish-wise Item Summary Sales Reports'
+    ]
+  },
+  {
+    id: 'pro',
+    name: 'Pro Plan',
+    price: 999,
+    period: 'Monthly',
+    features: [
+      'Everything in Growth, plus All 16 Modules:',
+      'Direct WhatsApp E-Bills & Broadcasts',
+      'Customer CRM, Lifetime Metrics & Loyalty',
+      'Full Financial Reports Suite (.xlsx Export)',
+      'Staff Role Management & PIN Security',
+      'AI Copilot & Dineviq Assistant Insights'
+    ]
+  }
 ];
 
 export default function RestaurantSettings({ tenantInfo, onSave }) {
@@ -1708,7 +1748,11 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               <ShieldCheck size={13} color="#059669" />
             </div>
             <h4 className={styles.planName}>
-              {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
+              {tenantInfo?.subscription?.plan === 'pro' || tenantInfo?.subscription?.plan === '1_year' ? 'Pro Plan (₹999)' :
+               tenantInfo?.subscription?.plan === 'growth' || tenantInfo?.subscription?.plan === '6_months' ? 'Growth Plan (₹799)' :
+               tenantInfo?.subscription?.plan === 'custom' ? 'Custom Plan' :
+               tenantInfo?.subscription?.plan === 'free_trial' ? 'Free Trial' :
+               'Starter Plan (₹499)'}
             </h4>
             <p className={styles.planExpiry}>
               Exp: {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Lifetime'}

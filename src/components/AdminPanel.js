@@ -8,8 +8,9 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle, Volume2, Volume1, VolumeX, Play,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote, Lock
 } from 'lucide-react';
+import { MODULE_KEYS, getEffectiveTenantModules, getModuleDef, hasModuleAccess } from '../config/subscriptionPlans';
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCodeComponent from './QRCodeComponent';
@@ -280,20 +281,24 @@ export default function AdminPanel() {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
-  // Master module tab configuration with permission keys
+  const tenantEffectiveModules = useMemo(() => {
+    return getEffectiveTenantModules(tenantInfo?.subscription);
+  }, [tenantInfo?.subscription]);
+
+  // Master module tab configuration with permission keys and required module associations
   const ALL_TABS_CONFIG = useMemo(() => [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permKey: 'access_dashboard', adminOnly: true },
-    { id: 'pos', label: 'POS Terminal', icon: IndianRupee, permKey: 'access_pos' },
-    { id: 'kds', label: 'Live Orders', icon: ChefHat, permKey: 'access_live_orders', badge: true },
-    { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, permKey: 'access_menu' },
-    { id: 'qrcodes', label: 'Table QR Codes', icon: QrCode, permKey: 'access_tables' },
-    { id: 'crm', label: 'Customer CRM', icon: Users, permKey: 'access_crm', adminOnly: true },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders' },
-    { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true },
-    { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports' },
-    { id: 'sales-summary', label: 'Item Summary', icon: TrendingUp, permKey: 'access_reports' },
-    { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata' },
-    { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings' },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permKey: 'access_dashboard', adminOnly: true, requiredModule: MODULE_KEYS.BASIC_DASHBOARD },
+    { id: 'pos', label: 'POS Terminal', icon: IndianRupee, permKey: 'access_pos', requiredModule: MODULE_KEYS.POS_TERMINAL },
+    { id: 'kds', label: 'Live Orders', icon: ChefHat, permKey: 'access_live_orders', badge: true, requiredModule: MODULE_KEYS.LIVE_ORDERS_KDS },
+    { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, permKey: 'access_menu', requiredModule: MODULE_KEYS.MENU_MANAGEMENT },
+    { id: 'qrcodes', label: 'Table QR Codes', icon: QrCode, permKey: 'access_tables', requiredModule: MODULE_KEYS.TABLE_QR },
+    { id: 'crm', label: 'Customer CRM', icon: Users, permKey: 'access_crm', adminOnly: true, requiredModule: MODULE_KEYS.CUSTOMER_CRM },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders', requiredModule: MODULE_KEYS.ORDERS_MANAGEMENT },
+    { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true, requiredModule: MODULE_KEYS.STAFF_MANAGEMENT },
+    { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports', requiredModule: MODULE_KEYS.REPORTS_EXCEL },
+    { id: 'sales-summary', label: 'Item Summary', icon: TrendingUp, permKey: 'access_reports', requiredModule: MODULE_KEYS.ITEM_SUMMARY },
+    { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata', requiredModule: MODULE_KEYS.KHATA_LEDGER },
+    { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings', requiredModule: MODULE_KEYS.SETTINGS_BRANDING },
   ], []);
 
   const activeOperatingMode = tenantInfo?.operatingMode
@@ -305,39 +310,50 @@ export default function AdminPanel() {
     || 'dine_in';
   const isCounterBillingOnly = activeOperatingMode === 'counter_billing' || activeOperatingMode === 'quick_billing';
 
-  // Compute strictly allowed tabs for current user based on permission bucket and operating mode
+  // Compute strictly allowed tabs for current user based on permission bucket, modules and operating mode
   const allowedTabs = useMemo(() => {
     const counterDisallowed = new Set(['qrcodes', 'kds', 'crm', 'staff']);
+    const isSuper = user?.role === 'super_admin';
 
-    if (isAdmin) {
-      return ALL_TABS_CONFIG.filter(t => {
-        if (isCounterBillingOnly && counterDisallowed.has(t.id)) return false;
-        if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
-        return true;
-      });
-    }
-    const perms = user?.permissions || {};
-    return ALL_TABS_CONFIG.filter(t => {
-      if (t.adminOnly) return false;
+    // 1. Strict filtering by active subscription modules:
+    // If not super_admin, any tab that requires a module MUST be present in tenantEffectiveModules!
+    const modulePermitted = ALL_TABS_CONFIG.filter(t => {
       if (isCounterBillingOnly && counterDisallowed.has(t.id)) return false;
       if (t.requiresSetting && !tenantInfo?.settings?.[t.requiresSetting]) return false;
+      if (!isSuper && t.requiredModule && !tenantEffectiveModules.includes(t.requiredModule)) {
+        return false;
+      }
+      return true;
+    });
+
+    if (isAdmin) {
+      return modulePermitted;
+    }
+
+    const perms = user?.permissions || {};
+    return modulePermitted.filter(t => {
+      if (t.adminOnly) return false;
       return Boolean(perms[t.permKey] || (t.id === 'orders' && perms['access_live_orders']));
     });
-  }, [isAdmin, isCounterBillingOnly, user?.permissions, tenantInfo?.settings, ALL_TABS_CONFIG]);
+  }, [isAdmin, isCounterBillingOnly, user?.role, user?.permissions, tenantInfo?.settings, tenantEffectiveModules, ALL_TABS_CONFIG]);
 
   const { tab } = useParams();
   const activeTab = useMemo(() => {
     if (!tab) {
-      if (!isAdmin && allowedTabs.length > 0) return allowedTabs[0].id;
-      return 'dashboard';
+      return allowedTabs[0]?.id || 'dashboard';
     }
     const t = tab.toLowerCase();
-    if (t === 'live-orders') return 'kds';
-    const validTabs = ['dashboard', 'pos', 'kds', 'orders', 'menu', 'qrcodes', 'crm', 'staff', 'reports', 'sales-summary', 'khata', 'settings'];
-    return validTabs.includes(t) ? t : (isAdmin ? 'dashboard' : (allowedTabs[0]?.id || 'pos'));
-  }, [tab, isAdmin, allowedTabs]);
+    const normalized = t === 'live-orders' ? 'kds' : t;
+    const isAllowed = allowedTabs.some(item => item.id === normalized);
+    return isAllowed ? normalized : (allowedTabs[0]?.id || 'dashboard');
+  }, [tab, allowedTabs]);
 
-  const hasAccessToCurrentTab = allowedTabs.some(t => t.id === activeTab);
+  const hasAccessToCurrentTab = useMemo(() => {
+    if (!tab) return true;
+    const t = tab.toLowerCase();
+    const normalized = t === 'live-orders' ? 'kds' : t;
+    return allowedTabs.some(item => item.id === normalized);
+  }, [tab, allowedTabs]);
 
   // Subscription check: If tenant subscription is deactivated or expired, block all non-super-admin access
   const isSubscriptionBlocked = useMemo(() => {
@@ -351,16 +367,26 @@ export default function AdminPanel() {
 
   // Auto-redirect user to their first permitted tab if navigating to an unauthorized / disallowed route
   useEffect(() => {
-    if (user && allowedTabs.length > 0) {
-      const hasPerm = allowedTabs.some(t => t.id === activeTab);
+    if (user && allowedTabs.length > 0 && tab) {
+      const t = tab.toLowerCase();
+      const normalized = t === 'live-orders' ? 'kds' : t;
+      const hasPerm = allowedTabs.some(item => item.id === normalized);
       if (!hasPerm) {
+        toast.error(`This section is not included in your active plan.`, { id: 'nav-disallowed', icon: '🔒' });
         navigate(`/admin/${allowedTabs[0]?.id || 'dashboard'}`, { replace: true });
       }
     }
-  }, [user, allowedTabs, activeTab, navigate]);
+  }, [user, allowedTabs, tab, navigate]);
 
   const handleTabChange = (newTab) => {
-    navigate(`/admin/${newTab}`);
+    const normalized = newTab.toLowerCase() === 'live-orders' ? 'kds' : newTab.toLowerCase();
+    const isAllowed = allowedTabs.some(t => t.id === normalized);
+    if (isAllowed) {
+      navigate(`/admin/${normalized}`);
+    } else {
+      toast.error(`This module is not included in your active subscription plan.`, { id: 'tab-blocked', icon: '🔒' });
+      navigate(`/admin/${allowedTabs[0]?.id || 'dashboard'}`);
+    }
   };
 
   // User identity metadata for top navbar display
@@ -576,18 +602,20 @@ export default function AdminPanel() {
     }
   ], []);
 
-  // Filtered Navigation Suggestions & Matched Dishes
+  // Filtered Navigation Suggestions & Matched Dishes (Strictly restricted to active subscription screens)
   const searchResults = useMemo(() => {
     const q = headerSearchQuery.trim().toLowerCase();
+    const permittedAppModules = appModules.filter(m => allowedTabs.some(t => t.id === m.id));
+
     if (!q) {
       return {
-        pages: appModules.slice(0, 6),
+        pages: permittedAppModules.slice(0, 6),
         dishes: []
       };
     }
 
-    // Match pages with typo tolerance
-    const matchedPages = appModules.filter(m => {
+    // Match pages with typo tolerance (strictly among permitted screens)
+    const matchedPages = permittedAppModules.filter(m => {
       if (m.label.toLowerCase().includes(q)) return true;
       if (m.id.toLowerCase().includes(q)) return true;
       if (m.keywords.some(k => k.includes(q) || q.includes(k))) return true;
@@ -2690,7 +2718,7 @@ export default function AdminPanel() {
             >
               <LogOut size={16} /> {!sidebarCollapsed && <span>{t('header.signOut')}</span>}
             </button>
-            {!sidebarCollapsed && (
+            {!sidebarCollapsed && hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.AI_COPILOT) && (
               <div
                 className={styles.khushiAvatarWrap}
                 onClick={() => setIsKhushiOpen(prev => !prev)}
@@ -3343,7 +3371,7 @@ export default function AdminPanel() {
                 </div>
                 <h3>Access Restricted</h3>
                 <p>
-                  You are signed in as <strong>{userRoleLabel}</strong> ({userEmail}). You do not have permission to access the <strong>{activeTab}</strong> section.
+                  This module is not included in your current subscription plan.
                 </p>
                 {allowedTabs.length > 0 && (
                   <button
@@ -8106,12 +8134,14 @@ export default function AdminPanel() {
       </AnimatePresence>
 
       {/* Khushi AI Copilot & Real-Time Issue Desk */}
-      <CafeAICopilotChatbot
-        tenantInfo={tenantInfo}
-        isOpen={isKhushiOpen}
-        onToggle={setIsKhushiOpen}
-        showFloatingLauncher={false}
-      />
+      {hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.AI_COPILOT) && (
+        <CafeAICopilotChatbot
+          tenantInfo={tenantInfo}
+          isOpen={isKhushiOpen}
+          onToggle={setIsKhushiOpen}
+          showFloatingLauncher={false}
+        />
+      )}
 
     </div>
   );
