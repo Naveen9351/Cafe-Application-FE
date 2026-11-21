@@ -56,7 +56,7 @@ export default function Cart() {
   const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
   const [isPlacing, setIsPlacing] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('direct_upi'); // 'direct_upi' (Zomato/Swiggy Direct) | 'razorpay' | 'counter'
+  const [paymentMethod, setPaymentMethod] = useState('counter');
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [upiCountdown, setUpiCountdown] = useState(300);
   const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
@@ -194,6 +194,7 @@ export default function Cart() {
         tableNumber: tableNumber || "Online Order",
         status: "pending",
         paymentStatus: "pending",
+        paymentMethod: "counter",
         customerDetails: {
           name: effectiveCustomer.name || "Guest",
           phone: effectiveCustomer.phone || "",
@@ -492,27 +493,13 @@ export default function Cart() {
       isGuest: true
     };
 
-    if (paymentMethod === 'direct_upi') {
-      setUpiCountdown(300);
-      setIsUpiModalOpen(true);
-    } else if (paymentMethod === 'razorpay') {
-      executeRazorpayCheckout(effectiveCustomer);
-    } else {
-      executeOrderPlacement(effectiveCustomer);
-    }
+    executeOrderPlacement(effectiveCustomer);
   };
 
   const handleVerificationSuccess = (verifiedUser) => {
     setCustomer(verifiedUser);
     setIsVerificationOpen(false);
-    if (paymentMethod === 'direct_upi') {
-      setUpiCountdown(300);
-      setIsUpiModalOpen(true);
-    } else if (paymentMethod === 'razorpay') {
-      executeRazorpayCheckout(verifiedUser);
-    } else {
-      executeOrderPlacement(verifiedUser);
-    }
+    executeOrderPlacement(verifiedUser);
   };
 
   const total = getCartTotal();
@@ -947,84 +934,7 @@ export default function Cart() {
                   </span>
                 </div>
 
-                {/* Payment Option Selector */}
-                <div style={{ marginTop: '14px', marginBottom: '14px', borderTop: `1px dashed ${theme.border}`, paddingTop: '12px' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: theme.textMain, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CreditCard size={14} color={theme.accent} />
-                    <span>Choose Payment Method</span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('direct_upi')}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: paymentMethod === 'direct_upi' ? `2px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                        backgroundColor: paymentMethod === 'direct_upi' ? (isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed') : theme.bgCard,
-                        color: paymentMethod === 'direct_upi' ? theme.accent : theme.textMain,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: 'all 0.2s ease',
-                        textAlign: 'center'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
-                        <Smartphone size={14} color={theme.accent} />
-                        <span>UPI &amp; QR</span>
-                      </div>
-                      <span style={{ fontSize: '0.67rem', color: theme.textMuted }}>GPay / PhonePe / QR</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('counter')}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: paymentMethod === 'counter' ? `2px solid ${theme.accent}` : `1px solid ${theme.border}`,
-                        backgroundColor: paymentMethod === 'counter' ? (isDarkMode ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed') : theme.bgCard,
-                        color: paymentMethod === 'counter' ? theme.accent : theme.textMain,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: 'all 0.2s ease',
-                        textAlign: 'center'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
-                        <Utensils size={14} />
-                        <span>Pay at Counter</span>
-                      </div>
-                      <span style={{ fontSize: '0.67rem', color: theme.textMuted }}>Cash / Dine-in</span>
-                    </button>
-                  </div>
-
-                  <div style={{ textAlign: 'center', marginTop: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('razorpay')}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: paymentMethod === 'razorpay' ? theme.accent : theme.textMuted,
-                        fontSize: '0.68rem',
-                        cursor: 'pointer',
-                        textDecoration: paymentMethod === 'razorpay' ? 'underline' : 'none',
-                        fontWeight: 600
-                      }}
-                    >
-                      {paymentMethod === 'razorpay' ? '✓ Card/Netbanking Mode Active' : 'Need Cards or Netbanking? Click here'}
-                    </button>
-                  </div>
-                </div>
-
+                {/* Action Button: Simple Direct Place Order */}
                 <motion.button
                   whileHover={!isPlacing ? { scale: 1.02 } : {}}
                   whileTap={!isPlacing ? { scale: 0.96 } : {}}
@@ -1034,16 +944,15 @@ export default function Cart() {
                   style={{
                     background: `linear-gradient(135deg, ${theme.accent}, #c2410c)`,
                     boxShadow: `0 4px 18px ${theme.accentGlow}`,
-                    cursor: isPlacing ? 'not-allowed' : 'pointer'
+                    cursor: isPlacing ? 'not-allowed' : 'pointer',
+                    marginTop: '1.25rem'
                   }}
                 >
-                  {paymentMethod === 'direct_upi' ? <Smartphone size={18} /> : (paymentMethod === 'razorpay' ? <CreditCard size={18} /> : <Utensils size={18} />)}
+                  <Utensils size={18} />
                   <span>
                     {isPlacing
-                      ? "Processing Your Order..."
-                      : (paymentMethod === 'direct_upi'
-                          ? `Pay via UPI • ₹${Math.round(total)}`
-                          : (paymentMethod === 'razorpay' ? `Pay with Card • ₹${Math.round(total)}` : `Place Order (Pay at Counter) • ₹${Math.round(total)}`))}
+                      ? "Placing Your Order..."
+                      : `Place Order • ₹${Math.round(total)}`}
                   </span>
                 </motion.button>
               </div>
