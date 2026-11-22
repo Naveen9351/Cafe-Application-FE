@@ -368,7 +368,7 @@ export default function HeroSection({ onOpenDemoModal, onOpenDemo }) {
                   alt="DINEVIQ AI OS — Kitchen KDS, QR Dining, DineviQ AI, UPI Billing & Inventory Ecosystem"
                   className={styles.heroEcosystemImg}
                   loading="eager"
-                  fetchPriority="high"
+                  fetchpriority="high"
                 />
 
                 <div ref={pill2Ref} className={styles.heroFloatingPill2}>

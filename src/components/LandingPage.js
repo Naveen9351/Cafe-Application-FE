@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
 import HeroSection from './sections/HeroSection';
+import CoffeeCraftExperience from './sections/CoffeeCraftExperience';
 import VisualAppShowcase from './sections/VisualAppShowcase';
 import ScrollScrubVisuals from './sections/ScrollScrubVisuals';
 import BeforeAfterSection from './sections/BeforeAfterSection';
@@ -77,6 +78,9 @@ export default function LandingPage() {
       <main>
         {/* 1. Hero Section with GSAP motion, Rotating Headline & Connected Simulator */}
         <HeroSection onOpenDemo={handleOpenDemo} />
+
+        {/* 1.5. Apple-Style Pinned Scroll Coffee Craft Cinematic Experience */}
+        <CoffeeCraftExperience onOpenDemo={handleOpenDemo} />
 
         {/* 2. Flagship Interactive Real-UI App Explorer (POS, KDS, Dashboard, Menu, Khata, AI) */}
         <VisualAppShowcase onOpenDemo={handleOpenDemo} />
