@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersManagement.module.css';
 import { API_URL as API } from '../../config/api';
 import { printOrderBill } from '../../utils/billPrinter';
-import { getWhatsappBillUrl as generateWhatsappBillUrl } from '../../utils/whatsappBillSender';
+import { getWhatsappBillUrl as generateWhatsappBillUrl, openWhatsappBill } from '../../utils/whatsappBillSender';
 import { consolidateOrderItems } from '../../utils/orderConsolidation';
 export { consolidateOrderItems };
 
@@ -1176,17 +1176,22 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                   <span>Print KOT / Bill</span>
                 </button>
 
-                {(selectedOrder.customerPhone || selectedOrder.customerDetails?.phone) && (
-                  <a
-                    href={getWhatsAppBillUrl(selectedOrder)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={styles.whatsappBillBtn}
-                  >
-                    <Send size={14} />
-                    <span>WhatsApp Bill</span>
-                  </a>
-                )}
+                <button
+                  type="button"
+                  onClick={() => openWhatsappBill(selectedOrder, { _id: tenantId })}
+                  className={styles.whatsappBillBtn}
+                  style={{
+                    cursor: 'pointer',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                  title="Send WhatsApp E-Bill"
+                >
+                  <Send size={14} />
+                  <span>WhatsApp Bill</span>
+                </button>
               </div>
             </motion.div>
           </div>

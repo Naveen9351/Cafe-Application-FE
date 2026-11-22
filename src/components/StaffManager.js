@@ -7,77 +7,122 @@ import { API_URL } from '../config/api';
 import { TableRowSkeleton } from './common/SkeletonLoader';
 import styles from './StaffManager.module.css';
 
+const ALL_PERMISSIONS_LIST = [
+  { key: 'access_dashboard', label: 'Dashboard & Overview Analytics' },
+  { key: 'access_pos', label: 'POS Terminal & Floor Plan' },
+  { key: 'access_live_orders', label: 'Live Orders & Kitchen Display' },
+  { key: 'access_orders', label: 'Orders Directory & Past Bills' },
+  { key: 'access_menu', label: 'Menu & Category Management' },
+  { key: 'access_tables', label: 'Table QR Codes & Floor Config' },
+  { key: 'access_crm', label: 'Customer Management & CRM' },
+  { key: 'access_staff', label: 'Staff & Role Management' },
+  { key: 'access_reports', label: 'Financial Reports & Analytics' },
+  { key: 'access_sales_summary', label: 'Item Summary & Dish Sales' },
+  { key: 'access_khata', label: 'Customer Khata / Borrow Ledger' },
+  { key: 'access_settings', label: 'Store Settings & Configuration' },
+];
+
 const ROLE_PRESETS = {
   admin: {
     name: 'Admin',
     permissions: {
+      access_dashboard: true,
       access_pos: true,
       access_live_orders: true,
+      access_orders: true,
       access_menu: true,
       access_tables: true,
+      access_crm: true,
+      access_staff: true,
       access_reports: true,
-      access_settings: true,
-      access_khata: true
+      access_sales_summary: true,
+      access_khata: true,
+      access_settings: true
     }
   },
   manager: {
     name: 'Manager',
     permissions: {
+      access_dashboard: true,
       access_pos: true,
       access_live_orders: true,
+      access_orders: true,
       access_menu: true,
       access_tables: true,
+      access_crm: true,
+      access_staff: false,
       access_reports: true,
-      access_settings: false,
-      access_khata: true
+      access_sales_summary: true,
+      access_khata: true,
+      access_settings: false
     }
   },
   cashier: {
     name: 'Cashier',
     permissions: {
+      access_dashboard: false,
       access_pos: true,
       access_live_orders: true,
+      access_orders: true,
       access_menu: false,
       access_tables: true,
+      access_crm: false,
+      access_staff: false,
       access_reports: false,
-      access_settings: false,
-      access_khata: true
+      access_sales_summary: true,
+      access_khata: true,
+      access_settings: false
     }
   },
   chef: {
     name: 'Kitchen Chef',
     permissions: {
+      access_dashboard: false,
       access_pos: false,
       access_live_orders: true,
+      access_orders: true,
       access_menu: false,
       access_tables: false,
+      access_crm: false,
+      access_staff: false,
       access_reports: false,
-      access_settings: false,
-      access_khata: false
+      access_sales_summary: false,
+      access_khata: false,
+      access_settings: false
     }
   },
   waiter: {
     name: 'Captain / Waiter',
     permissions: {
+      access_dashboard: false,
       access_pos: true,
       access_live_orders: true,
+      access_orders: false,
       access_menu: false,
       access_tables: true,
+      access_crm: false,
+      access_staff: false,
       access_reports: false,
-      access_settings: false,
-      access_khata: false
+      access_sales_summary: false,
+      access_khata: false,
+      access_settings: false
     }
   },
   custom: {
     name: 'Custom Role',
     permissions: {
+      access_dashboard: false,
       access_pos: false,
       access_live_orders: false,
+      access_orders: false,
       access_menu: false,
       access_tables: false,
+      access_crm: false,
+      access_staff: false,
       access_reports: false,
-      access_settings: false,
-      access_khata: false
+      access_sales_summary: false,
+      access_khata: false,
+      access_settings: false
     }
   }
 };
@@ -601,72 +646,61 @@ export default function StaffManager() {
 
               {/* Granular Permissions Checkboxes */}
               <div className={styles.permissionsCard}>
-                <span className={styles.permissionsCardTitle}>Module Permissions</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className={styles.permissionsCardTitle} style={{ margin: 0 }}>Module Permissions</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allTrue = {};
+                        ALL_PERMISSIONS_LIST.forEach(p => { allTrue[p.key] = true; });
+                        setPermissions(allTrue);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Select All
+                    </button>
+                    <span style={{ color: '#cbd5e1' }}>•</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allFalse = {};
+                        ALL_PERMISSIONS_LIST.forEach(p => { allFalse[p.key] = false; });
+                        setPermissions(allFalse);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748b',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
                 <div className={styles.permissionsGrid}>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_pos}
-                      onChange={() => handlePermissionToggle('access_pos')}
-                    />
-                    POS Terminal & Floor Plan
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_live_orders}
-                      onChange={() => handlePermissionToggle('access_live_orders')}
-                    />
-                    Live Orders & Kitchen Display
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_menu}
-                      onChange={() => handlePermissionToggle('access_menu')}
-                    />
-                    Menu & Category Management
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_tables}
-                      onChange={() => handlePermissionToggle('access_tables')}
-                    />
-                    Table QR Codes & Floor Config
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_reports}
-                      onChange={() => handlePermissionToggle('access_reports')}
-                    />
-                    Financial Reports & Analytics
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_crm}
-                      onChange={() => handlePermissionToggle('access_crm')}
-                    />
-                    Customer Management & CRM
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_khata}
-                      onChange={() => handlePermissionToggle('access_khata')}
-                    />
-                    Customer Khata / Borrow Ledger
-                  </label>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissions.access_settings}
-                      onChange={() => handlePermissionToggle('access_settings')}
-                    />
-                    Store Settings & Configuration
-                  </label>
+                  {ALL_PERMISSIONS_LIST.map((item) => (
+                    <label key={item.key} className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={!!permissions[item.key]}
+                        onChange={() => handlePermissionToggle(item.key)}
+                      />
+                      {item.label}
+                    </label>
+                  ))}
                 </div>
               </div>
 

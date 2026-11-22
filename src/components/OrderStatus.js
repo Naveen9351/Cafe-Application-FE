@@ -17,9 +17,12 @@ import {
   Layers,
   Wallet,
   Check,
-  MessageSquare
+  MessageSquare,
+  Star,
+  X
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { encodeTableToken } from "../utils/tableToken";
 import { API_URL as API, SOCKET_URL } from "../config/api";
 import { io } from "socket.io-client";
@@ -39,6 +42,71 @@ const OrderStatus = () => {
   const tabsContainerRef = useRef(null);
   const activeTabRef = useRef(null);
   const lastKnownStatusRef = useRef(null);
+
+  // Customer Experience Rating States
+  const [ratingStars, setRatingStars] = useState(5);
+  const [hoverStars, setHoverStars] = useState(0);
+  const [selectedRatingTags, setSelectedRatingTags] = useState([]);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [ratingDismissed, setRatingDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(`rating_dismissed_${id}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [hasRated, setHasRated] = useState(() => {
+    try {
+      return localStorage.getItem(`rating_done_${id}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const RATING_TAGS = [
+    "Delicious Food 🍲",
+    "Quick Service ⚡",
+    "Polite Staff 🤝",
+    "Cozy Ambience ✨",
+    "Value for Money 💰",
+    "Super Clean 🧼"
+  ];
+
+  const handleToggleTag = (tag) => {
+    setSelectedRatingTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleSkipRating = () => {
+    try {
+      sessionStorage.setItem(`rating_dismissed_${id}`, 'true');
+    } catch {}
+    setRatingDismissed(true);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!order?._id) return;
+    setIsSubmittingRating(true);
+    try {
+      await axios.post(`${API}/orders/${order._id}/rate`, {
+        rating: ratingStars || 5,
+        feedback: feedbackComment,
+        feedbackTags: selectedRatingTags
+      });
+      try {
+        localStorage.setItem(`rating_done_${id}`, 'true');
+      } catch {}
+      setHasRated(true);
+      toast.success("Thank you for your feedback! ⭐", { icon: '🎉' });
+    } catch (err) {
+      console.error("Submit rating error:", err);
+      toast.error("Could not save rating. Please try again.");
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   // Request browser notification permission for mobile notifications
   useEffect(() => {
@@ -818,6 +886,27 @@ const OrderStatus = () => {
             <span>Add More Items</span>
           </motion.button>
 
+          {/* Rated Acknowledgment Badge */}
+          {(order.rating || hasRated) && (
+            <div style={{
+              margin: '14px 0',
+              padding: '12px 16px',
+              borderRadius: '14px',
+              background: isDarkMode ? '#271f18' : '#fffbeb',
+              border: isDarkMode ? '1px solid #4a3b2c' : '1px solid #fde68a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              color: '#d97706',
+              fontSize: '0.82rem',
+              fontWeight: 800
+            }}>
+              <Sparkles size={16} />
+              <span>Thank you for rating your dining experience! ⭐</span>
+            </div>
+          )}
+
           {/* Footer */}
           <footer className={styles.footer}>
             <p className={styles.footerSubtitle} style={{ color: theme.textMuted }}>
@@ -829,6 +918,225 @@ const OrderStatus = () => {
           </footer>
 
         </div>
+
+        {/* Customer Experience 5-Star Rating Modal */}
+        <AnimatePresence>
+          {(isCompleted || order.paymentStatus === 'paid') && !order.rating && !ratingDismissed && !hasRated && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 999999,
+              background: 'rgba(15, 23, 42, 0.72)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                style={{
+                  width: '100%',
+                  maxWidth: '420px',
+                  background: isDarkMode ? '#1e1b18' : '#ffffff',
+                  color: theme.textMain,
+                  borderRadius: '24px',
+                  padding: '24px 20px',
+                  boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
+                  border: isDarkMode ? '1px solid #382d24' : '1px solid #f1f5f9',
+                  textAlign: 'center',
+                  position: 'relative'
+                }}
+              >
+                {/* Skip button top right */}
+                <button
+                  type="button"
+                  onClick={handleSkipRating}
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    border: 'none',
+                    background: isDarkMode ? '#2d241d' : '#f1f5f9',
+                    color: theme.textMuted,
+                    borderRadius: '100px',
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span>Skip</span>
+                  <X size={14} />
+                </button>
+
+                <div style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '18px',
+                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                  boxShadow: '0 8px 20px rgba(245, 158, 11, 0.25)'
+                }}>
+                  <Sparkles size={28} color="#d97706" />
+                </div>
+
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: '0 0 4px', color: theme.textMain }}>
+                  How was your experience?
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: theme.textMuted, margin: '0 0 16px' }}>
+                  Table {tableNumStr} • Order #{orderNumStr.replace('#', '')}
+                </p>
+
+                {/* 5 Interactive Stars */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const isFilled = (hoverStars || ratingStars) >= star;
+                    return (
+                      <motion.button
+                        key={star}
+                        type="button"
+                        whileHover={{ scale: 1.2 }}
+                        whileTap={{ scale: 0.9 }}
+                        onMouseEnter={() => setHoverStars(star)}
+                        onMouseLeave={() => setHoverStars(0)}
+                        onClick={() => setRatingStars(star)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Star
+                          size={34}
+                          color={isFilled ? '#f59e0b' : (isDarkMode ? '#44382e' : '#cbd5e1')}
+                          fill={isFilled ? '#f59e0b' : 'none'}
+                          strokeWidth={2}
+                        />
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                {/* Dynamic Star Feedback Label */}
+                <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#f59e0b', marginBottom: '16px' }}>
+                  {ratingStars === 5 && 'Exceptional! 🌟'}
+                  {ratingStars === 4 && 'Very Good! 😃'}
+                  {ratingStars === 3 && 'Good 😊'}
+                  {ratingStars === 2 && 'Fair 😐'}
+                  {ratingStars === 1 && 'Needs Improvement 😞'}
+                </div>
+
+                {/* Quick Sentiment Tags */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', marginBottom: '16px' }}>
+                  {RATING_TAGS.map(tag => {
+                    const isSelected = selectedRatingTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleToggleTag(tag)}
+                        style={{
+                          padding: '6px 11px',
+                          borderRadius: '100px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          border: isSelected ? '1.5px solid #f59e0b' : `1px solid ${theme.border}`,
+                          background: isSelected ? (isDarkMode ? '#3b2f1e' : '#fffbeb') : (isDarkMode ? '#241c16' : '#f8fafc'),
+                          color: isSelected ? '#d97706' : theme.textMuted,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Optional Comment Input */}
+                <textarea
+                  rows={2}
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="Tell us what you loved (optional)..."
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    borderRadius: '12px',
+                    border: `1px solid ${theme.border}`,
+                    background: isDarkMode ? '#17120e' : '#f8fafc',
+                    color: theme.textMain,
+                    padding: '10px 12px',
+                    fontSize: '0.82rem',
+                    resize: 'none',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    marginBottom: '16px'
+                  }}
+                />
+
+                {/* Buttons Row */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleSkipRating}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '14px',
+                      border: `1px solid ${theme.border}`,
+                      background: 'transparent',
+                      color: theme.textMuted,
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Skip
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    disabled={isSubmittingRating}
+                    onClick={handleSubmitRating}
+                    style={{
+                      flex: 2,
+                      padding: '12px',
+                      borderRadius: '14px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 18px rgba(245, 158, 11, 0.35)'
+                    }}
+                  >
+                    {isSubmittingRating ? 'Submitting...' : 'Submit Review ⭐'}
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Bottom Navigation Bar */}
         <CustomerBottomNav

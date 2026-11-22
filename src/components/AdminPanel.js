@@ -8,7 +8,7 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle, Volume2, Volume1, VolumeX, Play,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote, Lock
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote, Lock, MessageSquare
 } from 'lucide-react';
 import { MODULE_KEYS, getEffectiveTenantModules, getModuleDef, hasModuleAccess } from '../config/subscriptionPlans';
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
@@ -39,6 +39,7 @@ import { API_URL as API } from '../config/api';
 import { useTranslation } from '../utils/translations';
 import { playOrderChime, getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
 import { formatTableBadge } from './common/TableBadge';
+import { openWhatsappBill } from '../utils/whatsappBillSender';
 
 // Standard Categories (No dummy categories: only real categories added by the cafe or imported)
 const standardCategories = [
@@ -287,16 +288,16 @@ export default function AdminPanel() {
 
   // Master module tab configuration with permission keys and required module associations
   const ALL_TABS_CONFIG = useMemo(() => [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permKey: 'access_dashboard', adminOnly: true, requiredModule: MODULE_KEYS.BASIC_DASHBOARD },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permKey: 'access_dashboard', requiredModule: MODULE_KEYS.BASIC_DASHBOARD },
     { id: 'pos', label: 'POS Terminal', icon: IndianRupee, permKey: 'access_pos', requiredModule: MODULE_KEYS.POS_TERMINAL },
     { id: 'kds', label: 'Live Orders', icon: ChefHat, permKey: 'access_live_orders', badge: true, requiredModule: MODULE_KEYS.LIVE_ORDERS_KDS },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders', requiredModule: MODULE_KEYS.ORDERS_MANAGEMENT },
     { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, permKey: 'access_menu', requiredModule: MODULE_KEYS.MENU_MANAGEMENT },
     { id: 'qrcodes', label: 'Table QR Codes', icon: QrCode, permKey: 'access_tables', requiredModule: MODULE_KEYS.TABLE_QR },
-    { id: 'crm', label: 'Customer CRM', icon: Users, permKey: 'access_crm', adminOnly: true, requiredModule: MODULE_KEYS.CUSTOMER_CRM },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag, permKey: 'access_orders', requiredModule: MODULE_KEYS.ORDERS_MANAGEMENT },
-    { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', adminOnly: true, requiredModule: MODULE_KEYS.STAFF_MANAGEMENT },
+    { id: 'crm', label: 'Customer CRM', icon: Users, permKey: 'access_crm', requiredModule: MODULE_KEYS.CUSTOMER_CRM },
+    { id: 'staff', label: 'Staff Management', icon: Users, permKey: 'access_staff', requiredModule: MODULE_KEYS.STAFF_MANAGEMENT },
     { id: 'reports', label: 'Reports Suite', icon: BarChart3, permKey: 'access_reports', requiredModule: MODULE_KEYS.REPORTS_EXCEL },
-    { id: 'sales-summary', label: 'Item Summary', icon: TrendingUp, permKey: 'access_reports', requiredModule: MODULE_KEYS.ITEM_SUMMARY },
+    { id: 'sales-summary', label: 'Item Summary', icon: TrendingUp, permKey: 'access_sales_summary', requiredModule: MODULE_KEYS.ITEM_SUMMARY },
     { id: 'khata', label: 'Khata Ledger', icon: BookOpen, permKey: 'access_khata', requiresSetting: 'enableKhata', requiredModule: MODULE_KEYS.KHATA_LEDGER },
     { id: 'settings', label: 'Settings', icon: Settings, permKey: 'access_settings', requiredModule: MODULE_KEYS.SETTINGS_BRANDING },
   ], []);
@@ -332,8 +333,9 @@ export default function AdminPanel() {
 
     const perms = user?.permissions || {};
     return modulePermitted.filter(t => {
-      if (t.adminOnly) return false;
-      return Boolean(perms[t.permKey] || (t.id === 'orders' && perms['access_live_orders']));
+      if (t.id === 'sales-summary') return Boolean(perms['access_sales_summary'] || perms['access_reports']);
+      if (t.id === 'orders') return Boolean(perms['access_orders'] || perms['access_live_orders']);
+      return Boolean(perms[t.permKey]);
     });
   }, [isAdmin, isCounterBillingOnly, user?.role, user?.permissions, tenantInfo?.settings, tenantEffectiveModules, ALL_TABS_CONFIG]);
 
@@ -717,6 +719,7 @@ export default function AdminPanel() {
 
   // Dashboard-specific Orders State (Controlled by Dashboard Date Filter only)
   const [dashboardOrders, setDashboardOrders] = useState([]);
+  const [activeKpiModal, setActiveKpiModal] = useState(null); // 'gross' | 'net' | 'aov' | 'orders' | null
 
   // 7-Day Notification History State
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
@@ -756,13 +759,11 @@ export default function AdminPanel() {
     setIsFilterLoading(true);
 
     try {
-      let url = `${API}/orders?range=${activeR}`;
-      if (activeR === 'all') {
-        url += '&limit=all';
-      } else if (activeR === 'custom') {
+      let url = `${API}/orders?range=${activeR}&limit=all`;
+      if (activeR === 'custom') {
         const start = overrideStart !== undefined ? overrideStart : appliedCustomStartDate;
         const end = overrideEnd !== undefined ? overrideEnd : appliedCustomEndDate;
-        url += `&startDate=${start}&endDate=${end}&limit=all`;
+        url = `${API}/orders?range=custom&startDate=${start}&endDate=${end}&limit=all`;
       }
 
       const res = await axios.get(url, { headers: { 'x-auth-token': token } });
@@ -1452,9 +1453,9 @@ export default function AdminPanel() {
     const ticketSparkline = makeMiniSparkline(timeBuckets.map(b => (b.orders > 0 ? b.revenue / b.orders : 0)), '#d97706');
     const orderSparkline = makeMiniSparkline(timeBuckets.map(b => b.orders), '#0284c7');
 
-    // Top Selling Items breakdown dynamically from orders
+    // Top Selling Items breakdown dynamically from filtered orders
     const itemMap = {};
-    orders.forEach(o => {
+    targetOrders.forEach(o => {
       (o.items || []).forEach(it => {
         const name = it.name || it.item?.name || 'Special Dish';
         const qty = it.quantity || 1;
@@ -1481,9 +1482,9 @@ export default function AdminPanel() {
 
     const topItemName = topSellingItems[0]?.name || (items[0]?.name || 'Live Menu');
 
-    // Dynamic Category Distribution from orders & menu
+    // Dynamic Category Distribution from filtered orders & menu
     const catMap = {};
-    orders.forEach(o => {
+    targetOrders.forEach(o => {
       (o.items || []).forEach(it => {
         const cat = it.category || it.item?.category || 'Main Courses';
         const amt = (it.quantity || 1) * (Number(it.price) || Number(it.item?.price) || 0);
@@ -1902,9 +1903,19 @@ export default function AdminPanel() {
     ));
   };
 
+  const handleDeleteChecklistItem = (id, e) => {
+    if (e) e.stopPropagation();
+    setChecklist(prev => prev.filter(item => item.id !== id));
+    toast.success('Note removed');
+  };
+
   const handleAddChecklistItem = (e) => {
     e.preventDefault();
     if (!newChecklistText.trim()) return;
+    if (checklist.length >= 3) {
+      toast.error('Maximum 3 notes allowed at a time to keep dashboard layout neat.', { id: 'max-notes' });
+      return;
+    }
     const newItem = {
       id: Date.now(),
       text: newChecklistText.trim(),
@@ -2538,8 +2549,8 @@ export default function AdminPanel() {
         {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
       </Toaster>
 
-      {/* 1. FIXED LEFT SIDEBAR - ONLY RENDERED FOR ADMIN */}
-      {isAdmin && (
+      {/* 1. FIXED LEFT SIDEBAR - RENDERED FOR ADMIN & AUTHORIZED STAFF */}
+      {(isAdmin || allowedTabs.length > 0) && (
         <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
           {/* Brand Header inside Top of Sidebar */}
           {sidebarCollapsed ? (
@@ -2555,7 +2566,7 @@ export default function AdminPanel() {
             </div>
           ) : (
             <div className={styles.sidebarHeader}>
-              <div className={styles.brandTitleWrap} onClick={() => handleTabChange('dashboard')}>
+              <div className={styles.brandTitleWrap} onClick={() => handleTabChange(allowedTabs[0]?.id || 'dashboard')}>
                 {restaurantLogo ? (
                   <img
                     src={restaurantLogo}
@@ -2741,10 +2752,10 @@ export default function AdminPanel() {
       )}
 
       {/* 2. RIGHT CONTENT WRAPPER (TOP BAR + MAIN CONTENT BODY) */}
-      <div className={`${styles.contentWrapper} ${!isAdmin ? styles.contentWrapperFull : ''}`}>
+      <div className={`${styles.contentWrapper} ${!isAdmin && allowedTabs.length === 0 ? styles.contentWrapperFull : ''}`}>
         {/* TOP GLOBAL BAR */}
         <header className={styles.topGlobalBar}>
-          {!isAdmin ? (
+          {!isAdmin && allowedTabs.length === 0 ? (
             <div className={styles.staffNavbarLeft}>
               <div
                 className={styles.staffBrandWrap}
@@ -3593,7 +3604,12 @@ export default function AdminPanel() {
                   {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
                   <div className={styles.kpiGridModern}>
                     {/* Card 1: Gross Revenue */}
-                    <div className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}>
+                    <div
+                      className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}
+                      onClick={() => setActiveKpiModal('gross')}
+                      style={{ cursor: 'pointer', transition: 'all 0.18s ease' }}
+                      title="Click to view detailed Gross Revenue audit breakdown"
+                    >
                       <div className={styles.kpiTopRow}>
                         <div className={`${styles.kpiIconBox} ${styles.kpiIconEmerald}`}>
                           <IndianRupee size={16} />
@@ -3677,7 +3693,12 @@ export default function AdminPanel() {
                     </div>
 
                     {/* Card 2: Net Sales (Excl. Tax) */}
-                    <div className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}>
+                    <div
+                      className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}
+                      onClick={() => setActiveKpiModal('net')}
+                      style={{ cursor: 'pointer', transition: 'all 0.18s ease' }}
+                      title="Click to view detailed Net Sales audit breakdown"
+                    >
                       <div className={styles.kpiTopRow}>
                         <div className={`${styles.kpiIconBox} ${styles.kpiIconIndigo}`}>
                           <TrendingUp size={16} />
@@ -3741,7 +3762,12 @@ export default function AdminPanel() {
                     </div>
 
                     {/* Card 3: Average Bill Value */}
-                    <div className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}>
+                    <div
+                      className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}
+                      onClick={() => setActiveKpiModal('aov')}
+                      style={{ cursor: 'pointer', transition: 'all 0.18s ease' }}
+                      title="Click to view detailed Average Bill Value breakdown"
+                    >
                       <div className={styles.kpiTopRow}>
                         <div className={`${styles.kpiIconBox} ${styles.kpiIconAmber}`}>
                           <Receipt size={16} />
@@ -3811,7 +3837,12 @@ export default function AdminPanel() {
                     </div>
 
                     {/* Card 4: Total Orders */}
-                    <div className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}>
+                    <div
+                      className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}
+                      onClick={() => setActiveKpiModal('orders')}
+                      style={{ cursor: 'pointer', transition: 'all 0.18s ease' }}
+                      title="Click to view detailed Orders breakdown"
+                    >
                       <div className={styles.kpiTopRow}>
                         <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
                           <ShoppingBag size={16} />
@@ -3882,6 +3913,252 @@ export default function AdminPanel() {
                       </div>
                     </div>
                   </div>
+
+                  {/* ANIMATED DETAILED AUDIT & EXPLANATION POPUP FOR 4 CARDS */}
+                  <AnimatePresence>
+                    {activeKpiModal && (
+                      <div
+                        style={{
+                          position: 'fixed',
+                          inset: 0,
+                          background: 'rgba(15, 23, 42, 0.65)',
+                          backdropFilter: 'blur(5px)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 999999,
+                          padding: '1rem'
+                        }}
+                        onClick={() => setActiveKpiModal(null)}
+                      >
+                        <motion.div
+                          initial={{ scale: 0.9, opacity: 0, y: 15 }}
+                          animate={{ scale: 1, opacity: 1, y: 0 }}
+                          exit={{ scale: 0.9, opacity: 0, y: 15 }}
+                          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            background: '#ffffff',
+                            borderRadius: '22px',
+                            width: '100%',
+                            maxWidth: '560px',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)',
+                            border: '1px solid #e2e8f0',
+                            padding: '1.75rem'
+                          }}
+                        >
+                          {/* Modal Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: activeKpiModal === 'gross' ? '#ecfdf5' : activeKpiModal === 'net' ? '#eef2ff' : activeKpiModal === 'aov' ? '#fffbeb' : '#f0f9ff',
+                                color: activeKpiModal === 'gross' ? '#059669' : activeKpiModal === 'net' ? '#4f46e5' : activeKpiModal === 'aov' ? '#d97706' : '#0284c7'
+                              }}>
+                                {activeKpiModal === 'gross' && <IndianRupee size={22} />}
+                                {activeKpiModal === 'net' && <TrendingUp size={22} />}
+                                {activeKpiModal === 'aov' && <Receipt size={22} />}
+                                {activeKpiModal === 'orders' && <ShoppingBag size={22} />}
+                              </div>
+                              <div>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                                  {activeKpiModal === 'gross' && (isHindi ? 'सकल राजस्व का विवरण' : 'Gross Revenue Audit Breakdown')}
+                                  {activeKpiModal === 'net' && (isHindi ? 'शुद्ध बिक्री (इन-हैंड) का विवरण' : 'Net Sales (True In-Hand) Breakdown')}
+                                  {activeKpiModal === 'aov' && (isHindi ? 'औसत बिल मूल्य (AOV) का विवरण' : 'Average Bill Value (AOV) Breakdown')}
+                                  {activeKpiModal === 'orders' && (isHindi ? 'कुल ऑर्डर्स एवं वॉल्यूम का विवरण' : 'Total Orders Volume Breakdown')}
+                                </h3>
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                  {dateRange === 'today' ? 'Filter: Today' : dateRange === 'this_week' ? 'Filter: This Week' : dateRange === 'this_month' ? 'Filter: This Month' : dateRange === 'all' ? 'Filter: All Time' : 'Filter: Custom Dates'} • Real-time Calculation
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setActiveKpiModal(null)}
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: '50%',
+                                border: 'none',
+                                background: '#f1f5f9',
+                                color: '#64748b',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title="Close Breakdown"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+
+                          {/* Primary Amount Card */}
+                          <div style={{
+                            background: activeKpiModal === 'gross' ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)' : activeKpiModal === 'net' ? 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' : activeKpiModal === 'aov' ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' : 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                            borderRadius: '16px',
+                            padding: '1.25rem',
+                            marginBottom: '1.25rem',
+                            border: '1px solid rgba(0,0,0,0.05)'
+                          }}>
+                            <span style={{ fontSize: '11.5px', fontWeight: 700, color: activeKpiModal === 'gross' ? '#065f46' : activeKpiModal === 'net' ? '#3730a3' : activeKpiModal === 'aov' ? '#92400e' : '#075985', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              {activeKpiModal === 'gross' ? 'TOTAL GROSS BILLED' : activeKpiModal === 'net' ? 'NET CASH IN HAND' : activeKpiModal === 'aov' ? 'AVERAGE PER ORDER' : 'TOTAL VOLUME'}
+                            </span>
+                            <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', margin: '4px 0 2px 0' }}>
+                              {activeKpiModal === 'orders'
+                                ? `${metrics.totalOrdersCount} Orders`
+                                : `₹${Math.round(activeKpiModal === 'gross' ? metrics.grossSales : activeKpiModal === 'net' ? metrics.netSales : metrics.avgTicket).toLocaleString('en-IN')}`}
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#475569' }}>
+                              {activeKpiModal === 'gross' && `Includes all food & beverage bills + active kitchen pipeline`}
+                              {activeKpiModal === 'net' && `Exact business revenue excluding government GST/taxes`}
+                              {activeKpiModal === 'aov' && `Derived from ₹${Math.round(metrics.grossSales).toLocaleString('en-IN')} across ${metrics.totalOrdersCount} orders`}
+                              {activeKpiModal === 'orders' && `${metrics.completedOrders.length} completed & paid + ${liveActiveOrdersCount} live in kitchen`}
+                            </span>
+                          </div>
+
+                          {/* Educational Explanation Box */}
+                          <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem', fontSize: '12.5px', color: '#334155', lineHeight: 1.5 }}>
+                            <strong style={{ color: '#0f172a', display: 'block', marginBottom: 4 }}>💡 What this means for your cafe:</strong>
+                            {activeKpiModal === 'gross' && "Gross Revenue reflects the total invoice turnover billed to customers. It includes dish prices, add-ons, packaging charges, and applicable GST. It represents your top-line sales before any deductions."}
+                            {activeKpiModal === 'net' && "Net Sales is your REAL in-hand income. Because GST and government taxes must be remitted to the tax department, they do not belong to your cafe. Net sales tells you your true revenue baseline for purchasing stock and paying staff."}
+                            {activeKpiModal === 'aov' && "Average Bill Value (AOV) tells you how much each table or guest spends on average. Increasing your AOV by just ₹40-50 per bill through beverage and dessert upsells dramatically boosts your monthly net profit without needing extra footfall."}
+                            {activeKpiModal === 'orders' && "Order Volume measures total transactions generated through your QR ordering, POS cashier counter, and takeaway channels during this selected timeframe."}
+                          </div>
+
+                          {/* Arithmetic & Component Breakdown */}
+                          <div style={{ marginBottom: '1.25rem' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>
+                              {isHindi ? 'गणना एवं विवरण (Audit Breakdown)' : 'Calculation & Audit Breakdown'}
+                            </span>
+
+                            {activeKpiModal === 'gross' && (
+                              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Settled Paid Bills ({metrics.completedOrders.length} orders):</span>
+                                  <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales - metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Active Kitchen Pipeline ({metrics.activeOrders.length} orders):</span>
+                                  <strong style={{ color: '#ea580c' }}>+₹{Math.round(metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Total Gross Turnover:</span>
+                                  <strong style={{ color: '#059669' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#f8fafc', fontSize: '12px', color: '#64748b' }}>
+                                  <span>Estimated GST & Taxes included in above:</span>
+                                  <span>₹{Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {activeKpiModal === 'net' && (
+                              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Gross Customer-Billed Turnover:</span>
+                                  <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#fef2f2', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px', color: '#b91c1c' }}>
+                                  <span>Less: Statutory GST & Taxes (5%):</span>
+                                  <strong>-₹{Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#eef2ff', borderBottom: '1px solid #e0e7ff', fontSize: '13px', fontWeight: 700, color: '#3730a3' }}>
+                                  <span>Net Sales (Actual Money In Hand):</span>
+                                  <span>₹{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', fontSize: '12px', color: '#475569' }}>
+                                  <span>Estimated Net Profit ({tenantInfo?.settings?.profitMargin ?? 40}% margin):</span>
+                                  <strong style={{ color: '#16a34a' }}>₹{Math.round((metrics.netSales || 0) * (Number(tenantInfo?.settings?.profitMargin ?? 40) / 100)).toLocaleString('en-IN')}</strong>
+                                </div>
+                              </div>
+                            )}
+
+                            {activeKpiModal === 'aov' && (
+                              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Total Period Revenue:</span>
+                                  <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Total Settled Orders:</span>
+                                  <strong style={{ color: '#0f172a' }}>{metrics.totalOrdersCount} orders</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#fffbeb', fontSize: '13px', fontWeight: 700, color: '#b45309' }}>
+                                  <span>Formula (₹{Math.round(metrics.grossSales).toLocaleString('en-IN')} ÷ {metrics.totalOrdersCount || 1}):</span>
+                                  <span>₹{Math.round(metrics.avgTicket).toLocaleString('en-IN')} per bill</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {activeKpiModal === 'orders' && (
+                              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Settled & Completed Orders:</span>
+                                  <strong style={{ color: '#16a34a' }}>{metrics.completedOrders.length} orders</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Currently in Kitchen Queue:</span>
+                                  <strong style={{ color: '#ea580c' }}>{liveActiveOrdersCount} orders</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                                  <span style={{ color: '#475569' }}>Cancelled / Voided Orders:</span>
+                                  <strong style={{ color: '#dc2626' }}>{metrics.cancelledOrders?.length || 0} orders</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', background: '#f0f9ff', fontSize: '13px', fontWeight: 700, color: '#0369a1' }}>
+                                  <span>Total Registered Order Volume:</span>
+                                  <span>{metrics.totalOrdersCount} orders</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* How to Reconcile / Audit with Register & Bank Accounts */}
+                          <div style={{ background: '#f0fdf4', padding: '12px 16px', borderRadius: '12px', border: '1px solid #bbf7d0', marginBottom: '1.25rem', fontSize: '12px', color: '#166534', lineHeight: 1.5 }}>
+                            <strong style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: '#14532d' }}>
+                              <CheckCircle2 size={15} color="#16a34a" />
+                              <span>How to verify & reconcile this in your cafe accounts:</span>
+                            </strong>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                              <div>• <strong>Cash Drawer:</strong> ₹{(metrics.paymentBreakdown?.Cash || 0).toLocaleString('en-IN')} should match physical notes & coins counted at shift close.</div>
+                              <div>• <strong>Bank UPI / QR:</strong> ₹{(metrics.paymentBreakdown?.UPI || 0).toLocaleString('en-IN')} should match your daily settlement credit in Paytm / PhonePe / GPay.</div>
+                              <div>• <strong>Card Terminal:</strong> ₹{(metrics.paymentBreakdown?.Card || 0).toLocaleString('en-IN')} should match your EDC swipe machine settlement slips.</div>
+                              <div>• <strong>Khata Ledger:</strong> ₹{(metrics.paymentBreakdown?.Khata || 0).toLocaleString('en-IN')} is customer credit recorded in Customer Khata.</div>
+                            </div>
+                          </div>
+
+                          {/* Close Button */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveKpiModal(null)}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '12px',
+                              border: 'none',
+                              background: '#0f172a',
+                              color: '#ffffff',
+                              fontSize: '13px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Close Breakdown
+                          </button>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
 
                   {/* 6. MIDDLE SPLIT: HIGH-TECH REVENUE CHART + LIVE ORDERS FEED */}
                   <div className={styles.dashSplitGridModern}>
@@ -4242,9 +4519,9 @@ export default function AdminPanel() {
                       {/* Bottom Summary Metric Bar */}
                       <div className={styles.chartSummaryFooter}>
                         <div className={styles.summaryStatItem}>
-                          <span className={styles.summaryStatLabel}>Gross Sales</span>
+                          <span className={styles.summaryStatLabel}>Net Sales</span>
                           <span className={styles.summaryStatVal}>
-                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : `₹${Math.round(metrics.grossSales).toLocaleString('en-IN')}`}
+                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : `₹${Math.round(metrics.netSales).toLocaleString('en-IN')}`}
                           </span>
                         </div>
                         <div className={styles.summaryStatItem}>
@@ -4384,14 +4661,14 @@ export default function AdminPanel() {
                         fontWeight: 500,
                         color: '#0f172a'
                       }}>
-                        <span style={{ color: '#64748b' }}>{isHindi ? 'कुल संग्रह:' : 'Total:'}</span>
-                        <span style={{ color: '#16a34a', fontWeight: 600 }}>₹{(metrics.grossSales || 0).toLocaleString('en-IN')}</span>
+                        <span style={{ color: '#64748b' }}>{isHindi ? 'कुल शुद्ध बिक्री:' : 'Total (Net):'}</span>
+                        <span style={{ color: '#16a34a', fontWeight: 600 }}>₹{Math.round(metrics.netSales || 0).toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 
                     {/* Interactive Donut Graph & Detailed Metrics Layout */}
                     {(() => {
-                      const totalSales = metrics.grossSales || 0;
+                      const totalSales = metrics.netSales || 0;
                       const methods = [
                         {
                           id: 'cash',
@@ -4522,13 +4799,13 @@ export default function AdminPanel() {
                                 pointerEvents: 'none'
                               }}>
                                 <span style={{ fontSize: '0.66rem', fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  {isHindi ? 'कुल संग्रह' : 'Total'}
+                                  {isHindi ? 'शुद्ध बिक्री (इन-हैंड)' : 'NET SALES'}
                                 </span>
                                 <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-                                  ₹{totalSales.toLocaleString('en-IN')}
+                                  ₹{Math.round(totalSales).toLocaleString('en-IN')}
                                 </span>
                                 <span style={{ fontSize: '0.62rem', color: '#16a34a', fontWeight: 500, marginTop: '2px' }}>
-                                  100% Settled
+                                  Excl. GST & Taxes
                                 </span>
                               </div>
                             </div>
@@ -4635,7 +4912,132 @@ export default function AdminPanel() {
                     })()}
                   </div>
 
-                  {/* 7. REAL-DATA LIVE FLOOR & TABLE MATRIX (Dine-in Only) */}
+                  {/* 7. OPERATIONAL CHECKLIST & POPULAR MENU PERFORMERS */}
+                  <div className={styles.dashBottomGridModern}>
+                    {/* Left: Operational Checklist */}
+                    <div className={styles.opsChecklistCard}>
+                      <div className={styles.opsHeaderRow}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckCircle2 size={18} color="#4f46e5" />
+                          <h3>{isHindi ? 'दैनिक परिचालन चेकलिस्ट' : 'Daily Operational Checklist'}</h3>
+                        </div>
+                        <span className={styles.opsProgressPill}>
+                          {checklist.filter(c => c.done).length} / {checklist.length} {isHindi ? 'पूर्ण' : 'Completed'} (Max 3)
+                        </span>
+                      </div>
+
+                      <div className={styles.opsProgressBarTrack}>
+                        <div
+                          className={styles.opsProgressBarFill}
+                          style={{
+                            width: `${(checklist.filter(c => c.done).length / (checklist.length || 1)) * 100}%`
+                          }}
+                        />
+                      </div>
+
+                      <div className={styles.opsCheckList}>
+                        {checklist.map(item => (
+                          <div
+                            key={item.id}
+                            onClick={() => handleToggleChecklist(item.id)}
+                            className={`${styles.opsItemRow} ${item.done ? styles.opsItemRowDone : ''}`}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
+                          >
+                            <div className={styles.opsItemLeft} style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                              <div className={`${styles.opsCheckbox} ${item.done ? styles.opsCheckboxChecked : ''}`}>
+                                {item.done && <Check size={12} />}
+                              </div>
+                              <span className={`${styles.opsItemText} ${item.done ? styles.opsItemTextDone : ''}`} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.text}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              <span className={styles.opsItemTime}>{item.time}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteChecklistItem(item.id);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#94a3b8',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  borderRadius: '4px'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
+                                title="Delete task"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <form onSubmit={handleAddChecklistItem} className={styles.opsAddForm}>
+                        <input
+                          type="text"
+                          placeholder={checklist.length >= 3 ? (isHindi ? "अधिकतम 3 कार्य सीमा पूरी हो गई" : "Max 3 tasks reached (delete to add)") : (isHindi ? "नया कार्य जोड़ें..." : "Add quick operational task...")}
+                          value={newChecklistText}
+                          disabled={checklist.length >= 3}
+                          onChange={(e) => setNewChecklistText(e.target.value)}
+                          className={styles.opsInput}
+                          style={checklist.length >= 3 ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
+                        />
+                        <button
+                          type="submit"
+                          disabled={checklist.length >= 3}
+                          className={styles.opsAddBtn}
+                          style={checklist.length >= 3 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        >
+                          {isHindi ? 'जोड़ें' : 'Add'}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Right: Top Selling Items & Category Share */}
+                    <div className={styles.topSellingCard}>
+                      <div className={styles.opsHeaderRow}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Flame size={18} color="#e11d48" />
+                          <h3>{isHindi ? 'सबसे लोकप्रिय व्यंजन' : 'Popular Menu Performers'}</h3>
+                        </div>
+                      </div>
+
+                      <div className={styles.topSellingList}>
+                        {metrics.topSellingItems?.map((it, idx) => {
+                          const totalRev = metrics.grossSales || 1;
+                          const pct = Math.min(100, Math.round((it.revenue / totalRev) * 100)) || (40 - idx * 8);
+
+                          return (
+                            <div key={idx} className={styles.topDishRow}>
+                              <div className={`${styles.dishRankCircle} ${idx === 0 ? styles.dishRankTop : ''}`}>
+                                #{idx + 1}
+                              </div>
+                              <div className={styles.dishInfoBlock}>
+                                <span className={styles.dishName}>{it.name}</span>
+                                <span className={styles.dishMeta}>{it.count} units sold</span>
+                              </div>
+                              <div className={styles.dishBarWrap}>
+                                <div className={styles.dishBarFill} style={{ width: `${pct}%` }} />
+                              </div>
+                              <div className={styles.dishRevenue}>
+                                ₹{Math.round(it.revenue).toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 8. REAL-DATA LIVE FLOOR & TABLE MATRIX (Dine-in Only) */}
                   {!isCounterBillingOnly && (() => {
                     const occupiedTables = tables.filter(t => getActiveOrdersForTable(t).length > 0);
                     const availableTables = tables.filter(t => getActiveOrdersForTable(t).length === 0);
@@ -5138,6 +5540,30 @@ export default function AdminPanel() {
                             >
                               🖨️ Print Bill
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedTableModal.activeOrder) {
+                                  openWhatsappBill(selectedTableModal.activeOrder, tenantInfo);
+                                }
+                              }}
+                              style={{
+                                padding: '11px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid #16a34a',
+                                background: '#f0fdf4',
+                                color: '#16a34a',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6
+                              }}
+                              title="Send Bill via WhatsApp"
+                            >
+                              <MessageSquare size={16} /> WhatsApp
+                            </button>
                             {(selectedTableModal.activeOrder?.status === 'ready' || selectedTableModal.activeOrder?.status === 'served') ? (
                               <button
                                 type="button"
@@ -5185,100 +5611,6 @@ export default function AdminPanel() {
                       </div>
                     )}
                   </AnimatePresence>
-
-                  {/* 8. BOTTOM SECTION: OPERATIONAL CHECKLIST + TOP SELLING DISHES */}
-                  <div className={styles.dashBottomGridModern}>
-                    {/* Left: Operational Checklist */}
-                    <div className={styles.opsChecklistCard}>
-                      <div className={styles.opsHeaderRow}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckCircle2 size={18} color="#4f46e5" />
-                          <h3>{isHindi ? 'दैनिक परिचालन चेकलिस्ट' : 'Daily Operational Checklist'}</h3>
-                        </div>
-                        <span className={styles.opsProgressPill}>
-                          {checklist.filter(c => c.done).length} / {checklist.length} {isHindi ? 'पूर्ण' : 'Completed'}
-                        </span>
-                      </div>
-
-                      <div className={styles.opsProgressBarTrack}>
-                        <div
-                          className={styles.opsProgressBarFill}
-                          style={{
-                            width: `${(checklist.filter(c => c.done).length / (checklist.length || 1)) * 100}%`
-                          }}
-                        />
-                      </div>
-
-                      <div className={styles.opsCheckList}>
-                        {checklist.map(item => (
-                          <div
-                            key={item.id}
-                            onClick={() => handleToggleChecklist(item.id)}
-                            className={`${styles.opsItemRow} ${item.done ? styles.opsItemRowDone : ''}`}
-                          >
-                            <div className={styles.opsItemLeft}>
-                              <div className={`${styles.opsCheckbox} ${item.done ? styles.opsCheckboxChecked : ''}`}>
-                                {item.done && <Check size={12} />}
-                              </div>
-                              <span className={`${styles.opsItemText} ${item.done ? styles.opsItemTextDone : ''}`}>
-                                {item.text}
-                              </span>
-                            </div>
-                            <span className={styles.opsItemTime}>{item.time}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <form onSubmit={handleAddChecklistItem} className={styles.opsAddForm}>
-                        <input
-                          type="text"
-                          placeholder={isHindi ? "नया कार्य जोड़ें..." : "Add quick operational task..."}
-                          value={newChecklistText}
-                          onChange={(e) => setNewChecklistText(e.target.value)}
-                          className={styles.opsInput}
-                        />
-                        <button type="submit" className={styles.opsAddBtn}>
-                          {isHindi ? 'जोड़ें' : 'Add'}
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* Right: Top Selling Items & Category Share */}
-                    <div className={styles.topSellingCard}>
-                      <div className={styles.opsHeaderRow}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Flame size={18} color="#e11d48" />
-                          <h3>{isHindi ? 'सबसे लोकप्रिय व्यंजन' : 'Popular Menu Performers'}</h3>
-                        </div>
-
-                      </div>
-
-                      <div className={styles.topSellingList}>
-                        {metrics.topSellingItems?.map((it, idx) => {
-                          const totalRev = metrics.grossSales || 1;
-                          const pct = Math.min(100, Math.round((it.revenue / totalRev) * 100)) || (40 - idx * 8);
-
-                          return (
-                            <div key={idx} className={styles.topDishRow}>
-                              <div className={`${styles.dishRankCircle} ${idx === 0 ? styles.dishRankTop : ''}`}>
-                                #{idx + 1}
-                              </div>
-                              <div className={styles.dishInfoBlock}>
-                                <span className={styles.dishName}>{it.name}</span>
-                                <span className={styles.dishMeta}>{it.count} units sold</span>
-                              </div>
-                              <div className={styles.dishBarWrap}>
-                                <div className={styles.dishBarFill} style={{ width: `${pct}%` }} />
-                              </div>
-                              <div className={styles.dishRevenue}>
-                                ₹{Math.round(it.revenue).toLocaleString('en-IN')}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
                 </motion.div>
               )}
 
