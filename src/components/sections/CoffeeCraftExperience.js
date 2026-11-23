@@ -126,51 +126,41 @@ export default function CoffeeCraftExperience({ onOpenDemo }) {
     };
   }, [updateCanvasDimensions]);
 
-  // Fast canvas frame rendering with zero-reallocation & sub-frame crossfade
+  // Fast canvas frame rendering with crisp single-frame display (Zero ghosting / Zero double exposure!)
   const renderCanvasFrame = (progressFloat) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
     const images = imagesRef.current;
     if (!images || images.length === 0) return;
 
     const maxIdx = TOTAL_FRAMES - 1;
     const clampedProgress = Math.max(0, Math.min(1, progressFloat));
-    const exact = clampedProgress * maxIdx;
-    const floorIdx = Math.floor(exact);
-    const ceilIdx = Math.min(maxIdx, floorIdx + 1);
-    const blend = exact - floorIdx;
+    // Discrete frame index based on progress
+    const targetIdx = Math.min(maxIdx, Math.floor(clampedProgress * TOTAL_FRAMES));
 
-    const baseImg = images[floorIdx];
-    if (!baseImg || !baseImg.complete) return;
+    // Avoid redundant repaints if frame hasn't changed
+    if (targetIdx === lastDrawnFrameRef.current) return;
+    lastDrawnFrameRef.current = targetIdx;
+
+    const targetImg = images[targetIdx];
+    if (!targetImg || !targetImg.complete) return;
 
     const { ox, oy, drawW, drawH } = dimsRef.current;
 
-    // Draw main frame
+    // Draw single crisp frame at 100% opacity — completely eliminating ghosting/blur
     ctx.globalAlpha = 1.0;
-    ctx.drawImage(baseImg, ox, oy, drawW, drawH);
-
-    // Smooth sub-frame blend for continuous motion
-    if (blend > 0.02 && floorIdx !== ceilIdx) {
-      const nextImg = images[ceilIdx];
-      if (nextImg && nextImg.complete) {
-        ctx.globalAlpha = blend;
-        ctx.drawImage(nextImg, ox, oy, drawW, drawH);
-      }
-    }
+    ctx.drawImage(targetImg, ox, oy, drawW, drawH);
   };
 
   // Dedicated 60fps rAF Loop (Decouples scroll from render!)
   useEffect(() => {
     const loop = () => {
       const diff = targetProgressRef.current - currentProgressRef.current;
-      if (Math.abs(diff) > 0.0002) {
-        currentProgressRef.current += diff * 0.14; // smooth inertia
+      if (Math.abs(diff) > 0.0005) {
+        currentProgressRef.current += diff * 0.18; // snappy, smooth inertia
         renderCanvasFrame(currentProgressRef.current);
       }
       rafIdRef.current = requestAnimationFrame(loop);
@@ -191,10 +181,10 @@ export default function CoffeeCraftExperience({ onOpenDemo }) {
       const pinTrigger = ScrollTrigger.create({
         trigger: sectionRef.current,
         start: "top top",
-        end: "+=2400",
+        end: "+=1200", // Snappy, natural scroll travel distance
         pin: pinWrapperRef.current,
         pinSpacing: true,
-        scrub: 0.5,
+        scrub: 0.35, // Responsive inertia scrub
         anticipatePin: 1,
         onUpdate: (self) => {
           const p = self.progress;
