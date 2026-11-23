@@ -3604,344 +3604,373 @@ export default function AdminPanel() {
                   {/* 5. 4 LUXURY DYNAMIC KPI METRIC CARDS */}
                   <div className={styles.kpiGridModern}>
                     {/* Card 1: Gross Revenue */}
-                    <div
-                      className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}
-                      onClick={() => setActiveKpiModal('gross')}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'opacity 0.2s ease, transform 0.2s ease',
-                        opacity: activeKpiModal === 'gross' ? 0 : 1,
-                        visibility: activeKpiModal === 'gross' ? 'hidden' : 'visible',
-                        pointerEvents: activeKpiModal ? 'none' : 'auto'
-                      }}
-                      title="Click to view detailed Gross Revenue audit breakdown"
-                    >
-                      <div className={styles.kpiTopRow}>
-                        <div className={`${styles.kpiIconBox} ${styles.kpiIconEmerald}`}>
-                          <IndianRupee size={16} />
+                    {activeKpiModal === 'gross' ? (
+                      <div
+                        className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}
+                        style={{ opacity: 0, pointerEvents: 'none', visibility: 'hidden' }}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <motion.div
+                        layoutId="kpi-card-gross"
+                        className={`${styles.kpiCardModern} ${styles.kpiCardEmerald}`}
+                        onClick={() => setActiveKpiModal('gross')}
+                        style={{
+                          cursor: 'pointer',
+                          pointerEvents: activeKpiModal ? 'none' : 'auto'
+                        }}
+                        title="Click to view detailed Gross Revenue audit breakdown"
+                      >
+                        <div className={styles.kpiTopRow}>
+                          <div className={`${styles.kpiIconBox} ${styles.kpiIconEmerald}`}>
+                            <IndianRupee size={16} />
+                          </div>
+                          <span className={`${styles.kpiPillBadge} ${metrics.grossSales > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
+                            {metrics.grossSales > 0 ? (
+                              <>
+                                <ArrowUpRight size={13} /> {isHindi ? 'सक्रिय' : 'Active'}
+                              </>
+                            ) : (
+                              isHindi ? '● लाइव बिक्री' : '● Live Sales'
+                            )}
+                          </span>
                         </div>
-                        <span className={`${styles.kpiPillBadge} ${metrics.grossSales > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`}>
-                          {metrics.grossSales > 0 ? (
-                            <>
-                              <ArrowUpRight size={13} /> {isHindi ? 'सक्रिय' : 'Active'}
-                            </>
-                          ) : (
-                            isHindi ? '● लाइव बिक्री' : '● Live Sales'
-                          )}
-                        </span>
-                      </div>
-                      <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>{isHindi ? 'सकल राजस्व' : 'Gross Revenue'}</span>
-                        <div className={styles.kpiBigNum}>
+                        <div className={styles.kpiTitleGroup}>
+                          <span className={styles.kpiCardTag}>{isHindi ? 'सकल राजस्व' : 'Gross Revenue'}</span>
+                          <div className={styles.kpiBigNum}>
+                            {isFilterLoading ? (
+                              <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
+                            ) : (
+                              `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.kpiFooterMeta}>
+                          <span>
+                            {isFilterLoading
+                              ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...')
+                              : metrics.completedOrders.length > 0
+                                ? `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}${metrics.activePipelineSales > 0 ? ` • +₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'किचन में' : 'in kitchen'}` : ''}`
+                                : metrics.activePipelineSales > 0
+                                  ? `₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'लाइव पाइपलाइन (किचन में)' : 'live in kitchen queue'}`
+                                  : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}
+                          </span>
                           {isFilterLoading ? (
-                            <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
+                            <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
+                          ) : metrics.grossSales > 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              border: '1px solid #a7f3d0'
+                            }} title="Positive Trend">
+                              <TrendingUp size={13} strokeWidth={2.5} />
+                            </div>
+                          ) : metrics.grossSales < 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#fef2f2',
+                              color: '#dc2626',
+                              border: '1px solid #fecaca'
+                            }} title="Negative Trend">
+                              <TrendingDown size={13} strokeWidth={2.5} />
+                            </div>
                           ) : (
-                            `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#f1f5f9',
+                              color: '#64748b',
+                              border: '1px solid #e2e8f0'
+                            }} title="Neutral / Live Telemetry">
+                              <Activity size={13} strokeWidth={2.2} />
+                            </div>
                           )}
                         </div>
-                      </div>
-                      <div className={styles.kpiFooterMeta}>
-                        <span>
-                          {isFilterLoading
-                            ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...')
-                            : metrics.completedOrders.length > 0
-                              ? `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}${metrics.activePipelineSales > 0 ? ` • +₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'किचन में' : 'in kitchen'}` : ''}`
-                              : metrics.activePipelineSales > 0
-                                ? `₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'लाइव पाइपलाइन (किचन में)' : 'live in kitchen queue'}`
-                                : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}
-                        </span>
-                        {isFilterLoading ? (
-                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
-                        ) : metrics.grossSales > 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#ecfdf5',
-                            color: '#059669',
-                            border: '1px solid #a7f3d0'
-                          }} title="Positive Trend">
-                            <TrendingUp size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : metrics.grossSales < 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            border: '1px solid #fecaca'
-                          }} title="Negative Trend">
-                            <TrendingDown size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }} title="Neutral / Live Telemetry">
-                            <Activity size={13} strokeWidth={2.2} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                      </motion.div>
+                    )}
 
                     {/* Card 2: Net Sales (Excl. Tax) */}
-                    <div
-                      className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}
-                      onClick={() => setActiveKpiModal('net')}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'opacity 0.2s ease, transform 0.2s ease',
-                        opacity: activeKpiModal === 'net' ? 0 : 1,
-                        visibility: activeKpiModal === 'net' ? 'hidden' : 'visible',
-                        pointerEvents: activeKpiModal ? 'none' : 'auto'
-                      }}
-                      title="Click to view detailed Net Sales audit breakdown"
-                    >
-                      <div className={styles.kpiTopRow}>
-                        <div className={`${styles.kpiIconBox} ${styles.kpiIconIndigo}`}>
-                          <TrendingUp size={16} />
+                    {activeKpiModal === 'net' ? (
+                      <div
+                        className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}
+                        style={{ opacity: 0, pointerEvents: 'none', visibility: 'hidden' }}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <motion.div
+                        layoutId="kpi-card-net"
+                        className={`${styles.kpiCardModern} ${styles.kpiCardIndigo}`}
+                        onClick={() => setActiveKpiModal('net')}
+                        style={{
+                          cursor: 'pointer',
+                          pointerEvents: activeKpiModal ? 'none' : 'auto'
+                        }}
+                        title="Click to view detailed Net Sales audit breakdown"
+                      >
+                        <div className={styles.kpiTopRow}>
+                          <div className={`${styles.kpiIconBox} ${styles.kpiIconIndigo}`}>
+                            <TrendingUp size={16} />
+                          </div>
+                          <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
+                            {isHindi ? 'बिना GST व टैक्स' : 'Excl. GST & Taxes'}
+                          </span>
                         </div>
-                        <span className={`${styles.kpiPillBadge} ${styles.kpiPillPositive}`}>
-                          {isHindi ? 'बिना GST व टैक्स' : 'Excl. GST & Taxes'}
-                        </span>
-                      </div>
-                      <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>{isHindi ? 'शुद्ध बिक्री (बिना टैक्स)' : 'Net Sales (Excl. Tax)'}</span>
-                        <div className={styles.kpiBigNum}>
+                        <div className={styles.kpiTitleGroup}>
+                          <span className={styles.kpiCardTag}>{isHindi ? 'शुद्ध बिक्री (बिना टैक्स)' : 'Net Sales (Excl. Tax)'}</span>
+                          <div className={styles.kpiBigNum}>
+                            {isFilterLoading ? (
+                              <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
+                            ) : (
+                              `₹${Math.round(metrics.netSales || 0).toLocaleString('en-IN')}`
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.kpiFooterMeta}>
+                          <span>
+                            {isFilterLoading
+                              ? (isHindi ? 'गणना जारी...' : 'Recalculating...')
+                              : metrics.completedOrders.length > 0
+                                ? (isHindi ? `${metrics.completedOrders?.length || 0} चुकता बिलों से • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} टैक्स` : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`)
+                                : metrics.activePipelineSales > 0
+                                  ? (isHindi ? `${metrics.activeOrders.length} सक्रिय ऑर्डर किचन में (बिलिंग बाकी)` : `${metrics.activeOrders.length} active orders in kitchen queue`)
+                                  : (isHindi ? '0 चुकता बिल • ₹0 टैक्स' : 'From 0 Settled Bills • ₹0 Tax')}
+                          </span>
                           {isFilterLoading ? (
-                            <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
+                            <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
+                          ) : metrics.netSales > 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#eef2ff',
+                              color: '#4f46e5',
+                              border: '1px solid #c7d2fe'
+                            }} title="Positive Net Sales">
+                              <TrendingUp size={13} strokeWidth={2.5} />
+                            </div>
                           ) : (
-                            `₹${Math.round(metrics.netSales || 0).toLocaleString('en-IN')}`
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#f1f5f9',
+                              color: '#64748b',
+                              border: '1px solid #e2e8f0'
+                            }} title="Neutral / Live Telemetry">
+                              <Activity size={13} strokeWidth={2.2} />
+                            </div>
                           )}
                         </div>
-                      </div>
-                      <div className={styles.kpiFooterMeta}>
-                        <span>
-                          {isFilterLoading
-                            ? (isHindi ? 'गणना जारी...' : 'Recalculating...')
-                            : metrics.completedOrders.length > 0
-                              ? (isHindi ? `${metrics.completedOrders?.length || 0} चुकता बिलों से • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} टैक्स` : `From ${metrics.completedOrders?.length || 0} Settled Bills • ₹${Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')} Tax`)
-                              : metrics.activePipelineSales > 0
-                                ? (isHindi ? `${metrics.activeOrders.length} सक्रिय ऑर्डर किचन में (बिलिंग बाकी)` : `${metrics.activeOrders.length} active orders in kitchen queue`)
-                                : (isHindi ? '0 चुकता बिल • ₹0 टैक्स' : 'From 0 Settled Bills • ₹0 Tax')}
-                        </span>
-                        {isFilterLoading ? (
-                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
-                        ) : metrics.netSales > 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#eef2ff',
-                            color: '#4f46e5',
-                            border: '1px solid #c7d2fe'
-                          }} title="Positive Net Sales">
-                            <TrendingUp size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }} title="Neutral / Live Telemetry">
-                            <Activity size={13} strokeWidth={2.2} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                      </motion.div>
+                    )}
 
                     {/* Card 3: Average Bill Value */}
-                    <div
-                      className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}
-                      onClick={() => setActiveKpiModal('aov')}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'opacity 0.2s ease, transform 0.2s ease',
-                        opacity: activeKpiModal === 'aov' ? 0 : 1,
-                        visibility: activeKpiModal === 'aov' ? 'hidden' : 'visible',
-                        pointerEvents: activeKpiModal ? 'none' : 'auto'
-                      }}
-                      title="Click to view detailed Average Bill Value breakdown"
-                    >
-                      <div className={styles.kpiTopRow}>
-                        <div className={`${styles.kpiIconBox} ${styles.kpiIconAmber}`}>
-                          <Receipt size={16} />
+                    {activeKpiModal === 'aov' ? (
+                      <div
+                        className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}
+                        style={{ opacity: 0, pointerEvents: 'none', visibility: 'hidden' }}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <motion.div
+                        layoutId="kpi-card-aov"
+                        className={`${styles.kpiCardModern} ${styles.kpiCardAmber}`}
+                        onClick={() => setActiveKpiModal('aov')}
+                        style={{
+                          cursor: 'pointer',
+                          pointerEvents: activeKpiModal ? 'none' : 'auto'
+                        }}
+                        title="Click to view detailed Average Bill Value breakdown"
+                      >
+                        <div className={styles.kpiTopRow}>
+                          <div className={`${styles.kpiIconBox} ${styles.kpiIconAmber}`}>
+                            <Receipt size={16} />
+                          </div>
+                          <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
+                            {metrics.totalOrdersCount} {isHindi ? 'ऑर्डर्स' : 'Orders'}
+                          </span>
                         </div>
-                        <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
-                          {metrics.totalOrdersCount} {isHindi ? 'ऑर्डर्स' : 'Orders'}
-                        </span>
-                      </div>
-                      <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>{isHindi ? 'औसत बिल मूल्य (AOV)' : 'Average Bill Value'}</span>
-                        <div className={styles.kpiBigNum}>
+                        <div className={styles.kpiTitleGroup}>
+                          <span className={styles.kpiCardTag}>{isHindi ? 'औसत बिल मूल्य (AOV)' : 'Average Bill Value'}</span>
+                          <div className={styles.kpiBigNum}>
+                            {isFilterLoading ? (
+                              <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
+                            ) : (
+                              `₹${Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}`
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.kpiFooterMeta}>
+                          <span>{isFilterLoading ? (isHindi ? 'अपडेट जारी...' : 'Updating average...') : (isHindi ? 'प्रति ऑर्डर औसत' : 'Per order average')}</span>
                           {isFilterLoading ? (
-                            <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
+                            <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
+                          ) : metrics.avgTicket > 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#fffbeb',
+                              color: '#d97706',
+                              border: '1px solid #fde68a'
+                            }} title="Positive Average">
+                              <TrendingUp size={13} strokeWidth={2.5} />
+                            </div>
+                          ) : metrics.avgTicket < 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#fef2f2',
+                              color: '#dc2626',
+                              border: '1px solid #fecaca'
+                            }} title="Negative Average">
+                              <TrendingDown size={13} strokeWidth={2.5} />
+                            </div>
                           ) : (
-                            `₹${Math.round(metrics.avgTicket || 0).toLocaleString('en-IN')}`
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#f1f5f9',
+                              color: '#64748b',
+                              border: '1px solid #e2e8f0'
+                            }} title="Neutral / Live Telemetry">
+                              <Activity size={13} strokeWidth={2.2} />
+                            </div>
                           )}
                         </div>
-                      </div>
-                      <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? (isHindi ? 'अपडेट जारी...' : 'Updating average...') : (isHindi ? 'प्रति ऑर्डर औसत' : 'Per order average')}</span>
-                        {isFilterLoading ? (
-                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
-                        ) : metrics.avgTicket > 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#fffbeb',
-                            color: '#d97706',
-                            border: '1px solid #fde68a'
-                          }} title="Positive Average">
-                            <TrendingUp size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : metrics.avgTicket < 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            border: '1px solid #fecaca'
-                          }} title="Negative Average">
-                            <TrendingDown size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }} title="Neutral / Live Telemetry">
-                            <Activity size={13} strokeWidth={2.2} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                      </motion.div>
+                    )}
 
                     {/* Card 4: Total Orders */}
-                    <div
-                      className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}
-                      onClick={() => setActiveKpiModal('orders')}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'opacity 0.2s ease, transform 0.2s ease',
-                        opacity: activeKpiModal === 'orders' ? 0 : 1,
-                        visibility: activeKpiModal === 'orders' ? 'hidden' : 'visible',
-                        pointerEvents: activeKpiModal ? 'none' : 'auto'
-                      }}
-                      title="Click to view detailed Orders breakdown"
-                    >
-                      <div className={styles.kpiTopRow}>
-                        <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
-                          <ShoppingBag size={16} />
+                    {activeKpiModal === 'orders' ? (
+                      <div
+                        className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}
+                        style={{ opacity: 0, pointerEvents: 'none', visibility: 'hidden' }}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <motion.div
+                        layoutId="kpi-card-orders"
+                        className={`${styles.kpiCardModern} ${styles.kpiCardSky}`}
+                        onClick={() => setActiveKpiModal('orders')}
+                        style={{
+                          cursor: 'pointer',
+                          pointerEvents: activeKpiModal ? 'none' : 'auto'
+                        }}
+                        title="Click to view detailed Orders breakdown"
+                      >
+                        <div className={styles.kpiTopRow}>
+                          <div className={`${styles.kpiIconBox} ${styles.kpiIconSky}`}>
+                            <ShoppingBag size={16} />
+                          </div>
+                          <span className={`${styles.kpiPillBadge} ${liveActiveOrdersCount > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`} title="Active orders in kitchen & dining floor">
+                            {liveActiveOrdersCount} {isHindi ? 'किचन कतार में' : 'In Kitchen Queue'}
+                          </span>
                         </div>
-                        <span className={`${styles.kpiPillBadge} ${liveActiveOrdersCount > 0 ? styles.kpiPillPositive : styles.kpiPillNeutral}`} title="Active orders in kitchen & dining floor">
-                          {liveActiveOrdersCount} {isHindi ? 'किचन कतार में' : 'In Kitchen Queue'}
-                        </span>
-                      </div>
-                      <div className={styles.kpiTitleGroup}>
-                        <span className={styles.kpiCardTag}>
-                          {isHindi ? `कुल ऑर्डर्स (${dateRange === 'today' ? 'आज' : dateRange === 'this_week' ? 'इस सप्ताह' : dateRange === 'this_month' ? 'इस महीने' : dateRange === 'all' ? 'कुल समय' : 'फ़िल्टर किया'})` : `Total Orders (${dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})`}
-                        </span>
-                        <div className={styles.kpiBigNum}>
+                        <div className={styles.kpiTitleGroup}>
+                          <span className={styles.kpiCardTag}>
+                            {isHindi ? `कुल ऑर्डर्स (${dateRange === 'today' ? 'आज' : dateRange === 'this_week' ? 'इस सप्ताह' : dateRange === 'this_month' ? 'इस महीने' : dateRange === 'all' ? 'कुल समय' : 'फ़िल्टर किया'})` : `Total Orders (${dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'})`}
+                          </span>
+                          <div className={styles.kpiBigNum}>
+                            {isFilterLoading ? (
+                              <ShimmerBlock width="80px" height="28px" borderRadius="6px" />
+                            ) : (
+                              metrics.totalOrdersCount
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.kpiFooterMeta}>
+                          <span>{isFilterLoading ? (isHindi ? 'गिनती जारी...' : 'Updating count...') : (isHindi ? `${metrics.completedOrders?.length || 0} पूर्ण • ${liveActiveOrdersCount} किचन में` : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`)}</span>
                           {isFilterLoading ? (
-                            <ShimmerBlock width="80px" height="28px" borderRadius="6px" />
+                            <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
+                          ) : metrics.totalOrdersCount > 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#f0f9ff',
+                              color: '#0284c7',
+                              border: '1px solid #bae6fd'
+                            }} title="Active Volume">
+                              <TrendingUp size={13} strokeWidth={2.5} />
+                            </div>
+                          ) : metrics.totalOrdersCount < 0 ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#fef2f2',
+                              color: '#dc2626',
+                              border: '1px solid #fecaca'
+                            }} title="Negative Volume">
+                              <TrendingDown size={13} strokeWidth={2.5} />
+                            </div>
                           ) : (
-                            metrics.totalOrdersCount
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#f1f5f9',
+                              color: '#64748b',
+                              border: '1px solid #e2e8f0'
+                            }} title="Neutral / Live Telemetry">
+                              <Activity size={13} strokeWidth={2.2} />
+                            </div>
                           )}
                         </div>
-                      </div>
-                      <div className={styles.kpiFooterMeta}>
-                        <span>{isFilterLoading ? (isHindi ? 'गिनती जारी...' : 'Updating count...') : (isHindi ? `${metrics.completedOrders?.length || 0} पूर्ण • ${liveActiveOrdersCount} किचन में` : `${metrics.completedOrders?.length || 0} completed • ${liveActiveOrdersCount} in kitchen`)}</span>
-                        {isFilterLoading ? (
-                          <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
-                        ) : metrics.totalOrdersCount > 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f0f9ff',
-                            color: '#0284c7',
-                            border: '1px solid #bae6fd'
-                          }} title="Active Volume">
-                            <TrendingUp size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : metrics.totalOrdersCount < 0 ? (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            border: '1px solid #fecaca'
-                          }} title="Negative Volume">
-                            <TrendingDown size={13} strokeWidth={2.5} />
-                          </div>
-                        ) : (
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#f1f5f9',
-                            color: '#64748b',
-                            border: '1px solid #e2e8f0'
-                          }} title="Neutral / Live Telemetry">
-                            <Activity size={13} strokeWidth={2.2} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                      </motion.div>
+                    )}
                   </div>
 
-                  {/* ANIMATED COMPACT METRIC BREAKDOWN POPUP (Zero Essay, Pure Real Numbers) */}
+                  {/* EXPANDING SHARED-LAYOUT CARD POPUP (Zero Essay, Pure Real Numbers, Card Grows in Size) */}
                   <AnimatePresence>
                     {activeKpiModal && (
-                      <div
+                      <motion.div
+                        key="kpi-backdrop"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
                         style={{
                           position: 'fixed',
                           inset: 0,
@@ -3957,240 +3986,229 @@ export default function AdminPanel() {
                         onClick={() => setActiveKpiModal(null)}
                       >
                         <motion.div
-                          initial={{ scale: 0.94, opacity: 0, y: 10 }}
-                          animate={{ scale: 1, opacity: 1, y: 0 }}
-                          exit={{ scale: 0.94, opacity: 0, y: 10 }}
-                          transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+                          layoutId={`kpi-card-${activeKpiModal}`}
+                          transition={{
+                            type: 'spring',
+                            damping: 26,
+                            stiffness: 280
+                          }}
                           onClick={(e) => e.stopPropagation()}
                           style={{
                             background: '#ffffff',
                             borderRadius: '18px',
                             width: '100%',
                             maxWidth: '420px',
-                            boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.06)',
+                            boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.32), 0 0 0 1px rgba(15, 23, 42, 0.08)',
                             border: '1px solid #e2e8f0',
                             padding: '18px 20px',
-                            position: 'relative'
+                            position: 'relative',
+                            overflow: 'hidden'
                           }}
                         >
-                          {/* Compact Header */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: activeKpiModal === 'gross' ? '#ecfdf5' : activeKpiModal === 'net' ? '#eef2ff' : activeKpiModal === 'aov' ? '#fffbeb' : '#f0f9ff',
-                                color: activeKpiModal === 'gross' ? '#059669' : activeKpiModal === 'net' ? '#4f46e5' : activeKpiModal === 'aov' ? '#d97706' : '#0284c7'
-                              }}>
-                                {activeKpiModal === 'gross' && <IndianRupee size={18} />}
-                                {activeKpiModal === 'net' && <TrendingUp size={18} />}
-                                {activeKpiModal === 'aov' && <Receipt size={18} />}
-                                {activeKpiModal === 'orders' && <ShoppingBag size={18} />}
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.16, delay: 0.05 }}
+                          >
+                            {/* Compact Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: '10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: activeKpiModal === 'gross' ? '#ecfdf5' : activeKpiModal === 'net' ? '#eef2ff' : activeKpiModal === 'aov' ? '#fffbeb' : '#f0f9ff',
+                                  color: activeKpiModal === 'gross' ? '#059669' : activeKpiModal === 'net' ? '#4f46e5' : activeKpiModal === 'aov' ? '#d97706' : '#0284c7'
+                                }}>
+                                  {activeKpiModal === 'gross' && <IndianRupee size={18} />}
+                                  {activeKpiModal === 'net' && <TrendingUp size={18} />}
+                                  {activeKpiModal === 'aov' && <Receipt size={18} />}
+                                  {activeKpiModal === 'orders' && <ShoppingBag size={18} />}
+                                </div>
+                                <div>
+                                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+                                    {activeKpiModal === 'gross' && (isHindi ? 'सकल राजस्व का विवरण' : 'Gross Sales Breakdown')}
+                                    {activeKpiModal === 'net' && (isHindi ? 'शुद्ध बिक्री का विवरण' : 'Net Sales (Excl. Tax)')}
+                                    {activeKpiModal === 'aov' && (isHindi ? 'औसत बिल मूल्य (AOV)' : 'Average Order Value')}
+                                    {activeKpiModal === 'orders' && (isHindi ? 'ऑर्डर्स का विवरण' : 'Orders Volume Breakdown')}
+                                  </h3>
+                                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                    {dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'} • Live Sync
+                                  </span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setActiveKpiModal(null)}
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: '50%',
+                                  border: 'none',
+                                  background: '#f1f5f9',
+                                  color: '#64748b',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title="Close"
+                              >
+                                <X size={15} />
+                              </button>
+                            </div>
+
+                            {/* Compact Primary Metric Hero */}
+                            <div style={{
+                              background: activeKpiModal === 'gross' ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)' : activeKpiModal === 'net' ? 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' : activeKpiModal === 'aov' ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' : 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                              borderRadius: '12px',
+                              padding: '12px 14px',
+                              marginBottom: '14px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              border: '1px solid rgba(0,0,0,0.04)'
+                            }}>
+                              <div>
+                                <span style={{ fontSize: '10.5px', fontWeight: 700, color: activeKpiModal === 'gross' ? '#065f46' : activeKpiModal === 'net' ? '#3730a3' : activeKpiModal === 'aov' ? '#92400e' : '#075985', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
+                                  {activeKpiModal === 'gross' ? 'TOTAL GROSS' : activeKpiModal === 'net' ? 'NET CASH VALUE' : activeKpiModal === 'aov' ? 'PER ORDER AVERAGE' : 'TOTAL COUNT'}
+                                </span>
+                                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginTop: '2px' }}>
+                                  {activeKpiModal === 'orders'
+                                    ? `${metrics.totalOrdersCount} Orders`
+                                    : `₹${Math.round(activeKpiModal === 'gross' ? metrics.grossSales : activeKpiModal === 'net' ? metrics.netSales : metrics.avgTicket).toLocaleString('en-IN')}`}
+                                </div>
+                              </div>
+                              <span style={{ fontSize: '11px', color: '#475569', textAlign: 'right', maxWidth: '140px', lineHeight: 1.3 }}>
+                                {activeKpiModal === 'gross' && `Paid + In Kitchen`}
+                                {activeKpiModal === 'net' && `Excl. GST & Taxes`}
+                                {activeKpiModal === 'aov' && `Across ${metrics.totalOrdersCount} orders`}
+                                {activeKpiModal === 'orders' && `${metrics.completedOrders.length} done, ${liveActiveOrdersCount} kitchen`}
+                              </span>
+                            </div>
+
+                            {/* Arithmetic & Component Breakdown Table */}
+                            <div style={{ marginBottom: '14px' }}>
+                              <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+                                {activeKpiModal === 'gross' && (
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Settled Paid Bills ({metrics.completedOrders.length}):</span>
+                                      <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales - metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Active Kitchen Pipeline ({liveActiveOrdersCount}):</span>
+                                      <strong style={{ color: '#ea580c' }}>+₹{Math.round(metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Total Gross Turnover:</span>
+                                      <strong style={{ color: '#059669' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', fontSize: '11.5px', color: '#64748b' }}>
+                                      <span>Applicable GST / Taxes (5%):</span>
+                                      <span>₹{Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')}</span>
+                                    </div>
+                                  </>
+                                )}
+
+                                {activeKpiModal === 'net' && (
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Gross Billed Turnover:</span>
+                                      <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#fef2f2', borderBottom: '1px solid #f1f5f9', fontSize: '12px', color: '#b91c1c' }}>
+                                      <span>Less: GST & Taxes (5%):</span>
+                                      <strong>-₹{Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#eef2ff', borderBottom: '1px solid #e0e7ff', fontSize: '12.5px', fontWeight: 700, color: '#3730a3' }}>
+                                      <span>Net In-Hand Sales:</span>
+                                      <span>₹{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', fontSize: '11.5px', color: '#475569' }}>
+                                      <span>Est. Net Margin ({tenantInfo?.settings?.profitMargin ?? 40}%):</span>
+                                      <strong style={{ color: '#16a34a' }}>₹{Math.round((metrics.netSales || 0) * (Number(tenantInfo?.settings?.profitMargin ?? 40) / 100)).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                  </>
+                                )}
+
+                                {activeKpiModal === 'aov' && (
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Total Revenue:</span>
+                                      <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Total Orders:</span>
+                                      <strong style={{ color: '#0f172a' }}>{metrics.totalOrdersCount}</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#fffbeb', fontSize: '12.5px', fontWeight: 700, color: '#b45309' }}>
+                                      <span>Average Value per Bill:</span>
+                                      <span>₹{Math.round(metrics.avgTicket).toLocaleString('en-IN')}</span>
+                                    </div>
+                                  </>
+                                )}
+
+                                {activeKpiModal === 'orders' && (
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Settled & Completed:</span>
+                                      <strong style={{ color: '#16a34a' }}>{metrics.completedOrders.length} orders</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>In Kitchen Queue:</span>
+                                      <strong style={{ color: '#ea580c' }}>{liveActiveOrdersCount} orders</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
+                                      <span style={{ color: '#64748b' }}>Cancelled / Voided:</span>
+                                      <strong style={{ color: '#dc2626' }}>{metrics.cancelledOrders?.length || 0} orders</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f0f9ff', fontSize: '12.5px', fontWeight: 700, color: '#0369a1' }}>
+                                      <span>Total Registered:</span>
+                                      <span>{metrics.totalOrdersCount} orders</span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Payment Modes Mini-Grid */}
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(4, 1fr)',
+                              gap: '6px',
+                              background: '#f8fafc',
+                              padding: '8px 10px',
+                              borderRadius: '10px',
+                              border: '1px solid #e2e8f0',
+                              textAlign: 'center'
+                            }}>
+                              <div>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Cash</div>
+                                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.Cash || 0).toLocaleString('en-IN')}</div>
                               </div>
                               <div>
-                                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
-                                  {activeKpiModal === 'gross' && (isHindi ? 'सकल राजस्व का विवरण' : 'Gross Sales Breakdown')}
-                                  {activeKpiModal === 'net' && (isHindi ? 'शुद्ध बिक्री का विवरण' : 'Net Sales (Excl. Tax)')}
-                                  {activeKpiModal === 'aov' && (isHindi ? 'औसत बिल मूल्य (AOV)' : 'Average Order Value')}
-                                  {activeKpiModal === 'orders' && (isHindi ? 'ऑर्डर्स का विवरण' : 'Orders Volume Breakdown')}
-                                </h3>
-                                <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                  {dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'} • Live Sync
-                                </span>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>UPI / QR</div>
+                                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.UPI || 0).toLocaleString('en-IN')}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Card</div>
+                                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.Card || 0).toLocaleString('en-IN')}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Khata</div>
+                                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.Khata || 0).toLocaleString('en-IN')}</div>
                               </div>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => setActiveKpiModal(null)}
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: '50%',
-                                border: 'none',
-                                background: '#f1f5f9',
-                                color: '#64748b',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.15s ease'
-                              }}
-                              title="Close"
-                            >
-                              <X size={15} />
-                            </button>
-                          </div>
-
-                          {/* Compact Primary Metric Hero */}
-                          <div style={{
-                            background: activeKpiModal === 'gross' ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)' : activeKpiModal === 'net' ? 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' : activeKpiModal === 'aov' ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' : 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-                            borderRadius: '12px',
-                            padding: '12px 14px',
-                            marginBottom: '14px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            border: '1px solid rgba(0,0,0,0.04)'
-                          }}>
-                            <div>
-                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: activeKpiModal === 'gross' ? '#065f46' : activeKpiModal === 'net' ? '#3730a3' : activeKpiModal === 'aov' ? '#92400e' : '#075985', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
-                                {activeKpiModal === 'gross' ? 'TOTAL GROSS' : activeKpiModal === 'net' ? 'NET CASH VALUE' : activeKpiModal === 'aov' ? 'PER ORDER AVERAGE' : 'TOTAL COUNT'}
-                              </span>
-                              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginTop: '2px' }}>
-                                {activeKpiModal === 'orders'
-                                  ? `${metrics.totalOrdersCount} Orders`
-                                  : `₹${Math.round(activeKpiModal === 'gross' ? metrics.grossSales : activeKpiModal === 'net' ? metrics.netSales : metrics.avgTicket).toLocaleString('en-IN')}`}
-                              </div>
-                            </div>
-                            <span style={{ fontSize: '11px', color: '#475569', textAlign: 'right', maxWidth: '140px', lineHeight: 1.3 }}>
-                              {activeKpiModal === 'gross' && `Paid + In Kitchen`}
-                              {activeKpiModal === 'net' && `Excl. GST & Taxes`}
-                              {activeKpiModal === 'aov' && `Across ${metrics.totalOrdersCount} orders`}
-                              {activeKpiModal === 'orders' && `${metrics.completedOrders.length} done, ${liveActiveOrdersCount} kitchen`}
-                            </span>
-                          </div>
-
-                          {/* Arithmetic & Component Breakdown Table */}
-                          <div style={{ marginBottom: '14px' }}>
-                            <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-                              {activeKpiModal === 'gross' && (
-                                <>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Settled Paid Bills ({metrics.completedOrders.length}):</span>
-                                    <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales - metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Active Kitchen Pipeline ({liveActiveOrdersCount}):</span>
-                                    <strong style={{ color: '#ea580c' }}>+₹{Math.round(metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Total Gross Turnover:</span>
-                                    <strong style={{ color: '#059669' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', fontSize: '11.5px', color: '#64748b' }}>
-                                    <span>Applicable GST / Taxes (5%):</span>
-                                    <span>₹{Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')}</span>
-                                  </div>
-                                </>
-                              )}
-
-                              {activeKpiModal === 'net' && (
-                                <>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Gross Billed Turnover:</span>
-                                    <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#fef2f2', borderBottom: '1px solid #f1f5f9', fontSize: '12px', color: '#b91c1c' }}>
-                                    <span>Less: GST & Taxes (5%):</span>
-                                    <strong>-₹{Math.max(0, Math.round(metrics.grossSales - metrics.netSales)).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#eef2ff', borderBottom: '1px solid #e0e7ff', fontSize: '12.5px', fontWeight: 700, color: '#3730a3' }}>
-                                    <span>Net In-Hand Sales:</span>
-                                    <span>₹{Math.round(metrics.netSales).toLocaleString('en-IN')}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', fontSize: '11.5px', color: '#475569' }}>
-                                    <span>Est. Net Margin ({tenantInfo?.settings?.profitMargin ?? 40}%):</span>
-                                    <strong style={{ color: '#16a34a' }}>₹{Math.round((metrics.netSales || 0) * (Number(tenantInfo?.settings?.profitMargin ?? 40) / 100)).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                </>
-                              )}
-
-                              {activeKpiModal === 'aov' && (
-                                <>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Total Revenue:</span>
-                                    <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Total Orders:</span>
-                                    <strong style={{ color: '#0f172a' }}>{metrics.totalOrdersCount}</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#fffbeb', fontSize: '12.5px', fontWeight: 700, color: '#b45309' }}>
-                                    <span>Average Value per Bill:</span>
-                                    <span>₹{Math.round(metrics.avgTicket).toLocaleString('en-IN')}</span>
-                                  </div>
-                                </>
-                              )}
-
-                              {activeKpiModal === 'orders' && (
-                                <>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Settled & Completed:</span>
-                                    <strong style={{ color: '#16a34a' }}>{metrics.completedOrders.length} orders</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>In Kitchen Queue:</span>
-                                    <strong style={{ color: '#ea580c' }}>{liveActiveOrdersCount} orders</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                    <span style={{ color: '#64748b' }}>Cancelled / Voided:</span>
-                                    <strong style={{ color: '#dc2626' }}>{metrics.cancelledOrders?.length || 0} orders</strong>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f0f9ff', fontSize: '12.5px', fontWeight: 700, color: '#0369a1' }}>
-                                    <span>Total Registered:</span>
-                                    <span>{metrics.totalOrdersCount} orders</span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Payment Modes Mini-Grid */}
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(4, 1fr)',
-                            gap: '6px',
-                            background: '#f8fafc',
-                            padding: '8px 10px',
-                            borderRadius: '10px',
-                            border: '1px solid #e2e8f0',
-                            marginBottom: '14px',
-                            textAlign: 'center'
-                          }}>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Cash</div>
-                              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.Cash || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>UPI / QR</div>
-                              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.UPI || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Card</div>
-                              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.Card || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Khata</div>
-                              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#0f172a' }}>₹{(metrics.paymentBreakdown?.Khata || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                          </div>
-
-                          {/* Done / Close Button */}
-                          <button
-                            type="button"
-                            onClick={() => setActiveKpiModal(null)}
-                            style={{
-                              width: '100%',
-                              padding: '9px 12px',
-                              borderRadius: '10px',
-                              border: 'none',
-                              background: '#0f172a',
-                              color: '#ffffff',
-                              fontSize: '12.5px',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Done
-                          </button>
+                          </motion.div>
                         </motion.div>
-                      </div>
+                      </motion.div>
                     )}
                   </AnimatePresence>
 
