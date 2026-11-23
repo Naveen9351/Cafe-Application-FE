@@ -184,6 +184,7 @@ export default function POSTerminal({
   const [isSubmittingItemPay, setIsSubmittingItemPay] = useState(false);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [clearTablePaymentMethod, setClearTablePaymentMethod] = useState('Cash');
+  const [lastClearedBill, setLastClearedBill] = useState(null);
 
   // Load existing khata customers
   useEffect(() => {
@@ -1737,6 +1738,21 @@ export default function POSTerminal({
         { headers: token ? { 'x-auth-token': token } : {} }
       );
       // Auto-remove any temporary table or mark permanent table available in dbTables immediately
+      const targetOrders = activeOrdersByTable[String(tNum).trim()] || activeOrdersByTable[String(tNum).replace(/^Table\s*/i, '').trim()] || [];
+      if (targetOrders.length > 0) {
+        setLastClearedBill({
+          orderNumber: targetOrders[0]?.orderNumber || `TBL-${tNum}`,
+          tableNumber: `Table ${tNum}`,
+          customerName: targetOrders[0]?.customerName || 'Guest',
+          customerPhone: targetOrders[0]?.customerPhone || '',
+          items: targetOrders.flatMap(o => o.items || []),
+          subTotal: targetOrders.reduce((s, o) => s + (o.totalAmount || o.total || 0), 0),
+          totalAmount: targetOrders.reduce((s, o) => s + (o.totalAmount || o.total || 0), 0),
+          paymentMethod: 'Cash',
+          paymentStatus: 'PAID',
+          settledAt: new Date()
+        });
+      }
       setDbTables(prev => prev
         .filter(t => !(t.isTemporary && String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase()))
         .map(t => String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase() ? { ...t, status: 'available' } : t)
@@ -1825,6 +1841,21 @@ export default function POSTerminal({
       }
 
       const tableLabel = allSettleTables.length > 1 ? `Tables ${allSettleTables.join(', ')}` : `Table ${tableNumber}`;
+      setLastClearedBill({
+        orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+        tableNumber: tableLabel,
+        customerName: customerName.trim() || currentTableOrders[0]?.customerName || 'Guest',
+        customerPhone: customerPhone.trim() || currentTableOrders[0]?.customerPhone || '',
+        items: [
+          ...currentTableOrders.flatMap(o => o.items || []),
+          ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+        ],
+        subTotal: grandTotal,
+        totalAmount: finalSettledAmount,
+        paymentMethod: settleMethod,
+        paymentStatus: 'PAID',
+        settledAt: new Date()
+      });
       // Auto-remove any settled temporary table and reset permanent tables to available in dbTables state
       setDbTables(prev => prev
         .filter(t => !(t.isTemporary && allSettleTables.some(st => String(t.tableNumber).trim().toLowerCase() === st.toLowerCase())))
@@ -3984,51 +4015,49 @@ export default function POSTerminal({
                                       <span>Print Bill</span>
                                     </button>
 
-                                    {hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.WHATSAPP_SUITE) && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const billOrder = {
-                                            orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
-                                            tableNumber,
-                                            customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
-                                            customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
-                                            items: [
-                                              ...currentTableOrders.flatMap(o => o.items || []),
-                                              ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
-                                            ],
-                                            subTotal: grandTotal,
-                                            totalAmount: grandTotal,
-                                            paymentMethod: paymentMethod || 'Cash',
-                                            paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
-                                          };
-                                          openWhatsappBill(billOrder, tenantInfo, customerPhone);
-                                        }}
-                                        style={{
-                                          padding: '8px 10px',
-                                          borderRadius: '9px',
-                                          border: 'none',
-                                          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                                          color: '#ffffff',
-                                          fontSize: '0.78rem',
-                                          fontWeight: 800,
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          gap: '6px',
-                                          whiteSpace: 'nowrap',
-                                          boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
-                                          transition: 'all 0.15s ease'
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
-                                        title="Send WhatsApp Digital E-Bill"
-                                      >
-                                        <FaWhatsapp size={16} />
-                                        <span>WhatsApp E-Bill</span>
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const billOrder = {
+                                          orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
+                                          tableNumber,
+                                          customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
+                                          customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+                                          items: [
+                                            ...currentTableOrders.flatMap(o => o.items || []),
+                                            ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
+                                          ],
+                                          subTotal: grandTotal,
+                                          totalAmount: grandTotal,
+                                          paymentMethod: paymentMethod || 'Cash',
+                                          paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
+                                        };
+                                        openWhatsappBill(billOrder, tenantInfo, customerPhone);
+                                      }}
+                                      style={{
+                                        padding: '8px 10px',
+                                        borderRadius: '9px',
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                        color: '#ffffff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                      onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}
+                                      title="Send WhatsApp Digital E-Bill"
+                                    >
+                                      <FaWhatsapp size={16} />
+                                      <span>WhatsApp E-Bill</span>
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -6858,6 +6887,102 @@ export default function POSTerminal({
         onClose={() => setShowWhatsAppModal(false)}
         tenantInfo={tenantInfo}
       />
+
+      {/* Floating Cleared Table Quick Bill & WhatsApp Dispatcher */}
+      <AnimatePresence>
+        {lastClearedBill && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              right: '24px',
+              zIndex: 99999,
+              background: '#0f172a',
+              color: '#ffffff',
+              borderRadius: '14px',
+              padding: '12px 18px',
+              boxShadow: '0 12px 35px rgba(0,0,0,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              border: '1px solid #334155'
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={15} color="#38bdf8" />
+                {lastClearedBill.tableNumber} Cleared & Settled
+              </div>
+              <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                Amount: ₹{Math.round(lastClearedBill.totalAmount || lastClearedBill.subTotal)} • {lastClearedBill.paymentMethod}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => openWhatsappBill(lastClearedBill, tenantInfo, lastClearedBill.customerPhone)}
+                style={{
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '9px',
+                  padding: '7px 12px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.4)'
+                }}
+              >
+                <FaWhatsapp size={15} />
+                <span>WhatsApp Bill</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => printOrderBill(lastClearedBill, tenantInfo?.name)}
+                style={{
+                  background: '#1e293b',
+                  color: '#e2e8f0',
+                  border: '1px solid #475569',
+                  borderRadius: '9px',
+                  padding: '7px 11px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <Printer size={14} />
+                <span>Print</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLastClearedBill(null)}
+                style={{
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  padding: '0 4px',
+                  lineHeight: 1
+                }}
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

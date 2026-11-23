@@ -207,10 +207,19 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
 
   const completedOrders = useMemo(() => filteredOrders.filter(o => o.status === 'completed'), [filteredOrders]);
   const totalGrossRevenue = useMemo(() => completedOrders.reduce((acc, o) => acc + getOrderAmount(o), 0), [completedOrders]);
+  const totalNetSales = useMemo(() => {
+    return completedOrders.reduce((sum, o) => {
+      if (o.subtotal) return sum + Number(o.subtotal);
+      if (o.subTotal) return sum + Number(o.subTotal);
+      const gross = getOrderAmount(o);
+      const tax = Number(o.taxAmount || 0);
+      return sum + (tax > 0 ? (gross - tax) : Math.round(gross / 1.05));
+    }, 0);
+  }, [completedOrders]);
   const totalCompletedCount = completedOrders.length;
   const activeOrdersCount = useMemo(() => filteredOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length, [filteredOrders]);
   const totalOrdersCount = filteredOrders.length;
-  const avgTicketSize = totalCompletedCount > 0 ? Math.round(totalGrossRevenue / totalCompletedCount) : 0;
+  const avgTicketSize = totalCompletedCount > 0 ? Math.round(totalNetSales / totalCompletedCount) : 0;
 
   const paymentBreakdown = useMemo(() => {
     const pb = { Cash: 0, UPI: 0, Card: 0, Khata: 0 };
@@ -285,10 +294,19 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
 
   const dailyCompletedOrders = useMemo(() => dailyOrders.filter(o => o.status === 'completed'), [dailyOrders]);
   const dailyGrossRevenue = useMemo(() => dailyCompletedOrders.reduce((sum, o) => sum + getOrderAmount(o), 0), [dailyCompletedOrders]);
+  const dailyNetSales = useMemo(() => {
+    return dailyCompletedOrders.reduce((sum, o) => {
+      if (o.subtotal) return sum + Number(o.subtotal);
+      if (o.subTotal) return sum + Number(o.subTotal);
+      const gross = getOrderAmount(o);
+      const tax = Number(o.taxAmount || 0);
+      return sum + (tax > 0 ? (gross - tax) : Math.round(gross / 1.05));
+    }, 0);
+  }, [dailyCompletedOrders]);
   const dailyTotalOrderCount = dailyOrders.length;
   const dailyCompletedCount = dailyCompletedOrders.length;
   const dailyCancelledCount = useMemo(() => dailyOrders.filter(o => o.status === 'cancelled').length, [dailyOrders]);
-  const dailyAvgTicket = dailyCompletedCount > 0 ? Math.round(dailyGrossRevenue / dailyCompletedCount) : 0;
+  const dailyAvgTicket = dailyCompletedCount > 0 ? Math.round(dailyNetSales / dailyCompletedCount) : 0;
 
   const dailyPaymentSplit = useMemo(() => {
     const pb = { Cash: 0, UPI: 0, Card: 0, Khata: 0 };
@@ -773,11 +791,11 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
               <>
                 <div className={styles.kpiCard}>
                   <div>
-                    <div className={styles.kpiTitle}>Total Gross Revenue</div>
-                    <div className={styles.kpiValue}>₹{totalGrossRevenue.toLocaleString()}</div>
+                    <div className={styles.kpiTitle}>Total Net Sales (In-Hand)</div>
+                    <div className={styles.kpiValue}>₹{totalNetSales.toLocaleString()}</div>
                     <div className={styles.kpiSubtitle}>
                       <ArrowUpRight size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                      From {totalCompletedCount} Completed Orders
+                      Gross: ₹{totalGrossRevenue.toLocaleString()} • {totalCompletedCount} Settled Orders
                     </div>
                   </div>
                   <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
@@ -1460,10 +1478,10 @@ export default function ReportsSuite({ initialOrders = [], tenantInfo: propTenan
               <>
                 <div className={styles.kpiCard}>
                   <div>
-                    <div className={styles.kpiTitle}>Daily Gross Revenue</div>
-                    <div className={styles.kpiValue}>₹{dailyGrossRevenue.toLocaleString()}</div>
+                    <div className={styles.kpiTitle}>Daily Net Sales (In-Hand)</div>
+                    <div className={styles.kpiValue}>₹{dailyNetSales.toLocaleString()}</div>
                     <div className={styles.kpiSubtitle}>
-                      From {dailyCompletedCount} settled orders
+                      Gross: ₹{dailyGrossRevenue.toLocaleString()} • {dailyCompletedCount} settled orders
                     </div>
                   </div>
                   <div className={styles.kpiIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
