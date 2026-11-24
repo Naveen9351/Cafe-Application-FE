@@ -197,7 +197,7 @@ export default function Cart() {
         tableNumber: tableNumber || "Online Order",
         status: "pending",
         paymentStatus: "pending",
-        paymentMethod: effectivePaymentMethod,
+        paymentMethod: null, // Unpaid order has no finalized payment method until payment is made
         customerDetails: {
           name: effectiveCustomer.name || "Guest",
           phone: effectiveCustomer.phone || "",
