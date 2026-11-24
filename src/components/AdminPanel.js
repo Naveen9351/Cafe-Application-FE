@@ -851,7 +851,19 @@ export default function AdminPanel() {
   const [tables, setTables] = useState([]);
   const [tableFilterTab, setTableFilterTab] = useState('all'); // 'all', 'available', 'occupied', 'bill'
   const [selectedTableModal, setSelectedTableModal] = useState(null);
+  const [tableModalPaymentMethod, setTableModalPaymentMethod] = useState('UPI');
   const [isSettlingTable, setIsSettlingTable] = useState(false);
+
+  useEffect(() => {
+    if (selectedTableModal?.activeOrder) {
+      const pm = String(selectedTableModal.activeOrder.paymentMethod || '').trim().toLowerCase();
+      if (pm.includes('cash')) {
+        setTableModalPaymentMethod('Cash');
+      } else {
+        setTableModalPaymentMethod('UPI');
+      }
+    }
+  }, [selectedTableModal]);
 
   // Fetch Tables from API
   const fetchTables = async () => {
@@ -901,20 +913,35 @@ export default function AdminPanel() {
     return list.length > 0 ? list[0] : null;
   }, [getActiveOrdersForTable]);
 
-  const handleSettleTable = async (tableNumber) => {
+  const handleSettleTable = async (tableNumber, settleData = {}) => {
     if (!tableNumber) return;
     setIsSettlingTable(true);
     try {
       const token = localStorage.getItem('token');
+      let method = settleData.paymentMethod || 'Cash';
+      if (typeof method === 'string' && method.trim()) {
+        const low = method.trim().toLowerCase();
+        if (low.includes('upi') || low.includes('gpay')) method = 'UPI';
+        else if (low.includes('card')) method = 'Card';
+        else if (low.includes('khata') || low.includes('borrow')) method = 'Khata / Borrow';
+        else method = 'Cash';
+      }
+
       await axios.put(`${API}/orders/table/${encodeURIComponent(tableNumber)}/settle`, {
-        paymentMethod: 'cash',
-        paymentStatus: 'paid'
+        paymentMethod: method,
+        paymentStatus: 'paid',
+        discountAmount: Number(settleData.discount) || 0,
+        tipAmount: Number(settleData.tip) || 0,
+        customerName: settleData.customerName || '',
+        customerPhone: settleData.customerPhone || '',
+        freeTable: true
       }, {
         headers: { 'x-auth-token': token }
       });
-      toast.success(`Table ${tableNumber} settled & marked available!`);
+      toast.success(`Table ${tableNumber} settled (${method}) & marked available!`);
       setSelectedTableModal(null);
       fetchOrders();
+      fetchTables();
     } catch (err) {
       toast.error('Failed to settle table: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -5600,6 +5627,53 @@ export default function AdminPanel() {
                             </div>
                           </div>
 
+                          {/* Quick Payment Mode Selector for Dine-in Settlement */}
+                          {(selectedTableModal.activeOrder?.status === 'ready' || selectedTableModal.activeOrder?.status === 'served') && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderRadius: '10px', marginBottom: '10px', border: '1px solid #e2e8f0' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Settlement Mode:</span>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setTableModalPaymentMethod('UPI')}
+                                  style={{
+                                    padding: '5px 12px',
+                                    borderRadius: '7px',
+                                    border: tableModalPaymentMethod === 'UPI' ? '1.5px solid #ea580c' : '1px solid #cbd5e1',
+                                    background: tableModalPaymentMethod === 'UPI' ? '#fff7ed' : '#ffffff',
+                                    color: tableModalPaymentMethod === 'UPI' ? '#ea580c' : '#64748b',
+                                    fontWeight: 800,
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}
+                                >
+                                  📱 UPI
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTableModalPaymentMethod('Cash')}
+                                  style={{
+                                    padding: '5px 12px',
+                                    borderRadius: '7px',
+                                    border: tableModalPaymentMethod === 'Cash' ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                                    background: tableModalPaymentMethod === 'Cash' ? '#f0fdf4' : '#ffffff',
+                                    color: tableModalPaymentMethod === 'Cash' ? '#16a34a' : '#64748b',
+                                    fontWeight: 800,
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}
+                                >
+                                  💵 Cash
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Modal Action Buttons */}
                           <div style={{ display: 'flex', gap: 10 }}>
                             <button
@@ -5650,21 +5724,21 @@ export default function AdminPanel() {
                               <button
                                 type="button"
                                 disabled={isSettlingTable}
-                                onClick={() => handleSettleTable(selectedTableModal.table?.tableNumber)}
+                                onClick={() => handleSettleTable(selectedTableModal.table?.tableNumber, { paymentMethod: tableModalPaymentMethod })}
                                 style={{
                                   flex: 1.4,
                                   padding: '11px',
                                   borderRadius: '10px',
                                   border: 'none',
-                                  background: '#10b981',
+                                  background: tableModalPaymentMethod === 'UPI' ? '#ea580c' : '#10b981',
                                   color: '#ffffff',
                                   fontWeight: 600,
                                   fontSize: '13px',
                                   cursor: 'pointer',
-                                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                                  boxShadow: tableModalPaymentMethod === 'UPI' ? '0 4px 12px rgba(234, 88, 12, 0.3)' : '0 4px 12px rgba(16, 185, 129, 0.3)'
                                 }}
                               >
-                                {isSettlingTable ? 'Settling...' : '✓ Settle & Free Table'}
+                                {isSettlingTable ? 'Settling...' : `✓ Settle & Free (${tableModalPaymentMethod})`}
                               </button>
                             ) : (
                               <button

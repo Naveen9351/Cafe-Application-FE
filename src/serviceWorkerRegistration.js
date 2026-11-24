@@ -18,10 +18,15 @@ export function register(config) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
-                  console.log('New SERVIQ PWA update available. Close tabs or refresh to apply.');
+                  console.log('New SERVIQ PWA update available. Activating immediately...');
+                  try {
+                    installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                  } catch (e) {}
+
                   if (config && config.onUpdate) {
                     config.onUpdate(registration);
                   }
+                  window.dispatchEvent(new CustomEvent('app-update-available', { detail: { registration } }));
                 } else {
                   console.log('SERVIQ PWA content is cached for offline use.');
                   if (config && config.onSuccess) {
@@ -31,6 +36,13 @@ export function register(config) {
               }
             };
           };
+
+          // Also check for service worker updates every 3 minutes
+          setInterval(() => {
+            try {
+              registration.update();
+            } catch (e) {}
+          }, 3 * 60 * 1000);
         })
         .catch((error) => {
           console.warn('Error during SERVIQ PWA Service Worker registration:', error);

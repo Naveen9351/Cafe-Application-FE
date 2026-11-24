@@ -56,10 +56,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML Navigation requests: Network First with Cache Fallback
+  // HTML Navigation requests: Always fetch fresh HTML from network with no-cache, fallback to cache only when offline
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
