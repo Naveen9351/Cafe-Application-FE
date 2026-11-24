@@ -1992,6 +1992,54 @@ export default function POSTerminal({
     }
   };
 
+  // Dedicated helper to print pro-forma / estimate / draft bill before payment
+  const handlePrintDraftBill = (overrideTotal) => {
+    const activeItems = (currentTableOrders || []).flatMap(o => o.items || []);
+    const draftItems = (cart || []).map(c => ({
+      name: c.name,
+      price: c.price,
+      quantity: c.quantity,
+      variant: c.variant,
+      addons: c.addons,
+      modifier: c.variant?.name || ''
+    }));
+
+    const allItems = [...activeItems, ...draftItems];
+    if (allItems.length === 0) {
+      toast.error('Cart is empty. Add items to print bill.');
+      return;
+    }
+
+    const calculatedSubtotal = allItems.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
+    const finalAmount = (typeof overrideTotal === 'number' && overrideTotal > 0)
+      ? overrideTotal
+      : (draftCartTotal > 0 ? draftCartTotal : grandTotal || calculatedSubtotal);
+
+    const billOrder = {
+      orderNumber: currentTableOrders[0]?.orderNumber || `EST-${Date.now().toString().slice(-4)}`,
+      tableNumber: tableNumber || 'Walk-in',
+      orderType: (tableNumber && tableNumber !== 'Walk-in') ? 'dine_in' : 'takeaway',
+      customerName: customerName || currentTableOrders[0]?.customerName || 'Walk-in Guest',
+      customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
+      items: allItems,
+      subTotal: calculatedSubtotal,
+      totalAmount: finalAmount,
+      total: finalAmount,
+      discountAmount: Number(settlementDiscount) || 0,
+      paymentMethod: settlementSubMethod || paymentMethod || 'Cash',
+      paymentStatus: 'ESTIMATE / UNPAID',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      printOrderBill(billOrder, tenantInfo?.name);
+      toast.success('Bill receipt sent to printer!');
+    } catch (err) {
+      console.warn('Print bill error:', err);
+      toast.error('Could not open print window.');
+    }
+  };
+
   // Quick Thermal Print Receipt simulation
   const handlePrintReceipt = (e, tblNum, amount) => {
     if (e) e.stopPropagation();
@@ -3815,9 +3863,35 @@ export default function POSTerminal({
                       {/* Dynamic Action Buttons */}
                       {(hasDraftItems || hasActiveOrders) && (
                         <>
-                          {(isCounterBillingOnly && tableNumber === 'Walk-in') ? (
+                          {(isCounterBillingOnly || !hasTableSuite || tableNumber === 'Walk-in') ? (
                             hasDraftItems && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '6px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '8px', width: '100%', marginTop: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrintDraftBill()}
+                                  style={{
+                                    padding: '11px 10px',
+                                    borderRadius: '10px',
+                                    border: '1.5px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#1e293b',
+                                    fontSize: '0.86rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 6,
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                                  title="Print Bill / Estimate before payment"
+                                >
+                                  <Printer size={16} color="#334155" />
+                                  <span>Print Bill</span>
+                                </button>
                                 <button
                                   type="button"
                                   className={styles.paidOrderBtn}
@@ -3834,8 +3908,8 @@ export default function POSTerminal({
                                   disabled={isSubmittingItemPay || isSubmittingDirect}
                                   style={{
                                     width: '100%',
-                                    padding: '13px 18px',
-                                    fontSize: '1rem',
+                                    padding: '12px 14px',
+                                    fontSize: '0.94rem',
                                     fontWeight: 800,
                                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                                     color: '#ffffff',
@@ -3846,11 +3920,11 @@ export default function POSTerminal({
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: 8
+                                    gap: 7
                                   }}
                                   title="Collect payment and generate bill"
                                 >
-                                  <CreditCard size={18} />
+                                  <CreditCard size={17} />
                                   <span>Pay & Bill (₹{formatAmount(draftCartTotal)})</span>
                                 </button>
                               </div>
@@ -3969,27 +4043,11 @@ export default function POSTerminal({
                                 )}
 
                                 {/* Quick Thermal Print Bill & WhatsApp E-Bill */}
-                                {hasActiveOrders && (
+                                {(hasActiveOrders || hasDraftItems) && (
                                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', marginTop: '8px' }}>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        const billOrder = {
-                                          orderNumber: currentTableOrders[0]?.orderNumber || `TBL-${tableNumber}`,
-                                          tableNumber,
-                                          customerName: customerName || currentTableOrders[0]?.customerName || 'Guest',
-                                          customerPhone: customerPhone || currentTableOrders[0]?.customerPhone || '',
-                                          items: [
-                                            ...currentTableOrders.flatMap(o => o.items || []),
-                                            ...cart.map(c => ({ name: c.name, price: c.price, quantity: c.quantity, variant: c.variant }))
-                                          ],
-                                          subTotal: grandTotal,
-                                          totalAmount: grandTotal,
-                                          paymentMethod: paymentMethod || 'Cash',
-                                          paymentStatus: balanceDue === 0 ? 'PAID' : 'PENDING'
-                                        };
-                                        printOrderBill(billOrder, tenantInfo?.name);
-                                      }}
+                                      onClick={() => handlePrintDraftBill()}
                                       style={{
                                         padding: '8px 10px',
                                         borderRadius: '9px',
@@ -4969,7 +5027,7 @@ export default function POSTerminal({
                 </div>
               )}
 
-              {/* Action Buttons: Cancel and Confirm */}
+              {/* Action Buttons: Cancel, Print Bill and Confirm */}
               <div style={{ display: 'flex', gap: '7px' }}>
                 <button
                   type="button"
@@ -4987,6 +5045,29 @@ export default function POSTerminal({
                   }}
                 >
                   Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrintDraftBill(finalPayable)}
+                  style={{
+                    flex: 1.2,
+                    height: '38px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #cbd5e1',
+                    background: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    color: '#1e293b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px'
+                  }}
+                  title="Print Pro-forma / Estimate receipt before paying"
+                >
+                  <Printer size={15} color="#475569" />
+                  <span>Print Bill</span>
                 </button>
                 <button
                   type="button"

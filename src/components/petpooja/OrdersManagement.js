@@ -117,6 +117,15 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     fetchOrders(ordersPage, search, paymentFilter, statusFilter, sortBy);
   }, [ordersPage]);
 
+  // Debounced search when user types in search bar
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    const timer = setTimeout(() => {
+      fetchOrders(1, search, paymentFilter, statusFilter, sortBy);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Click outside listener for filter popover
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -322,13 +331,24 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         const payMethod = (o.paymentMethod || '').toLowerCase();
 
         // 1. Search Query (Order #, Name, Phone, Table)
-        if (search) {
-          const q = search.toLowerCase();
+        if (search && search.trim()) {
+          const q = search.trim().toLowerCase();
           const orderNum = String(o.orderNumber || o._id || '').toLowerCase();
           const name = String(o.customerName || o.customerDetails?.name || '').toLowerCase();
           const phone = String(o.customerPhone || o.customerDetails?.phone || '');
-          const tbl = String(o.tableNumber || o.table || '').toLowerCase();
-          const matches = orderNum.includes(q) || name.includes(q) || phone.includes(q) || tbl.includes(q);
+          const rawTbl = String(o.tableNumber || o.table || '').toLowerCase();
+          const cleanTbl = rawTbl.replace(/^(?:table\s*(?:no\.?|#|-)?\s*|t-?\s*)/i, '').trim();
+
+          const tablePrefixMatch = q.match(/^(?:table\s*(?:no\.?|#|-)?\s*|t-?\s*)(\w+)/i);
+          const cleanQueryTable = tablePrefixMatch ? tablePrefixMatch[1].toLowerCase().trim() : (q.replace(/\D/g, '').trim() || q);
+
+          const tableMatches = rawTbl.includes(q) ||
+            cleanTbl === cleanQueryTable ||
+            cleanTbl.includes(cleanQueryTable) ||
+            rawTbl.includes(cleanQueryTable) ||
+            (cleanQueryTable && `table ${cleanTbl}` === q);
+
+          const matches = orderNum.includes(q) || name.includes(q) || phone.includes(q) || tableMatches;
           if (!matches) return false;
         }
 
@@ -510,7 +530,44 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         </div>
 
         <div className={styles.headerActions}>
-
+          {/* Header Instant Search Bar */}
+          <div className={styles.searchField} style={{ position: 'relative', minWidth: '180px', maxWidth: '280px' }}>
+            <Search size={14} className={styles.searchIcon} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search table, order, phone..."
+              value={search}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearch(val);
+                setDraftSearch(val);
+                setOrdersPage(1);
+              }}
+              className={styles.modalSearchInput}
+              style={{
+                paddingLeft: '2.1rem',
+                paddingRight: '1.8rem',
+                height: '34px',
+                fontSize: '0.8rem',
+                borderRadius: '8px',
+                border: '1.5px solid #cbd5e1',
+                background: '#ffffff',
+                width: '100%',
+                outline: 'none'
+              }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={handleRemoveSearch}
+                className={styles.clearBtn}
+                title="Clear search"
+                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
 
           {/* Combined Filter Button */}
           <button

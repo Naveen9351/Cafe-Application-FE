@@ -1218,9 +1218,30 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </div>
         </div>
 
-        <div className={styles.subNotice}>
-          <ShieldCheck size={16} color="#4f46e5" style={{ flexShrink: 0 }} />
-          <span>Subscription tiers and renewals are managed by Platform Super Admin. Contact support for custom enterprise tiers.</span>
+        <div className={styles.subNotice} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShieldCheck size={16} color="#4f46e5" style={{ flexShrink: 0 }} />
+            <span>Subscription tiers and renewals are managed exclusively by Platform Super Admin.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowUpgradeModal(true)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#4f46e5',
+              color: '#ffffff',
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <Sparkles size={13} /> Contact Admin to Upgrade
+          </button>
         </div>
 
         {/* History table */}
@@ -1810,11 +1831,10 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               type="button"
               className={styles.planUpgradeBtn}
               onClick={() => {
-                setPaymentStep('select');
                 setShowUpgradeModal(true);
               }}
             >
-              <Sparkles size={12} /> Upgrade Plan
+              <Sparkles size={12} /> Contact Admin to Upgrade
             </button>
           </div>
         </aside>
@@ -1939,7 +1959,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       </div>
 
       {/* ========================================================= */}
-      {/* IN-APP PLAN UPGRADE & SECURE PAYMENT GATEWAY MODAL         */}
+      {/* ADMIN-MANAGED PLAN UPGRADE & SUPPORT MODAL               */}
       {/* ========================================================= */}
       {showUpgradeModal && (
         <div style={{
@@ -1952,12 +1972,12 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           alignItems: 'center',
           justifyContent: 'center',
           padding: '16px'
-        }} onClick={() => { if (!isUpgrading) setShowUpgradeModal(false); }}>
+        }} onClick={() => setShowUpgradeModal(false)}>
           <div style={{
             background: '#ffffff',
             borderRadius: '20px',
             width: '100%',
-            maxWidth: paymentStep === 'checkout' ? '640px' : '720px',
+            maxWidth: '560px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             padding: '24px',
             maxHeight: '92vh',
@@ -1965,388 +1985,189 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           }} onClick={(e) => e.stopPropagation()}>
 
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Sparkles size={20} color="#2563eb" />
-                  {paymentStep === 'select' && 'Upgrade DINEVIQ Subscription'}
-                  {paymentStep === 'checkout' && 'Secure Checkout & Payment Gateway'}
-                  {paymentStep === 'verifying' && 'Payment Verification'}
-                  {paymentStep === 'success' && 'Payment Verified & Plan Activated!'}
-                </h3>
-                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                  {paymentStep === 'select' && 'Choose your plan to activate premium capabilities.'}
-                  {paymentStep === 'checkout' && 'Complete payment via UPI QR, Cards, or NetBanking to activate.'}
-                  {paymentStep === 'verifying' && 'Connecting to Razorpay & Banking Network...'}
-                  {paymentStep === 'success' && 'Your subscription invoice and payment have been confirmed.'}
-                </p>
-              </div>
-              {!isUpgrading && (
-                <button
-                  type="button"
-                  onClick={() => setShowUpgradeModal(false)}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-                >
-                  <X size={20} />
-                </button>
-              )}
-            </div>
-
-            {/* STEP 1: SELECT PLAN */}
-            {paymentStep === 'select' && (
-              <div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-                  {AVAILABLE_PLANS.map(plan => {
-                    const isSelected = selectedPlanToUpgrade.id === plan.id;
-                    return (
-                      <div
-                        key={plan.id}
-                        onClick={() => setSelectedPlanToUpgrade(plan)}
-                        style={{
-                          border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                          background: isSelected ? '#eff6ff' : '#ffffff',
-                          borderRadius: '14px',
-                          padding: '16px',
-                          cursor: 'pointer',
-                          position: 'relative',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {plan.popular && (
-                          <span style={{
-                            position: 'absolute',
-                            top: -10,
-                            right: 12,
-                            background: '#2563eb',
-                            color: '#ffffff',
-                            fontSize: '9.5px',
-                            fontWeight: 800,
-                            padding: '2px 8px',
-                            borderRadius: '100px'
-                          }}>
-                            BEST VALUE
-                          </span>
-                        )}
-                        <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>{plan.name}</h4>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#2563eb', marginBottom: '10px' }}>
-                          ₹{plan.price.toLocaleString()}
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}> / {plan.period}</span>
-                        </div>
-                        <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.75rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {plan.features.map((f, i) => (
-                            <li key={i}>{f}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldCheck size={22} />
                 </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowUpgradeModal(false)}
-                    style={{ padding: '10px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentStep('checkout')}
-                    style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                  >
-                    <Lock size={15} /> Proceed to Secure Payment (₹{selectedPlanToUpgrade.price})
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2: SECURE CHECKOUT GATEWAY */}
-            {paymentStep === 'checkout' && (
-              <div>
-                {/* Order Summary Box */}
-                <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.85rem', color: '#475569' }}>
-                    <span>Selected Plan:</span>
-                    <strong style={{ color: '#0f172a' }}>{selectedPlanToUpgrade.name} ({selectedPlanToUpgrade.period})</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.85rem', color: '#475569' }}>
-                    <span>GST (18% inclusive):</span>
-                    <strong style={{ color: '#0f172a' }}>₹{Math.round(selectedPlanToUpgrade.price * 0.18)}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: 900, color: '#16a34a', borderTop: '1px dashed #cbd5e1', paddingTop: 6, marginTop: 4 }}>
-                    <span>Total Amount Payable:</span>
-                    <span>₹{selectedPlanToUpgrade.price}</span>
-                  </div>
-                </div>
-
-                {/* Gateway Method Selector Tabs */}
-                <div style={{ marginBottom: 16 }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 8 }}>
-                    Select Payment Mode:
-                  </span>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setPayMethod('upi_qr')}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: payMethod === 'upi_qr' ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                        background: payMethod === 'upi_qr' ? '#eff6ff' : '#ffffff',
-                        color: payMethod === 'upi_qr' ? '#2563eb' : '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 4
-                      }}
-                    >
-                      <QrCode size={18} />
-                      <span>UPI Dynamic QR</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPayMethod('upi_vpa')}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: payMethod === 'upi_vpa' ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                        background: payMethod === 'upi_vpa' ? '#eff6ff' : '#ffffff',
-                        color: payMethod === 'upi_vpa' ? '#2563eb' : '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 4
-                      }}
-                    >
-                      <Smartphone size={18} />
-                      <span>UPI ID / VPA</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPayMethod('card')}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: payMethod === 'card' ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                        background: payMethod === 'card' ? '#eff6ff' : '#ffffff',
-                        color: payMethod === 'card' ? '#2563eb' : '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 4
-                      }}
-                    >
-                      <CreditCard size={18} />
-                      <span>Card / NetBanking</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Method Specific UI */}
-                {payMethod === 'upi_qr' && (
-                  <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
-                    <div style={{ display: 'inline-block', padding: '10px', background: '#ffffff', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=dineviq.payments@icici&pn=DINEVIQ%20Cafe%20OS&am=${selectedPlanToUpgrade.price}&cu=INR&tn=Plan_${selectedPlanToUpgrade.id}`}
-                        alt="UPI Payment QR Code"
-                        style={{ width: '150px', height: '150px', display: 'block' }}
-                      />
-                    </div>
-                    <div style={{ marginTop: 10, fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
-                      Scan using Google Pay, PhonePe, Paytm, or any UPI App
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2 }}>
-                      Merchant: DINEVIQ Enterprise Payments | VPA: <code>dineviq.payments@icici</code>
-                    </div>
-                  </div>
-                )}
-
-                {payMethod === 'upi_vpa' && (
-                  <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                      Enter your UPI ID (VPA)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. mobileNumber@upi / yourname@okaxis"
-                      value={upiVpa}
-                      onChange={(e) => setUpiVpa(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 6 }}>
-                      A collect request for ₹{selectedPlanToUpgrade.price} will be initiated to your UPI app.
-                    </div>
-                  </div>
-                )}
-
-                {payMethod === 'card' && (
-                  <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Card Number</label>
-                      <input
-                        type="text"
-                        placeholder="4532 •••• •••• 8921"
-                        maxLength="19"
-                        value={cardData.number}
-                        onChange={(e) => setCardData({ ...cardData, number: e.target.value })}
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Expiry (MM/YY)</label>
-                        <input
-                          type="text"
-                          placeholder="12/28"
-                          maxLength="5"
-                          value={cardData.expiry}
-                          onChange={(e) => setCardData({ ...cardData, expiry: e.target.value })}
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>CVV / CVC</label>
-                        <input
-                          type="password"
-                          placeholder="•••"
-                          maxLength="4"
-                          value={cardData.cvv}
-                          onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })}
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Gateway Footer Actions */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentStep('select')}
-                    style={{ padding: '9px 16px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
-                  >
-                    Back
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleProcessSecurePayment}
-                    disabled={isUpgrading}
-                    style={{
-                      padding: '10px 24px',
-                      borderRadius: '10px',
-                      border: 'none',
-                      background: '#16a34a',
-                      color: '#ffffff',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)'
-                    }}
-                  >
-                    <Lock size={15} />
-                    <span>Pay & Activate (₹{selectedPlanToUpgrade.price})</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: VERIFYING STATE */}
-            {paymentStep === 'verifying' && (
-              <div style={{ textAlign: 'center', padding: '40px 10px' }}>
-                <div style={{ display: 'inline-block', animation: 'spin 1s linear infinite', marginBottom: 16 }}>
-                  <RefreshCw size={40} color="#2563eb" />
-                </div>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
-                  Verifying Payment with Bank Gateway...
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                  Authenticating transaction of ₹{selectedPlanToUpgrade.price}. Please do not close this window.
-                </p>
-              </div>
-            )}
-
-            {/* STEP 4: PAYMENT SUCCESS & INVOICE RECEIPT */}
-            {paymentStep === 'success' && paymentReceipt && (
-              <div style={{ padding: '10px 0' }}>
-                <div style={{ textAlign: 'center', marginBottom: 18 }}>
-                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                    <Check size={28} />
-                  </div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Payment Verified & Activated!</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                    Your subscription has been successfully updated.
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+                    Plan Upgrades & Add-ons
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                    Managed directly by Platform Super Admin
                   </p>
                 </div>
-
-                {/* Tax Invoice Breakdown */}
-                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 20, fontSize: '0.82rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 8, marginBottom: 8, fontWeight: 700 }}>
-                    <span style={{ color: '#64748b' }}>Tax Invoice No:</span>
-                    <span style={{ color: '#0f172a' }}>{paymentReceipt.invoiceNo}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ color: '#64748b' }}>Transaction ID:</span>
-                    <code style={{ color: '#2563eb', fontWeight: 700 }}>{paymentReceipt.paymentId}</code>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ color: '#64748b' }}>Payment Mode:</span>
-                    <span style={{ color: '#0f172a', fontWeight: 600 }}>{paymentReceipt.method}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ color: '#64748b' }}>Upgraded Plan:</span>
-                    <strong style={{ color: '#0f172a' }}>{paymentReceipt.planName}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ color: '#64748b' }}>Payment Date & Time:</span>
-                    <span style={{ color: '#0f172a' }}>{paymentReceipt.date}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: 8, marginTop: 8, fontSize: '0.95rem', fontWeight: 900, color: '#16a34a' }}>
-                    <span>Amount Paid (Net):</span>
-                    <span>₹{paymentReceipt.amount}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => { window.print(); }}
-                    style={{ padding: '9px 16px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#334155', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem' }}
-                  >
-                    <Printer size={15} /> Print Tax Receipt
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUpgradeModal(false);
-                      setPaymentStep('select');
-                      window.location.reload();
-                    }}
-                    style={{ padding: '10px 22px', borderRadius: '10px', border: 'none', background: '#2563eb', color: '#ffffff', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem' }}
-                  >
-                    Finish & Refresh Workspace
-                  </button>
-                </div>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
 
+            {/* Current Status Box */}
+            <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Active Cafe:</span>
+                <strong style={{ fontSize: '0.88rem', color: '#0f172a' }}>{tenantInfo?.name || 'My Cafe'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Current Plan:</span>
+                <span style={{
+                  background: '#dcfce7',
+                  color: '#15803d',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700
+                }}>
+                  {tenantInfo?.subscription?.plan === 'pro' || tenantInfo?.subscription?.plan === '1_year' ? 'Pro Plan (₹999)' :
+                   tenantInfo?.subscription?.plan === 'growth' || tenantInfo?.subscription?.plan === '6_months' ? 'Growth Plan (₹799)' :
+                   tenantInfo?.subscription?.plan === 'custom' ? 'Custom Plan' :
+                   'Starter Plan (₹499)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Plan Validity:</span>
+                <span style={{ fontSize: '0.82rem', color: '#334155', fontWeight: 600 }}>
+                  {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Lifetime Active'}
+                </span>
+              </div>
+            </div>
+
+            {/* Notice / Info */}
+            <div style={{
+              background: '#eff6ff',
+              border: '1.5px solid #bfdbfe',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '18px',
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'flex-start'
+            }}>
+              <Sparkles size={20} color="#2563eb" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.82rem', color: '#1e3a8a', lineHeight: 1.5 }}>
+                <strong>Self-service upgrade is disabled for cafe accounts.</strong>
+                <p style={{ margin: '4px 0 0 0' }}>
+                  All plan upgrades (Starter → Growth → Pro), custom add-ons (WhatsApp marketing, KDS, Multi-floor), and billing cycle renewals are configured directly by the Platform Super Admin to ensure instant provisioning and verified accounts.
+                </p>
+              </div>
+            </div>
+
+            {/* Direct Admin Contact Actions */}
+            <div style={{ marginBottom: 18 }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 10 }}>
+                Contact Super Admin to Upgrade:
+              </span>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* WhatsApp */}
+                <a
+                  href={`https://wa.me/919680132562?text=${encodeURIComponent(`Hi DINEVIQ Admin, I want to upgrade the subscription plan for my cafe: "${tenantInfo?.name || ''}". Please assist with plan details and activation.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: '#25D366',
+                    color: '#ffffff',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                    boxShadow: '0 4px 12px rgba(37, 211, 102, 0.25)',
+                    transition: 'transform 0.1s ease'
+                  }}
+                >
+                  <FaWhatsapp size={20} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800 }}>Chat with Admin on WhatsApp</div>
+                    <div style={{ fontSize: '0.72rem', opacity: 0.9 }}>Fastest response for instant plan activation</div>
+                  </div>
+                  <ChevronRight size={18} />
+                </a>
+
+                {/* Phone Call */}
+                <a
+                  href="tel:+919680132562"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: '#f8fafc',
+                    border: '1.5px solid #cbd5e1',
+                    color: '#0f172a',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.88rem'
+                  }}
+                >
+                  <div style={{ width: 32, height: 32, borderRadius: '8px', background: '#e0e7ff', color: '#4338ca', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Phone size={16} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700 }}>Call Support: +91 96801 32562</div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Mon-Sun 9:00 AM - 10:00 PM IST</div>
+                  </div>
+                  <ChevronRight size={18} color="#94a3b8" />
+                </a>
+
+                {/* Email */}
+                <a
+                  href={`mailto:support@dineviq.com?subject=${encodeURIComponent(`Plan Upgrade Request - ${tenantInfo?.name || 'Cafe'}`)}&body=${encodeURIComponent(`Hello Super Admin,\n\nI would like to upgrade the subscription plan for my cafe: ${tenantInfo?.name || ''}.\n\nCurrent Plan: ${tenantInfo?.subscription?.plan || 'Starter'}\nPhone: ${tenantInfo?.phone || ''}\n\nPlease contact me with upgrade options.\n\nThank you.`)}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: '#f8fafc',
+                    border: '1.5px solid #cbd5e1',
+                    color: '#0f172a',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.88rem'
+                  }}
+                >
+                  <div style={{ width: 32, height: 32, borderRadius: '8px', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Mail size={16} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700 }}>Email Support: support@dineviq.com</div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Official enterprise ticketing & invoices</div>
+                  </div>
+                  <ChevronRight size={18} color="#94a3b8" />
+                </a>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#475569',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

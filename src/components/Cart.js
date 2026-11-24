@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   QrCode,
   Smartphone,
+  Banknote,
   Check,
   Copy,
   ExternalLink,
@@ -56,7 +57,7 @@ export default function Cart() {
   const [tenantInfo, setTenantInfo] = useState({ name: "Cafe" });
   const [isPlacing, setIsPlacing] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('counter');
+  const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'UPI' or 'Cash'
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [upiCountdown, setUpiCountdown] = useState(300);
   const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
@@ -143,7 +144,7 @@ export default function Cart() {
     }
   }, [searchParams]);
 
-  const executeOrderPlacement = async (activeCustomer = customer) => {
+  const executeOrderPlacement = async (activeCustomer = customer, chosenMethod = paymentMethod) => {
     const isVerificationRequired = tenantInfo?.settings?.enableCustomerOtp !== false;
     // 1. Validate Customer Verification if required
     if (isVerificationRequired && !activeCustomer?.verified) {
@@ -171,6 +172,8 @@ export default function Cart() {
       isGuest: true
     };
 
+    const effectivePaymentMethod = (chosenMethod || paymentMethod || 'UPI').toUpperCase().includes('CASH') ? 'Cash' : 'UPI';
+
     setIsPlacing(true);
     try {
       const payload = {
@@ -194,7 +197,7 @@ export default function Cart() {
         tableNumber: tableNumber || "Online Order",
         status: "pending",
         paymentStatus: "pending",
-        paymentMethod: "counter",
+        paymentMethod: effectivePaymentMethod,
         customerDetails: {
           name: effectiveCustomer.name || "Guest",
           phone: effectiveCustomer.phone || "",
@@ -493,13 +496,21 @@ export default function Cart() {
       isGuest: true
     };
 
-    executeOrderPlacement(effectiveCustomer);
+    if (paymentMethod === 'UPI') {
+      setIsUpiModalOpen(true);
+    } else {
+      executeOrderPlacement(effectiveCustomer, 'Cash');
+    }
   };
 
   const handleVerificationSuccess = (verifiedUser) => {
     setCustomer(verifiedUser);
     setIsVerificationOpen(false);
-    executeOrderPlacement(verifiedUser);
+    if (paymentMethod === 'UPI') {
+      setIsUpiModalOpen(true);
+    } else {
+      executeOrderPlacement(verifiedUser, 'Cash');
+    }
   };
 
   const total = getCartTotal();
@@ -905,6 +916,107 @@ export default function Cart() {
                 />
               </div>
 
+              {/* Payment Mode Selection (Customer Choose UPI vs Cash) */}
+              <div style={{
+                backgroundColor: theme.bgCard,
+                border: `1.5px solid ${theme.border}`,
+                borderRadius: '16px',
+                padding: '14px',
+                marginBottom: '1rem',
+                boxShadow: isDarkMode ? '0 4px 14px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.04)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CreditCard size={17} color={theme.accent} />
+                    <span style={{ fontSize: '0.92rem', fontWeight: 800, color: theme.textMain }}>
+                      Select Payment Method
+                    </span>
+                  </div>
+                  <span style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: paymentMethod === 'UPI' ? '#16a34a' : '#d97706',
+                    background: paymentMethod === 'UPI' ? (isDarkMode ? '#052e16' : '#dcfce7') : (isDarkMode ? '#451a03' : '#fef3c7'),
+                    padding: '2px 8px',
+                    borderRadius: '100px',
+                    border: `1px solid ${paymentMethod === 'UPI' ? '#86efac' : '#fde68a'}`
+                  }}>
+                    {paymentMethod === 'UPI' ? '● UPI Selected' : '● Cash Selected'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {/* UPI Option */}
+                  <motion.div
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setPaymentMethod('UPI')}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      padding: '12px 10px',
+                      borderRadius: '12px',
+                      border: paymentMethod === 'UPI' ? `2px solid ${theme.accent}` : `1.5px solid ${theme.border}`,
+                      backgroundColor: paymentMethod === 'UPI' ? (isDarkMode ? '#2b1b11' : '#fff7ed') : (isDarkMode ? '#1a130e' : '#f8fafc'),
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      position: 'relative',
+                      boxShadow: paymentMethod === 'UPI' ? `0 4px 14px ${theme.accentGlow}` : 'none'
+                    }}
+                  >
+                    {paymentMethod === 'UPI' && (
+                      <div style={{ position: 'absolute', top: 7, right: 7, width: 18, height: 18, borderRadius: '50%', background: theme.accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                      <QrCode size={19} color={paymentMethod === 'UPI' ? theme.accent : theme.textMuted} />
+                      <Smartphone size={17} color={paymentMethod === 'UPI' ? theme.accent : theme.textMuted} />
+                    </div>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: paymentMethod === 'UPI' ? theme.accent : theme.textMain }}>
+                      UPI / QR Pay
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: theme.textMuted, marginTop: 2, textAlign: 'center', fontWeight: 600 }}>
+                      GPay • PhonePe • Paytm
+                    </span>
+                  </motion.div>
+
+                  {/* Cash Option */}
+                  <motion.div
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setPaymentMethod('Cash')}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      padding: '12px 10px',
+                      borderRadius: '12px',
+                      border: paymentMethod === 'Cash' ? `2px solid #16a34a` : `1.5px solid ${theme.border}`,
+                      backgroundColor: paymentMethod === 'Cash' ? (isDarkMode ? '#13231a' : '#f0fdf4') : (isDarkMode ? '#1a130e' : '#f8fafc'),
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      position: 'relative',
+                      boxShadow: paymentMethod === 'Cash' ? '0 4px 14px rgba(22, 163, 74, 0.2)' : 'none'
+                    }}
+                  >
+                    {paymentMethod === 'Cash' && (
+                      <div style={{ position: 'absolute', top: 7, right: 7, width: 18, height: 18, borderRadius: '50%', background: '#16a34a', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                      <Banknote size={20} color={paymentMethod === 'Cash' ? '#16a34a' : theme.textMuted} />
+                    </div>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: paymentMethod === 'Cash' ? '#16a34a' : theme.textMain }}>
+                      Cash
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: theme.textMuted, marginTop: 2, textAlign: 'center', fontWeight: 600 }}>
+                      Pay at Counter
+                    </span>
+                  </motion.div>
+                </div>
+              </div>
+
               {/* Bill Details Box */}
               <div className={styles.summary} style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}>
                 <div className={styles.summaryHeader} style={{ color: theme.textMain }}>
@@ -934,7 +1046,7 @@ export default function Cart() {
                   </span>
                 </div>
 
-                {/* Action Button: Simple Direct Place Order */}
+                {/* Action Button: Dynamic based on chosen Payment Method */}
                 <motion.button
                   whileHover={!isPlacing ? { scale: 1.02 } : {}}
                   whileTap={!isPlacing ? { scale: 0.96 } : {}}
@@ -942,17 +1054,27 @@ export default function Cart() {
                   onClick={handlePlaceOrder}
                   className={styles.checkoutBtn}
                   style={{
-                    background: `linear-gradient(135deg, ${theme.accent}, #c2410c)`,
-                    boxShadow: `0 4px 18px ${theme.accentGlow}`,
+                    background: paymentMethod === 'UPI'
+                      ? `linear-gradient(135deg, ${theme.accent}, #c2410c)`
+                      : `linear-gradient(135deg, #16a34a, #15803d)`,
+                    boxShadow: paymentMethod === 'UPI'
+                      ? `0 4px 18px ${theme.accentGlow}`
+                      : `0 4px 18px rgba(22, 163, 74, 0.35)`,
                     cursor: isPlacing ? 'not-allowed' : 'pointer',
-                    marginTop: '1.25rem'
+                    marginTop: '1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
                   }}
                 >
-                  <Utensils size={18} />
+                  {paymentMethod === 'UPI' ? <QrCode size={18} /> : <Banknote size={18} />}
                   <span>
                     {isPlacing
                       ? "Placing Your Order..."
-                      : `Place Order • ₹${Math.round(total)}`}
+                      : paymentMethod === 'UPI'
+                        ? `Pay via UPI • ₹${Math.round(total)}`
+                        : `Place Order (Cash) • ₹${Math.round(total)}`}
                   </span>
                 </motion.button>
               </div>
@@ -1350,31 +1472,59 @@ export default function Cart() {
                         </div>
                       </div>
 
-                      {/* Single Checkmark Confirmation Button */}
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        disabled={isPlacing}
-                        onClick={() => executeDirectUpiOrder(customer)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 14px',
-                          borderRadius: '10px',
-                          border: 'none',
-                          background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                          color: '#ffffff',
-                          fontSize: '0.92rem',
-                          fontWeight: 800,
-                          cursor: isPlacing ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
-                        }}
-                      >
-                        <Check size={16} strokeWidth={2.5} />
-                        <span>{isPlacing ? "Confirming Order..." : `I Have Paid • ₹${Math.round(total)}`}</span>
-                      </motion.button>
+                      {/* Actions in UPI Modal */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          disabled={isPlacing}
+                          onClick={() => executeDirectUpiOrder(customer)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                            color: '#ffffff',
+                            fontSize: '0.92rem',
+                            fontWeight: 800,
+                            cursor: isPlacing ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            boxShadow: '0 3px 10px rgba(22, 163, 74, 0.3)'
+                          }}
+                        >
+                          <Check size={16} strokeWidth={2.5} />
+                          <span>{isPlacing ? "Confirming Order..." : `I Have Paid via UPI • ₹${Math.round(total)}`}</span>
+                        </motion.button>
+
+                        <button
+                          type="button"
+                          disabled={isPlacing}
+                          onClick={() => {
+                            setIsUpiModalOpen(false);
+                            executeOrderPlacement(customer, 'UPI');
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: `1px solid ${theme.border}`,
+                            background: isDarkMode ? '#1e1814' : '#f8fafc',
+                            color: theme.textMuted,
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <span>Place Order &amp; Pay UPI Later at Counter</span>
+                        </button>
+                      </div>
                     </>
                   );
                 })()
