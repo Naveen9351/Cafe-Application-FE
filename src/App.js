@@ -72,25 +72,27 @@ const SubdomainGuard = () => {
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
+  const hasToken = typeof window !== 'undefined' && Boolean(localStorage.getItem('token') || localStorage.getItem('serviq_auth_token'));
 
-  if (loading) {
+  // If verifying auth with no existing token, show initial loader
+  if (loading && !hasToken) {
     return <PageLoader duration={400} />;
   }
 
   // If on billing.dineviq.com, all operational dashboards MUST run on www.dineviq.com
   if (typeof window !== 'undefined' && isBillingOrAdminSubdomain()) {
     window.location.replace(`https://www.dineviq.com${window.location.pathname}${window.location.search}`);
-    return <PageLoader duration={300} />;
+    return null;
   }
 
-  if (!user) {
+  if (!loading && !user) {
     return <Navigate to="/login" replace />;
   }
 
   const effectiveRoles = allowedRoles || ALL_STAFF_ROLES;
-  const userRole = (user.role || 'staff').toLowerCase();
+  const userRole = (user?.role || 'staff').toLowerCase();
 
-  if (!effectiveRoles.includes(userRole) && userRole !== 'super_admin') {
+  if (!loading && user && !effectiveRoles.includes(userRole) && userRole !== 'super_admin') {
     return <Navigate to="/" replace />;
   }
 
@@ -191,7 +193,7 @@ const LoginRoute = () => {
 
 function AppRoutes() {
   return (
-    <Suspense fallback={<PageLoader duration={200} />}>
+    <Suspense fallback={null}>
       <Routes>
         {/* Root Route: If on billing.dineviq.com, opens Login directly; else shows Landing Page (or dashboard if logged in) */}
         <Route path="/" element={<HomeRoute />} />

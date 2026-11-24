@@ -955,6 +955,19 @@
   font-weight: 500;
 }
 
+.paymentPaidKhata {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 0.16rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
 .paymentUnpaid {
   display: inline-flex;
   align-items: center;

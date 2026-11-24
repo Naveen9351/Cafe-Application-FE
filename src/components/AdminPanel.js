@@ -8,11 +8,12 @@ import {
   ChefHat, Truck, UserCheck, Share2, Sparkles, Upload, ImagePlus, ImageIcon, Settings, Bell, HelpCircle, Volume2, Volume1, VolumeX, Play,
   TrendingDown, CheckSquare, Square, Download, Filter, Star, Clock, Check, ArrowUpRight, Flame, Layers,
   ChevronRight, ChevronLeft, RefreshCw, Smartphone, CreditCard, Calendar, Percent, DollarSign, AlertTriangle, CheckCircle2,
-  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote, Lock, MessageSquare
+  Activity, Zap, Eye, ArrowRight, ShieldCheck, Award, Users, Receipt, PieChart, Minus, BookOpen, Menu as MenuIcon, Globe, Banknote, Lock, MessageSquare, Printer
 } from 'lucide-react';
 import { MODULE_KEYS, getEffectiveTenantModules, getModuleDef, hasModuleAccess } from '../config/subscriptionPlans';
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import QRCodeComponent from './QRCodeComponent';
 import VegNonVegBadge from './common/VegNonVegBadge';
 import TableOperationsHub from './TableOperationsHub';
@@ -32,6 +33,7 @@ import { TableMatrixSkeleton, MetricsGridSkeleton, DishGridSkeleton, ShimmerBloc
 import skeletonStyles from './common/SkeletonLoader.module.css';
 import styles from './AdminPanel.module.css';
 import BrandLogo from './BrandLogo';
+import CinematicLoader from './common/CinematicLoader';
 import { resolveFoodImage, getSafeDishImage } from '../utils/foodImageResolver';
 import usePWAInstall from '../hooks/usePWAInstall';
 import PWAInstallModal from './pwa/PWAInstallModal';
@@ -40,6 +42,7 @@ import { useTranslation } from '../utils/translations';
 import { playOrderChime, getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
 import { formatTableBadge } from './common/TableBadge';
 import { openWhatsappBill } from '../utils/whatsappBillSender';
+import { printOrderBill } from '../utils/billPrinter';
 
 // Standard Categories (No dummy categories: only real categories added by the cafe or imported)
 const standardCategories = [
@@ -205,6 +208,34 @@ export default function AdminPanel() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [showSupportModal, setShowSupportModal] = useState(false);
+
+  // Responsive Table Matrix layout: 5-5 grid on big screens, 4-4 grid on smaller screens
+  const [isLargeScreen, setIsLargeScreen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1280;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1280);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Cinematic Intro-to-Dashboard Loading Transition State
+  const [isInitialDashboardReady, setIsInitialDashboardReady] = useState(false);
+  const [cinematicLoaderCompleted, setCinematicLoaderCompleted] = useState(false);
+
+  useEffect(() => {
+    // Fallback ready timer in case cafe has 0 orders or 0 tables
+    const readyTimer = setTimeout(() => {
+      setIsInitialDashboardReady(true);
+    }, 950);
+    return () => clearTimeout(readyTimer);
+  }, []);
 
   const [tenantInfo, setTenantInfo] = useState(null);
 
@@ -728,6 +759,23 @@ export default function AdminPanel() {
   // Dashboard-specific Orders State (Controlled by Dashboard Date Filter only)
   const [dashboardOrders, setDashboardOrders] = useState([]);
   const [activeKpiModal, setActiveKpiModal] = useState(null); // 'gross' | 'net' | 'aov' | 'orders' | null
+  const [activePaymentModal, setActivePaymentModal] = useState(null); // 'cash' | 'upi' | 'card' | 'khata' | null
+  const [paymentModalStatusTab, setPaymentModalStatusTab] = useState('all'); // 'all' | 'paid' | 'unpaid'
+  const [paymentModalSearch, setPaymentModalSearch] = useState('');
+  const [selectedPaymentOrder, setSelectedPaymentOrder] = useState(null);
+  const [ordersInitialFilter, setOrdersInitialFilter] = useState('all');
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   // 7-Day Notification History State
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
@@ -853,6 +901,13 @@ export default function AdminPanel() {
   const [selectedTableModal, setSelectedTableModal] = useState(null);
   const [tableModalPaymentMethod, setTableModalPaymentMethod] = useState('UPI');
   const [isSettlingTable, setIsSettlingTable] = useState(false);
+
+  // Synchronize cinematic loader exit when initial dashboard data arrives
+  useEffect(() => {
+    if ((dashboardOrders && dashboardOrders.length > 0) || (tables && tables.length > 0)) {
+      setIsInitialDashboardReady(true);
+    }
+  }, [dashboardOrders?.length, tables?.length]);
 
   useEffect(() => {
     if (selectedTableModal?.activeOrder) {
@@ -2585,6 +2640,14 @@ export default function AdminPanel() {
 
   return (
     <div className={styles.adminLayout}>
+      {/* Cinematic Intro-to-Dashboard Loading Transition */}
+      {!cinematicLoaderCompleted && (
+        <CinematicLoader
+          isReady={isInitialDashboardReady}
+          onComplete={() => setCinematicLoaderCompleted(true)}
+        />
+      )}
+
       <Toaster position="top-right" containerStyle={{ zIndex: 9999999 }} toastOptions={{ style: { zIndex: 9999999 } }}>
         {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
       </Toaster>
@@ -4252,6 +4315,550 @@ export default function AdminPanel() {
                     )}
                   </AnimatePresence>
 
+                  {/* EXPANDING PAYMENT METHOD ORDERS AUDIT POPUP (Shared Layout Animation identical to Gross KPI) */}
+                  <AnimatePresence>
+                    {activePaymentModal && (() => {
+                      const allMethods = [
+                        {
+                          id: 'cash',
+                          name: isHindi ? 'कैश (रोकड़)' : 'Cash in Register',
+                          shortName: 'Cash',
+                          amt: metrics.paymentBreakdown?.Cash || 0,
+                          orders: metrics.paymentCounts?.Cash || 0,
+                          color: '#10b981',
+                          bgLight: '#ecfdf5',
+                          Icon: Banknote
+                        },
+                        {
+                          id: 'upi',
+                          name: isHindi ? 'यूपीआई / ऑनलाइन' : 'UPI / GPay / QR',
+                          shortName: 'UPI',
+                          amt: metrics.paymentBreakdown?.UPI || 0,
+                          orders: metrics.paymentCounts?.UPI || 0,
+                          color: '#3b82f6',
+                          bgLight: '#eff6ff',
+                          Icon: Smartphone
+                        },
+                        {
+                          id: 'card',
+                          name: isHindi ? 'कार्ड (डेबिट/क्रेडिट)' : 'Debit / Credit Card',
+                          shortName: 'Card',
+                          amt: metrics.paymentBreakdown?.Card || 0,
+                          orders: metrics.paymentCounts?.Card || 0,
+                          color: '#8b5cf6',
+                          bgLight: '#f5f3ff',
+                          Icon: CreditCard
+                        },
+                        {
+                          id: 'khata',
+                          name: isHindi ? 'खाता (उधार लेजर)' : 'Khata / Borrow Credit',
+                          shortName: 'Khata',
+                          amt: metrics.paymentBreakdown?.Khata || 0,
+                          orders: metrics.paymentCounts?.Khata || 0,
+                          color: '#f59e0b',
+                          bgLight: '#fffbeb',
+                          Icon: BookOpen
+                        }
+                      ];
+
+                      const curMethod = allMethods.find(m => m.id === activePaymentModal) || allMethods[1];
+                      const CurIcon = curMethod.Icon;
+
+                      // Source orders: use dashboardOrders if populated, fallback to orders
+                      const srcOrders = (dashboardOrders && dashboardOrders.length > 0) ? dashboardOrders : (orders || []);
+
+                      // Filter by payment method
+                      const methodOrders = srcOrders.filter(o => {
+                        if (o.status === 'cancelled') return false;
+                        const rawM = String(o.paymentMethod || o.items?.find(it => it.itemPaymentMethod)?.itemPaymentMethod || '').toLowerCase();
+                        const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid' || o.isPaid;
+
+                        if (activePaymentModal === 'upi') {
+                          return rawM.includes('upi') || rawM.includes('gpay') || rawM.includes('phonepe') || rawM.includes('paytm') || rawM.includes('qr') || rawM.includes('online');
+                        }
+                        if (activePaymentModal === 'card') {
+                          return rawM.includes('card') || rawM.includes('debit') || rawM.includes('credit');
+                        }
+                        if (activePaymentModal === 'khata') {
+                          return rawM.includes('khata') || rawM.includes('borrow') || rawM.includes('ledger') || o.paymentStatus === 'khata';
+                        }
+                        // Default: cash
+                        return rawM.includes('cash') || (!rawM && isPaid);
+                      });
+
+                      const totalMethodAmount = methodOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+                      const paidOrders = methodOrders.filter(o => (o.paymentStatus || '').toLowerCase() === 'paid' || o.isPaid);
+                      const unpaidOrders = methodOrders.filter(o => !((o.paymentStatus || '').toLowerCase() === 'paid' || o.isPaid));
+
+                      // Filter by status tab (all / paid / unpaid)
+                      let statusFiltered = methodOrders;
+                      if (paymentModalStatusTab === 'paid') statusFiltered = paidOrders;
+                      else if (paymentModalStatusTab === 'unpaid') statusFiltered = unpaidOrders;
+
+                      // Filter by search query
+                      const finalOrders = statusFiltered.filter(o => {
+                        if (!paymentModalSearch.trim()) return true;
+                        const q = paymentModalSearch.toLowerCase().trim();
+                        const ordNum = String(o.orderNumber || o._id?.slice(-5) || '').toLowerCase();
+                        const cust = String(o.customerName || o.customerDetails?.name || '').toLowerCase();
+                        const ph = String(o.customerPhone || o.customerDetails?.phone || '').toLowerCase();
+                        const tbl = String(o.tableNumber || o.table || '').toLowerCase();
+                        return ordNum.includes(q) || cust.includes(q) || ph.includes(q) || tbl.includes(q);
+                      });
+
+                      return (
+                        <motion.div
+                          key="payment-backdrop"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(15, 23, 42, 0.45)',
+                            backdropFilter: 'blur(4px)',
+                            WebkitBackdropFilter: 'blur(4px)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 999999,
+                            padding: '16px'
+                          }}
+                          onClick={() => { setActivePaymentModal(null); setSelectedPaymentOrder(null); }}
+                        >
+                          <motion.div
+                            layoutId={`payment-card-${activePaymentModal}`}
+                            transition={{
+                              type: 'spring',
+                              damping: 26,
+                              stiffness: 280
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              background: '#ffffff',
+                              borderRadius: '18px',
+                              width: '100%',
+                              maxWidth: '980px',
+                              maxHeight: '88vh',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.32), 0 0 0 1px rgba(15, 23, 42, 0.08)',
+                              border: '1px solid #e2e8f0',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.16, delay: 0.05 }}
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                                maxHeight: '88vh',
+                                overflow: 'hidden'
+                              }}
+                            >
+                              {/* Single Clean Header */}
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '14px 20px',
+                                borderBottom: '1px solid #e2e8f0',
+                                background: '#ffffff',
+                                gap: '14px',
+                                flexWrap: 'wrap'
+                              }}>
+                                <div>
+                                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+                                    {curMethod.name} Orders & Collections
+                                  </h3>
+                                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                    {dateRange === 'today' ? 'Today' : dateRange === 'this_week' ? 'This Week' : dateRange === 'this_month' ? 'This Month' : dateRange === 'all' ? 'All Time' : 'Filtered'} • {methodOrders.length} orders registered
+                                  </span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  {/* Search Box */}
+                                  <div style={{
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    width: '210px'
+                                  }}>
+                                    <Search size={13} color="#94a3b8" style={{ position: 'absolute', left: 8, pointerEvents: 'none' }} />
+                                    <input
+                                      type="text"
+                                      placeholder="Search order #, table, customer..."
+                                      value={paymentModalSearch}
+                                      onChange={(e) => setPaymentModalSearch(e.target.value)}
+                                      style={{
+                                        width: '100%',
+                                        padding: '5px 24px 5px 26px',
+                                        borderRadius: '7px',
+                                        border: '1px solid #cbd5e1',
+                                        background: '#f8fafc',
+                                        fontSize: '11.5px',
+                                        color: '#0f172a',
+                                        outline: 'none'
+                                      }}
+                                    />
+                                    {paymentModalSearch && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setPaymentModalSearch('')}
+                                        style={{ position: 'absolute', right: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8' }}
+                                      >
+                                        <X size={11} />
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {/* Total Amount Pill */}
+                                  <div style={{
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    color: '#0f172a',
+                                    background: '#f8fafc',
+                                    padding: '5px 12px',
+                                    borderRadius: '7px',
+                                    border: '1px solid #e2e8f0',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    Total: <span style={{ color: curMethod.color }}>₹{Math.round(totalMethodAmount).toLocaleString('en-IN')}</span>
+                                  </div>
+
+                                  {/* Open in Orders Directory Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOrdersInitialFilter(activePaymentModal);
+                                      setActivePaymentModal(null);
+                                      setSelectedPaymentOrder(null);
+                                      handleTabChange('orders');
+                                    }}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      padding: '5px 12px',
+                                      borderRadius: '8px',
+                                      border: '1px solid #cbd5e1',
+                                      background: '#ffffff',
+                                      color: '#334155',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Open in full Orders Directory view"
+                                  >
+                                    <span>Orders Directory</span>
+                                    <ArrowRight size={13} />
+                                  </button>
+
+                                  {/* Close Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActivePaymentModal(null); setSelectedPaymentOrder(null); }}
+                                    style={{
+                                      width: 30,
+                                      height: 30,
+                                      borderRadius: '50%',
+                                      border: 'none',
+                                      background: '#f1f5f9',
+                                      color: '#64748b',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Close"
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Table Body (Scrollable) */}
+                              <div style={{ flex: 1, overflowY: 'auto', maxHeight: 'calc(88vh - 70px)' }}>
+                                {finalOrders.length === 0 ? (
+                                  <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
+                                    <AlertTriangle size={28} color="#94a3b8" style={{ margin: '0 auto 8px' }} />
+                                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#334155' }}>
+                                      No {curMethod.name} orders found
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                                      {paymentModalSearch ? 'Try a different search term or clear the filter.' : 'No orders recorded under this payment method for the selected period.'}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                                    <thead>
+                                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 10 }}>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ORDER ID</th>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>TABLE NO</th>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CUSTOMER</th>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PHONE NUMBER</th>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PAYMENT</th>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>DATE & TIME</th>
+                                        <th style={{ padding: '10px 16px', fontWeight: 700, color: '#475569', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>TOTAL AMOUNT</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {finalOrders.map((ord) => {
+                                        const isPaid = (ord.paymentStatus || '').toLowerCase() === 'paid' || ord.isPaid;
+                                        const rawM = String(ord.paymentMethod || ord.items?.find(it => it.itemPaymentMethod)?.itemPaymentMethod || '').toLowerCase();
+
+                                        let methodLabel = curMethod.shortName;
+                                        if (rawM.includes('upi') || rawM.includes('gpay') || rawM.includes('qr') || rawM.includes('online')) methodLabel = 'UPI';
+                                        else if (rawM.includes('card')) methodLabel = 'Card';
+                                        else if (rawM.includes('khata')) methodLabel = 'Khata';
+                                        else if (rawM.includes('cash')) methodLabel = 'Cash';
+
+                                        const ordAmt = getOrderAmount(ord);
+                                        const custPhone = ord.customerPhone || ord.customerDetails?.phone || '';
+
+                                        return (
+                                          <tr
+                                            key={ord._id}
+                                            onClick={() => setSelectedPaymentOrder(ord)}
+                                            style={{
+                                              borderBottom: '1px solid #f1f5f9',
+                                              cursor: 'pointer',
+                                              transition: 'background 0.12s ease'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            title="Click row to view bill details"
+                                          >
+                                            {/* ORDER ID */}
+                                            <td style={{ padding: '10px 16px', fontWeight: 700, color: '#0f172a' }}>
+                                              #{ord.orderNumber || ord._id?.slice(-5)}
+                                            </td>
+
+                                            {/* TABLE NO */}
+                                            <td style={{ padding: '10px 16px' }}>
+                                              <span style={{
+                                                background: '#eff6ff',
+                                                color: '#2563eb',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                fontWeight: 600,
+                                                fontSize: '11px',
+                                                border: '1px solid #dbeafe'
+                                              }}>
+                                                Table {ord.tableNumber || ord.table || 'Takeaway'}
+                                              </span>
+                                            </td>
+
+                                            {/* CUSTOMER */}
+                                            <td style={{ padding: '10px 16px', color: '#334155', fontWeight: 500 }}>
+                                              {ord.customerName || ord.customerDetails?.name || 'Guest'}
+                                            </td>
+
+                                            {/* PHONE NUMBER */}
+                                            <td style={{ padding: '10px 16px', color: '#64748b', fontFamily: custPhone ? 'monospace' : 'inherit' }}>
+                                              {custPhone && custPhone !== 'Not Provided' ? custPhone : '—'}
+                                            </td>
+
+                                            {/* PAYMENT (Paid • UPI, Paid • Cash, Paid • Card, etc. or Unpaid) */}
+                                            <td style={{ padding: '10px 16px' }}>
+                                              {isPaid ? (
+                                                <span style={{
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                  padding: '2px 8px',
+                                                  borderRadius: '9999px',
+                                                  fontSize: '11px',
+                                                  fontWeight: 600,
+                                                  background: curMethod.bgLight,
+                                                  color: curMethod.color,
+                                                  border: `1px solid ${curMethod.color}40`
+                                                }}>
+                                                  <CheckCircle2 size={11} />
+                                                  <span>Paid • {methodLabel}</span>
+                                                </span>
+                                              ) : (
+                                                <span style={{
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                  padding: '2px 8px',
+                                                  borderRadius: '9999px',
+                                                  fontSize: '11px',
+                                                  fontWeight: 600,
+                                                  background: '#fef2f2',
+                                                  color: '#b91c1c',
+                                                  border: '1px solid #fecaca'
+                                                }}>
+                                                  <Clock size={11} />
+                                                  <span>Unpaid</span>
+                                                </span>
+                                              )}
+                                            </td>
+
+                                            {/* DATE & TIME */}
+                                            <td style={{ padding: '10px 16px', color: '#64748b', fontSize: '11.5px' }}>
+                                              {formatDateTime(ord.createdAt)}
+                                            </td>
+
+                                            {/* TOTAL AMOUNT */}
+                                            <td style={{ padding: '10px 16px', fontWeight: 700, color: '#059669', fontSize: '12.5px', textAlign: 'right' }}>
+                                              ₹{Math.round(ordAmt).toLocaleString('en-IN')}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        </motion.div>
+                      );
+                    })()}
+
+                    {/* Itemized Bill View Drawer / Modal for selected payment order */}
+                    {selectedPaymentOrder && (
+                      <motion.div
+                        key="payment-order-drawer"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                          position: 'fixed',
+                          inset: 0,
+                          background: 'rgba(15, 23, 42, 0.45)',
+                          backdropFilter: 'blur(3px)',
+                          zIndex: 1000000,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '16px'
+                        }}
+                        onClick={() => setSelectedPaymentOrder(null)}
+                      >
+                        <motion.div
+                          initial={{ scale: 0.95, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.95, opacity: 0 }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            background: '#ffffff',
+                            borderRadius: '16px',
+                            width: '100%',
+                            maxWidth: '460px',
+                            maxHeight: '90vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.35)',
+                            border: '1px solid #e2e8f0',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {/* Bill Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '8px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Receipt size={16} />
+                              </div>
+                              <div>
+                                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                                  Order #{selectedPaymentOrder.orderNumber || selectedPaymentOrder._id?.slice(-5)}
+                                </h4>
+                                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                  Table {selectedPaymentOrder.tableNumber || selectedPaymentOrder.table || 'Takeaway'} • {formatDateTime(selectedPaymentOrder.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPaymentOrder(null)}
+                              style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: '#f1f5f9', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+
+                          {/* Customer & Items */}
+                          <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
+                            {/* Customer row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', marginBottom: '12px', fontSize: '12px' }}>
+                              <div>
+                                <strong style={{ color: '#0f172a' }}>{selectedPaymentOrder.customerName || selectedPaymentOrder.customerDetails?.name || 'Guest Diner'}</strong>
+                                {selectedPaymentOrder.customerPhone && <div style={{ color: '#64748b', fontSize: '11px' }}>📞 {selectedPaymentOrder.customerPhone}</div>}
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {(selectedPaymentOrder.customerPhone || selectedPaymentOrder.customerDetails?.phone) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openWhatsappBill(selectedPaymentOrder, tenantInfo)}
+                                    style={{ border: 'none', background: '#dcfce7', color: '#16a34a', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    <MessageSquare size={12} /> WhatsApp
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => printOrderBill(selectedPaymentOrder, tenantInfo)}
+                                  style={{ border: 'none', background: '#f1f5f9', color: '#334155', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  <Printer size={12} /> Print
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Items list */}
+                            <div style={{ fontSize: '12px', border: '1px solid #f1f5f9', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+                              {(selectedPaymentOrder.items || []).map((it, idx) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 10px', borderBottom: idx < selectedPaymentOrder.items.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                                  <div>
+                                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{it.name || it.item?.name || 'Item'}</span>
+                                    <span style={{ color: '#64748b', marginLeft: '6px', fontSize: '11px' }}>×{it.quantity || 1}</span>
+                                  </div>
+                                  <strong style={{ color: '#0f172a' }}>₹{Math.round((Number(it.price) || 0) * (Number(it.quantity) || 1))}</strong>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Calculation Summary */}
+                            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                <span>Subtotal</span>
+                                <span>₹{Math.round(selectedPaymentOrder.subTotal || getOrderAmount(selectedPaymentOrder))}</span>
+                              </div>
+                              {Number(selectedPaymentOrder.taxAmount) > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                  <span>Taxes & GST</span>
+                                  <span>₹{Math.round(selectedPaymentOrder.taxAmount)}</span>
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '13px', color: '#0f172a', paddingTop: '4px', borderTop: '1px solid #e2e8f0' }}>
+                                <span>Total Amount</span>
+                                <span style={{ color: '#059669' }}>₹{Math.round(getOrderAmount(selectedPaymentOrder))}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginTop: '4px', color: '#475569' }}>
+                                <span>Payment Status:</span>
+                                <strong style={{ color: ((selectedPaymentOrder.paymentStatus || '').toLowerCase() === 'paid' || selectedPaymentOrder.isPaid) ? '#059669' : '#dc2626' }}>
+                                  {((selectedPaymentOrder.paymentStatus || '').toLowerCase() === 'paid' || selectedPaymentOrder.isPaid)
+                                    ? `PAID • ${(selectedPaymentOrder.paymentMethod || 'UPI').toUpperCase()}`
+                                    : 'UNPAID'}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* 6. MIDDLE SPLIT: HIGH-TECH REVENUE CHART + LIVE ORDERS FEED */}
                   <div className={styles.dashSplitGridModern}>
                     {/* Left: High-Tech Dynamic Chart Panel */}
@@ -4943,9 +5550,54 @@ export default function AdminPanel() {
                               const pct = totalSales > 0 ? Math.round((m.amt / totalSales) * 100) : 0;
                               const IconComponent = m.Icon;
 
-                              return (
+                              // Calculate method orders, paid, and unpaid counts & totals
+                              const srcOrders = (dashboardOrders && dashboardOrders.length > 0) ? dashboardOrders : (orders || []);
+                              const matchingOrders = srcOrders.filter(o => {
+                                if (o.status === 'cancelled') return false;
+                                const rawM = String(o.paymentMethod || o.items?.find(it => it.itemPaymentMethod)?.itemPaymentMethod || '').toLowerCase();
+                                const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid' || o.isPaid;
+
+                                if (m.id === 'upi') {
+                                  return rawM.includes('upi') || rawM.includes('gpay') || rawM.includes('phonepe') || rawM.includes('paytm') || rawM.includes('qr') || rawM.includes('online');
+                                }
+                                if (m.id === 'card') {
+                                  return rawM.includes('card') || rawM.includes('debit') || rawM.includes('credit');
+                                }
+                                if (m.id === 'khata') {
+                                  return rawM.includes('khata') || rawM.includes('borrow') || rawM.includes('ledger') || o.paymentStatus === 'khata';
+                                }
+                                // Default: cash
+                                return rawM.includes('cash') || (!rawM && isPaid);
+                              });
+
+                              const paidOrders = matchingOrders.filter(o => (o.paymentStatus || '').toLowerCase() === 'paid' || o.isPaid);
+                              const unpaidOrders = matchingOrders.filter(o => !((o.paymentStatus || '').toLowerCase() === 'paid' || o.isPaid));
+                              const paidAmt = paidOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+                              const unpaidAmt = unpaidOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+
+                              return activePaymentModal === m.id ? (
                                 <div
                                   key={m.id}
+                                  style={{
+                                    opacity: 0,
+                                    pointerEvents: 'none',
+                                    visibility: 'hidden',
+                                    minHeight: '110px'
+                                  }}
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <motion.div
+                                  key={m.id}
+                                  layoutId={`payment-card-${m.id}`}
+                                  onClick={() => {
+                                    setActivePaymentModal(m.id);
+                                    setPaymentModalStatusTab('all');
+                                    setPaymentModalSearch('');
+                                    setSelectedPaymentOrder(null);
+                                  }}
+                                  whileHover={{ scale: 1.015, y: -2, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}
+                                  whileTap={{ scale: 0.985 }}
                                   style={{
                                     background: '#ffffff',
                                     border: '1px solid #e2e8f0',
@@ -4953,10 +5605,13 @@ export default function AdminPanel() {
                                     padding: '12px 14px',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    gap: '8px',
-                                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                                    gap: '7px',
+                                    cursor: 'pointer',
+                                    transition: 'box-shadow 0.15s ease',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                    position: 'relative'
                                   }}
+                                  title={`Click to view and audit ${m.name} orders`}
                                 >
                                   {/* Top Row: Icon + Name + Percentage Badge */}
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -4978,30 +5633,54 @@ export default function AdminPanel() {
                                       </span>
                                     </div>
 
-                                    <span style={{
-                                      fontSize: '0.72rem',
-                                      fontWeight: 600,
-                                      background: m.bgLight,
-                                      color: m.color,
-                                      padding: '2px 8px',
-                                      borderRadius: '10px'
-                                    }}>
-                                      {pct}%
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      <span style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: 600,
+                                        background: m.bgLight,
+                                        color: m.color,
+                                        padding: '2px 8px',
+                                        borderRadius: '10px'
+                                      }}>
+                                        {pct}%
+                                      </span>
+                                      <ArrowUpRight size={13} color="#94a3b8" />
+                                    </div>
+                                  </div>
+
+                                  {/* Middle Row: Amount & Total Orders */}
+                                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '1px' }}>
+                                    <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+                                      ₹{m.amt.toLocaleString('en-IN')}
+                                    </span>
+                                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>
+                                      {matchingOrders.length} {matchingOrders.length === 1 ? 'order' : 'orders'}
                                     </span>
                                   </div>
 
-                                  {/* Middle Row: Amount & Orders */}
-                                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '2px' }}>
-                                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
-                                      ₹{m.amt.toLocaleString('en-IN')}
+                                  {/* Paid and Unpaid Breakdown Badges (Directly addressing "show here paid and updaid") */}
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: '#f8fafc',
+                                    borderRadius: '6px',
+                                    padding: '3px 8px',
+                                    fontSize: '0.71rem',
+                                    fontWeight: 600
+                                  }}>
+                                    <span style={{ color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                      <CheckCircle2 size={10} color="#15803d" />
+                                      {paidOrders.length} Paid {paidOrders.length > 0 ? `(₹${Math.round(paidAmt).toLocaleString('en-IN')})` : ''}
                                     </span>
-                                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 400 }}>
-                                      {m.orders} {m.orders === 1 ? 'order' : 'orders'}
+                                    <span style={{ color: unpaidOrders.length > 0 ? '#b91c1c' : '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                      <Clock size={10} color={unpaidOrders.length > 0 ? '#b91c1c' : '#94a3b8'} />
+                                      {unpaidOrders.length} Unpaid {unpaidOrders.length > 0 ? `(₹${Math.round(unpaidAmt).toLocaleString('en-IN')})` : ''}
                                     </span>
                                   </div>
 
                                   {/* Progress Bar */}
-                                  <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
                                     <div
                                       style={{
                                         width: `${pct}%`,
@@ -5012,7 +5691,7 @@ export default function AdminPanel() {
                                       }}
                                     />
                                   </div>
-                                </div>
+                                </motion.div>
                               );
                             })}
                           </div>
@@ -5165,10 +5844,12 @@ export default function AdminPanel() {
                       return String(a.tableNumber || '').localeCompare(String(b.tableNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
                     });
 
-                    // If > 8 tables, show first 7 tables and 8th tile is "View More" card
-                    const hasMoreTables = sortedDisplayTables.length > 8;
-                    const previewTables = hasMoreTables ? sortedDisplayTables.slice(0, 7) : sortedDisplayTables.slice(0, 8);
-                    const remainingCount = sortedDisplayTables.length - 7;
+                    // Responsive grid: 5-5 (10 slots) on big screen, 4-4 (8 slots) on small/medium screen
+                    const maxSlots = isLargeScreen ? 10 : 8;
+                    const previewLimit = maxSlots - 1;
+                    const hasMoreTables = sortedDisplayTables.length > maxSlots;
+                    const previewTables = hasMoreTables ? sortedDisplayTables.slice(0, previewLimit) : sortedDisplayTables.slice(0, maxSlots);
+                    const remainingCount = sortedDisplayTables.length - previewLimit;
 
                     const occupancyRate = tables.length > 0 ? Math.round((occupiedTables.length / tables.length) * 100) : 0;
 
@@ -5281,7 +5962,7 @@ export default function AdminPanel() {
 
                         {/* Dynamic Grid of Real Tables (Petpooja Style: 3 Clean Colors) */}
                         {tables.length === 0 ? (
-                          <TableMatrixSkeleton count={8} />
+                          <TableMatrixSkeleton count={isLargeScreen ? 10 : 8} />
                         ) : (
                           <div className={styles.tableGridContainer}>
                             {previewTables.map((tbl, tblIdx) => {
@@ -5840,6 +6521,7 @@ export default function AdminPanel() {
                     orders={orders}
                     onUpdateStatus={handleUpdateOrderStatus}
                     onNavigateTab={handleTabChange}
+                    initialPaymentFilter={ordersInitialFilter}
                   />
                 </motion.div>
               )}

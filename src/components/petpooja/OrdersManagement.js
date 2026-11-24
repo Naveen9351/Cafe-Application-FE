@@ -6,7 +6,7 @@ import {
   RefreshCw, Download, CheckCircle2, Clock, Eye, Printer,
   Phone, MessageSquare, IndianRupee, AlertCircle, TrendingUp,
   Receipt, Flame, Check, Utensils, Send, ChevronRight, ShieldCheck,
-  Calendar, User, FileSpreadsheet, SlidersHorizontal, RotateCcw
+  Calendar, User, FileSpreadsheet, SlidersHorizontal, RotateCcw, BookOpen
 } from 'lucide-react';
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,7 @@ import { getWhatsappBillUrl as generateWhatsappBillUrl, openWhatsappBill } from 
 import { consolidateOrderItems } from '../../utils/orderConsolidation';
 export { consolidateOrderItems };
 
-export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus, onNavigateTab }) {
+export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus, onNavigateTab, initialPaymentFilter = 'all' }) {
   const [localOrders, setLocalOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -25,7 +25,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
   // Applied Filter States
   const [search, setSearch] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('all'); // 'all', 'paid', 'unpaid', 'upi', 'cash', 'card'
+  const [paymentFilter, setPaymentFilter] = useState(initialPaymentFilter || 'all'); // 'all', 'paid', 'unpaid', 'upi', 'cash', 'card', 'khata'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'preparing', 'ready', 'completed', 'cancelled'
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'highest_amount', 'lowest_amount'
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -34,7 +34,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
   // Draft Filter States (Used in Filter Modal - Only applied on clicking "Apply Filter")
   const [draftSearch, setDraftSearch] = useState('');
-  const [draftPaymentFilter, setDraftPaymentFilter] = useState('all');
+  const [draftPaymentFilter, setDraftPaymentFilter] = useState(initialPaymentFilter || 'all');
   const [draftStatusFilter, setDraftStatusFilter] = useState('all');
   const [draftSortBy, setDraftSortBy] = useState('newest');
 
@@ -61,7 +61,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         if (q && q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
         if (st && st !== 'all') url += `&status=${encodeURIComponent(st)}`;
         if (pay && pay !== 'all') {
-          if (['upi', 'cash', 'card'].includes(pay)) {
+          if (['upi', 'cash', 'card', 'khata'].includes(pay.toLowerCase())) {
             url += `&paymentMethod=${encodeURIComponent(pay)}`;
           } else {
             url += `&paymentStatus=${encodeURIComponent(pay)}`;
@@ -116,6 +116,16 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     }
     fetchOrders(ordersPage, search, paymentFilter, statusFilter, sortBy);
   }, [ordersPage]);
+
+  // Sync with initialPaymentFilter prop if changed by parent (e.g. Dashboard card click)
+  useEffect(() => {
+    if (initialPaymentFilter && initialPaymentFilter !== paymentFilter) {
+      setPaymentFilter(initialPaymentFilter);
+      setDraftPaymentFilter(initialPaymentFilter);
+      setOrdersPage(1);
+      fetchOrders(1, search, initialPaymentFilter, statusFilter, sortBy);
+    }
+  }, [initialPaymentFilter]);
 
   // Debounced search when user types in search bar
   useEffect(() => {
@@ -355,9 +365,10 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
         // 2. Payment Filter
         if (paymentFilter === 'paid' && payStatus !== 'paid') return false;
         if (paymentFilter === 'unpaid' && payStatus === 'paid') return false;
-        if (paymentFilter === 'upi' && !payMethod.includes('upi')) return false;
-        if (paymentFilter === 'cash' && !payMethod.includes('cash')) return false;
-        if (paymentFilter === 'card' && !payMethod.includes('card')) return false;
+        if (paymentFilter === 'upi' && !(payMethod.includes('upi') || payMethod.includes('gpay') || payMethod.includes('phonepe') || payMethod.includes('paytm') || payMethod.includes('qr') || payMethod.includes('online'))) return false;
+        if (paymentFilter === 'cash' && !(payMethod.includes('cash') || !payMethod)) return false;
+        if (paymentFilter === 'card' && !(payMethod.includes('card') || payMethod.includes('debit') || payMethod.includes('credit'))) return false;
+        if (paymentFilter === 'khata' && !(payMethod.includes('khata') || payMethod.includes('borrow') || payMethod.includes('ledger') || payStatus === 'khata')) return false;
 
         // 3. Status Filter
         if (statusFilter !== 'all' && status !== statusFilter) return false;
@@ -903,15 +914,40 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                             <XCircle size={11} />
                             <span>Cancelled</span>
                           </span>
-                        ) : (status === 'completed' || status === 'served') ? (
-                          <span className={styles.paymentServed}>
-                            <CheckCircle2 size={11} />
-                            <span>{status === 'served' ? 'Served' : 'Completed'}</span>
+                        ) : (payStatus === 'paid' || ord.isPaid) ? (() => {
+                          const rawM = String(ord.paymentMethod || ord.items?.find(it => it.itemPaymentMethod)?.itemPaymentMethod || '').toLowerCase();
+                          let badgeClass = styles.paymentPaidUpi;
+                          let label = 'UPI';
+
+                          if (rawM.includes('upi') || rawM.includes('gpay') || rawM.includes('qr') || rawM.includes('phonepe') || rawM.includes('paytm') || rawM.includes('online')) {
+                            badgeClass = styles.paymentPaidUpi;
+                            label = 'UPI';
+                          } else if (rawM.includes('card') || rawM.includes('debit') || rawM.includes('credit')) {
+                            badgeClass = styles.paymentPaidCard;
+                            label = 'Card';
+                          } else if (rawM.includes('khata') || rawM.includes('borrow') || rawM.includes('ledger')) {
+                            badgeClass = styles.paymentPaidKhata;
+                            label = 'Khata';
+                          } else {
+                            badgeClass = styles.paymentPaidCash;
+                            label = 'Cash';
+                          }
+
+                          return (
+                            <span className={badgeClass}>
+                              <CheckCircle2 size={11} />
+                              <span>Paid • {label}</span>
+                            </span>
+                          );
+                        })() : payStatus === 'khata' ? (
+                          <span className={styles.paymentPaidKhata}>
+                            <BookOpen size={11} />
+                            <span>Khata • Pending</span>
                           </span>
-                        ) : payStatus === 'paid' ? (
-                          <span className={styles.paymentPaidUpi}>
-                            <CheckCircle2 size={11} />
-                            <span>Paid • {ord.paymentMethod?.toUpperCase() || 'UPI'}</span>
+                        ) : payStatus === 'partial' ? (
+                          <span className={styles.paymentPaidCash}>
+                            <Clock size={11} />
+                            <span>Partial • ₹{ord.paidAmount || 0}</span>
                           </span>
                         ) : (
                           <span className={styles.paymentUnpaid}>
@@ -1324,6 +1360,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
                       <option value="upi">UPI / QR</option>
                       <option value="cash">Cash</option>
                       <option value="card">Credit/Debit Card</option>
+                      <option value="khata">Khata / Credit</option>
                     </select>
                   </div>
 
