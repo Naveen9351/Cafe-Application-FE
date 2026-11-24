@@ -1154,29 +1154,34 @@ export default function AdminPanel() {
     const paymentCounts = { UPI: 0, Cash: 0, Card: 0, Khata: 0 };
 
     validOrders.forEach(o => {
+      const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid';
       const amt = getOrderAmount(o);
       const method = String(o.paymentMethod || '').toLowerCase();
       const isOnline = method.includes('upi') || method.includes('online') || method.includes('card') || o.orderType === 'online' || o.orderType === 'qr';
-      if (isOnline) {
-        onlineSales += amt;
-        onlineOrdersCount += 1;
-      } else {
-        cashSales += amt;
-        cashOrdersCount += 1;
-      }
 
-      if (method.includes('upi') || method.includes('gpay') || method.includes('phonepe') || method.includes('paytm') || method.includes('qr') || method.includes('online')) {
-        paymentBreakdown.UPI += amt;
-        paymentCounts.UPI += 1;
-      } else if (method.includes('card') || method.includes('debit') || method.includes('credit')) {
-        paymentBreakdown.Card += amt;
-        paymentCounts.Card += 1;
-      } else if (method.includes('khata') || method.includes('borrow') || method.includes('ledger')) {
-        paymentBreakdown.Khata += amt;
-        paymentCounts.Khata += 1;
-      } else {
-        paymentBreakdown.Cash += amt;
-        paymentCounts.Cash += 1;
+      // Only realize sales breakdown for orders that have actually been paid!
+      if (isPaid) {
+        if (isOnline) {
+          onlineSales += amt;
+          onlineOrdersCount += 1;
+        } else if (method.includes('cash') || !method) {
+          cashSales += amt;
+          cashOrdersCount += 1;
+        }
+
+        if (method.includes('upi') || method.includes('gpay') || method.includes('phonepe') || method.includes('paytm') || method.includes('qr') || method.includes('online')) {
+          paymentBreakdown.UPI += amt;
+          paymentCounts.UPI += 1;
+        } else if (method.includes('card') || method.includes('debit') || method.includes('credit')) {
+          paymentBreakdown.Card += amt;
+          paymentCounts.Card += 1;
+        } else if (method.includes('khata') || method.includes('borrow') || method.includes('ledger')) {
+          paymentBreakdown.Khata += amt;
+          paymentCounts.Khata += 1;
+        } else {
+          paymentBreakdown.Cash += amt;
+          paymentCounts.Cash += 1;
+        }
       }
     });
 

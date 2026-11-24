@@ -1331,7 +1331,7 @@ export default function POSTerminal({
         name: customerName.trim() || 'Guest',
         phone: customerPhone.trim()
       },
-      paymentMethod,
+      paymentMethod: null, // Payment method is null while order is unpaid/pending; finalized only upon settlement
       status: 'preparing', // Directly marks as "In Kitchen" when sent from POS terminal
       paymentStatus: 'pending',
       items: cart.map(it => ({
@@ -1423,7 +1423,7 @@ export default function POSTerminal({
         name: customerName.trim() || 'Guest',
         phone: customerPhone.trim()
       },
-      paymentMethod,
+      paymentMethod: null, // Payment method is null while order is unpaid/pending; finalized only upon settlement
       isDirect: true,
       status: 'served', // Directly marks as "Served", bypassing kitchen KDS
       paymentStatus: 'pending',
