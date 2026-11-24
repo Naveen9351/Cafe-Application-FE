@@ -1650,6 +1650,8 @@ export default function POSTerminal({
         );
 
         const discountMsg = finalDiscount > 0 ? ` (₹${formatAmount(finalDiscount)} discount applied)` : '';
+        setPaymentMethod(effectiveMethod);
+        setPayItemsMethod(effectiveMethod);
         setActualAmountReceived('');
         setSettlementDiscount('');
         setCashTenderGiven('');
@@ -1716,8 +1718,9 @@ export default function POSTerminal({
       setClearTablePaymentMethod(paymentMethod || 'Cash');
       setShowClearConfirmModal(true);
     } else {
-      // Table is already 100% paid: clear immediately!
-      handleSettleBill(paymentMethod || 'Cash');
+      // Table is already 100% paid: clear immediately with the established payment method!
+      const activePaidMethod = currentTableOrders.find(o => o.paymentMethod)?.paymentMethod || paymentMethod || 'Cash';
+      handleSettleBill(activePaidMethod);
     }
   };
 
@@ -1726,11 +1729,14 @@ export default function POSTerminal({
     const token = localStorage.getItem('token');
     const effectiveTenantId = tenantId || tenantInfo?._id || localStorage.getItem('tenantId') || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId);
 
+    const targetOrders = activeOrdersByTable[String(tNum).trim()] || activeOrdersByTable[String(tNum).replace(/^Table\s*/i, '').trim()] || [];
+    const existingMethod = targetOrders.find(o => o.paymentMethod)?.paymentMethod || 'Cash';
+
     try {
       await axios.put(
         `${API}/orders/table/${encodeURIComponent(String(tNum).trim())}/settle`,
         {
-          paymentMethod: 'Cash',
+          paymentMethod: existingMethod,
           paymentStatus: 'paid',
           tenantId: effectiveTenantId,
           freeTable: true
@@ -1738,7 +1744,6 @@ export default function POSTerminal({
         { headers: token ? { 'x-auth-token': token } : {} }
       );
       // Auto-remove any temporary table or mark permanent table available in dbTables immediately
-      const targetOrders = activeOrdersByTable[String(tNum).trim()] || activeOrdersByTable[String(tNum).replace(/^Table\s*/i, '').trim()] || [];
       if (targetOrders.length > 0) {
         setLastClearedBill({
           orderNumber: targetOrders[0]?.orderNumber || `TBL-${tNum}`,
@@ -1748,7 +1753,7 @@ export default function POSTerminal({
           items: targetOrders.flatMap(o => o.items || []),
           subTotal: targetOrders.reduce((s, o) => s + (o.totalAmount || o.total || 0), 0),
           totalAmount: targetOrders.reduce((s, o) => s + (o.totalAmount || o.total || 0), 0),
-          paymentMethod: 'Cash',
+          paymentMethod: existingMethod,
           paymentStatus: 'PAID',
           settledAt: new Date()
         });

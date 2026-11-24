@@ -12,6 +12,7 @@ import LeadCaptureModal from './components/interactive/LeadCaptureModal';
 import AuthCallback from './components/AuthCallback';
 import { isBillingOrAdminSubdomain } from './utils/subdomain';
 import PWAOpenChooserModal from './components/pwa/PWAOpenChooserModal';
+import AutoUpdateNotification from './components/common/AutoUpdateNotification';
 
 // Route-level code splitting for non-landing pages (reduces initial JS payload by ~70%)
 const Menu = lazy(() => import('./components/Menu'));
@@ -347,6 +348,7 @@ function App() {
           <AppRoutes />
           <PublicChatbotWrapper />
           <PWAOpenChooserModal />
+          <AutoUpdateNotification />
         </Router>
       </CartProvider>
     </AuthProvider>

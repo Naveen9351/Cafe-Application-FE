@@ -46,6 +46,28 @@ export default function TableOperationsHub({
   const [sendWhatsapp, setSendWhatsapp] = useState(false);
   const [showDishesExpanded, setShowDishesExpanded] = useState(true);
 
+  // Auto-sync settlement details from active order when table is selected for payment
+  useEffect(() => {
+    if (selectedTableForPayment?.activeOrder) {
+      const ord = selectedTableForPayment.activeOrder;
+      const pm = String(ord.paymentMethod || '').trim().toLowerCase();
+      if (pm.includes('upi') || pm.includes('gpay')) {
+        setPaymentMethod('upi');
+      } else if (pm.includes('card')) {
+        setPaymentMethod('card');
+      } else {
+        setPaymentMethod('cash');
+      }
+
+      if (ord.customerDetails?.name || ord.customerName) {
+        setCustomerName(ord.customerDetails?.name || ord.customerName || '');
+      }
+      if (ord.customerDetails?.phone || ord.customerPhone) {
+        setCustomerPhone(ord.customerDetails?.phone || ord.customerPhone || '');
+      }
+    }
+  }, [selectedTableForPayment]);
+
   // Helper to match active orders with table
   const getActiveOrdersForTable = (tbl) => {
     if (!tbl) return [];
