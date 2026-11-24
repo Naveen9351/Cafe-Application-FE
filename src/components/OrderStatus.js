@@ -2,24 +2,32 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import styles from "./OrderStatus.module.css";
 import axios from "axios";
-import { 
-  CheckCircle2, 
-  ChefHat, 
-  ShoppingBag, 
-  Plus, 
-  ChevronLeft, 
-  Receipt, 
-  Sparkles, 
-  Utensils, 
-  Moon, 
-  Sun, 
-  AlertCircle, 
+import {
+  CheckCircle2,
+  ChefHat,
+  ShoppingBag,
+  Plus,
+  ChevronLeft,
+  Receipt,
+  Sparkles,
+  Utensils,
+  Moon,
+  Sun,
+  AlertCircle,
   Layers,
   Wallet,
   Check,
   MessageSquare,
   Star,
-  X
+  X,
+  Banknote,
+  QrCode,
+  Smartphone,
+  Copy,
+  ExternalLink,
+  Clock,
+  ShieldCheck,
+  CreditCard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -30,6 +38,8 @@ import RestaurantCafeLottieLoader from "./RestaurantCafeLottieLoader";
 import TableBadge from "./common/TableBadge";
 import CustomerBottomNav from "./common/CustomerBottomNav";
 import { openWhatsappBill } from "../utils/whatsappBillSender";
+import { QRCodeSVG } from "qrcode.react";
+import { GPayIcon, PhonePeIcon, PaytmIcon, BhimIcon, buildUpiUri, buildAppSpecificUpiUri } from "./common/UpiBrandLogos";
 
 const OrderStatus = () => {
   const { id } = useParams();
@@ -64,6 +74,27 @@ const OrderStatus = () => {
     }
   });
 
+  // Get Bill & Payment Mode Modal States
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [billPaymentMethod, setBillPaymentMethod] = useState('UPI'); // 'UPI' or 'Cash'
+  const [isRequestingBill, setIsRequestingBill] = useState(false);
+  const [billPhoneInput, setBillPhoneInput] = useState(() => {
+    try {
+      return localStorage.getItem('customer_phone') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [sendWhatsappCopy, setSendWhatsappCopy] = useState(true);
+  const [billRequestedStatus, setBillRequestedStatus] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(`serviq_bill_req_${id}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const RATING_TAGS = [
     "Delicious Food 🍲",
     "Quick Service ⚡",
@@ -82,7 +113,7 @@ const OrderStatus = () => {
   const handleSkipRating = () => {
     try {
       sessionStorage.setItem(`rating_dismissed_${id}`, 'true');
-    } catch {}
+    } catch { }
     setRatingDismissed(true);
   };
 
@@ -97,7 +128,7 @@ const OrderStatus = () => {
       });
       try {
         localStorage.setItem(`rating_done_${id}`, 'true');
-      } catch {}
+      } catch { }
       setHasRated(true);
       toast.success("Thank you for your feedback! ⭐", { icon: '🎉' });
     } catch (err) {
@@ -112,7 +143,7 @@ const OrderStatus = () => {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {});
+        Notification.requestPermission().catch(() => { });
       }
     }
   }, []);
@@ -181,6 +212,13 @@ const OrderStatus = () => {
     }
   }, [activeRoundIndex, order]);
 
+  // Sync customer phone if loaded from order (MUST be placed before early returns)
+  useEffect(() => {
+    if (order?.customerPhone && !billPhoneInput) {
+      setBillPhoneInput(order.customerPhone);
+    }
+  }, [order?.customerPhone, billPhoneInput]);
+
   const theme = {
     bgPage: isDarkMode ? '#120d09' : '#f8fafc',
     bgCard: isDarkMode ? '#1a130e' : '#ffffff',
@@ -235,7 +273,7 @@ const OrderStatus = () => {
           if (!sessionIds.includes(id)) {
             sessionIds.push(id);
           }
-        } catch (e) {}
+        } catch (e) { }
 
         const res = await axios.get(`${API}/orders/status/${id}`, {
           params: sessionIds.length > 0 ? { sessionIds: sessionIds.join(',') } : {}
@@ -258,7 +296,7 @@ const OrderStatus = () => {
               localStorage.removeItem('serviq_session_orders');
             }
           }
-        } catch (e) {}
+        } catch (e) { }
 
         allOrders.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
@@ -402,10 +440,91 @@ const OrderStatus = () => {
     { id: 'completed', label: 'Completed', icon: Utensils, activeText: '✓ Served', doneText: '✓ Served' },
   ];
 
+  // Compute total running bill across all rounds
+  const totalRunningAmount = Math.round(
+    hasMultipleRounds
+      ? sessionOrders.reduce((sum, ord) => {
+        const sumItems = ord.items ? ord.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
+        return sum + Number(ord.settledAmount || (sumItems > 0 ? sumItems : ord.total) || 0);
+      }, 0)
+      : (() => {
+        const sumItems = order?.items ? order.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
+        return Number(order?.settledAmount || (sumItems > 0 ? sumItems : order?.total) || 0);
+      })()
+  );
+
+  const isAllOrdersPaid = sessionOrders.every(o => o.paymentStatus === 'paid');
+
+  const tenantSettings = order?.tenantId?.settings || {};
+  const cleanUpiId = (tenantSettings.upiId || localStorage.getItem('tenant_upi_id') || '').trim();
+  const cafePayeeName = order?.tenantId?.name || localStorage.getItem('restaurant_name') || 'DINEVIQ CAFE';
+  const upiUri = cleanUpiId ? buildUpiUri({
+    upiId: cleanUpiId,
+    payeeName: cafePayeeName,
+    amount: totalRunningAmount,
+    note: `Table ${tableNumStr} Bill`
+  }) : '';
+
+  const handleConfirmBillRequest = async (chosenMethod = billPaymentMethod) => {
+    if (isRequestingBill) return;
+    setIsRequestingBill(true);
+
+    try {
+      const tid = order?.tenantId?._id || order?.tenantId || localStorage.getItem('tenantId');
+      const custPhone = (billPhoneInput ? billPhoneInput.trim() : '') || order?.customerPhone || localStorage.getItem('customer_phone') || '';
+      const custName = order?.customerName || localStorage.getItem('customer_name') || 'Guest Diner';
+
+      await axios.post(`${API}/tables/service-request`, {
+        tableNumber: tableNumStr,
+        tenantId: tid,
+        customerName: custName,
+        customerPhone: custPhone,
+        type: 'request_bill',
+        paymentMethod: chosenMethod,
+        amount: totalRunningAmount,
+        orderIds: sessionOrders.map(o => o._id).filter(Boolean)
+      });
+
+      const statusObj = {
+        requested: true,
+        method: chosenMethod,
+        timestamp: Date.now()
+      };
+      setBillRequestedStatus(statusObj);
+
+      try {
+        sessionStorage.setItem(`serviq_bill_req_${id}`, JSON.stringify(statusObj));
+        if (custPhone) {
+          localStorage.setItem('customer_phone', custPhone);
+        }
+      } catch (e) { }
+
+      // If user opted for WhatsApp bill and has valid 10 digits
+      if (sendWhatsappCopy && custPhone && custPhone.replace(/\D/g, '').length >= 10) {
+        try {
+          await openWhatsappBill(order, order.tenantId, custPhone);
+        } catch (waErr) { }
+      }
+
+      if (chosenMethod === 'UPI') {
+        toast.success(`🛎️ Bill requested for Table ${tableNumStr}! Staff notified for UPI payment.`, { duration: 4500, icon: '📱' });
+      } else {
+        toast.success(`🛎️ Bill requested for Table ${tableNumStr}! Staff notified for Cash payment.`, { duration: 4500, icon: '💵' });
+      }
+
+      setIsBillModalOpen(false);
+    } catch (err) {
+      console.error('Request bill error:', err);
+      toast.error('Could not alert staff. Please notify staff directly.');
+    } finally {
+      setIsRequestingBill(false);
+    }
+  };
+
   return (
     <div className={styles.container} style={{ backgroundColor: theme.bgPage }}>
       <div className={styles.appContainer} style={{ backgroundColor: theme.bgCard, color: theme.textMain }}>
-        
+
         {/* Sticky Top Header Bar */}
         <div
           className={styles.stickyHeader}
@@ -523,7 +642,7 @@ const OrderStatus = () => {
               <div className={styles.cancelledIconBadge}>
                 <AlertCircle size={26} color="#dc2626" strokeWidth={2.5} />
               </div>
-              
+
               <div className={styles.cancelledPill}>
                 <span>● Cancelled by Kitchen</span>
               </div>
@@ -531,7 +650,7 @@ const OrderStatus = () => {
               <h3 className={styles.cancelledTitle} style={{ color: isDarkMode ? '#fecaca' : '#991b1b' }}>
                 {hasMultipleRounds ? `Round ${currentIdx + 1} Has Been Cancelled` : 'Order Has Been Cancelled'}
               </h3>
-              
+
               <p className={styles.cancelledSubtitle} style={{ color: isDarkMode ? '#f87171' : '#b91c1c' }}>
                 This order was cancelled. Please speak with our restaurant staff or tap below to place fresh items.
               </p>
@@ -608,8 +727,8 @@ const OrderStatus = () => {
                         style={{
                           backgroundColor: iconBg,
                           color: iconColor,
-                          boxShadow: isCurrent 
-                            ? '0 0 0 4px rgba(234, 88, 12, 0.2), 0 4px 14px rgba(234, 88, 12, 0.45)' 
+                          boxShadow: isCurrent
+                            ? '0 0 0 4px rgba(234, 88, 12, 0.2), 0 4px 14px rgba(234, 88, 12, 0.45)'
                             : (isPast ? '0 2px 8px rgba(234, 88, 12, 0.25)' : 'none'),
                           border: `2px solid ${iconBorder}`
                         }}
@@ -617,10 +736,10 @@ const OrderStatus = () => {
                         {isPast ? (
                           <Check size={16} strokeWidth={3} color="#ffffff" />
                         ) : (
-                          <Icon 
-                            size={16} 
-                            strokeWidth={isCurrent ? 2.5 : 2} 
-                            color={isCurrent ? '#ffffff' : theme.textMuted} 
+                          <Icon
+                            size={16}
+                            strokeWidth={isCurrent ? 2.5 : 2}
+                            color={isCurrent ? '#ffffff' : theme.textMuted}
                           />
                         )}
                       </motion.div>
@@ -833,45 +952,109 @@ const OrderStatus = () => {
                 {hasMultipleRounds ? 'Total Running Bill' : 'Total Amount'}
               </span>
               <span className={styles.totalAmount} style={{ color: theme.accent }}>
-                ₹{Math.round(
-                  hasMultipleRounds
-                    ? sessionOrders.reduce((sum, ord) => {
-                        const sumItems = ord.items ? ord.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
-                        return sum + Number(ord.settledAmount || (sumItems > 0 ? sumItems : ord.total) || 0);
-                      }, 0)
-                    : (() => {
-                        const sumItems = order.items ? order.items.reduce((s, it) => s + (Number(it.price || 0) * Number(it.quantity || 1)), 0) : 0;
-                        return Number(order.settledAmount || (sumItems > 0 ? sumItems : order.total) || 0);
-                      })()
-                )}
+                ₹{totalRunningAmount}
               </span>
             </div>
 
-            {/* WhatsApp E-Bill Option */}
-            <button
-              type="button"
-              onClick={() => openWhatsappBill(order)}
-              style={{
-                width: '100%',
-                marginTop: '12px',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                border: '1.5px solid #bbf7d0',
-                background: '#f0fdf4',
-                color: '#15803d',
-                fontSize: '0.85rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 6px rgba(22, 163, 74, 0.08)'
-              }}
-            >
-              <MessageSquare size={16} color="#16a34a" />
-              <span>Get Bill</span>
-            </button>
+            {/* Bill & Payment Request CTA */}
+            {isAllOrdersPaid ? (
+              <button
+                type="button"
+                onClick={() => openWhatsappBill(order, order.tenantId, billPhoneInput)}
+                style={{
+                  width: '100%',
+                  marginTop: '12px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #bbf7d0',
+                  background: '#f0fdf4',
+                  color: '#15803d',
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 6px rgba(22, 163, 74, 0.08)'
+                }}
+              >
+                <MessageSquare size={17} color="#16a34a" />
+                <span>✓ Bill Paid • Get E-Bill on WhatsApp</span>
+              </button>
+            ) : billRequestedStatus?.requested ? (
+              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsBillModalOpen(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #16a34a',
+                    background: '#dcfce7',
+                    color: '#15803d',
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 3px 10px rgba(22, 163, 74, 0.15)'
+                  }}
+                >
+                  <CheckCircle2 size={18} color="#16a34a" />
+                  <span>✓ Bill Requested ({billRequestedStatus.method}) • Staff Notified</span>
+                </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
+                    🛎️ Staff is bringing your bill ({billRequestedStatus.method})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsBillModalOpen(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: theme.accent,
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0
+                    }}
+                  >
+                    Change payment mode
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsBillModalOpen(true)}
+                style={{
+                  width: '100%',
+                  marginTop: '12px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #86efac',
+                  background: '#f0fdf4',
+                  color: '#15803d',
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.12)'
+                }}
+              >
+                <Receipt size={18} color="#16a34a" />
+                <span>💬 Get Bill (UPI / Cash)</span>
+              </button>
+            )}
           </div>
 
           {/* Primary CTA: + Add More Items */}
@@ -1133,6 +1316,432 @@ const OrderStatus = () => {
                     {isSubmittingRating ? 'Submitting...' : 'Submit Review ⭐'}
                   </motion.button>
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Bill Request & Payment Mode Modal */}
+        <AnimatePresence>
+          {isBillModalOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 999998,
+                background: 'rgba(15, 23, 42, 0.72)',
+                backdropFilter: 'blur(6px)',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                padding: '0'
+              }}
+              onClick={() => setIsBillModalOpen(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  maxWidth: '480px',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  backgroundColor: theme.bgCard,
+                  color: theme.textMain,
+                  borderRadius: '24px 24px 0 0',
+                  padding: '20px 20px 30px',
+                  boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.35)',
+                  border: `1px solid ${theme.border}`,
+                  borderBottom: 'none'
+                }}
+              >
+                {/* Modal Handle Pill */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+                  <div style={{ width: '40px', height: '4px', borderRadius: '2px', backgroundColor: isDarkMode ? '#475569' : '#cbd5e1' }} />
+                </div>
+
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Receipt size={22} color={theme.accent} />
+                      Request Bill
+                    </h3>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: theme.textMuted }}>
+                      Table <strong>{tableNumStr}</strong> • {hasMultipleRounds ? 'Total Running Bill' : 'Total Amount'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsBillModalOpen(false)}
+                    style={{
+                      background: isDarkMode ? '#334155' : '#f1f5f9',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: theme.textMuted
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Amount Banner */}
+                <div style={{
+                  padding: '14px 16px',
+                  borderRadius: '16px',
+                  background: isDarkMode ? 'linear-gradient(135deg, rgba(234, 88, 12, 0.15) 0%, rgba(249, 115, 22, 0.05) 100%)' : 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                  border: `1px solid ${isDarkMode ? 'rgba(234, 88, 12, 0.3)' : '#fed7aa'}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '18px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: theme.accent, fontWeight: 700 }}>
+                      Payable Amount
+                    </div>
+                    <div style={{ fontSize: '1.45rem', fontWeight: 900, color: theme.textMain }}>
+                      ₹{totalRunningAmount}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: theme.accent,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                  }}>
+                    {sessionOrders.length} Round{sessionOrders.length > 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                {/* Section Title */}
+                <div style={{ fontSize: '0.85rem', fontWeight: 800, marginBottom: '10px', color: theme.textMain }}>
+                  Select How You Want to Pay:
+                </div>
+
+                {/* Payment Option Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                  {/* UPI Option */}
+                  <div
+                    onClick={() => setBillPaymentMethod('UPI')}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: '14px',
+                      border: billPaymentMethod === 'UPI' ? `2px solid ${theme.accent}` : `1.5px solid ${theme.border}`,
+                      backgroundColor: billPaymentMethod === 'UPI' ? (isDarkMode ? 'rgba(234, 88, 12, 0.12)' : '#fff7ed') : (isDarkMode ? '#1e1814' : '#fafafa'),
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                  >
+                    {billPaymentMethod === 'UPI' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        backgroundColor: theme.accent,
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                    )}
+                    <QrCode size={24} color={billPaymentMethod === 'UPI' ? theme.accent : theme.textMuted} style={{ marginBottom: '6px' }} />
+                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: theme.textMain }}>
+                      UPI / Online
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: theme.textMuted, marginTop: '2px', lineHeight: 1.2 }}>
+                      GPay, PhonePe, Paytm, QR
+                    </div>
+                  </div>
+
+                  {/* Cash Option */}
+                  <div
+                    onClick={() => setBillPaymentMethod('Cash')}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: '14px',
+                      border: billPaymentMethod === 'Cash' ? `2px solid #16a34a` : `1.5px solid ${theme.border}`,
+                      backgroundColor: billPaymentMethod === 'Cash' ? (isDarkMode ? 'rgba(22, 163, 74, 0.12)' : '#f0fdf4') : (isDarkMode ? '#1e1814' : '#fafafa'),
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                  >
+                    {billPaymentMethod === 'Cash' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        backgroundColor: '#16a34a',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                    )}
+                    <Banknote size={24} color={billPaymentMethod === 'Cash' ? '#16a34a' : theme.textMuted} style={{ marginBottom: '6px' }} />
+                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: theme.textMain }}>
+                      Cash to Waiter
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: theme.textMuted, marginTop: '2px', lineHeight: 1.2 }}>
+                      Pay cash at table with bill
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dynamic Details based on chosen mode */}
+                {billPaymentMethod === 'UPI' ? (
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: '14px',
+                    backgroundColor: isDarkMode ? '#1a130e' : '#f8fafc',
+                    border: `1px solid ${theme.border}`,
+                    marginBottom: '16px'
+                  }}>
+                    {cleanUpiId ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <div style={{
+                          backgroundColor: '#ffffff',
+                          padding: '10px',
+                          borderRadius: '12px',
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                          border: '1px solid #e2e8f0',
+                          lineHeight: 0,
+                          marginBottom: '8px'
+                        }}>
+                          <QRCodeSVG
+                            value={upiUri}
+                            size={135}
+                            level="M"
+                          />
+                        </div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: theme.textMain }}>
+                          Scan to Pay ₹{totalRunningAmount} via Any UPI App
+                        </span>
+
+                        {/* 1-Tap UPI Launch Buttons */}
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const uri = buildAppSpecificUpiUri('gpay', { upiId: cleanUpiId, payeeName: cafePayeeName, amount: totalRunningAmount, note: `Table ${tableNumStr} Bill` });
+                              window.location.href = uri;
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid #e2e8f0',
+                              backgroundColor: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <GPayIcon size={18} />
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#334155' }}>GPay</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const uri = buildAppSpecificUpiUri('phonepe', { upiId: cleanUpiId, payeeName: cafePayeeName, amount: totalRunningAmount, note: `Table ${tableNumStr} Bill` });
+                              window.location.href = uri;
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid #e2e8f0',
+                              backgroundColor: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <PhonePeIcon size={18} />
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#5f259f' }}>PhonePe</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const uri = buildAppSpecificUpiUri('paytm', { upiId: cleanUpiId, payeeName: cafePayeeName, amount: totalRunningAmount, note: `Table ${tableNumStr} Bill` });
+                              window.location.href = uri;
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid #e2e8f0',
+                              backgroundColor: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <PaytmIcon size={18} />
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px' }}>
+                          <span style={{ fontSize: '0.7rem', color: theme.textMuted, fontFamily: 'monospace' }}>
+                            UPI ID: <strong>{cleanUpiId}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                navigator.clipboard.writeText(cleanUpiId);
+                                toast.success('UPI ID copied!');
+                              } catch (err) { }
+                            }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                          >
+                            <Copy size={13} color={theme.accent} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        <Smartphone size={22} color={theme.accent} style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: theme.textMain }}>
+                            Staff will bring UPI QR Scanner to Table {tableNumStr}
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: theme.textMuted, marginTop: '3px' }}>
+                            You can pay with any UPI app on the staff's handheld scanner or printed QR.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: '14px',
+                    backgroundColor: isDarkMode ? '#1a130e' : '#f8fafc',
+                    border: `1px solid ${theme.border}`,
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px'
+                  }}>
+                    <Banknote size={24} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: theme.textMain }}>
+                        Cash Payment at Table {tableNumStr}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: theme.textMuted, marginTop: '3px' }}>
+                        The waiter will bring the itemized printed bill and collect cash / provide change at your table.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* WhatsApp Digital E-Bill Section */}
+                <div style={{
+                  padding: '12px 14px',
+                  borderRadius: '14px',
+                  backgroundColor: isDarkMode ? '#1e1814' : '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  marginBottom: '18px'
+                }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: sendWhatsappCopy ? '8px' : '0' }}>
+                    <input
+                      type="checkbox"
+                      checked={sendWhatsappCopy}
+                      onChange={(e) => setSendWhatsappCopy(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#16a34a' }}
+                    />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#15803d', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <MessageSquare size={14} /> Send E-Bill copy to WhatsApp
+                    </span>
+                  </label>
+
+                  {sendWhatsappCopy && (
+                    <input
+                      type="tel"
+                      value={billPhoneInput}
+                      onChange={(e) => setBillPhoneInput(e.target.value)}
+                      placeholder="Enter 10-digit mobile number"
+                      maxLength={10}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        border: `1px solid ${isDarkMode ? '#334155' : '#cbd5e1'}`,
+                        backgroundColor: theme.bgCard,
+                        color: theme.textMain,
+                        fontSize: '0.82rem',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Submit Action Button */}
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  disabled={isRequestingBill}
+                  onClick={() => handleConfirmBillRequest(billPaymentMethod)}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: billPaymentMethod === 'UPI' ? 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)' : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    cursor: isRequestingBill ? 'not-allowed' : 'pointer',
+                    boxShadow: billPaymentMethod === 'UPI' ? '0 6px 20px rgba(234, 88, 12, 0.35)' : '0 6px 20px rgba(22, 163, 74, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    opacity: isRequestingBill ? 0.7 : 1
+                  }}
+                >
+                  <Check size={18} strokeWidth={3} />
+                  <span>
+                    {isRequestingBill
+                      ? 'Notifying Staff...'
+                      : billPaymentMethod === 'UPI'
+                        ? `Request Bill • Pay via UPI (₹${totalRunningAmount})`
+                        : `Request Bill • Pay Cash (₹${totalRunningAmount})`
+                    }
+                  </span>
+                </motion.button>
               </motion.div>
             </div>
           )}

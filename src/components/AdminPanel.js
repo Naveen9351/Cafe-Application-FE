@@ -311,6 +311,14 @@ export default function AdminPanel() {
     || 'dine_in';
   const isCounterBillingOnly = activeOperatingMode === 'counter_billing' || activeOperatingMode === 'quick_billing';
 
+  // Starter Plan & Table Suite Detection (Starter plan has 0 table UI on dashboard)
+  const isStarterPlan = useMemo(() => {
+    const plan = (tenantInfo?.subscription?.plan || '').toLowerCase();
+    return plan === 'starter' || !hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.TABLE_QR);
+  }, [tenantInfo?.subscription]);
+
+  const hasTableSuite = !isStarterPlan && hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.TABLE_QR);
+
   // Compute strictly allowed tabs for current user based on permission bucket, modules and operating mode
   const allowedTabs = useMemo(() => {
     const counterDisallowed = new Set(['qrcodes', 'kds', 'crm', 'staff']);
@@ -4588,18 +4596,33 @@ export default function AdminPanel() {
                             {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#0284c7" /> : `${metrics.totalOrdersCount} Orders`}
                           </span>
                         </div>
-                        <div className={styles.summaryStatItem}>
-                          <span className={styles.summaryStatLabel}>Occupied Floor</span>
-                          <span className={styles.summaryStatVal} style={{ color: (metrics.occupiedTablesCount || 0) > 0 ? '#b45309' : '#059669' }}>
-                            {isFilterLoading ? (
-                              <Loader size={14} className={styles.spinIcon} color="#059669" />
-                            ) : (metrics.occupiedTablesCount || 0) > 0 ? (
-                              `${metrics.occupiedTablesCount}/${tables.length || 4} Tables Busy`
-                            ) : (
-                              'All Tables Free'
-                            )}
-                          </span>
-                        </div>
+                        {hasTableSuite ? (
+                          <div className={styles.summaryStatItem}>
+                            <span className={styles.summaryStatLabel}>Occupied Floor</span>
+                            <span className={styles.summaryStatVal} style={{ color: (metrics.occupiedTablesCount || 0) > 0 ? '#b45309' : '#059669' }}>
+                              {isFilterLoading ? (
+                                <Loader size={14} className={styles.spinIcon} color="#059669" />
+                              ) : (metrics.occupiedTablesCount || 0) > 0 ? (
+                                `${metrics.occupiedTablesCount}/${tables.length || 4} Tables Busy`
+                              ) : (
+                                'All Tables Free'
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className={styles.summaryStatItem}>
+                            <span className={styles.summaryStatLabel}>Active Counter</span>
+                            <span className={styles.summaryStatVal} style={{ color: liveActiveOrdersCount > 0 ? '#b45309' : '#059669' }}>
+                              {isFilterLoading ? (
+                                <Loader size={14} className={styles.spinIcon} color="#059669" />
+                              ) : liveActiveOrdersCount > 0 ? (
+                                `${liveActiveOrdersCount} Active Orders`
+                              ) : (
+                                'Counter Free'
+                              )}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -4627,7 +4650,9 @@ export default function AdminPanel() {
                           const orderCode = order.orderNumber ? `#ORD-${order.orderNumber}` : `#${order._id?.slice(-5) || 'ORD'}`;
                           const totalAmt = Number(order.total || order.totalAmount) || 0;
                           const itemsCount = (order.items || []).reduce((s, it) => s + (it.quantity || 1), 0);
-                          const tableText = order.tableNumber ? formatTableBadge(order.tableNumber) : 'Counter Walk-in';
+                          const tableText = (hasTableSuite && order.tableNumber && !['Walk-in', 'Counter', 'Takeaway'].includes(order.tableNumber))
+                            ? formatTableBadge(order.tableNumber)
+                            : (isHindi ? 'काउंटर वॉक-इन' : 'Counter Walk-in');
 
                           return (
                             <motion.div
@@ -4649,7 +4674,7 @@ export default function AdminPanel() {
                                 </span>
                               </div>
                               <div className={styles.ticketBody}>
-                                <span>{order.tableNumber ? formatTableBadge(order.tableNumber) : (isHindi ? 'काउंटर वॉक-इन' : 'Counter Walk-in')}</span>
+                                <span>{tableText}</span>
                               </div>
                             </motion.div>
                           );
@@ -5089,8 +5114,8 @@ export default function AdminPanel() {
                     </div>
                   </div>
 
-                  {/* 8. REAL-DATA LIVE FLOOR & TABLE MATRIX (Dine-in Only) */}
-                  {!isCounterBillingOnly && (() => {
+                  {/* 8. REAL-DATA LIVE FLOOR & TABLE MATRIX (Dine-in Only - Hidden in Starter Plan) */}
+                  {!isCounterBillingOnly && hasTableSuite && (() => {
                     const occupiedTables = tables.filter(t => getActiveOrdersForTable(t).length > 0);
                     const availableTables = tables.filter(t => getActiveOrdersForTable(t).length === 0);
                     const billReadyTables = tables.filter(t => {
@@ -5417,9 +5442,9 @@ export default function AdminPanel() {
                     );
                   })()}
 
-                  {/* REAL TABLE ORDER DETAILS & BILL SETTLE MODAL (Dine-in Only) */}
+                  {/* REAL TABLE ORDER DETAILS & BILL SETTLE MODAL (Dine-in Only - Hidden in Starter Plan) */}
                   <AnimatePresence>
-                    {!isCounterBillingOnly && selectedTableModal && (
+                    {!isCounterBillingOnly && hasTableSuite && selectedTableModal && (
                       <div style={{
                         position: 'fixed',
                         inset: 0,
