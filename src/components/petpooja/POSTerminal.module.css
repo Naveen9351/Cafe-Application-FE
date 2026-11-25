@@ -333,7 +333,7 @@
 
 .tablesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
   gap: 0.85rem;
 }
 
@@ -341,9 +341,9 @@
 .tableTileSkeleton {
   border-radius: 12px;
   padding: 0.85rem 0.6rem;
-  min-height: 105px;
+  min-height: 115px;
   background: #ffffff;
-  border: 1.5px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -369,8 +369,8 @@
 /* Base Tile */
 .tableTile {
   border-radius: 12px;
-  padding: 0.75rem 0.6rem;
-  min-height: 105px;
+  padding: 0.75rem 0.75rem;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -383,15 +383,15 @@
 
 .tableTile:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
 }
 
 /* 1. FREE / EMPTY TILE (Normal Clean Card) */
 .tileFree {
   background: #ffffff;
-  border: 1.5px dashed #cbd5e1;
+  border: 1px dashed #cbd5e1;
   color: #334155;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .tileFree:hover {
@@ -401,65 +401,96 @@
 }
 
 .tileFree .tileName {
-  font-size: 1.15rem;
+  font-size: 0.96rem;
   font-weight: 600;
   color: #1e293b;
-  margin: 0.5rem 0 0.1rem 0;
+  margin: 0.3rem 0 0.1rem 0;
 }
 
 .tileFree .tileCapacity {
   font-size: 0.68rem;
   color: #94a3b8;
-  font-weight: 600;
+  font-weight: 500;
 }
 
-/* 2. OCCUPIED / RUNNING / BOOKING TILE (Orange / Warm Amber Card) */
+/* 2. OCCUPIED / RUNNING / BOOKING TILE (Distinct Warm Amber Card) */
 .tileOccupied {
-  background: #fef3c7;
+  background: #fffbeb;
   border: 1.5px solid #f59e0b;
-  color: #78350f;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+  color: #1e293b;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.12);
 }
 
 .tileOccupied:hover {
   border-color: #d97706;
-  background: #fde68a;
+  background: #fef3c7;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+/* 2.1 BILL REQUESTED TILE (Distinct Vibrant Soft Orange Card) */
+.tileBillRequested {
+  background: #fff7ed;
+  border: 1.5px solid #ea580c;
+  color: #0f172a;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.16);
+}
+
+.tileBillRequested:hover {
+  border-color: #c2410c;
+  background: #ffedd5;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.24);
 }
 
 .tileTopMeta {
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 3px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.tileOccupied .tileTopMeta {
   color: #92400e;
 }
 
-.tileOccupied .tileName {
-  font-size: 1.15rem;
+.tileBillRequested .tileTopMeta {
+  color: #c2410c;
+}
+
+.tileOccupied .tileName,
+.tileBillRequested .tileName {
+  font-size: 0.96rem;
   font-weight: 600;
-  color: #78350f;
-  margin: 2px 0;
+  color: #0f172a;
+  margin: 1px 0;
 }
 
 .tileOccupied .tileAmount {
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 0.96rem;
+  font-weight: 700;
   color: #92400e;
 }
 
-/* 3. PREPAID / SERVED / BILLED TILE (Soft Green Card) */
+.tileBillRequested .tileAmount {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #ea580c;
+}
+
+/* 3. PREPAID / SERVED / BILLED TILE (Distinct Soft Green Card) */
 .tilePaid {
-  background: #ecfdf5;
+  background: #f0fdf4;
   border: 1.5px solid #10b981;
   color: #065f46;
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
 }
 
 .tilePaid:hover {
   border-color: #059669;
-  background: #d1fae5;
+  background: #dcfce7;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 .tilePaid .tileTopMeta {
@@ -467,16 +498,16 @@
 }
 
 .tilePaid .tileName {
-  font-size: 1.15rem;
+  font-size: 0.96rem;
   font-weight: 600;
-  color: #065f46;
-  margin: 2px 0;
+  color: #0f172a;
+  margin: 1px 0;
 }
 
 .tilePaid .tileAmount {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #047857;
+  color: #059669;
 }
 
 /* Quick Action Buttons in Table Card Footer (Print, View) */

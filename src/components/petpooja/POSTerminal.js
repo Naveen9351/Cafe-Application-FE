@@ -21,6 +21,7 @@ const toast = {
   error: (msg, opts) => rawToast.error(msg, opts)
 };
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { getValidFoodImage, getCustomerFirstName } from '../AdminPanel';
 import styles from './POSTerminal.module.css';
 import { API_URL as API } from '../../config/api';
@@ -68,23 +69,29 @@ export default function POSTerminal({
   onRefreshTables,
   onRefreshOrders
 }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTableParam = searchParams.get('table');
+
   const activeOperatingMode = tenantInfo?.operatingMode
     || tenantInfo?.settings?.operatingMode
     || tenantInfo?.businessOperatingArchitecture
     || (JSON.parse(localStorage.getItem('user') || '{}')?.operatingMode)
     || (JSON.parse(localStorage.getItem('user') || '{}')?.tenantId?.operatingMode)
     || 'dine_in';
-  const hasTableSuite = hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.TABLE_QR);
-  const isCounterBillingOnly = !hasTableSuite
-    || activeOperatingMode === 'counter_billing'
+  const hasTableSuite = tenantInfo?.subscription
+    ? hasModuleAccess(tenantInfo?.subscription, MODULE_KEYS.TABLE_QR)
+    : true;
+  const isCounterBillingOnly = activeOperatingMode === 'counter_billing'
     || activeOperatingMode === 'quick_billing'
     || tenantInfo?.settings?.businessMode === 'quick_billing'
     || tenantInfo?.settings?.operatingMode === 'counter_billing'
     || tenantInfo?.operatingMode === 'counter_billing';
 
-  // View mode: In counter billing, ALWAYS 'terminal' (no floor tables). In dine-in, 'terminal' if initialTable provided, else 'tables'
-  const [viewMode, setViewMode] = useState(isCounterBillingOnly ? 'terminal' : (initialTable ? 'terminal' : 'tables'));
-  const [tableNumber, setTableNumber] = useState(isCounterBillingOnly ? 'Walk-in' : (initialTable || '1'));
+  const effectiveInitialTable = urlTableParam || initialTable || null;
+
+  // View mode: In counter billing, ALWAYS 'terminal' (no floor tables). In dine-in, 'terminal' if table specified in URL or props, else 'tables' (Floor view)
+  const [viewMode, setViewMode] = useState(isCounterBillingOnly ? 'terminal' : (effectiveInitialTable ? 'terminal' : 'tables'));
+  const [tableNumber, setTableNumber] = useState(isCounterBillingOnly ? 'Walk-in' : (effectiveInitialTable || '1'));
   const [selectedZone, setSelectedZone] = useState('all');
   const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all', 'free', 'occupied', 'paid'
   const [tableSearch, setTableSearch] = useState('');
@@ -92,8 +99,57 @@ export default function POSTerminal({
   // POS Layout state
   const isBothSidebarsOpen = isMainSidebarOpen;
 
+  // Persistent Draft State per Table (Preserves unsubmitted draft dishes across page reloads until sent to kitchen or counter)
+  const getDraftKey = useCallback((tbl) => {
+    const raw = String(tbl || 'walkin').trim().toLowerCase();
+    const cleanTbl = raw.replace(/^(table|t)[\s-_]*/i, '').trim() || raw;
+    const effTenant = tenantId || tenantInfo?._id || 'global';
+    return `pos_draft_cart_${effTenant}_${cleanTbl}`;
+  }, [tenantId, tenantInfo]);
+
+  const loadDraftForTable = useCallback((tbl) => {
+    if (!tbl) return [];
+    try {
+      const key = getDraftKey(tbl);
+      const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+        if (parsed && Array.isArray(parsed.cart)) return parsed.cart;
+      }
+    } catch (e) { }
+    return [];
+  }, [getDraftKey]);
+
+  const clearDraftForTable = useCallback((tbl) => {
+    if (!tbl) return;
+    try {
+      const key = getDraftKey(tbl);
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    } catch (e) { }
+  }, [getDraftKey]);
+
+  // Initial cart populated from persistent draft if available for the active table
+  const initialDraft = useMemo(() => {
+    if (!effectiveInitialTable) return [];
+    try {
+      const raw = String(effectiveInitialTable || 'walkin').trim().toLowerCase();
+      const cleanTbl = raw.replace(/^(table|t)[\s-_]*/i, '').trim() || raw;
+      const effTenant = tenantId || tenantInfo?._id || 'global';
+      const key = `pos_draft_cart_${effTenant}_${cleanTbl}`;
+      const saved = sessionStorage.getItem(key) || localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+        if (parsed && Array.isArray(parsed.cart)) return parsed.cart;
+      }
+    } catch (e) { }
+    return [];
+  }, [effectiveInitialTable, tenantId, tenantInfo]);
+
   // Cart & Settlement state for POS Terminal
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(initialDraft);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [dishSearch, setDishSearch] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -104,6 +160,42 @@ export default function POSTerminal({
   const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
   const [dbTables, setDbTables] = useState([]);
   const [isLoadingTables, setIsLoadingTables] = useState(true);
+
+  // Keep track of active table to switch draft carts cleanly when switching tables
+  const activeTableRef = useRef(tableNumber);
+
+  useEffect(() => {
+    if (activeTableRef.current !== tableNumber) {
+      activeTableRef.current = tableNumber;
+      if (tableNumber) {
+        const savedDraft = loadDraftForTable(tableNumber);
+        setCart(savedDraft);
+      } else {
+        setCart([]);
+      }
+    }
+  }, [tableNumber, loadDraftForTable]);
+
+  // Save current table's unplaced draft cart to storage automatically whenever cart updates
+  useEffect(() => {
+    if (!tableNumber) return;
+    const key = getDraftKey(tableNumber);
+    try {
+      if (cart && cart.length > 0) {
+        const payload = JSON.stringify({
+          cart,
+          customerName: customerName || '',
+          customerPhone: customerPhone || '',
+          updatedAt: Date.now()
+        });
+        sessionStorage.setItem(key, payload);
+        localStorage.setItem(key, payload);
+      } else {
+        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
+      }
+    } catch (e) { }
+  }, [cart, tableNumber, customerName, customerPhone, getDraftKey]);
 
   // Khata / Borrow Modal states
   const [showKhataModal, setShowKhataModal] = useState(false);
@@ -247,16 +339,6 @@ export default function POSTerminal({
   useEffect(() => {
     fetchDbTables();
   }, [fetchDbTables]);
-
-  useEffect(() => {
-    if (isCounterBillingOnly) {
-      setTableNumber('Walk-in');
-      setViewMode('terminal');
-    } else if (initialTable) {
-      setTableNumber(initialTable);
-      setViewMode('terminal');
-    }
-  }, [initialTable, isCounterBillingOnly]);
 
   // Real-time active uncompleted orders
   const activeOrdersList = useMemo(() => {
@@ -485,12 +567,24 @@ export default function POSTerminal({
   }, [mergeTargetTable, dbTables, getOrdersForTableObj]);
 
   // Handle clicking a table card -> opens POS Terminal
-  const handleOpenTableInPOS = (tblNum) => {
+  const handleOpenTableInPOS = useCallback((tblNum, updateUrl = true) => {
+    if (!tblNum) return;
     const tStr = String(tblNum).trim();
-    const tblObj = dbTables.find(t => String(t.tableNumber).trim() === tStr);
+    const tblObj = dbTables.find(t => String(t.tableNumber).trim().toLowerCase() === tStr.toLowerCase());
 
     setTableNumber(tStr);
     setViewMode('terminal');
+
+    if (updateUrl && !isCounterBillingOnly) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        if (next.get('table') !== tStr) {
+          next.set('table', tStr);
+          return next;
+        }
+        return prev;
+      });
+    }
 
     // Load any merged tables associated with this table from DB
     if (tblObj && Array.isArray(tblObj.mergedWith)) {
@@ -507,14 +601,31 @@ export default function POSTerminal({
       setCustomerName(firstOrd.customerDetails?.name || firstOrd.customerName || tblObj?.customerName || (isTemp ? tStr.replace(/^temp\s*[-_:]\s*/i, '') : 'Dine-in Guest'));
       setCustomerPhone(firstOrd.customerDetails?.phone || firstOrd.customerPhone || tblObj?.customerPhone || '');
       if (firstOrd.paymentMethod) setPaymentMethod(firstOrd.paymentMethod);
-      const displayLabel = isTemp ? `Tab: ${tStr.replace(/^temp\s*[-_:]\s*/i, '')}` : `Table ${formatTableOnlyNumber(tStr)}`;
     } else {
       const defaultCustName = tblObj?.customerName || (isTemp ? tStr.replace(/^temp\s*[-_:]\s*/i, '') : '');
       setCustomerName(defaultCustName);
       setCustomerPhone(tblObj?.customerPhone || '');
-      const displayLabel = isTemp ? `Tab: ${defaultCustName || tStr}` : `Table ${formatTableOnlyNumber(tStr)}`;
     }
-  };
+  }, [dbTables, activeOrdersByTable, isCounterBillingOnly, setSearchParams]);
+
+  // Return to floor tables grid
+  const handleReturnToTables = useCallback(() => {
+    if (isCounterBillingOnly) {
+      setViewMode('terminal');
+      setTableNumber('Walk-in');
+    } else {
+      setViewMode('tables');
+      setTableNumber('');
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        if (next.has('table')) {
+          next.delete('table');
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [isCounterBillingOnly, setSearchParams]);
 
   // Quick Walkin / Counter POS
   const handleQuickWalkin = () => {
@@ -522,7 +633,31 @@ export default function POSTerminal({
     setCustomerName('Walk-in Guest');
     setCustomerPhone('');
     setViewMode('terminal');
+    if (!isCounterBillingOnly) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        if (next.get('table') !== 'Walk-in') {
+          next.set('table', 'Walk-in');
+          return next;
+        }
+        return prev;
+      });
+    }
   };
+
+  // Synchronize table selection with URL and operating mode
+  useEffect(() => {
+    if (isCounterBillingOnly) {
+      setTableNumber('Walk-in');
+      setViewMode('terminal');
+    } else if (urlTableParam) {
+      handleOpenTableInPOS(urlTableParam, false);
+    } else if (initialTable) {
+      handleOpenTableInPOS(initialTable, true);
+    } else {
+      setViewMode('tables');
+    }
+  }, [urlTableParam, initialTable, isCounterBillingOnly, handleOpenTableInPOS]);
 
   // Enterprise Table Merge Handler (Persisted to Database & Instant UI Synchronisation)
   const handleMergeTables = async (primaryTbl, tablesToMerge) => {
@@ -1373,10 +1508,10 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
+        clearDraftForTable(tableNumber);
         setCart([]);
         setDishSearch('');
-        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+        handleReturnToTables();
         if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
         if (onOrderCreated) onOrderCreated(res.data.order || res.data);
       } else {
@@ -1384,10 +1519,10 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
+        clearDraftForTable(tableNumber);
         setCart([]);
         setDishSearch('');
-        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+        handleReturnToTables();
         if (onOrderPlaced) onOrderPlaced(res.data);
         if (onOrderCreated) onOrderCreated(res.data);
       }
@@ -1468,10 +1603,10 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
+        clearDraftForTable(tableNumber);
         setCart([]);
         setDishSearch('');
-        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+        handleReturnToTables();
         if (onOrderPlaced) onOrderPlaced(res.data.order || res.data);
         if (onOrderCreated) onOrderCreated(res.data.order || res.data);
       } else {
@@ -1479,10 +1614,10 @@ export default function POSTerminal({
           headers: token ? { 'x-auth-token': token } : {}
         });
 
+        clearDraftForTable(tableNumber);
         setCart([]);
         setDishSearch('');
-        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+        handleReturnToTables();
         if (onOrderPlaced) onOrderPlaced(res.data);
         if (onOrderCreated) onOrderCreated(res.data);
       }
@@ -1762,13 +1897,14 @@ export default function POSTerminal({
         .filter(t => !(t.isTemporary && String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase()))
         .map(t => String(t.tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase() ? { ...t, status: 'available' } : t)
       );
+      clearDraftForTable(tNum);
       if (tableNumber && String(tableNumber).trim().toLowerCase() === String(tNum).trim().toLowerCase()) {
+        clearDraftForTable(tableNumber);
         setCart([]);
         setCustomerName('');
         setCustomerPhone('');
         setSelectedItemKeys(new Set());
-        setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-        setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+        handleReturnToTables();
       }
       if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
       if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
@@ -1876,14 +2012,15 @@ export default function POSTerminal({
       setShowClearConfirmModal(false);
 
       allSettleTables.forEach(tNum => {
+        clearDraftForTable(tNum);
         if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
         if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
         if (onSettleTable) onSettleTable(tNum);
       });
+      clearDraftForTable(tableNumber);
 
       // Return to table matrix view (or stay in terminal for counter billing)
-      setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-      setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+      handleReturnToTables();
     } catch (err) {
       console.error('Settle table error:', err);
       toast.error('Settlement error: ' + (err.response?.data?.error || err.message));
@@ -1981,14 +2118,15 @@ export default function POSTerminal({
       setShowKhataModal(false);
 
       allSettleTables.forEach(tNum => {
+        clearDraftForTable(tNum);
         if (onOrderPlaced) onOrderPlaced({ tableNumber: tNum, status: 'completed', _refreshAll: true });
         if (onOrderCreated) onOrderCreated({ tableNumber: tNum, status: 'completed', _refreshAll: true });
         if (onSettleTable) onSettleTable(tNum);
       });
+      clearDraftForTable(tableNumber);
 
       // Crucial: Clear view and return to tables matrix (or stay in terminal for counter billing)
-      setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-      setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+      handleReturnToTables();
     } catch (err) {
       console.error('Khata settlement error:', err);
       toast.error('Failed to record Khata: ' + (err.response?.data?.error || err.message));
@@ -2677,6 +2815,7 @@ export default function POSTerminal({
                               handleOpenTableInPOS(tbl.tableNumber);
                             }}
                             onDragOver={(e) => {
+                              if (!isDragDropMode) return;
                               if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -2687,9 +2826,11 @@ export default function POSTerminal({
                               }
                             }}
                             onDragLeave={() => {
+                              if (!isDragDropMode) return;
                               if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
                             }}
                             onDrop={(e) => {
+                              if (!isDragDropMode) return;
                               e.preventDefault();
                               e.stopPropagation();
                               const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
@@ -2703,8 +2844,9 @@ export default function POSTerminal({
                               }
                             }}
                             style={{
+                              cursor: 'pointer',
                               ...(isTemp ? { borderColor: '#c4b5fd', background: '#faf5ff', boxShadow: '0 1px 4px rgba(124, 58, 237, 0.08)' } : {}),
-                              ...(isGridDragTarget ? { borderColor: '#0284c7', background: '#e0f2fe', boxShadow: '0 0 0 3px rgba(2, 132, 199, 0.35)', transform: 'scale(1.02)' } : {})
+                              ...(isDragDropMode && isGridDragTarget ? { borderColor: '#0284c7', background: '#e0f2fe', boxShadow: '0 0 0 3px rgba(2, 132, 199, 0.35)', transform: 'scale(1.02)' } : {})
                             }}
                             title={isGridDragTarget ? `Drop Table ${gridDragSourceTable} here to Move` : (isTemp ? `Temporary Tab: ${tempCustLabel} - Clean & Ready. Click to take order.` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Clean & Ready. Click to take order.`)}
                           >
@@ -2717,7 +2859,7 @@ export default function POSTerminal({
                               <>
                                 {isTemp ? (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '4px' }}>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '4px' }}>
                                       ⚡ TEMP TAB
                                     </span>
                                     <button
@@ -2730,12 +2872,17 @@ export default function POSTerminal({
                                     </button>
                                   </div>
                                 ) : (
-                                  <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '2px' }}>
+                                    <span className={styles.tileCapacity}>{tbl.seatingCapacity || 4} Seats</span>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 500, color: '#16a34a', background: '#f0fdf4', padding: '1px 6px', borderRadius: '4px' }}>Free</span>
+                                  </div>
                                 )}
-                                <span className={styles.tileName} style={isTemp ? { color: '#6d28d9', fontWeight: 800 } : {}}>
-                                  {isTemp ? tempCustLabel : formatTableOnlyNumber(tbl.tableNumber)}
-                                </span>
-                                <span style={{ fontSize: '0.68rem', color: isTemp ? '#7c3aed' : '#10b981', fontWeight: 700 }}>
+                                <div style={{ margin: '6px 0 2px 0' }}>
+                                  <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', color: isTemp ? '#6d28d9' : '#0f172a' }}>
+                                    {isTemp ? tempCustLabel : `Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: '0.7rem', color: isTemp ? '#7c3aed' : '#2563eb', fontWeight: 500, marginTop: 'auto' }}>
                                   + Take Order
                                 </span>
                               </>
@@ -2751,8 +2898,12 @@ export default function POSTerminal({
                           <div
                             key={tbl._id || tbl.tableNumber}
                             className={`${styles.tableTile} ${styles.tilePaid}`}
-                            draggable={true}
+                            draggable={isDragDropMode}
                             onDragStart={(e) => {
+                              if (!isDragDropMode) {
+                                e.preventDefault();
+                                return;
+                              }
                               isDraggingRef.current = true;
                               e.dataTransfer.setData('gridSourceTable', tbl.tableNumber);
                               e.dataTransfer.effectAllowed = 'move';
@@ -2766,6 +2917,7 @@ export default function POSTerminal({
                               }, 250);
                             }}
                             onDragOver={(e) => {
+                              if (!isDragDropMode) return;
                               if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -2776,9 +2928,11 @@ export default function POSTerminal({
                               }
                             }}
                             onDragLeave={() => {
+                              if (!isDragDropMode) return;
                               if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
                             }}
                             onDrop={(e) => {
+                              if (!isDragDropMode) return;
                               e.preventDefault();
                               e.stopPropagation();
                               const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
@@ -2800,22 +2954,45 @@ export default function POSTerminal({
                               handleOpenTableInPOS(tbl.tableNumber);
                             }}
                             style={{
-                              cursor: 'grab',
+                              cursor: isDragDropMode ? 'grab' : 'pointer',
                               ...(isTemp ? { borderColor: '#86efac', background: '#f0fdf4' } : {}),
-                              ...(isGridDragTarget ? { borderColor: '#7c3aed', background: '#f5f3ff', boxShadow: '0 0 0 3px rgba(124, 58, 237, 0.35)', transform: 'scale(1.02)' } : {})
+                              ...(isDragDropMode && isGridDragTarget ? { borderColor: '#7c3aed', background: '#f5f3ff', boxShadow: '0 0 0 3px rgba(124, 58, 237, 0.35)', transform: 'scale(1.02)' } : {})
                             }}
                             title={isGridDragTarget ? `Drop Table ${gridDragSourceTable} here to Merge` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Drag to move or merge. Click to open POS.`}
                           >
-                            <div className={styles.tileTopMeta}>
-                              <Check size={12} /> {elapsedMin || 'Paid'}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '2px' }}>
+                              <div className={styles.tileTopMeta} style={{ color: '#047857' }}>
+                                <Clock size={11} /> {elapsedMin || 'Paid'}
+                              </div>
+                              <span style={{
+                                fontSize: '0.62rem',
+                                fontWeight: 500,
+                                color: '#047857',
+                                background: '#dcfce7',
+                                padding: '1px 6px',
+                                borderRadius: '4px'
+                              }}>
+                                Paid
+                              </span>
                             </div>
-                            <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                              {isTemp ? tempCustLabel : (custName || formatTableOnlyNumber(tbl.tableNumber))}
-                            </span>
-                            <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 700 }}>
-                              {isTemp ? '⚡ Temp Tab Paid' : (custName ? formatTableOnlyNumber(tbl.tableNumber) : '')}
-                            </span>
-                            <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+
+                            <div style={{ margin: '3px 0 1px 0' }}>
+                              <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                                {isTemp ? tempCustLabel : `Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
+                              </span>
+                              {custName && !isTemp && (
+                                <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
+                                  {custName}
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{ margin: '2px 0' }}>
+                              <span className={styles.tileAmount}>
+                                ₹{formatAmount(totalAmt)}
+                              </span>
+                            </div>
+
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2823,23 +3000,25 @@ export default function POSTerminal({
                                 handleQuickSettleTable(tbl.tableNumber);
                               }}
                               style={{
-                                marginTop: '6px',
-                                padding: '4px 10px',
+                                marginTop: '2px',
+                                padding: '4px 8px',
                                 borderRadius: '6px',
-                                border: 'none',
-                                background: '#059669',
+                                border: '1px solid #10b981',
+                                background: '#10b981',
                                 color: '#ffffff',
                                 fontSize: '0.68rem',
-                                fontWeight: 700,
+                                fontWeight: 500,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
+                                justifyContent: 'center',
                                 gap: '4px',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                width: '100%',
+                                transition: 'all 0.15s ease'
                               }}
                               title={isTemp ? `Click to close and remove ${tempCustLabel}'s temporary tab` : `Click to clear and free Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
                             >
-                              <CheckCircle2 size={12} /> {isTemp ? 'Close Tab' : 'Clear Table'}
+                              <CheckCircle2 size={11} /> {isTemp ? 'Close Tab' : 'Clear Table'}
                             </button>
                           </div>
                         );
@@ -2847,12 +3026,17 @@ export default function POSTerminal({
 
                       // 3. OCCUPIED / RUNNING / BOOKING CARD (Orange / Warm Amber)
                       const isGridDragTarget = gridDragOverTable && String(gridDragOverTable).trim() === String(tbl.tableNumber).trim();
+                      const isBill = tbl.status === 'bill_requested';
                       return (
                         <div
                           key={tbl._id || tbl.tableNumber}
-                          className={`${styles.tableTile} ${styles.tileOccupied}`}
-                          draggable={true}
+                          className={`${styles.tableTile} ${isBill ? styles.tileBillRequested : styles.tileOccupied}`}
+                          draggable={isDragDropMode}
                           onDragStart={(e) => {
+                            if (!isDragDropMode) {
+                              e.preventDefault();
+                              return;
+                            }
                             isDraggingRef.current = true;
                             e.dataTransfer.setData('gridSourceTable', tbl.tableNumber);
                             e.dataTransfer.effectAllowed = 'move';
@@ -2866,6 +3050,7 @@ export default function POSTerminal({
                             }, 250);
                           }}
                           onDragOver={(e) => {
+                            if (!isDragDropMode) return;
                             if (gridDragSourceTable && String(gridDragSourceTable).trim() !== String(tbl.tableNumber).trim()) {
                               e.preventDefault();
                               e.stopPropagation();
@@ -2876,9 +3061,11 @@ export default function POSTerminal({
                             }
                           }}
                           onDragLeave={() => {
+                            if (!isDragDropMode) return;
                             if (gridDragOverTable === tbl.tableNumber) setGridDragOverTable(null);
                           }}
                           onDrop={(e) => {
+                            if (!isDragDropMode) return;
                             e.preventDefault();
                             e.stopPropagation();
                             const srcTbl = e.dataTransfer.getData('gridSourceTable') || gridDragSourceTable;
@@ -2900,22 +3087,66 @@ export default function POSTerminal({
                             handleOpenTableInPOS(tbl.tableNumber);
                           }}
                           style={{
-                            cursor: 'grab',
+                            cursor: isDragDropMode ? 'grab' : 'pointer',
                             ...(isTemp ? { borderColor: '#f59e0b', background: '#fffbeb', boxShadow: '0 2px 6px rgba(245, 158, 11, 0.15)' } : {}),
                             ...(isGridDragTarget ? { borderColor: '#7c3aed', background: '#f5f3ff', boxShadow: '0 0 0 3px rgba(124, 58, 237, 0.35)', transform: 'scale(1.02)' } : {})
                           }}
                           title={isGridDragTarget ? `Drop Table ${gridDragSourceTable} here to Merge` : `Table ${formatTableOnlyNumber(tbl.tableNumber)} - Drag to move or merge. Click to open POS.`}
                         >
-                          <div className={styles.tileTopMeta}>
-                            <Clock size={11} /> {elapsedMin || (isTemp ? 'Open Tab' : 'Active')}
+                          {/* Top Meta: Elapsed timer & Status Badge */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '2px' }}>
+                            <div className={styles.tileTopMeta}>
+                              <Clock size={11} /> {elapsedMin || (isTemp ? 'Open' : 'Active')}
+                            </div>
+                            {isBill ? (
+                              <span style={{
+                                fontSize: '0.62rem',
+                                fontWeight: 600,
+                                color: '#c2410c',
+                                background: '#ffedd5',
+                                border: '1px solid #fdba74',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Bill Req
+                              </span>
+                            ) : (
+                              <span style={{
+                                fontSize: '0.62rem',
+                                fontWeight: 600,
+                                color: isTemp ? '#7c3aed' : '#92400e',
+                                background: isTemp ? '#f5f3ff' : '#fde68a',
+                                border: isTemp ? '1px solid #ddd6fe' : '1px solid #fcd34d',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {isTemp ? 'Running' : 'Occupied'}
+                              </span>
+                            )}
                           </div>
-                          <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                            {isTemp ? tempCustLabel : (custName || formatTableOnlyNumber(tbl.tableNumber))}
-                          </span>
-                          <span style={{ fontSize: '0.68rem', color: isTemp ? '#b45309' : '#92400e', fontWeight: 800 }}>
-                            {isTemp ? `⚡ Running Tab (${tableOrders.length} ${tableOrders.length === 1 ? 'round' : 'rounds'})` : (custName ? formatTableOnlyNumber(tbl.tableNumber) : '')}
-                          </span>
-                          <span className={styles.tileAmount}>₹{formatAmount(totalAmt)}</span>
+
+                          {/* Table Identity */}
+                          <div style={{ margin: '3px 0 1px 0' }}>
+                            <span className={styles.tileName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                              {isTemp ? tempCustLabel : `Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
+                            </span>
+                            {custName && !isTemp && (
+                              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
+                                {custName}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Total Amount */}
+                          <div style={{ margin: '2px 0' }}>
+                            <span className={styles.tileAmount} style={isBill ? { color: '#ea580c' } : {}}>
+                              ₹{formatAmount(totalAmt)}
+                            </span>
+                          </div>
+
+                          {/* Bottom Action Button */}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -2923,23 +3154,26 @@ export default function POSTerminal({
                               handleQuickSettleTable(tbl.tableNumber);
                             }}
                             style={{
-                              marginTop: '6px',
-                              padding: '4px 10px',
+                              marginTop: '2px',
+                              padding: '4px 8px',
                               borderRadius: '6px',
                               border: 'none',
-                              background: '#d97706',
+                              background: isBill ? '#ea580c' : '#d97706',
                               color: '#ffffff',
                               fontSize: '0.68rem',
-                              fontWeight: 700,
+                              fontWeight: 600,
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '4px',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                              width: '100%',
+                              boxShadow: isBill ? '0 1px 4px rgba(234, 88, 12, 0.3)' : '0 1px 4px rgba(217, 119, 6, 0.25)',
+                              transition: 'all 0.15s ease'
                             }}
                             title={isTemp ? `Click to close and remove ${tempCustLabel}'s temporary tab` : `Click to clear and free Table ${formatTableOnlyNumber(tbl.tableNumber)}`}
                           >
-                            <CheckCircle2 size={12} /> {isTemp ? 'Close Tab' : 'Clear Table'}
+                            <CheckCircle2 size={11} /> {isTemp ? 'Close Tab' : 'Clear Table'}
                           </button>
                         </div>
                       );
@@ -3065,7 +3299,7 @@ export default function POSTerminal({
                     <button
                       type="button"
                       className={styles.backIconBtn}
-                      onClick={() => setViewMode('tables')}
+                      onClick={handleReturnToTables}
                       title="Back to Floor Tables"
                     >
                       <ArrowLeft size={16} />
@@ -3518,7 +3752,10 @@ export default function POSTerminal({
                     {cart.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setCart([])}
+                        onClick={() => {
+                          clearDraftForTable(tableNumber);
+                          setCart([]);
+                        }}
                         style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
                       >
                         Clear Draft
@@ -4349,8 +4586,7 @@ export default function POSTerminal({
                 });
 
                 // Return to table matrix view - table is completely clear (or stay in terminal for counter billing)
-                setTableNumber(isCounterBillingOnly ? 'Walk-in' : '');
-                setViewMode(isCounterBillingOnly ? 'terminal' : 'tables');
+                handleReturnToTables();
               }
             } catch (err) {
               console.error('Khata settlement error:', err);

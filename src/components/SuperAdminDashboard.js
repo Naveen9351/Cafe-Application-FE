@@ -43,11 +43,11 @@ const SuperAdminDashboard = () => {
 
     // Pagination State
     const [tenantsPage, setTenantsPage] = useState(1);
-    const [tenantsPerPage, setTenantsPerPage] = useState(5);
+    const [tenantsPerPage, setTenantsPerPage] = useState(8);
     const [leadsPage, setLeadsPage] = useState(1);
-    const [leadsPerPage, setLeadsPerPage] = useState(5);
+    const [leadsPerPage, setLeadsPerPage] = useState(8);
     const [ticketsPage, setTicketsPage] = useState(1);
-    const [ticketsPerPage, setTicketsPerPage] = useState(5);
+    const [ticketsPerPage, setTicketsPerPage] = useState(8);
     const [ticketFilter, setTicketFilter] = useState('all'); // 'all', 'open', 'in_progress', 'resolved', 'closed'
 
     // Onboarding & Approval Queue State
@@ -55,9 +55,9 @@ const SuperAdminDashboard = () => {
     const [sentInvitations, setSentInvitations] = useState([]);
     const [activeAppsSubTab, setActiveAppsSubTab] = useState('submitted'); // 'submitted' | 'invitations'
     const [requestsPage, setRequestsPage] = useState(1);
-    const [requestsPerPage, setRequestsPerPage] = useState(5);
+    const [requestsPerPage, setRequestsPerPage] = useState(8);
     const [invitesPage, setInvitesPage] = useState(1);
-    const [invitesPerPage, setInvitesPerPage] = useState(5);
+    const [invitesPerPage, setInvitesPerPage] = useState(8);
     const [resendingInviteId, setResendingInviteId] = useState(null);
     const [requestFilter, setRequestFilter] = useState('all'); // 'all', 'pending_approval', 'approved', 'rejected'
     const [showInviteModal, setShowInviteModal] = useState(false);

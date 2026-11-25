@@ -66,6 +66,8 @@ const AVAILABLE_PLANS = [
 
 export default function RestaurantSettings({ tenantInfo, onSave }) {
   const [activeSection, setActiveSection] = useState('all');
+  const [paymentMethodTab, setPaymentMethodTab] = useState('upi'); // 'upi' | 'razorpay'
+  const [subHistoryPage, setSubHistoryPage] = useState(1);
   const [logoPreview, setLogoPreview] = useState(tenantInfo?.logo || '');
 
   // In-App Upgrade Modal & Payment State
@@ -396,9 +398,13 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
   };
 
   const handleToggleDay = (idx) => {
+    let dayName = '';
+    let isNowEnabled = false;
     setForm(prev => {
       const updated = [...prev.operatingHours];
       updated[idx].enabled = !updated[idx].enabled;
+      dayName = updated[idx].day || `Day ${idx + 1}`;
+      isNowEnabled = updated[idx].enabled;
       if (!updated[idx].enabled) {
         updated[idx].open = 'Closed for Business';
         updated[idx].close = '';
@@ -408,6 +414,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
       }
       return { ...prev, operatingHours: updated };
     });
+    toast.success(`${dayName} schedule updated (${isNowEnabled ? 'Open' : 'Closed'})`);
   };
 
   // Instant direct toggle for Khata (Customer Credit)
@@ -485,34 +492,39 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
     if (form.primaryPhone && !/^[0-9]{10}$/.test(form.primaryPhone.trim())) {
       toast.error('Primary phone must be a valid 10-digit mobile number');
       return;
     }
 
+    const payload = {
+      name: form.restaurantName,
+      restaurantName: form.restaurantName,
+      logo: logoPreview,
+      gstNumber: form.gstNumber,
+      address: form.storeAddress,
+      phone: form.primaryPhone,
+      email: form.publicEmail,
+      profitMargin: Number(form.profitMargin) || 40,
+      enableEstimatedPrepTime: form.enableEstimatedPrepTime,
+      enableKhata: form.enableKhata,
+      enableCustomerOtp: form.enableCustomerOtp,
+      upiId: form.upiId,
+      upiPayeeName: form.upiPayeeName,
+      enableDirectUpi: form.enableDirectUpi,
+      operatingHours: form.operatingHours
+    };
+
     if (onSave) {
-      onSave({
-        name: form.restaurantName,
-        restaurantName: form.restaurantName,
-        logo: logoPreview,
-        gstNumber: form.gstNumber,
-        address: form.storeAddress,
-        phone: form.primaryPhone,
-        email: form.publicEmail,
-        profitMargin: Number(form.profitMargin) || 40,
-        enableEstimatedPrepTime: form.enableEstimatedPrepTime,
-        enableKhata: form.enableKhata,
-        enableCustomerOtp: form.enableCustomerOtp,
-        upiId: form.upiId,
-        upiPayeeName: form.upiPayeeName,
-        enableDirectUpi: form.enableDirectUpi,
-        operatingHours: form.operatingHours
-      });
-    } else {
-      toast.success('Restaurant settings saved successfully!');
+      try {
+        await onSave(payload);
+      } catch (err) {
+        console.error('Error saving in onSave callback:', err);
+      }
     }
+    toast.success('Restaurant configuration saved successfully! ⚙️');
   };
 
   const handleDiscard = () => {
@@ -620,7 +632,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </div>
           <div>
             <h3 className={styles.cardTitle}>General Identity</h3>
-            <p className={styles.cardSubtitle}>Logo, store information, and official contact channels</p>
           </div>
         </div>
       </div>
@@ -669,6 +680,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
           {/* Form fields */}
           <div className={styles.formCol}>
+            {/* Row 1: Restaurant Name & Store Address */}
             <div className={styles.inputRow}>
               <div className={styles.inputGroup}>
                 <label>Restaurant Name</label>
@@ -683,36 +695,24 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   />
                 </div>
               </div>
+
               <div className={styles.inputGroup}>
-                <label>GST / Tax Number</label>
+                <label>Store Address</label>
                 <div className={styles.inputWrapper}>
-                  <Receipt size={14} className={styles.inputIcon} />
+                  <MapPin size={14} className={styles.inputIcon} />
                   <input
                     type="text"
-                    placeholder="e.g. 29ABCDE1234F1Z5"
-                    value={form.gstNumber}
-                    onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+                    placeholder="e.g. 1224 Main Road, Sector 5, City"
+                    value={form.storeAddress}
+                    onChange={(e) => setForm({ ...form, storeAddress: e.target.value })}
                     className={styles.textInput}
                   />
                 </div>
               </div>
             </div>
 
-            <div className={styles.inputGroup}>
-              <label>Store Address</label>
-              <div className={styles.inputWrapper}>
-                <MapPin size={14} className={styles.inputIcon} />
-                <input
-                  type="text"
-                  placeholder="e.g. 1224 Main Road, Sector 5, City"
-                  value={form.storeAddress}
-                  onChange={(e) => setForm({ ...form, storeAddress: e.target.value })}
-                  className={styles.textInput}
-                />
-              </div>
-            </div>
-
-            <div className={styles.inputRow}>
+            {/* Row 2: Primary Phone, Public Email, GST / Tax Number */}
+            <div className={styles.inputRowThree}>
               <div className={styles.inputGroup}>
                 <label>Primary Phone</label>
                 <div className={styles.inputWrapper}>
@@ -733,6 +733,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   />
                 </div>
               </div>
+
               <div className={styles.inputGroup}>
                 <label>Public Email</label>
                 <div className={styles.inputWrapper}>
@@ -742,6 +743,20 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                     placeholder="e.g. contact@mycafe.com"
                     value={form.publicEmail}
                     onChange={(e) => setForm({ ...form, publicEmail: e.target.value })}
+                    className={styles.textInput}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.inputGroup}>
+                <label>GST / Tax Number</label>
+                <div className={styles.inputWrapper}>
+                  <Receipt size={14} className={styles.inputIcon} />
+                  <input
+                    type="text"
+                    placeholder="e.g. 29ABCDE1234F1Z5"
+                    value={form.gstNumber}
+                    onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
                     className={styles.textInput}
                   />
                 </div>
@@ -762,7 +777,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </div>
           <div>
             <h3 className={styles.cardTitle}>Operations & Feature Controls</h3>
-            <p className={styles.cardSubtitle}>Weekly schedule, kitchen prep timer, and financial switches</p>
           </div>
         </div>
         <button type="button" className={styles.copyBtn} onClick={handleCopyMondayToAll}>
@@ -903,65 +917,47 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
   const renderWhatsApp = () => (
     <section className={styles.sectionCard} id="whatsapp">
-      <div className={styles.cardBody} style={{ padding: '18px 22px' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: '#f1f5f9',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              color: '#25D366',
-              flexShrink: 0
-            }}>
-              <FaWhatsapp />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800, color: '#0f172a' }}>
-                  WhatsApp E-Bill Dispatcher
-                </h4>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '100px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  background: waConnected ? '#ecfdf5' : '#fef3c7',
-                  color: waConnected ? '#059669' : '#b45309',
-                  border: waConnected ? '1px solid #a7f3d0' : '1px solid #fde68a'
-                }}>
-                  {waConnected ? `Linked (+${waPhone})` : 'Not Linked'}
-                </span>
-              </div>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
-                {waConnected
-                  ? `Silent background dispatch active from +${waPhone}. Staff never need to log in.`
-                  : 'Link cafe phone once to send digital bills silently to customers.'}
-              </p>
-            </div>
+      <div className={styles.cardHeader}>
+        <div className={styles.headerTitleWrap}>
+          <div className={styles.headerIconBox} style={{ background: '#ecfdf5', color: '#16a34a' }}>
+            <FaWhatsapp size={16} />
           </div>
+          <div>
+            <h3 className={styles.cardTitle}>WhatsApp E-Bills</h3>
+          </div>
+        </div>
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: '100px',
+          fontSize: '11px',
+          fontWeight: 600,
+          background: waConnected ? '#ecfdf5' : '#fef3c7',
+          color: waConnected ? '#059669' : '#b45309',
+          border: waConnected ? '1px solid #a7f3d0' : '1px solid #fde68a'
+        }}>
+          {waConnected ? `Linked (+${waPhone})` : 'Not Linked'}
+        </span>
+      </div>
 
+      <div className={styles.cardBody} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.85rem' }}>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+          {waConnected
+            ? `Silent background dispatch active from +${waPhone}. Staff never need to log in.`
+            : 'Link café WhatsApp once to send automated digital bills and receipts directly to customer mobile phones.'}
+        </p>
+
+        <div>
           <button
             type="button"
             onClick={() => setShowWhatsAppModal(true)}
             style={{
-              padding: '8px 16px',
-              borderRadius: '9px',
+              padding: '6px 14px',
+              borderRadius: '8px',
               border: '1px solid #cbd5e1',
               background: '#ffffff',
               color: '#0f172a',
-              fontWeight: 700,
-              fontSize: '0.82rem',
+              fontWeight: 500,
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
@@ -969,7 +965,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
               transition: 'all 0.15s ease'
             }}
           >
-            <QrCode size={14} />
+            <QrCode size={13} />
             <span>{waConnected ? 'Manage Device' : 'Link Cafe Phone'}</span>
           </button>
         </div>
@@ -986,7 +982,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </div>
           <div>
             <h3 className={styles.cardTitle}>Interface Language (भाषा)</h3>
-            <p className={styles.cardSubtitle}>Choose dashboard and POS system language for your store</p>
           </div>
         </div>
         <span style={{
@@ -1041,7 +1036,6 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
           </div>
           <div>
             <h3 className={styles.cardTitle}>Order Chime &amp; Audio Alerts</h3>
-            <p className={styles.cardSubtitle}>Sound notifications, volume level, and tone styles for new orders</p>
           </div>
         </div>
         <span style={{
@@ -1110,30 +1104,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
 
           {/* Compact Tone Variation Grid (Just Name & Play Button) */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a' }}>
-                Notification Tune (4 Styles)
-              </span>
-              <button
-                type="button"
-                onClick={() => previewTone(audioSettings.tone, audioSettings.volume)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #c7d2fe',
-                  background: '#eef2ff',
-                  color: '#4338ca',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                <Volume2 size={12} /> Test Current Tone
-              </button>
-            </div>
+
 
             <div className={styles.tuneGrid}>
               {TONE_OPTIONS.map(tone => {
@@ -1171,116 +1142,137 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
     </section>
   );
 
-  const renderSubscription = () => (
-    <section className={styles.sectionCard} id="subscription">
-      <div className={styles.cardHeader}>
-        <div className={styles.headerTitleWrap}>
-          <div className={styles.headerIconBox}>
-            <CreditCard size={16} />
-          </div>
-          <div>
-            <h3 className={styles.cardTitle}>Subscription &amp; In-App Upgrades</h3>
-            <p className={styles.cardSubtitle}>Plan validity, active entitlements, and payment history</p>
-          </div>
-        </div>
-        <span style={{
-          background: tenantInfo?.subscription?.isActive !== false ? '#ecfdf5' : '#fee2e2',
-          color: tenantInfo?.subscription?.isActive !== false ? '#059669' : '#b91c1c',
-          border: tenantInfo?.subscription?.isActive !== false ? '1px solid #a7f3d0' : '1px solid #fecaca',
-          padding: '3px 10px',
-          borderRadius: '100px',
-          fontSize: '11px',
-          fontWeight: 600
-        }}>
-          {tenantInfo?.subscription?.isActive !== false ? '● ACTIVE PLAN' : '● DEACTIVATED'}
-        </span>
-      </div>
+  const renderSubscription = () => {
+    const historyList = tenantInfo?.subscriptionHistory || [];
+    const pageSize = 5;
+    const totalPages = Math.ceil(historyList.length / pageSize) || 1;
+    const safePage = Math.min(Math.max(1, subHistoryPage), totalPages);
+    const paginatedHistory = historyList.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-      <div className={styles.cardBody}>
-        <div className={styles.subStatsGrid}>
-          <div className={styles.subStatCard}>
-            <span className={styles.subStatLabel}>Current Active Plan</span>
-            <div className={styles.subStatValue}>
-              {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
+    return (
+      <section className={styles.sectionCard} id="subscription">
+        <div className={styles.cardHeader}>
+          <div className={styles.headerTitleWrap}>
+            <div className={styles.headerIconBox}>
+              <CreditCard size={16} />
             </div>
-          </div>
-          <div className={styles.subStatCard}>
-            <span className={styles.subStatLabel}>Plan Pricing</span>
-            <div className={styles.subStatValueGreen}>
-              ₹{tenantInfo?.subscription?.price || 999}
-            </div>
-          </div>
-          <div className={styles.subStatCard}>
-            <span className={styles.subStatLabel}>Plan Validity / Renewal</span>
-            <div className={styles.subStatValue}>
-              {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
+            <div>
+              <h3 className={styles.cardTitle}>Subscription &amp; In-App Upgrades</h3>
             </div>
           </div>
         </div>
 
-        <div className={styles.subNotice} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldCheck size={16} color="#4f46e5" style={{ flexShrink: 0 }} />
-            <span>Subscription tiers and renewals are managed exclusively by Platform Super Admin.</span>
+        <div className={styles.cardBody}>
+          <div className={styles.subStatsGrid}>
+            <div className={styles.subStatCard}>
+              <span className={styles.subStatLabel}>Current Active Plan</span>
+              <div className={styles.subStatValue}>
+                {tenantInfo?.subscription?.plan === '1_year' ? '1 Year Ultimate Pro' : tenantInfo?.subscription?.plan === '6_months' ? '6 Months Saver' : '1 Month Starter'}
+              </div>
+            </div>
+            <div className={styles.subStatCard}>
+              <span className={styles.subStatLabel}>Plan Pricing</span>
+              <div className={styles.subStatValueGreen}>
+                ₹{tenantInfo?.subscription?.price || 999}
+              </div>
+            </div>
+            <div className={styles.subStatCard}>
+              <span className={styles.subStatLabel}>Plan Validity / Renewal</span>
+              <div className={styles.subStatValue}>
+                {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Active Lifetime'}
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowUpgradeModal(true)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#4f46e5',
-              color: '#ffffff',
-              fontSize: '0.76rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            <Sparkles size={13} /> Contact Admin to Upgrade
-          </button>
-        </div>
 
-        {/* History table */}
-        {(tenantInfo?.subscriptionHistory && tenantInfo.subscriptionHistory.length > 0) && (
-          <div style={{ marginTop: '1.25rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
-              Subscription Activity History
-            </span>
-            <table className={styles.historyTable}>
-              <thead>
-                <tr>
-                  <th>Plan</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                  <th>Action Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tenantInfo.subscriptionHistory.map((item, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 500 }}>{item.plan}</td>
-                    <td>₹{item.price}</td>
-                    <td>
-                      <span className={styles.statusActive}>
-                        {item.status?.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ color: '#64748b' }}>
-                      {item.actionDate ? new Date(item.actionDate).toLocaleDateString('en-IN') : '-'}
-                    </td>
+          {/* History table with pagination */}
+          {historyList.length > 0 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+                  Subscription Activity History
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  Total {historyList.length} records
+                </span>
+              </div>
+              <table className={styles.historyTable}>
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Action Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </section>
-  );
+                </thead>
+                <tbody>
+                  {paginatedHistory.map((item, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 500 }}>{item.plan}</td>
+                      <td>₹{item.price}</td>
+                      <td>
+                        <span className={styles.statusActive}>
+                          {item.status?.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ color: '#64748b' }}>
+                        {item.actionDate ? new Date(item.actionDate).toLocaleDateString('en-IN') : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '0.85rem',
+                  paddingTop: '0.65rem',
+                  borderTop: '1px solid #f1f5f9',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                    Showing {((safePage - 1) * pageSize) + 1} - {Math.min(safePage * pageSize, historyList.length)} of {historyList.length}
+                  </span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      disabled={safePage === 1}
+                      onClick={() => setSubHistoryPage(p => Math.max(1, p - 1))}
+                      className={styles.paginationBtn}
+                    >
+                      Prev
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setSubHistoryPage(p)}
+                        className={`${styles.paginationBtn} ${safePage === p ? styles.paginationBtnActive : ''}`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={safePage === totalPages}
+                      onClick={() => setSubHistoryPage(p => Math.min(totalPages, p + 1))}
+                      className={styles.paginationBtn}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
 
   const renderPayment = () => {
     const isLinked = Boolean(routeAccount?.isLinked || routeAccount?.accountId || tenantInfo?.razorpay?.accountId);
@@ -1297,9 +1289,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             </div>
             <div>
               <h3 className={styles.cardTitle}>Payment Gateway &amp; Razorpay Route</h3>
-              <p className={styles.cardSubtitle}>
-                Connect your café bank account to receive customer order payouts directly via Razorpay Route
-              </p>
+
             </div>
           </div>
           {isLinked && (
@@ -1310,54 +1300,87 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
         </div>
 
         <div className={styles.cardBody}>
-          {/* ── 1. DIRECT CAFE UPI (INSTANT 0-SECOND BANK SETTLEMENT) ── */}
-          <div style={{
-            background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
-            border: '1.5px solid #86efac',
-            borderRadius: '12px',
-            padding: '1.25rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 2px 10px rgba(16, 185, 129, 0.06)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Smartphone size={18} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#065f46' }}>
-                    Direct Café UPI (Instant Bank Settlement &amp; 0% Fee)
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#047857' }}>
-                    Customer payments via Google Pay, PhonePe, Paytm, or Dynamic QR go 100% directly into your bank account!
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <GPayIcon size={22} />
-                <PhonePeIcon size={22} />
-                <PaytmIcon size={18} />
-                <BhimIcon size={22} />
-                <span style={{
-                  background: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? '#d1fae5' : '#fef3c7',
-                  color: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? '#065f46' : '#92400e',
-                  border: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? '1px solid #6ee7b7' : '1px solid #fde68a',
-                  padding: '3px 10px',
-                  borderRadius: '100px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  marginLeft: '4px'
-                }}>
-                  {(form.upiId && !form.upiId.endsWith('@gmail.com')) ? '● UPI ACTIVE' : '● ENTER UPI ID'}
-                </span>
-              </div>
+          {/* Top Toggles Row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '1.25rem' }}>
+            {/* Primary Payment Mode Toggle */}
+            <div className={styles.paymentToggleWrap} style={{ marginBottom: 0 }}>
+              <button
+                type="button"
+                onClick={() => setPaymentMethodTab('upi')}
+                className={`${styles.paymentToggleBtn} ${paymentMethodTab === 'upi' ? styles.paymentToggleBtnActive : ''}`}
+              >
+                <Smartphone size={16} color={paymentMethodTab === 'upi' ? '#10b981' : '#64748b'} />
+                <span>Direct UPI</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethodTab('razorpay')}
+                className={`${styles.paymentToggleBtn} ${paymentMethodTab === 'razorpay' ? styles.paymentToggleBtnActive : ''}`}
+              >
+                <CreditCard size={16} color={paymentMethodTab === 'razorpay' ? '#0284c7' : '#64748b'} />
+                <span>Razorpay</span>
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) auto', gap: '1.25rem', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div className={styles.inputGroup}>
-                  <label style={{ color: '#065f46', fontWeight: 700 }}>Your Café UPI ID / VPA</label>
+            {/* Second Mode Switcher Toggle: Placed in upper row with concise text */}
+            {(paymentMethodTab === 'razorpay' && !isLinked) && (
+              <div className={styles.routeTabGroup} style={{ marginBottom: 0 }}>
+                <button
+                  type="button"
+                  className={`${styles.routeTabBtn} ${routeFormMode === 'connect_id' ? styles.routeTabBtnActive : ''}`}
+                  onClick={() => setRouteFormMode('connect_id')}
+                  style={{ fontWeight: 500 }}
+                  title="Connect Razorpay Account ID"
+                >
+                  <Zap size={13} />
+                  <span>Connect ID</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.routeTabBtn} ${routeFormMode === 'register_api' ? styles.routeTabBtnActive : ''}`}
+                  onClick={() => setRouteFormMode('register_api')}
+                  style={{ fontWeight: 500 }}
+                  title="Register Linked Account via API"
+                >
+                  <Building2 size={13} />
+                  <span>Register API</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── 1. DIRECT CAFE UPI ── */}
+          {paymentMethodTab === 'upi' && (
+            <div style={{
+              background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
+              border: '1.5px solid #86efac',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              marginBottom: '1rem',
+              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.06)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.15rem', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Smartphone size={18} />
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#065f46' }}>
+                    Direct Café UPI
+                  </h4>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <GPayIcon size={22} />
+                  <PhonePeIcon size={22} />
+                  <PaytmIcon size={18} />
+                  <BhimIcon size={22} />
+                </div>
+              </div>
+
+              {/* Direct UPI Inputs + Save Button Grid */}
+              <div className={styles.upiRowGrid}>
+                <div className={styles.inputGroup} style={{ marginBottom: 0 }}>
+                  <label style={{ color: '#065f46', fontWeight: 600 }}>Your Café UPI ID / VPA</label>
                   <div className={styles.inputWrapper}>
                     <Smartphone size={14} className={styles.inputIcon} />
                     <input
@@ -1372,54 +1395,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                       }}
                     />
                   </div>
-
-                  {/* Warning if email was entered */}
-                  {form.upiId.endsWith('@gmail.com') && (
-                    <div style={{
-                      marginTop: '5px',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: '#fef2f2',
-                      border: '1px solid #fca5a5',
-                      color: '#b91c1c',
-                      fontSize: '0.74rem',
-                      lineHeight: 1.4
-                    }}>
-                      <strong>❌ Attention:</strong> &quot;{form.upiId}&quot; is an email address, NOT a UPI ID. PhonePe and Google Pay will show &quot;Invalid QR code&quot; when scanned. A UPI ID must end with a bank handle like <code>@paytm</code>, <code>@ybl</code>, or <code>@okaxis</code>.
-                    </div>
-                  )}
-
-                  {/* Helpful Quick Pick Suggestions */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '5px' }}>
-                    <span style={{ fontSize: '0.68rem', color: '#047857', fontWeight: 600 }}>Quick suggestions:</span>
-                    {['9351862675@paytm', '9351862675@ybl', 'naveen935186@okaxis'].map(sugg => (
-                      <button
-                        key={sugg}
-                        type="button"
-                        onClick={() => setForm({ ...form, upiId: sugg })}
-                        style={{
-                          fontSize: '0.66rem',
-                          padding: '2px 7px',
-                          borderRadius: '6px',
-                          border: form.upiId === sugg ? '1px solid #059669' : '1px solid #cbd5e1',
-                          background: form.upiId === sugg ? '#dcfce7' : '#ffffff',
-                          color: form.upiId === sugg ? '#065f46' : '#334155',
-                          cursor: 'pointer',
-                          fontFamily: 'monospace',
-                          fontWeight: 700
-                        }}
-                      >
-                        {sugg}
-                      </button>
-                    ))}
-                  </div>
-
-                  <small style={{ color: '#047857', fontSize: '0.72rem', marginTop: '3px' }}>
-                    Accepts any UPI ID (PhonePe, Google Pay, Paytm, BHIM, Bank VPA).
-                  </small>
                 </div>
 
-                <div className={styles.inputGroup}>
+                <div className={styles.inputGroup} style={{ marginBottom: 0 }}>
                   <label style={{ color: '#065f46', fontWeight: 600 }}>Payee Name (Shown in Customer's UPI App)</label>
                   <div className={styles.inputWrapper}>
                     <Building2 size={14} className={styles.inputIcon} />
@@ -1434,325 +1412,275 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    className={styles.saveBtn}
-                    style={{ background: 'linear-gradient(135deg, #059669, #047857)', alignSelf: 'flex-start' }}
-                  >
-                    <Check size={13} /> Save UPI Settings
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className={styles.saveBtn}
+                  style={{
+                    background: 'linear-gradient(135deg, #059669, #047857)',
+                    padding: '0.55rem 1.15rem',
+                    borderRadius: '8px',
+                    height: '38px',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 500
+                  }}
+                >
+                  <Check size={14} /> Save UPI Settings
+                </button>
               </div>
 
-              {/* Dynamic QR Live Test Preview */}
-              <div style={{
-                background: '#ffffff',
-                border: '1.5px solid #d1fae5',
-                borderRadius: '12px',
-                padding: '14px',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
-                minWidth: '170px'
-              }}>
-                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#065f46', marginBottom: '8px' }}>
-                  Live Dynamic QR Preview
-                </span>
-                <QRCodeSVG
-                  value={buildUpiUri({
-                    upiId: (form.upiId && !form.upiId.endsWith('@gmail.com')) ? form.upiId : '9351862675@paytm',
-                    payeeName: form.upiPayeeName || form.restaurantName || 'Cafee',
-                    amount: 100,
-                    note: 'Sample Bill'
-                  })}
-                  size={125}
-                  level="M"
-                />
-                <span style={{ fontSize: '0.7rem', color: '#334155', marginTop: '8px', fontWeight: 600 }}>
-                  Pre-filled: <strong style={{ color: '#059669' }}>₹100.00</strong>
-                </span>
-                <span style={{ fontSize: '0.64rem', color: '#059669', fontWeight: 700, marginTop: '2px' }}>
-                  ✓ Locks amount in GPay &amp; PhonePe
-                </span>
-                <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-                  <GPayIcon size={16} />
-                  <PhonePeIcon size={16} />
-                  <PaytmIcon size={14} />
-                  <BhimIcon size={16} />
+              {/* Warning if email was entered */}
+              {form.upiId.endsWith('@gmail.com') && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fca5a5',
+                  color: '#b91c1c',
+                  fontSize: '0.74rem',
+                  lineHeight: 1.4
+                }}>
+                  <strong>❌ Attention:</strong> &quot;{form.upiId}&quot; is an email address, NOT a UPI ID. PhonePe and Google Pay will show &quot;Invalid QR code&quot; when scanned. A UPI ID must end with a bank handle like <code>@paytm</code>, <code>@ybl</code>, or <code>@okaxis</code>.
                 </div>
-              </div>
+              )}
             </div>
-          </div>
+          )}
 
           {/* ── 2. RAZORPAY ROUTE MULTI-VENDOR GATEWAY (CARDS & NETBANKING) ── */}
-          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem', marginTop: '0.5rem' }}>
-            <h4 style={{ margin: '0 0 6px 0', fontSize: '0.88rem', fontWeight: 700, color: '#334155' }}>
-              Razorpay Route (Optional: Cards, NetBanking &amp; Commission)
-            </h4>
-            <p style={{ margin: '0 0 12px 0', fontSize: '0.74rem', color: '#64748b' }}>
-              Connect your Razorpay Linked Account ID to accept Credit/Debit cards and NetBanking with automated platform commission deduction.
-            </p>
-          </div>
+          {paymentMethodTab === 'razorpay' && (
+            <div>
+              {isLinked ? (
+                /* Connected Account View */
+                <div className={styles.connectedCard}>
+                  <div className={styles.connectedCardHeader}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ShieldCheck size={20} color="#059669" />
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
+                          {routeAccount?.businessName || tenantInfo?.name || 'Connected Café Account'}
+                        </h4>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
+                          Linked ID: {accountId}
+                        </span>
+                      </div>
+                    </div>
 
-          {isLinked ? (
-            /* Connected Account View */
-            <div className={styles.connectedCard}>
-              <div className={styles.connectedCardHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldCheck size={20} color="#059669" />
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
-                      {routeAccount?.businessName || tenantInfo?.name || 'Connected Café Account'}
-                    </h4>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
-                      Linked ID: {accountId}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => fetchRouteStatus(false)}
+                        disabled={isCheckingRouteStatus}
+                        className={styles.routeBtnSecondary}
+                        title="Refresh live status from Razorpay Route"
+                      >
+                        <RefreshCw size={13} className={isCheckingRouteStatus ? 'animate-spin' : ''} />
+                        <span>{isCheckingRouteStatus ? 'Checking...' : 'Check Status'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleUnlinkRouteAccount}
+                        className={styles.routeBtnDanger}
+                        title="Disconnect this Razorpay account"
+                      >
+                        <Trash2 size={13} />
+                        <span>Unlink</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Account Details Grid */}
+                  <div className={styles.subStatsGrid} style={{ marginTop: '1rem' }}>
+                    <div className={styles.subStatCard}>
+                      <span className={styles.subStatLabel}>Razorpay Account ID</span>
+                      <div className={styles.subStatValue} style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                        {accountId}
+                      </div>
+                    </div>
+
+                    <div className={styles.subStatCard}>
+                      <span className={styles.subStatLabel}>Bank Account</span>
+                      <div className={styles.subStatValue} style={{ fontSize: '0.85rem' }}>
+                        {routeAccount?.bankAccountNumber ? `•••• ${routeAccount.bankAccountNumber}` : 'Verified via Razorpay'}
+                      </div>
+                      {routeAccount?.bankIfsc && (
+                        <span style={{ fontSize: '0.72rem', color: '#64748b' }}>IFSC: {routeAccount.bankIfsc}</span>
+                      )}
+                    </div>
+
+                    <div className={styles.subStatCard}>
+                      <span className={styles.subStatLabel}>Settlement Schedule</span>
+                      <div className={styles.subStatValueGreen} style={{ fontSize: '0.85rem' }}>
+                        Auto-Route T+1/T+2
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Direct to Bank Account</span>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    color: '#166534',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <CheckCircle2 size={16} color="#16a34a" />
+                    <span>
+                      <strong>Active Route Account:</strong> Online customer payments made from the menu/cart are automatically routed to your connected bank account after platform commission deduction.
                     </span>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => fetchRouteStatus(false)}
-                    disabled={isCheckingRouteStatus}
-                    className={styles.routeBtnSecondary}
-                    title="Refresh live status from Razorpay Route"
-                  >
-                    <RefreshCw size={13} className={isCheckingRouteStatus ? 'animate-spin' : ''} />
-                    <span>{isCheckingRouteStatus ? 'Checking...' : 'Check Status'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleUnlinkRouteAccount}
-                    className={styles.routeBtnDanger}
-                    title="Disconnect this Razorpay account"
-                  >
-                    <Trash2 size={13} />
-                    <span>Unlink</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Account Details Grid */}
-              <div className={styles.subStatsGrid} style={{ marginTop: '1rem' }}>
-                <div className={styles.subStatCard}>
-                  <span className={styles.subStatLabel}>Razorpay Account ID</span>
-                  <div className={styles.subStatValue} style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>
-                    {accountId}
-                  </div>
-                </div>
-
-                <div className={styles.subStatCard}>
-                  <span className={styles.subStatLabel}>Bank Account</span>
-                  <div className={styles.subStatValue} style={{ fontSize: '0.85rem' }}>
-                    {routeAccount?.bankAccountNumber ? `•••• ${routeAccount.bankAccountNumber}` : 'Verified via Razorpay'}
-                  </div>
-                  {routeAccount?.bankIfsc && (
-                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>IFSC: {routeAccount.bankIfsc}</span>
-                  )}
-                </div>
-
-                <div className={styles.subStatCard}>
-                  <span className={styles.subStatLabel}>Settlement Schedule</span>
-                  <div className={styles.subStatValueGreen} style={{ fontSize: '0.85rem' }}>
-                    Auto-Route T+1/T+2
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Direct to Bank Account</span>
-                </div>
-              </div>
-
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem 1rem',
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                color: '#166534',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <CheckCircle2 size={16} color="#16a34a" />
-                <span>
-                  <strong>Active Route Account:</strong> Online customer payments made from the menu/cart are automatically routed to your connected bank account after platform commission deduction.
-                </span>
-              </div>
-            </div>
-          ) : (
-            /* Unconnected Form */
-            <div>
-              <div style={{
-                backgroundColor: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                borderRadius: '10px',
-                padding: '0.85rem 1rem',
-                marginBottom: '1.25rem',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
-                fontSize: '0.78rem',
-                color: '#1e40af'
-              }}>
-                <Info size={16} color="#2563eb" style={{ marginTop: '2px', flexShrink: 0 }} />
+              ) : (
+                /* Unconnected Form */
                 <div>
-                  <strong>Connect your Bank Account via Razorpay Route:</strong>
-                  <p style={{ margin: '4px 0 0 0', color: '#1e3a8a', lineHeight: 1.4 }}>
-                    Link your café's Razorpay Account ID to receive order payments directly. Each café operates its own linked account so customer payments are safely segregated and routed directly.
-                  </p>
-                </div>
-              </div>
-
-              {/* Mode Switcher Tabs */}
-              <div className={styles.routeTabGroup}>
-                <button
-                  type="button"
-                  className={`${styles.routeTabBtn} ${routeFormMode === 'connect_id' ? styles.routeTabBtnActive : ''}`}
-                  onClick={() => setRouteFormMode('connect_id')}
-                >
-                  <Zap size={13} />
-                  <span>Connect Razorpay Account ID (Quick / Test Mode)</span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.routeTabBtn} ${routeFormMode === 'register_api' ? styles.routeTabBtnActive : ''}`}
-                  onClick={() => setRouteFormMode('register_api')}
-                >
-                  <Building2 size={13} />
-                  <span>Register Linked Account via API</span>
-                </button>
-              </div>
-
-              <form onSubmit={handleConnectRouteAccount}>
-                {routeFormMode === 'connect_id' ? (
-                  <div className={styles.inputGroup} style={{ marginBottom: '1.25rem' }}>
-                    <label>Razorpay Route Linked Account ID</label>
-                    <div className={styles.inputWrapper}>
-                      <CreditCard size={14} className={styles.inputIcon} />
-                      <input
-                        type="text"
-                        placeholder="e.g. acc_K0xxxxxxxxx or acc_test_123"
-                        value={routeForm.accountId}
-                        onChange={(e) => setRouteForm({ ...routeForm, accountId: e.target.value })}
-                        className={styles.textInput}
-                        required
-                      />
-                    </div>
-                    <small style={{ color: '#64748b', fontSize: '0.72rem', marginTop: '4px', display: 'block' }}>
-                      Found in your Razorpay Dashboard under <strong>Route &gt; Accounts</strong> (e.g. acc_xxxxxxxxxxxxxx).
-                    </small>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.25rem' }}>
-                    <div className={styles.inputRow}>
-                      <div className={styles.inputGroup}>
-                        <label>Business / Trade Name</label>
-                        <div className={styles.inputWrapper}>
-                          <Building2 size={14} className={styles.inputIcon} />
-                          <input
-                            type="text"
-                            placeholder="e.g. Blue Tokai Coffee"
-                            value={routeForm.businessName}
-                            onChange={(e) => setRouteForm({ ...routeForm, businessName: e.target.value })}
-                            className={styles.textInput}
-                            required
-                          />
+                  <form onSubmit={handleConnectRouteAccount}>
+                    {routeFormMode === 'connect_id' ? (
+                      /* Mode 1: Clean Input + Action Button Grid */
+                      <div className={styles.routeConnectRow}>
+                        <div className={styles.inputGroup} style={{ marginBottom: 0 }}>
+                          <label style={{ fontWeight: 500, color: '#334155' }}>Razorpay Route Linked Account ID</label>
+                          <div className={styles.inputWrapper}>
+                            <CreditCard size={14} className={styles.inputIcon} />
+                            <input
+                              type="text"
+                              placeholder="e.g. acc_K0xxxxxxxxx or acc_test_123"
+                              value={routeForm.accountId}
+                              onChange={(e) => setRouteForm({ ...routeForm, accountId: e.target.value })}
+                              className={styles.textInput}
+                              required
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <div className={styles.inputGroup}>
-                        <label>Legal Business Entity Type</label>
-                        <select
-                          value={routeForm.businessType}
-                          onChange={(e) => setRouteForm({ ...routeForm, businessType: e.target.value })}
-                          className={styles.textInput}
-                          style={{ height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+
+                        <button
+                          type="submit"
+                          disabled={isSubmittingRoute}
+                          className={styles.routeBtnPrimary}
+                          style={{ height: '38px', whiteSpace: 'nowrap', fontWeight: 500 }}
                         >
-                          <option value="individual">Individual / Proprietorship</option>
-                          <option value="partnership">Partnership</option>
-                          <option value="private_limited">Private Limited</option>
-                          <option value="llp">LLP</option>
-                        </select>
+                          <CheckCircle size={14} />
+                          <span>{isSubmittingRoute ? 'Connecting...' : 'Connect Payment Account'}</span>
+                        </button>
                       </div>
-                    </div>
+                    ) : (
+                      /* Mode 2: Clean 2-Column Inputs Grid */
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.25rem' }}>
+                        <div className={styles.inputRow}>
+                          <div className={styles.inputGroup}>
+                            <label style={{ fontWeight: 500, color: '#334155' }}>Business / Trade Name</label>
+                            <div className={styles.inputWrapper}>
+                              <Building2 size={14} className={styles.inputIcon} />
+                              <input
+                                type="text"
+                                placeholder="e.g. Blue Tokai Coffee"
+                                value={routeForm.businessName}
+                                onChange={(e) => setRouteForm({ ...routeForm, businessName: e.target.value })}
+                                className={styles.textInput}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className={styles.inputGroup}>
+                            <label style={{ fontWeight: 500, color: '#334155' }}>Legal Business Entity Type</label>
+                            <div className={styles.inputWrapper}>
+                              <Building2 size={14} className={styles.inputIcon} />
+                              <select
+                                value={routeForm.businessType}
+                                onChange={(e) => setRouteForm({ ...routeForm, businessType: e.target.value })}
+                                className={styles.textInput}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <option value="individual">Individual / Proprietorship</option>
+                                <option value="partnership">Partnership</option>
+                                <option value="private_limited">Private Limited</option>
+                                <option value="llp">LLP</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
 
-                    <div className={styles.inputRow}>
-                      <div className={styles.inputGroup}>
-                        <label>Contact Email</label>
-                        <div className={styles.inputWrapper}>
-                          <Mail size={14} className={styles.inputIcon} />
-                          <input
-                            type="email"
-                            placeholder="cafe@example.com"
-                            value={routeForm.email}
-                            onChange={(e) => setRouteForm({ ...routeForm, email: e.target.value })}
-                            className={styles.textInput}
-                            required
-                          />
+                        <div className={styles.inputRow}>
+                          <div className={styles.inputGroup}>
+                            <label style={{ fontWeight: 500, color: '#334155' }}>Contact Email</label>
+                            <div className={styles.inputWrapper}>
+                              <Mail size={14} className={styles.inputIcon} />
+                              <input
+                                type="email"
+                                placeholder="cafe@example.com"
+                                value={routeForm.email}
+                                onChange={(e) => setRouteForm({ ...routeForm, email: e.target.value })}
+                                className={styles.textInput}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className={styles.inputGroup}>
+                            <label style={{ fontWeight: 500, color: '#334155' }}>Contact Phone (10 digits)</label>
+                            <div className={styles.inputWrapper}>
+                              <Phone size={14} className={styles.inputIcon} />
+                              <input
+                                type="tel"
+                                placeholder="9876543210"
+                                value={routeForm.phone}
+                                onChange={(e) => setRouteForm({ ...routeForm, phone: e.target.value })}
+                                className={styles.textInput}
+                                required
+                              />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className={styles.inputGroup}>
-                        <label>Contact Phone (10 digits)</label>
-                        <div className={styles.inputWrapper}>
-                          <Phone size={14} className={styles.inputIcon} />
-                          <input
-                            type="tel"
-                            placeholder="9876543210"
-                            value={routeForm.phone}
-                            onChange={(e) => setRouteForm({ ...routeForm, phone: e.target.value })}
-                            className={styles.textInput}
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className={styles.inputRow}>
-                      <div className={styles.inputGroup}>
-                        <label>Bank Account Number</label>
-                        <div className={styles.inputWrapper}>
-                          <CreditCard size={14} className={styles.inputIcon} />
-                          <input
-                            type="text"
-                            placeholder="e.g. 50100234567890"
-                            value={routeForm.accountNumber}
-                            onChange={(e) => setRouteForm({ ...routeForm, accountNumber: e.target.value })}
-                            className={styles.textInput}
-                          />
+                        <div className={styles.inputRow}>
+                          <div className={styles.inputGroup}>
+                            <label style={{ fontWeight: 500, color: '#334155' }}>Bank Account Number</label>
+                            <div className={styles.inputWrapper}>
+                              <CreditCard size={14} className={styles.inputIcon} />
+                              <input
+                                type="text"
+                                placeholder="e.g. 50100234567890"
+                                value={routeForm.accountNumber}
+                                onChange={(e) => setRouteForm({ ...routeForm, accountNumber: e.target.value })}
+                                className={styles.textInput}
+                              />
+                            </div>
+                          </div>
+                          <div className={styles.inputGroup}>
+                            <label style={{ fontWeight: 500, color: '#334155' }}>Bank IFSC Code</label>
+                            <div className={styles.inputWrapper}>
+                              <Building2 size={14} className={styles.inputIcon} />
+                              <input
+                                type="text"
+                                placeholder="e.g. HDFC0000123"
+                                value={routeForm.ifscCode}
+                                onChange={(e) => setRouteForm({ ...routeForm, ifscCode: e.target.value.toUpperCase() })}
+                                className={styles.textInput}
+                              />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className={styles.inputGroup}>
-                        <label>Bank IFSC Code</label>
-                        <div className={styles.inputWrapper}>
-                          <Building2 size={14} className={styles.inputIcon} />
-                          <input
-                            type="text"
-                            placeholder="e.g. HDFC0000123"
-                            value={routeForm.ifscCode}
-                            onChange={(e) => setRouteForm({ ...routeForm, ifscCode: e.target.value.toUpperCase() })}
-                            className={styles.textInput}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingRoute}
-                    className={styles.routeBtnPrimary}
-                  >
-                    <CheckCircle size={14} />
-                    <span>{isSubmittingRoute ? 'Connecting...' : 'Connect Payment Account'}</span>
-                  </button>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                          <button
+                            type="submit"
+                            disabled={isSubmittingRoute}
+                            className={styles.routeBtnPrimary}
+                            style={{ height: '38px', whiteSpace: 'nowrap', fontWeight: 500 }}
+                          >
+                            <CheckCircle size={14} />
+                            <span>{isSubmittingRoute ? 'Connecting...' : 'Connect Payment Account'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </form>
                 </div>
-              </form>
+              )}
             </div>
           )}
         </div>
@@ -1819,10 +1747,10 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             </div>
             <h4 className={styles.planName}>
               {tenantInfo?.subscription?.plan === 'pro' || tenantInfo?.subscription?.plan === '1_year' ? 'Pro Plan (₹999)' :
-               tenantInfo?.subscription?.plan === 'growth' || tenantInfo?.subscription?.plan === '6_months' ? 'Growth Plan (₹799)' :
-               tenantInfo?.subscription?.plan === 'custom' ? 'Custom Plan' :
-               tenantInfo?.subscription?.plan === 'free_trial' ? 'Free Trial' :
-               'Starter Plan (₹499)'}
+                tenantInfo?.subscription?.plan === 'growth' || tenantInfo?.subscription?.plan === '6_months' ? 'Growth Plan (₹799)' :
+                  tenantInfo?.subscription?.plan === 'custom' ? 'Custom Plan' :
+                    tenantInfo?.subscription?.plan === 'free_trial' ? 'Free Trial' :
+                      'Starter Plan (₹499)'}
             </h4>
             <p className={styles.planExpiry}>
               Exp: {tenantInfo?.subscription?.endDate ? new Date(tenantInfo.subscription.endDate).toLocaleDateString('en-IN') : 'Lifetime'}
@@ -1834,7 +1762,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 setShowUpgradeModal(true);
               }}
             >
-              <Sparkles size={12} /> Contact Admin to Upgrade
+              Contact Admin to Upgrade
             </button>
           </div>
         </aside>
@@ -1854,8 +1782,10 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                 {renderGeneral()}
                 {renderOperations()}
                 {renderPayment()}
-                {renderWhatsApp()}
-                {renderLanguage()}
+                <div className={styles.twoColCards}>
+                  {renderWhatsApp()}
+                  {renderLanguage()}
+                </div>
                 {renderAudio()}
                 {renderSubscription()}
               </motion.div>
@@ -1946,15 +1876,7 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
             )}
           </AnimatePresence>
 
-          {/* Footer Info */}
-          <footer className={styles.settingsFooter}>
-            <span>© 2026 DINEVIQ OS - Enterprise POS & Cafe Management Suite.</span>
-            <div className={styles.footerLinks}>
-              <a href="#privacy">Privacy Policy</a>
-              <a href="#audit">Audit Logs</a>
-              <a href="#system">System Health</a>
-            </div>
-          </footer>
+
         </div>
       </div>
 
@@ -2025,9 +1947,9 @@ export default function RestaurantSettings({ tenantInfo, onSave }) {
                   fontWeight: 700
                 }}>
                   {tenantInfo?.subscription?.plan === 'pro' || tenantInfo?.subscription?.plan === '1_year' ? 'Pro Plan (₹999)' :
-                   tenantInfo?.subscription?.plan === 'growth' || tenantInfo?.subscription?.plan === '6_months' ? 'Growth Plan (₹799)' :
-                   tenantInfo?.subscription?.plan === 'custom' ? 'Custom Plan' :
-                   'Starter Plan (₹499)'}
+                    tenantInfo?.subscription?.plan === 'growth' || tenantInfo?.subscription?.plan === '6_months' ? 'Growth Plan (₹799)' :
+                      tenantInfo?.subscription?.plan === 'custom' ? 'Custom Plan' :
+                        'Starter Plan (₹499)'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

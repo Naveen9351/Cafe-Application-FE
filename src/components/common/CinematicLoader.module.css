@@ -12,12 +12,13 @@
   user-select: none;
   -webkit-user-select: none;
   cursor: wait;
-  will-change: opacity, transform;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform, filter;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), filter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .overlayExiting {
-  opacity: 0 !important;
+  opacity: 0;
+  filter: blur(8px);
   pointer-events: none !important;
 }
 
@@ -27,7 +28,7 @@
   width: 620px;
   height: 620px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(254, 243, 199, 0.45) 0%, rgba(245, 230, 211, 0.22) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(254, 243, 199, 0.5) 0%, rgba(245, 230, 211, 0.25) 45%, transparent 70%);
   filter: blur(55px);
   pointer-events: none;
   animation: pulseGlow 3.5s ease-in-out infinite;
@@ -41,7 +42,7 @@
   }
   50% {
     transform: scale(1.08);
-    opacity: 0.65;
+    opacity: 0.7;
   }
 }
 
@@ -66,44 +67,44 @@
 
 /* Floating Elements (Pure CSS, never interrupted by React state) */
 .floatSlow {
-  animation: floatAnimSlow 3.8s ease-in-out infinite;
+  animation: floatAnimSlow 4.2s ease-in-out infinite;
   will-change: transform;
 }
 
 .floatMed {
-  animation: floatAnimMed 3.2s ease-in-out infinite;
+  animation: floatAnimMed 3.4s ease-in-out infinite;
   will-change: transform;
 }
 
 .floatFast {
-  animation: floatAnimFast 2.7s ease-in-out infinite;
+  animation: floatAnimFast 2.8s ease-in-out infinite;
   will-change: transform;
 }
 
 @keyframes floatAnimSlow {
   0%, 100% {
-    transform: translateY(0px);
+    transform: translateY(0px) rotate(0deg);
   }
   50% {
-    transform: translateY(-8px);
+    transform: translateY(-9px) rotate(3deg);
   }
 }
 
 @keyframes floatAnimMed {
   0%, 100% {
-    transform: translateY(0px);
+    transform: translateY(0px) rotate(0deg);
   }
   50% {
-    transform: translateY(6px);
+    transform: translateY(7px) rotate(-4deg);
   }
 }
 
 @keyframes floatAnimFast {
   0%, 100% {
-    transform: translateY(0px) scale(0.95);
+    transform: translateY(0px) scale(0.96);
   }
   50% {
-    transform: translateY(-6px) scale(1.05);
+    transform: translateY(-7px) scale(1.04);
   }
 }
 
@@ -120,6 +121,132 @@
   }
   50% {
     opacity: 1;
-    transform: scale(1.18);
+    transform: scale(1.2);
+  }
+}
+
+/* ======================================================== */
+/* LUXURY WHITE CULINARY SMOKE & STEAM DISSOLVE TRANSITION */
+/* ======================================================== */
+.smokeLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.smokeBackdropBlur {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 50%, rgba(255, 255, 255, 0.4) 100%);
+  animation: smokeDissolveAnim 0.75s ease-out forwards;
+  will-change: opacity;
+}
+
+.smokePuffCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 520px;
+  height: 520px;
+  margin-top: -260px;
+  margin-left: -260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.92) 35%, rgba(255, 255, 255, 0.5) 60%, transparent 80%);
+  filter: blur(30px);
+  will-change: transform, opacity;
+  animation: smokeCenterAnim 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.smokePuffBottomLeft {
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 650px;
+  height: 650px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.85) 40%, rgba(255, 255, 255, 0.35) 65%, transparent 85%);
+  filter: blur(40px);
+  will-change: transform, opacity;
+  animation: smokeLeftAnim 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.smokePuffTopRight {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 650px;
+  height: 650px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.85) 40%, rgba(255, 255, 255, 0.35) 65%, transparent 85%);
+  filter: blur(40px);
+  will-change: transform, opacity;
+  animation: smokeRightAnim 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes smokeCenterAnim {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+  65% {
+    opacity: 0.85;
+    transform: scale(2.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+
+@keyframes smokeLeftAnim {
+  0% {
+    transform: translate(0, 0) scale(0.65);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.95;
+    transform: translate(45px, -45px) scale(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(100px, -100px) scale(2.4);
+  }
+}
+
+@keyframes smokeRightAnim {
+  0% {
+    transform: translate(0, 0) scale(0.65);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.95;
+    transform: translate(-45px, 45px) scale(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-100px, 100px) scale(2.4);
+  }
+}
+
+@keyframes smokeDissolveAnim {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
   }
 }

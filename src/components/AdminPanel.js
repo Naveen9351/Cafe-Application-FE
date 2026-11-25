@@ -40,6 +40,7 @@ import PWAInstallModal from './pwa/PWAInstallModal';
 import { API_URL as API } from '../config/api';
 import { useTranslation } from '../utils/translations';
 import { playOrderChime, getAudioSettings, saveAudioSettings, previewTone, TONE_OPTIONS } from '../utils/audioChime';
+import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { formatTableBadge } from './common/TableBadge';
 import { openWhatsappBill } from '../utils/whatsappBillSender';
 import { printOrderBill } from '../utils/billPrinter';
@@ -204,6 +205,7 @@ export default function AdminPanel() {
   } = usePWAInstall();
 
   const [posSelectedTable, setPosSelectedTable] = useState(null);
+  const [pendingServiceRequests, setPendingServiceRequests] = useState([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
@@ -429,6 +431,7 @@ export default function AdminPanel() {
       navigate(`/admin/${allowedTabs[0]?.id || 'dashboard'}`);
     }
   };
+  const setActiveTab = handleTabChange;
 
   // User identity metadata for top navbar display
   const userEmail = user?.email || user?.username || (isAdmin ? 'admin@serviq.in' : 'staff@serviq.in');
@@ -833,6 +836,36 @@ export default function AdminPanel() {
     }
   };
 
+  // Fetch Active Pending Service Requests (Bill requests & Waiter calls)
+  const fetchServiceRequests = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const tid = tenantId || user?.tenantId;
+      const res = await axios.get(`${API}/tables/service-requests?status=pending${tid ? `&tenantId=${tid}` : ''}`, {
+        headers: { 'x-auth-token': token }
+      });
+      if (Array.isArray(res.data)) {
+        setPendingServiceRequests(res.data);
+      }
+    } catch (e) {
+      console.log('Failed to fetch service requests:', e.message);
+    }
+  };
+
+  const handleResolveServiceRequest = async (reqId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API}/tables/service-requests/${reqId}`, { status: 'resolved' }, {
+        headers: { 'x-auth-token': token }
+      });
+      setPendingServiceRequests(prev => prev.filter(r => (r._id || r.id) !== reqId));
+      fetchTables();
+      fetchNotifications();
+    } catch (e) {
+      console.log('Resolve service request error:', e.message);
+    }
+  };
+
   // Fetch 7-Day Notification History
   const fetchNotifications = async () => {
     try {
@@ -857,6 +890,7 @@ export default function AdminPanel() {
   const handleOpenNotifications = () => {
     setShowNotificationsDrawer(true);
     fetchNotifications();
+    fetchServiceRequests();
   };
 
   const handleMarkAllNotifsRead = () => {
@@ -1079,6 +1113,7 @@ export default function AdminPanel() {
     fetchOrders();
     fetchTables();
     fetchNotifications();
+    fetchServiceRequests();
 
     // Live Sockets
     if (socket) {
@@ -1104,14 +1139,16 @@ export default function AdminPanel() {
         const isBill = alert.type === 'request_bill';
         const title = isBill ? `💳 Table ${alert.tableNumber} Requested Bill!` : `🛎️ Table ${alert.tableNumber} Called Staff!`;
         const subtitle = isBill
-          ? `Total: ₹${alert.amount || 0} • ${alert.paymentMethod || 'UPI'}`
+          ? `Total: ₹${alert.amount || 0} • ${alert.paymentMethod || 'UPI'}${alert.customerName ? ` (${alert.customerName})` : ''}`
           : `${alert.customerName || 'Guest Diner'} needs assistance`;
 
+        setPendingServiceRequests((prev) => [alert, ...prev.filter(r => (r._id || r.id) !== (alert._id || alert.id))]);
+
         toast((t) => (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', minWidth: '220px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', minWidth: '240px' }}>
             <div>
               <div style={{ fontWeight: 800, fontSize: '0.88rem' }}>{title}</div>
-              <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>{subtitle}</div>
+              <div style={{ fontSize: '0.76rem', color: '#cbd5e1' }}>{subtitle}</div>
             </div>
             <button
               onClick={() => {
@@ -1119,27 +1156,40 @@ export default function AdminPanel() {
                 if (alert._id || alert.id) {
                   axios.put(`${API}/tables/service-requests/${alert._id || alert.id}`, { status: 'attending' }).catch(() => { });
                 }
+                if (isBill) {
+                  setPosSelectedTable(alert.tableNumber);
+                  navigate(`/admin/pos?table=${encodeURIComponent(alert.tableNumber)}`);
+                }
               }}
               style={{
                 backgroundColor: '#ea580c',
                 color: '#fff',
                 border: 'none',
-                padding: '4px 9px',
+                padding: '5px 11px',
                 borderRadius: '6px',
                 fontSize: '0.74rem',
                 fontWeight: 700,
                 cursor: 'pointer'
               }}
             >
-              Attending
+              {isBill ? 'Open POS' : 'Attending'}
             </button>
           </div>
         ), {
-          duration: 9000,
-          style: { background: '#1e293b', color: '#f8fafc', border: '1.5px solid #ea580c' }
+          duration: 12000,
+          style: { background: '#1e293b', color: '#f8fafc', border: '1.5px solid #ea580c', zIndex: 9999999 }
         });
 
         fetchTables();
+        fetchNotifications();
+      });
+
+      socket.on('tableServiceResolved', (data) => {
+        if (data?.id) {
+          setPendingServiceRequests((prev) => prev.filter(r => (r._id || r.id) !== data.id));
+        }
+        fetchTables();
+        fetchNotifications();
       });
 
       socket.on('tablesUpdated', () => {
@@ -1158,6 +1208,7 @@ export default function AdminPanel() {
         socket.off('newOrder');
         socket.off('orderUpdate');
         socket.off('tableServiceAlert');
+        socket.off('tableServiceResolved');
         socket.off('tablesUpdated');
         socket.off('ordersRefresh');
       }
@@ -1204,22 +1255,34 @@ export default function AdminPanel() {
   // Dynamic Metric Calculations based on real filtered orders & real time buckets from global dateRange
   const metrics = useMemo(() => {
     const targetOrders = dashboardOrders;
+
+    const isOrderPaid = (o) => {
+      if (!o) return false;
+      const payStatus = String(o.paymentStatus || '').toLowerCase().trim();
+      if (payStatus === 'paid' || o.isPaid === true) return true;
+      if (o.status === 'completed' && !['pending', 'unpaid', 'failed'].includes(payStatus)) {
+        return true;
+      }
+      return false;
+    };
+
     // Valid orders exclude cancelled orders, matching Super Admin Lifetime & Today metrics
     const validOrders = targetOrders.filter(o => o.status !== 'cancelled');
-    const completedOrders = targetOrders.filter(o => o.status === 'completed' || o.paymentStatus === 'paid');
-    const activeOrders = targetOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled' && o.paymentStatus !== 'paid');
+    const completedOrders = targetOrders.filter(isOrderPaid);
+    const activeOrders = targetOrders.filter(o => o.status !== 'cancelled' && !isOrderPaid(o));
     const cancelledOrders = targetOrders.filter(o => o.status === 'cancelled');
 
-    // Realized Gross Sales from All Valid Orders (matches Super Admin exactly)
-    const grossSales = validOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
+    // Realized Gross Sales ONLY from PAID / Settled orders (unpaid active orders NEVER change sales)
+    const grossSales = completedOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
     const activePipelineSales = activeOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
     const totalOrdersCount = validOrders.length;
+    const paidOrdersCount = completedOrders.length;
 
     // Real Net Sales (Excluding GST/Taxes, guaranteed <= grossSales)
     const netSales = Math.min(grossSales, Math.round(grossSales / 1.05));
 
-    // Average Order Value (AOV) matches Super Admin: grossSales / totalOrdersCount
-    const avgTicket = totalOrdersCount > 0 ? Math.round(grossSales / totalOrdersCount) : 0;
+    // Average Order Value (AOV): realized sales divided by paid settled bills!
+    const avgTicket = paidOrdersCount > 0 ? Math.round(grossSales / paidOrdersCount) : 0;
 
     // Dynamic Net Profit Margin (from cafe settings, default 40%)
     const profitMarginPercent = Number(tenantInfo?.settings?.profitMargin ?? 40);
@@ -1303,7 +1366,7 @@ export default function AdminPanel() {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
         if (b) {
-          if (o.status === 'completed') {
+          if (isOrderPaid(o)) {
             b.revenue += getOrderAmount(o);
           }
           if (o.status !== 'cancelled') {
@@ -1324,7 +1387,7 @@ export default function AdminPanel() {
         const dateNum = d.getDate();
         const b = timeBuckets.find(bucket => dateNum >= bucket.startD && dateNum <= bucket.endD) || timeBuckets[timeBuckets.length - 1];
         if (b) {
-          if (o.status === 'completed') {
+          if (isOrderPaid(o)) {
             b.revenue += getOrderAmount(o);
           }
           if (o.status !== 'cancelled') {
@@ -1374,7 +1437,7 @@ export default function AdminPanel() {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const b = timeBuckets.find(bucket => bucket.year === d.getFullYear() && bucket.month === d.getMonth());
         if (b) {
-          if (o.status === 'completed') {
+          if (isOrderPaid(o)) {
             b.revenue += getOrderAmount(o);
           }
           if (o.status !== 'cancelled') {
@@ -1397,10 +1460,13 @@ export default function AdminPanel() {
           targetOrders.forEach(o => {
             const d = o.createdAt ? new Date(o.createdAt) : new Date();
             const hour = d.getHours();
-            const amt = Number(o.total || o.totalAmount) || 0;
             const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
-            b.revenue += amt;
-            b.orders += 1;
+            if (isOrderPaid(o)) {
+              b.revenue += getOrderAmount(o);
+            }
+            if (o.status !== 'cancelled') {
+              b.orders += 1;
+            }
           });
         } else {
           const s = new Date(appliedCustomStartDate);
@@ -1427,8 +1493,12 @@ export default function AdminPanel() {
               const d = o.createdAt ? new Date(o.createdAt) : new Date();
               const b = timeBuckets.find(bucket => bucket.dateKey === d.toDateString());
               if (b) {
-                b.revenue += Number(o.total || o.totalAmount) || 0;
-                b.orders += 1;
+                if (isOrderPaid(o)) {
+                  b.revenue += getOrderAmount(o);
+                }
+                if (o.status !== 'cancelled') {
+                  b.orders += 1;
+                }
               }
             });
           } else {
@@ -1443,8 +1513,12 @@ export default function AdminPanel() {
               const d = o.createdAt ? new Date(o.createdAt) : new Date();
               const progress = (d.getTime() - s.getTime()) / totalSpan;
               const bIndex = Math.min(3, Math.max(0, Math.floor(progress * 4)));
-              timeBuckets[bIndex].revenue += Number(o.total || o.totalAmount) || 0;
-              timeBuckets[bIndex].orders += 1;
+              if (isOrderPaid(o)) {
+                timeBuckets[bIndex].revenue += getOrderAmount(o);
+              }
+              if (o.status !== 'cancelled') {
+                timeBuckets[bIndex].orders += 1;
+              }
             });
           }
         }
@@ -1462,10 +1536,13 @@ export default function AdminPanel() {
         targetOrders.forEach(o => {
           const d = o.createdAt ? new Date(o.createdAt) : new Date();
           const hour = d.getHours();
-          const amt = Number(o.total || o.totalAmount) || 0;
           const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
-          b.revenue += amt;
-          b.orders += 1;
+          if (isOrderPaid(o)) {
+            b.revenue += getOrderAmount(o);
+          }
+          if (o.status !== 'cancelled') {
+            b.orders += 1;
+          }
         });
       }
     } else {
@@ -1482,10 +1559,13 @@ export default function AdminPanel() {
       targetOrders.forEach(o => {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
         const hour = d.getHours();
-        const amt = Number(o.total || o.totalAmount) || 0;
         const b = timeBuckets.find(bucket => hour >= bucket.startH && hour <= bucket.endH) || timeBuckets[timeBuckets.length - 1];
-        b.revenue += amt;
-        b.orders += 1;
+        if (isOrderPaid(o)) {
+          b.revenue += getOrderAmount(o);
+        }
+        if (o.status !== 'cancelled') {
+          b.orders += 1;
+        }
       });
     }
 
@@ -1548,9 +1628,9 @@ export default function AdminPanel() {
     const ticketSparkline = makeMiniSparkline(timeBuckets.map(b => (b.orders > 0 ? b.revenue / b.orders : 0)), '#d97706');
     const orderSparkline = makeMiniSparkline(timeBuckets.map(b => b.orders), '#0284c7');
 
-    // Top Selling Items breakdown dynamically from filtered orders
+    // Top Selling Items breakdown dynamically from paid filtered orders
     const itemMap = {};
-    targetOrders.forEach(o => {
+    completedOrders.forEach(o => {
       (o.items || []).forEach(it => {
         const name = it.name || it.item?.name || 'Special Dish';
         const qty = it.quantity || 1;
@@ -1577,9 +1657,9 @@ export default function AdminPanel() {
 
     const topItemName = topSellingItems[0]?.name || (items[0]?.name || 'Live Menu');
 
-    // Dynamic Category Distribution from filtered orders & menu
+    // Dynamic Category Distribution from paid filtered orders & menu
     const catMap = {};
-    targetOrders.forEach(o => {
+    completedOrders.forEach(o => {
       (o.items || []).forEach(it => {
         const cat = it.category || it.item?.category || 'Main Courses';
         const amt = (it.quantity || 1) * (Number(it.price) || Number(it.item?.price) || 0);
@@ -2648,9 +2728,34 @@ export default function AdminPanel() {
         />
       )}
 
-      <Toaster position="top-right" containerStyle={{ zIndex: 9999999 }} toastOptions={{ style: { zIndex: 9999999 } }}>
-        {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
-      </Toaster>
+      <Toaster
+        position="top-right"
+        containerStyle={{ zIndex: 9999999 }}
+        toastOptions={{
+          style: {
+            zIndex: 9999999,
+            borderRadius: '10px',
+            background: '#1e293b',
+            color: '#ffffff',
+            fontWeight: 600,
+            fontSize: '0.86rem'
+          },
+          success: {
+            duration: 3500,
+            iconTheme: {
+              primary: '#22c55e',
+              secondary: '#ffffff'
+            }
+          },
+          error: {
+            duration: 4500,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#ffffff'
+            }
+          }
+        }}
+      />
 
       {/* 1. FIXED LEFT SIDEBAR - RENDERED FOR ADMIN & AUTHORIZED STAFF */}
       {(isAdmin || allowedTabs.length > 0) && (
@@ -2722,7 +2827,7 @@ export default function AdminPanel() {
                 className={`${styles.navLink} ${activeTab === 'pos' ? styles.activeNavLink : ''}`}
                 onClick={() => {
                   setPosSelectedTable(null);
-                  handleTabChange('pos');
+                  navigate('/admin/pos');
                 }}
                 title="POS Terminal & Tables"
               >
@@ -3258,29 +3363,29 @@ export default function AdminPanel() {
             <button
               type="button"
               className={styles.iconCircleBtn}
-              title="7-Day Notification History"
+              title="Notifications & Service Requests"
               onClick={handleOpenNotifications}
               style={{ position: 'relative' }}
             >
               <Bell size={18} />
-              {unreadNotifsCount > 0 && (
+              {(unreadNotifsCount > 0 || pendingServiceRequests.length > 0) && (
                 <span style={{
                   position: 'absolute',
                   top: '-4px',
                   right: '-4px',
-                  background: '#ef4444',
+                  background: pendingServiceRequests.length > 0 ? '#ea580c' : '#ef4444',
                   color: '#ffffff',
                   fontSize: '10px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   width: '18px',
                   height: '18px',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)'
+                  boxShadow: pendingServiceRequests.length > 0 ? '0 0 8px rgba(234, 88, 12, 0.7)' : '0 2px 6px rgba(239, 68, 68, 0.4)'
                 }}>
-                  {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                  {(unreadNotifsCount + pendingServiceRequests.length) > 9 ? '9+' : (unreadNotifsCount + pendingServiceRequests.length)}
                 </span>
               )}
             </button>
@@ -3740,11 +3845,11 @@ export default function AdminPanel() {
                         </div>
                         <div className={styles.kpiTitleGroup}>
                           <span className={styles.kpiCardTag}>{isHindi ? 'सकल राजस्व' : 'Gross Revenue'}</span>
-                          <div className={styles.kpiBigNum}>
+                          <div className={styles.kpiBigNum} title={`Exact: ₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`}>
                             {isFilterLoading ? (
                               <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
                             ) : (
-                              `₹${Math.round(metrics.grossSales || 0).toLocaleString('en-IN')}`
+                              formatIndianCurrency(metrics.grossSales, { compact: true })
                             )}
                           </div>
                         </div>
@@ -3753,10 +3858,10 @@ export default function AdminPanel() {
                             {isFilterLoading
                               ? (isHindi ? 'ऑर्डर्स रीफ़्रेश हो रहे हैं...' : 'Refreshing orders...')
                               : metrics.completedOrders.length > 0
-                                ? `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}${metrics.activePipelineSales > 0 ? ` • +₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'किचन में' : 'in kitchen'}` : ''}`
-                                : metrics.activePipelineSales > 0
-                                  ? `₹${Math.round(metrics.activePipelineSales)} ${isHindi ? 'लाइव पाइपलाइन (किचन में)' : 'live in kitchen queue'}`
-                                  : `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}
+                                ? `${metrics.completedOrders.length} ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}${metrics.activeOrders.length > 0 ? ` • ${metrics.activeOrders.length} ${isHindi ? 'किचन में' : 'in kitchen'}` : ''}`
+                                : metrics.activeOrders.length > 0
+                                  ? `${metrics.activeOrders.length} ${isHindi ? 'किचन में (गैर-चुकता)' : 'in kitchen queue (unpaid)'}`
+                                  : `0 ${isHindi ? 'पूर्ण चुकता ऑर्डर' : 'settled orders'}`}
                           </span>
                           {isFilterLoading ? (
                             <ShimmerBlock width="22px" height="22px" borderRadius="50%" />
@@ -3835,11 +3940,11 @@ export default function AdminPanel() {
                         </div>
                         <div className={styles.kpiTitleGroup}>
                           <span className={styles.kpiCardTag}>{isHindi ? 'शुद्ध बिक्री (बिना टैक्स)' : 'Net Sales (Excl. Tax)'}</span>
-                          <div className={styles.kpiBigNum}>
+                          <div className={styles.kpiBigNum} title={`Exact: ₹${Math.round(metrics.netSales || 0).toLocaleString('en-IN')}`}>
                             {isFilterLoading ? (
                               <ShimmerBlock width="110px" height="28px" borderRadius="6px" />
                             ) : (
-                              `₹${Math.round(metrics.netSales || 0).toLocaleString('en-IN')}`
+                              formatIndianCurrency(metrics.netSales, { compact: true })
                             )}
                           </div>
                         </div>
@@ -3911,7 +4016,7 @@ export default function AdminPanel() {
                             <Receipt size={16} />
                           </div>
                           <span className={`${styles.kpiPillBadge} ${styles.kpiPillNeutral}`}>
-                            {metrics.totalOrdersCount} {isHindi ? 'ऑर्डर्स' : 'Orders'}
+                            {metrics.completedOrders.length} {isHindi ? 'चुकता बिल' : 'Paid Bills'}
                           </span>
                         </div>
                         <div className={styles.kpiTitleGroup}>
@@ -4189,10 +4294,10 @@ export default function AdminPanel() {
                                 </div>
                               </div>
                               <span style={{ fontSize: '11px', color: '#475569', textAlign: 'right', maxWidth: '140px', lineHeight: 1.3 }}>
-                                {activeKpiModal === 'gross' && `Paid + In Kitchen`}
+                                {activeKpiModal === 'gross' && `Paid Bills Only`}
                                 {activeKpiModal === 'net' && `Excl. GST & Taxes`}
-                                {activeKpiModal === 'aov' && `Across ${metrics.totalOrdersCount} orders`}
-                                {activeKpiModal === 'orders' && `${metrics.completedOrders.length} done, ${liveActiveOrdersCount} kitchen`}
+                                {activeKpiModal === 'aov' && `Across ${metrics.completedOrders.length} paid bills`}
+                                {activeKpiModal === 'orders' && `${metrics.completedOrders.length} paid, ${liveActiveOrdersCount} kitchen`}
                               </span>
                             </div>
 
@@ -4203,14 +4308,14 @@ export default function AdminPanel() {
                                   <>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
                                       <span style={{ color: '#64748b' }}>Settled Paid Bills ({metrics.completedOrders.length}):</span>
-                                      <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales - metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
+                                      <strong style={{ color: '#059669' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                      <span style={{ color: '#64748b' }}>Active Kitchen Pipeline ({liveActiveOrdersCount}):</span>
-                                      <strong style={{ color: '#ea580c' }}>+₹{Math.round(metrics.activePipelineSales).toLocaleString('en-IN')}</strong>
+                                      <span style={{ color: '#64748b' }}>Active / Kitchen Orders ({liveActiveOrdersCount}):</span>
+                                      <strong style={{ color: '#64748b' }}>₹{Math.round(metrics.activePipelineSales).toLocaleString('en-IN')} (Unpaid)</strong>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                      <span style={{ color: '#64748b' }}>Total Gross Turnover:</span>
+                                      <span style={{ color: '#64748b' }}>Realized Gross Turnover:</span>
                                       <strong style={{ color: '#059669' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', fontSize: '11.5px', color: '#64748b' }}>
@@ -4244,15 +4349,15 @@ export default function AdminPanel() {
                                 {activeKpiModal === 'aov' && (
                                   <>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#ffffff', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                      <span style={{ color: '#64748b' }}>Total Revenue:</span>
+                                      <span style={{ color: '#64748b' }}>Total Realized Revenue:</span>
                                       <strong style={{ color: '#0f172a' }}>₹{Math.round(metrics.grossSales).toLocaleString('en-IN')}</strong>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '12px' }}>
-                                      <span style={{ color: '#64748b' }}>Total Orders:</span>
-                                      <strong style={{ color: '#0f172a' }}>{metrics.totalOrdersCount}</strong>
+                                      <span style={{ color: '#64748b' }}>Paid Settled Bills:</span>
+                                      <strong style={{ color: '#0f172a' }}>{metrics.completedOrders.length}</strong>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#fffbeb', fontSize: '12.5px', fontWeight: 700, color: '#b45309' }}>
-                                      <span>Average Value per Bill:</span>
+                                      <span>Average Value per Paid Bill:</span>
                                       <span>₹{Math.round(metrics.avgTicket).toLocaleString('en-IN')}</span>
                                     </div>
                                   </>
@@ -5219,8 +5324,8 @@ export default function AdminPanel() {
                       <div className={styles.chartSummaryFooter}>
                         <div className={styles.summaryStatItem}>
                           <span className={styles.summaryStatLabel}>Net Sales</span>
-                          <span className={styles.summaryStatVal}>
-                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : `₹${Math.round(metrics.netSales).toLocaleString('en-IN')}`}
+                          <span className={styles.summaryStatVal} title={`Exact: ₹${Math.round(metrics.netSales).toLocaleString('en-IN')}`}>
+                            {isFilterLoading ? <Loader size={14} className={styles.spinIcon} color="#4f46e5" /> : formatIndianCurrency(metrics.netSales, { compact: true })}
                           </span>
                         </div>
                         <div className={styles.summaryStatItem}>
@@ -5996,7 +6101,7 @@ export default function AdminPanel() {
                                     transition={{ duration: 0.22, delay: Math.min(tblIdx * 0.035, 0.3) }}
                                     onClick={() => {
                                       setPosSelectedTable(tbl.tableNumber);
-                                      handleTabChange('pos');
+                                      navigate(`/admin/pos?table=${encodeURIComponent(tbl.tableNumber)}`);
                                     }}
                                     style={{
                                       position: 'relative',
@@ -6033,7 +6138,7 @@ export default function AdminPanel() {
                                     transition={{ duration: 0.22, delay: Math.min(tblIdx * 0.035, 0.3) }}
                                     onClick={() => {
                                       setPosSelectedTable(tbl.tableNumber);
-                                      handleTabChange('pos');
+                                      navigate(`/admin/pos?table=${encodeURIComponent(tbl.tableNumber)}`);
                                     }}
                                     style={{
                                       position: 'relative',
@@ -6077,7 +6182,7 @@ export default function AdminPanel() {
                                   transition={{ duration: 0.22, delay: Math.min(tblIdx * 0.035, 0.3) }}
                                   onClick={() => {
                                     setPosSelectedTable(tbl.tableNumber);
-                                    handleTabChange('pos');
+                                    navigate(`/admin/pos?table=${encodeURIComponent(tbl.tableNumber)}`);
                                   }}
                                   style={{
                                     position: 'relative',
@@ -7010,7 +7115,7 @@ export default function AdminPanel() {
                     categories={sortedCategories}
                     menuItems={items}
                     orders={orders}
-                    initialTable={isCounterBillingOnly ? 'Walk-in' : posSelectedTable}
+                    initialTable={posSelectedTable}
                     isMainSidebarOpen={!sidebarCollapsed}
                     onRefreshTables={fetchTables}
                     onRefreshOrders={fetchOrders}
@@ -8217,6 +8322,127 @@ export default function AdminPanel() {
 
               {/* Notifications List */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+                {/* ACTIVE PENDING BILL & SERVICE REQUESTS */}
+                {pendingServiceRequests.length > 0 && (
+                  <div style={{
+                    marginBottom: '18px',
+                    background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                    border: '1.5px solid #fdba74',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.12)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: '#ea580c',
+                          boxShadow: '0 0 8px #ea580c'
+                        }} />
+                        <strong style={{ fontSize: '0.82rem', color: '#9a3412', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                          Active Requests ({pendingServiceRequests.length})
+                        </strong>
+                      </div>
+                      <span style={{ fontSize: '0.68rem', color: '#c2410c', fontWeight: 700 }}>
+                        Customer waiting
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {pendingServiceRequests.map((req) => {
+                        const isBill = req.type === 'request_bill';
+                        return (
+                          <div
+                            key={req._id || req.id}
+                            style={{
+                              background: '#ffffff',
+                              border: '1.2px solid #fed7aa',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '10px',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.03)'
+                            }}
+                          >
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontWeight: 800, fontSize: '0.86rem', color: '#0f172a' }}>
+                                  {isBill ? '💳' : '🛎️'} Table {req.tableNumber}
+                                </span>
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  background: isBill ? '#ffedd5' : '#fef3c7',
+                                  color: isBill ? '#c2410c' : '#b45309',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px'
+                                }}>
+                                  {isBill ? `Bill (${req.paymentMethod || 'UPI'})` : 'Staff Call'}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '2px' }}>
+                                {isBill ? `Total: ₹${Math.round(req.amount || 0)}` : (req.customerName || 'Customer assistance')}
+                                {req.customerPhone ? ` • ${req.customerPhone}` : ''}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleResolveServiceRequest(req._id || req.id);
+                                  if (isBill) {
+                                    setShowNotificationsDrawer(false);
+                                    setPosSelectedTable(req.tableNumber);
+                                    navigate(`/admin/pos?table=${encodeURIComponent(req.tableNumber)}`);
+                                  }
+                                }}
+                                style={{
+                                  background: '#ea580c',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {isBill ? 'Settle in POS →' : 'Attended ✓'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleResolveServiceRequest(req._id || req.id)}
+                                title="Dismiss Alert"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#94a3b8',
+                                  cursor: 'pointer',
+                                  padding: '3px'
+                                }}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {isLoadingNotifications ? (
                   <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
                     <Loader size={24} className={styles.spinIcon} color="#2563eb" style={{ margin: '0 auto 10px auto' }} />
@@ -8284,6 +8510,14 @@ export default function AdminPanel() {
                               IconComp = Receipt;
                               iconColor = '#059669';
                               iconBg = '#ecfdf5';
+                            } else if (notif.type === 'bill_requested') {
+                              IconComp = CreditCard;
+                              iconColor = '#ea580c';
+                              iconBg = '#fff7ed';
+                            } else if (notif.type === 'call_waiter') {
+                              IconComp = Bell;
+                              iconColor = '#d97706';
+                              iconBg = '#fef3c7';
                             }
 
                             return (
@@ -8363,11 +8597,37 @@ export default function AdminPanel() {
                                         ? `Today at ${notifDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                                         : notifDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                     </span>
-                                    {notif.amount > 0 && (
-                                      <strong style={{ color: '#0f172a', fontWeight: 600 }}>
-                                        ₹{notif.amount}
-                                      </strong>
-                                    )}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      {notif.amount > 0 && (
+                                        <strong style={{ color: '#0f172a', fontWeight: 600 }}>
+                                          ₹{notif.amount}
+                                        </strong>
+                                      )}
+                                      {notif.type === 'bill_requested' && notif.tableNumber && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowNotificationsDrawer(false);
+                                            setPosSelectedTable(notif.tableNumber);
+                                            navigate(`/admin/pos?table=${encodeURIComponent(notif.tableNumber)}`);
+                                          }}
+                                          style={{
+                                            background: '#ea580c',
+                                            border: 'none',
+                                            color: '#ffffff',
+                                            borderRadius: '5px',
+                                            padding: '2px 8px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 3px rgba(234, 88, 12, 0.3)'
+                                          }}
+                                        >
+                                          Open POS →
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -8396,6 +8656,7 @@ export default function AdminPanel() {
                   type="button"
                   onClick={() => {
                     fetchNotifications();
+                    fetchServiceRequests();
                     toast.success('Notifications refreshed');
                   }}
                   style={{

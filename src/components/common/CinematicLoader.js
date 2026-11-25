@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import brandLogo from '../../assets/logo.png';
+import culinaryPastaDish from '../../assets/culinary-pasta-dish.png';
+import culinaryPizzaDish from '../../assets/culinary-pizza-dish.png';
+import basilLeaf from '../../assets/basil-leaf.png';
 import styles from './CinematicLoader.module.css';
 
 /**
  * Premium DINEVIQ Cinematic Intro-to-Dashboard Transition
- * Hardware-accelerated with zero-flicker CSS animations for continuous elements.
- * React state handles entrance and exit transitions strictly once.
+ * - True high-resolution culinary photography (Pasta bowl & Artisan Pizza)
+ * - Realistic floating basil leaves with ambient depth of field
+ * - Pure white culinary steam / smoke bloom transition that reveals the dashboard
  */
 function CinematicLoaderComponent({
   isReady = false,
@@ -18,22 +22,21 @@ function CinematicLoaderComponent({
   const exitStartedRef = useRef(false);
   const entranceDoneRef = useRef(false);
 
-  // Phase 1 -> Phase 2/3 entrance timeline
+  // Phase 1 -> Phase 2 entrance timeline
   useEffect(() => {
     const timer = setTimeout(() => {
       entranceDoneRef.current = true;
       setPhase((prev) => (prev === 'entering' ? 'active' : prev));
-      // If data became ready before entrance finished, trigger exit now
       if (isReady && !exitStartedRef.current) {
         exitStartedRef.current = true;
         setPhase('exiting');
       }
-    }, 650);
+    }, 600);
 
     return () => clearTimeout(timer);
   }, [isReady]);
 
-  // If a fixed duration is supplied (e.g. standalone PageLoader use)
+  // Fixed duration fallback (e.g. standalone PageLoader use)
   useEffect(() => {
     if (duration > 0 && !isReady && !exitStartedRef.current) {
       const timer = setTimeout(() => {
@@ -46,7 +49,7 @@ function CinematicLoaderComponent({
     }
   }, [duration, isReady]);
 
-  // When actual dashboard data is genuinely ready:
+  // When actual dashboard data is ready
   useEffect(() => {
     if (isReady && entranceDoneRef.current && !exitStartedRef.current) {
       exitStartedRef.current = true;
@@ -54,13 +57,13 @@ function CinematicLoaderComponent({
     }
   }, [isReady]);
 
-  // Handle final completion after exit animation completes
+  // Handle final completion after culinary smoke dissolve finishes (750ms)
   useEffect(() => {
     if (phase === 'exiting') {
       const exitTimer = setTimeout(() => {
         setPhase('complete');
         if (onComplete) onComplete();
-      }, 500); // exit duration
+      }, 750);
       return () => clearTimeout(exitTimer);
     }
   }, [phase, onComplete]);
@@ -74,20 +77,21 @@ function CinematicLoaderComponent({
       className={`${styles.overlay} ${isExiting ? styles.overlayExiting : ''}`}
       aria-hidden={isExiting}
     >
-      {/* Central Amber Halo Glow (Hardware-accelerated CSS animation) */}
+      {/* Central Amber Halo Glow */}
       <div className={styles.haloGlow} />
 
       {/* ============================================================ */}
-      {/* 1. TOP-LEFT ORGANIC WAVES (Matching Reference Image) */}
+      {/* 1. TOP-LEFT ORGANIC SAGE WAVES                               */}
       {/* ============================================================ */}
       <motion.div
-        initial={{ x: -160, y: -160, opacity: 0 }}
+        initial={{ x: -140, y: -140, opacity: 0 }}
         animate={{
           x: isExiting ? -180 : 0,
           y: isExiting ? -180 : 0,
-          opacity: isExiting ? 0 : 1
+          opacity: isExiting ? 0 : 1,
+          scale: isExiting ? 1.05 : 1
         }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
           top: 0,
@@ -99,19 +103,16 @@ function CinematicLoaderComponent({
         }}
       >
         <svg viewBox="0 0 320 320" width="100%" height="100%" fill="none" style={{ overflow: 'visible' }}>
-          {/* Layer 1: Soft warm caramel/cream wave */}
           <path
             d="M-40 210 C 60 210, 150 160, 210 90 C 250 40, 260 -20, 260 -50 L -40 -50 Z"
             fill="#f5e6d3"
             opacity="0.85"
           />
-          {/* Layer 2: Pastel sage wave */}
           <path
             d="M-30 170 C 40 170, 110 130, 160 80 C 195 40, 205 -20, 210 -40 L -30 -40 Z"
             fill="#c2d4c0"
             opacity="0.75"
           />
-          {/* Layer 3: Deep forest sage wave */}
           <path
             d="M-30 130 C 30 130, 80 100, 120 60 C 150 25, 165 -15, 170 -40 L -30 -40 Z"
             fill="#3a513d"
@@ -121,16 +122,17 @@ function CinematicLoaderComponent({
       </motion.div>
 
       {/* ============================================================ */}
-      {/* 2. BOTTOM-RIGHT ORGANIC WAVES (Matching Reference Image) */}
+      {/* 2. BOTTOM-RIGHT ORGANIC SAGE WAVES                           */}
       {/* ============================================================ */}
       <motion.div
-        initial={{ x: 160, y: 160, opacity: 0 }}
+        initial={{ x: 140, y: 140, opacity: 0 }}
         animate={{
           x: isExiting ? 180 : 0,
           y: isExiting ? 180 : 0,
-          opacity: isExiting ? 0 : 1
+          opacity: isExiting ? 0 : 1,
+          scale: isExiting ? 1.05 : 1
         }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
           bottom: 0,
@@ -142,19 +144,16 @@ function CinematicLoaderComponent({
         }}
       >
         <svg viewBox="0 0 340 340" width="100%" height="100%" fill="none" style={{ overflow: 'visible' }}>
-          {/* Layer 1: Warm cream/peach curve */}
           <path
             d="M380 90 C 260 90, 150 160, 90 240 C 50 290, 40 360, 40 390 L 380 390 Z"
             fill="#f6e5d3"
             opacity="0.85"
           />
-          {/* Layer 2: Pastel mint curve */}
           <path
             d="M370 140 C 270 140, 185 200, 135 265 C 100 310, 95 365, 90 390 L 370 390 Z"
             fill="#c2d4c0"
             opacity="0.75"
           />
-          {/* Layer 3: Deep forest sage wave */}
           <path
             d="M370 190 C 290 190, 220 235, 180 295 C 155 330, 150 365, 145 390 L 370 390 Z"
             fill="#3a513d"
@@ -164,80 +163,111 @@ function CinematicLoaderComponent({
       </motion.div>
 
       {/* ============================================================ */}
-      {/* 3. CORNER CULINARY ACCENTS */}
+      {/* 3. REALISTIC GOURMET CULINARY DISHES (Photo-Real Quality)    */}
       {/* ============================================================ */}
-      {/* Top-Right Gourmet Artisan Pizza Plate */}
+      {/* Top-Right Authentic Woodfired Pizza on Ceramic Plate */}
       <motion.div
-        initial={{ x: 100, y: -100, opacity: 0 }}
+        initial={{ x: 90, y: -90, opacity: 0 }}
         animate={{
-          x: isExiting ? 120 : 0,
-          y: isExiting ? -120 : 0,
-          opacity: isExiting ? 0 : 0.95
+          x: isExiting ? 130 : 0,
+          y: isExiting ? -130 : 0,
+          opacity: isExiting ? 0 : 1,
+          scale: isExiting ? 0.95 : 1
         }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          top: '-25px',
-          right: '-25px',
-          width: '180px',
-          height: '180px',
+          top: '-10px',
+          right: '-10px',
+          width: 'clamp(150px, 17vw, 210px)',
           pointerEvents: 'none',
-          zIndex: 2,
-          filter: 'drop-shadow(0 15px 25px rgba(0,0,0,0.12))'
+          zIndex: 3,
+          filter: 'drop-shadow(0 16px 32px rgba(24, 45, 30, 0.16))'
         }}
       >
-        <svg viewBox="0 0 160 160" width="100%" height="100%">
-          <circle cx="80" cy="80" r="72" fill="#ffffff" stroke="#f1ece5" strokeWidth="3" />
-          <circle cx="80" cy="80" r="62" fill="#faf6f0" />
-          <circle cx="80" cy="80" r="54" fill="#df9441" />
-          <circle cx="80" cy="80" r="48" fill="#e53e3e" />
-          <circle cx="80" cy="80" r="44" fill="#f6c042" />
-          <circle cx="68" cy="65" r="5" fill="#c53030" />
-          <circle cx="95" cy="72" r="5.5" fill="#c53030" />
-          <circle cx="78" cy="95" r="5" fill="#c53030" />
-          <ellipse cx="88" cy="60" rx="8" ry="4.5" fill="#2f855a" transform="rotate(-25 88 60)" />
-          <ellipse cx="64" cy="88" rx="8" ry="4.5" fill="#2f855a" transform="rotate(35 64 88)" />
-          <ellipse cx="96" cy="92" rx="7" ry="4" fill="#2f855a" transform="rotate(-15 96 92)" />
-        </svg>
+        <img
+          src={culinaryPizzaDish}
+          alt="Artisan Pizza Plate"
+          style={{
+            width: '100%',
+            height: 'auto',
+            display: 'block',
+            transform: 'rotate(-4deg)'
+          }}
+        />
       </motion.div>
 
-      {/* Bottom-Left Gourmet Salad / Pasta Bowl */}
+      {/* Bottom-Left Authentic Gourmet Pasta Dish on Ceramic Plate */}
       <motion.div
-        initial={{ x: -100, y: 100, opacity: 0 }}
+        initial={{ x: -90, y: 90, opacity: 0 }}
         animate={{
-          x: isExiting ? -120 : 0,
-          y: isExiting ? 120 : 0,
-          opacity: isExiting ? 0 : 0.95
+          x: isExiting ? -130 : 0,
+          y: isExiting ? 130 : 0,
+          opacity: isExiting ? 0 : 1,
+          scale: isExiting ? 0.95 : 1
         }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          bottom: '-25px',
-          left: '-25px',
-          width: '190px',
-          height: '190px',
+          bottom: '-12px',
+          left: '-12px',
+          width: 'clamp(180px, 21vw, 260px)',
           pointerEvents: 'none',
-          zIndex: 2,
-          filter: 'drop-shadow(0 15px 25px rgba(0,0,0,0.12))'
+          zIndex: 3,
+          filter: 'drop-shadow(0 18px 36px rgba(24, 45, 30, 0.16))'
         }}
       >
-        <svg viewBox="0 0 160 160" width="100%" height="100%">
-          <circle cx="80" cy="80" r="74" fill="#ffffff" stroke="#f1ece5" strokeWidth="3" />
-          <circle cx="80" cy="80" r="64" fill="#f8f5ee" />
-          <circle cx="80" cy="80" r="52" fill="#edd6b8" />
-          <ellipse cx="75" cy="70" rx="22" ry="14" fill="#e2c092" transform="rotate(20 75 70)" />
-          <ellipse cx="85" cy="88" rx="20" ry="13" fill="#e8c79c" transform="rotate(-15 85 88)" />
-          <circle cx="70" cy="76" r="6" fill="#e53e3e" />
-          <circle cx="94" cy="74" r="5" fill="#e53e3e" />
-          <circle cx="82" cy="92" r="5.5" fill="#dd6b20" />
-          <ellipse cx="82" cy="65" rx="11" ry="6" fill="#2f855a" transform="rotate(-30 82 65)" />
-          <ellipse cx="64" cy="88" rx="10" ry="5.5" fill="#276749" transform="rotate(40 64 88)" />
-          <ellipse cx="98" cy="85" rx="11" ry="6" fill="#2f855a" transform="rotate(10 98 85)" />
-        </svg>
+        <img
+          src={culinaryPastaDish}
+          alt="Gourmet Pasta Bowl"
+          style={{
+            width: '100%',
+            height: 'auto',
+            display: 'block',
+            transform: 'rotate(2deg)'
+          }}
+        />
       </motion.div>
 
       {/* ============================================================ */}
-      {/* 4. DELICATE FLOATING LINE DOODLES & BASIL LEAVES */}
+      {/* 4. REALISTIC FLOATING BASIL LEAVES                           */}
+      {/* ============================================================ */}
+      {[
+        { top: '23%', right: '19%', rot: 38, scale: 0.95, floatCls: styles.floatMed },
+        { top: '59%', left: '17%', rot: -28, scale: 0.9, floatCls: styles.floatSlow },
+        { top: '63%', right: '13%', rot: -36, scale: 1.0, floatCls: styles.floatFast },
+        { bottom: '23%', left: '23%', rot: 18, scale: 0.78, floatCls: styles.floatSlow },
+        { top: '16%', left: '6%', rot: -15, scale: 0.85, floatCls: styles.floatMed }
+      ].map((leaf, idx) => (
+        <div
+          key={idx}
+          className={leaf.floatCls}
+          style={{
+            position: 'absolute',
+            top: leaf.top,
+            left: leaf.left,
+            right: leaf.right,
+            bottom: leaf.bottom,
+            width: '36px',
+            height: '36px',
+            pointerEvents: 'none',
+            zIndex: 4,
+            transform: `rotate(${leaf.rot}deg) scale(${leaf.scale})`,
+            opacity: isExiting ? 0 : 0.95,
+            filter: 'drop-shadow(0 6px 12px rgba(24, 45, 30, 0.18))',
+            transition: 'opacity 0.35s ease'
+          }}
+        >
+          <img
+            src={basilLeaf}
+            alt="Basil"
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        </div>
+      ))}
+
+      {/* ============================================================ */}
+      {/* 5. CULINARY LINE DOODLES & SPARKLES                          */}
       {/* ============================================================ */}
       {/* Top-Right Chef Hat Doodle */}
       <div
@@ -245,12 +275,12 @@ function CinematicLoaderComponent({
         style={{
           position: 'absolute',
           top: '11%',
-          right: '28%',
-          width: '54px',
-          height: '54px',
+          right: '27%',
+          width: '56px',
+          height: '56px',
           pointerEvents: 'none',
           zIndex: 2,
-          opacity: isExiting ? 0 : 0.85,
+          opacity: isExiting ? 0 : 0.75,
           transition: 'opacity 0.35s ease'
         }}
       >
@@ -268,12 +298,12 @@ function CinematicLoaderComponent({
         style={{
           position: 'absolute',
           top: '36%',
-          left: '8%',
+          left: '9%',
           width: '64px',
           height: '64px',
           pointerEvents: 'none',
           zIndex: 2,
-          opacity: isExiting ? 0 : 0.85,
+          opacity: isExiting ? 0 : 0.75,
           transition: 'opacity 0.35s ease'
         }}
       >
@@ -321,66 +351,18 @@ function CinematicLoaderComponent({
         ✦
       </span>
 
-      {/* Floating Realistic Green Leaves */}
-      {[
-        { top: '56%', left: '17%', r: -25, scale: 0.9, floatCls: styles.floatSlow },
-        { top: '23%', right: '18%', r: 35, scale: 0.85, floatCls: styles.floatMed },
-        { top: '60%', right: '12%', r: -40, scale: 0.95, floatCls: styles.floatFast },
-        { bottom: '18%', left: '21%', r: 15, scale: 0.75, floatCls: styles.floatSlow }
-      ].map((leaf, idx) => (
-        <div
-          key={idx}
-          className={leaf.floatCls}
-          style={{
-            position: 'absolute',
-            top: leaf.top,
-            left: leaf.left,
-            right: leaf.right,
-            bottom: leaf.bottom,
-            width: '32px',
-            height: '32px',
-            pointerEvents: 'none',
-            zIndex: 2,
-            transform: `rotate(${leaf.r}deg) scale(${leaf.scale})`,
-            opacity: isExiting ? 0 : 0.92,
-            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
-            transition: 'opacity 0.3s ease'
-          }}
-        >
-          <svg viewBox="0 0 36 36" width="100%" height="100%">
-            <path
-              d="M18 3 C26 3, 33 11, 31 22 C29 29, 21 33, 14 31 C7 29, 3 21, 5 12 C7 5, 12 3, 18 3 Z"
-              fill="url(#cinematicLeafGrad)"
-            />
-            <path
-              d="M18 5 C17 15, 15 23, 13 30"
-              stroke="#68d391"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              opacity="0.8"
-            />
-            <defs>
-              <linearGradient id="cinematicLeafGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#48bb78" />
-                <stop offset="100%" stopColor="#22543d" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-      ))}
-
       {/* ============================================================ */}
-      {/* 5. CENTER BRANDING & LOGO */}
+      {/* 6. CENTER BRANDING, SEAL & LOGO                              */}
       {/* ============================================================ */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
+        initial={{ opacity: 0, scale: 0.82 }}
         animate={{
           opacity: isExiting ? 0 : 1,
-          scale: isExiting ? 0.82 : 1,
-          y: isExiting ? -14 : 0
+          scale: isExiting ? 0.88 : 1,
+          y: isExiting ? -12 : 0
         }}
         transition={{
-          duration: isExiting ? 0.32 : 0.5,
+          duration: isExiting ? 0.35 : 0.55,
           ease: [0.16, 1, 0.3, 1]
         }}
         style={{
@@ -397,18 +379,18 @@ function CinematicLoaderComponent({
           <div
             style={{
               position: 'absolute',
-              inset: -12,
+              inset: -14,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(202, 168, 77, 0.4) 0%, rgba(74, 93, 76, 0.15) 60%, transparent 75%)',
-              filter: 'blur(12px)',
+              background: 'radial-gradient(circle, rgba(202, 168, 77, 0.45) 0%, rgba(74, 93, 76, 0.18) 60%, transparent 75%)',
+              filter: 'blur(14px)',
               pointerEvents: 'none'
             }}
           />
 
           <div
             style={{
-              width: '112px',
-              height: '112px',
+              width: '116px',
+              height: '116px',
               borderRadius: '50%',
               backgroundColor: '#ffffff',
               boxShadow: '0 20px 45px -10px rgba(24, 59, 39, 0.22), 0 0 0 1px rgba(24, 59, 39, 0.08)',
@@ -439,7 +421,7 @@ function CinematicLoaderComponent({
           <h1
             style={{
               fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif",
-              fontSize: '1.85rem',
+              fontSize: '1.9rem',
               fontWeight: 900,
               letterSpacing: '-0.025em',
               color: '#1a3320',
@@ -476,7 +458,7 @@ function CinematicLoaderComponent({
             fontSize: '0.8rem',
             color: '#7a6e65',
             fontWeight: 700,
-            letterSpacing: '1.2px',
+            letterSpacing: '1.3px',
             textTransform: 'uppercase',
             margin: '0 0 1.6rem 0',
             lineHeight: 1.4,
@@ -491,22 +473,22 @@ function CinematicLoaderComponent({
         </p>
 
         {/* ============================================================ */}
-        {/* 6. ROTATING GRADIENT RING WITH FIXED STATIONARY UTENSILS */}
+        {/* 7. ROTATING GRADIENT RING WITH STATIONARY UTENSILS           */}
         {/* ============================================================ */}
-        <div style={{ position: 'relative', width: '58px', height: '58px', marginBottom: '1.1rem' }}>
+        <div style={{ position: 'relative', width: '60px', height: '60px', marginBottom: '1.1rem' }}>
           {/* Pulsing ambient halo behind loader */}
           <div
             style={{
               position: 'absolute',
-              inset: -6,
+              inset: -8,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(245, 158, 11, 0.3) 0%, rgba(34, 84, 61, 0.15) 60%, transparent 80%)',
-              filter: 'blur(8px)',
+              background: 'radial-gradient(circle, rgba(245, 158, 11, 0.35) 0%, rgba(34, 84, 61, 0.18) 60%, transparent 80%)',
+              filter: 'blur(9px)',
               pointerEvents: 'none'
             }}
           />
 
-          {/* Rotating Ring (Pure Hardware-accelerated CSS keyframe) */}
+          {/* Rotating Ring */}
           <div className={styles.spinnerRing}>
             <svg viewBox="0 0 58 58" width="100%" height="100%">
               <defs>
@@ -522,14 +504,14 @@ function CinematicLoaderComponent({
                 r="25"
                 fill="none"
                 stroke="url(#ringGradientUnified)"
-                strokeWidth="3.2"
+                strokeWidth="3.4"
                 strokeLinecap="round"
-                strokeDasharray="90 60"
+                strokeDasharray="92 58"
               />
             </svg>
           </div>
 
-          {/* FIXED, STATIONARY UTENSIL ICON in Center */}
+          {/* Stationary Utensil Icon in Center */}
           <div
             style={{
               position: 'absolute',
@@ -550,11 +532,11 @@ function CinematicLoaderComponent({
         </div>
 
         {/* Loading status text */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.8rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.85rem' }}>
           <span
             style={{
               fontFamily: "'Inter', sans-serif",
-              fontSize: '0.82rem',
+              fontSize: '0.84rem',
               color: '#64748b',
               fontWeight: 600,
               letterSpacing: '0.2px'
@@ -564,16 +546,28 @@ function CinematicLoaderComponent({
           </span>
         </div>
 
-        {/* Subtle Green & Amber Gradient Accent Line */}
+        {/* Green & Amber Gradient Accent Line */}
         <div
           style={{
             width: '180px',
             height: '2px',
             borderRadius: '999px',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(34, 84, 61, 0.4) 30%, rgba(245, 158, 11, 0.5) 70%, transparent 100%)'
+            background: 'linear-gradient(90deg, transparent 0%, rgba(34, 84, 61, 0.45) 30%, rgba(245, 158, 11, 0.55) 70%, transparent 100%)'
           }}
         />
       </motion.div>
+
+      {/* ============================================================ */}
+      {/* 8. WHITE CULINARY SMOKE / STEAM REVEAL TRANSITION            */}
+      {/* ============================================================ */}
+      {isExiting && (
+        <div className={styles.smokeLayer}>
+          <div className={styles.smokeBackdropBlur} />
+          <div className={styles.smokePuffCenter} />
+          <div className={styles.smokePuffBottomLeft} />
+          <div className={styles.smokePuffTopRight} />
+        </div>
+      )}
     </div>
   );
 }

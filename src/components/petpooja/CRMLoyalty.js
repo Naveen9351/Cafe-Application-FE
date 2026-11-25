@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './CRMLoyalty.module.css';
 import { API_URL as API } from '../../config/api';
 import { formatTableBadge } from '../common/TableBadge';
+import { formatIndianCurrency } from '../../utils/currencyFormatter';
 
 export default function CRMLoyalty({ tenantId, orders = [] }) {
   const [customers, setCustomers] = useState([]);
@@ -581,7 +582,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
 
   const formatCurrency = (num) => {
     const val = Number(num) || 0;
-    return '₹' + Math.round(val).toLocaleString('en-IN');
+    return formatIndianCurrency(val, { compact: true });
   };
 
   const formatDate = (dateStr) => {
@@ -887,7 +888,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     let count = 0;
     if (activeTab !== 'all') count++;
     if (verificationFilter !== 'all') count++;
-    if (sortBy !== 'highest_spend') count++;
+    if (sortBy !== 'recent_visit') count++;
     return count;
   }, [activeTab, verificationFilter, sortBy]);
 
@@ -921,7 +922,7 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     setActiveTab('all');
     setSearchQuery('');
     setVerificationFilter('all');
-    setSortBy('highest_spend');
+    setSortBy('recent_visit');
     setDraftSearchQuery('');
     setDraftActiveTab('all');
     setDraftVerificationFilter('all');
@@ -954,9 +955,6 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
     <div className={styles.page}>
       {/* Local high z-index Toaster for instant front-facing notifications */}
       <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
-      <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }}>
-        {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
-      </Toaster>
 
       {/* ── Top Header Row ── */}
       <div className={styles.headerRow} style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
@@ -1067,10 +1065,10 @@ export default function CRMLoyalty({ tenantId, orders = [] }) {
                 </button>
               </span>
             )}
-            {sortBy !== 'highest_spend' && (
+            {sortBy !== 'recent_visit' && (
               <span className={styles.filterChip}>
                 Sort: {sortBy.replace('_', ' ').toUpperCase()}
-                <button type="button" onClick={() => setSortBy('highest_spend')} className={styles.filterChipRemove}>
+                <button type="button" onClick={() => setSortBy('recent_visit')} className={styles.filterChipRemove}>
                   <X size={10} />
                 </button>
               </span>

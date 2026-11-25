@@ -258,36 +258,44 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
     return generateWhatsappBillUrl(order);
   };
 
-  // Computed Metrics (Harmonized with DB across all pagination pages)
+  // Computed Metrics (Harmonized with DB across all pagination pages - ONLY PAID orders count towards sales)
   const metrics = useMemo(() => {
     if (serverSummary) {
       return serverSummary;
     }
 
+    const isOrderPaid = (o) => {
+      if (!o) return false;
+      const ps = String(o.paymentStatus || '').toLowerCase().trim();
+      if (ps === 'paid' || o.isPaid === true) return true;
+      if (o.status === 'completed' && !['pending', 'unpaid', 'failed'].includes(ps)) return true;
+      return false;
+    };
+
     const totalOrders = totalServerOrders || localOrders.length;
-    const completedOrders = localOrders.filter(o => o.status === 'completed' || o.status === 'served');
-    const completedRate = totalOrders > 0 ? Math.round((completedOrders.length / totalOrders) * 100) : 0;
+    const paidOrders = localOrders.filter(isOrderPaid);
+    const completedRate = totalOrders > 0 ? Math.round((paidOrders.length / totalOrders) * 100) : 0;
 
     const cancelledOrders = localOrders.filter(o => o.status === 'cancelled');
     const cancelledCount = cancelledOrders.length;
     const cancelledRate = totalOrders > 0 ? Math.round((cancelledCount / totalOrders) * 100) : 0;
 
-    const activeOrders = localOrders.filter(o => !['completed', 'served', 'cancelled'].includes(o.status));
+    const activeOrders = localOrders.filter(o => o.status !== 'cancelled' && !isOrderPaid(o));
     const pendingCount = localOrders.filter(o => o.status === 'pending').length;
 
-    const totalRevenue = completedOrders
+    const totalRevenue = paidOrders
       .reduce((sum, o) => {
         const itemsSum = (o.items || []).reduce((s, it) => s + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0);
         const discount = Number(o.discountAmount) || 0;
         const tax = Number(o.taxAmount) || 0;
-        const raw = Number(o.totalAmount ?? o.total ?? o.finalAmount ?? 0);
+        const raw = Number(o.settledAmount ?? o.totalAmount ?? o.total ?? o.finalAmount ?? 0);
         const orderAmt = (raw > 0 && Math.abs(raw - (itemsSum - discount + tax)) <= 1)
           ? raw
           : (itemsSum > 0 ? Math.max(0, itemsSum - discount + tax) : raw);
         return sum + orderAmt;
       }, 0);
 
-    const aov = completedOrders.length > 0 ? Math.round(totalRevenue / completedOrders.length) : 0;
+    const aov = paidOrders.length > 0 ? Math.round(totalRevenue / paidOrders.length) : 0;
 
     return {
       totalOrders,
@@ -527,9 +535,7 @@ export default function OrdersManagement({ tenantId, orders = [], onUpdateStatus
 
   return (
     <div className={styles.page}>
-      <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }}>
-        {(t) => (t.type === 'error' ? <ToastBar toast={t} /> : null)}
-      </Toaster>
+      <Toaster position="top-center" containerStyle={{ zIndex: 99999999 }} toastOptions={{ style: { zIndex: 99999999, fontWeight: '700' } }} />
 
       {/* ── Top Header Row ── */}
       <div className={styles.headerRow}>
